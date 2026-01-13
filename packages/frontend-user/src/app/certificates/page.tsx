@@ -1,0 +1,130 @@
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useCertificates } from '@/hooks/use-certificates';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Award } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+
+export default function CertificatesPage() {
+  const router = useRouter();
+  const { certificates, isLoading, error } = useCertificates({
+    limit: 50,
+    offset: 0,
+    sortBy: 'generatedAt',
+    sortOrder: 'desc',
+  });
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto max-w-7xl px-4 py-8">
+        <div className="mb-8">
+          <Skeleton className="h-8 w-64 mb-2" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-5 flex flex-col gap-3">
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-20 mt-2" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto max-w-7xl px-4 py-8">
+      <div className="mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">My Certificates</h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-2">
+          Proof of authorship generated from your documents
+        </p>
+      </div>
+
+      {error && (
+        <div className="mb-6 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+          <p className="text-sm text-destructive">{error}</p>
+        </div>
+      )}
+
+      {!isLoading && certificates.length === 0 ? (
+        <Card>
+          <CardContent className="flex min-h-[400px] flex-col items-center justify-center py-12">
+            <Award className="h-16 w-16 text-muted-foreground" />
+            <h3 className="mt-4 text-lg font-semibold">No certificates yet</h3>
+            <p className="mt-2 text-center text-sm text-muted-foreground max-w-md">
+              Certificates are created automatically once a document has sufficient activity.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {certificates.map((certificate) => {
+            const formatDate = (date: Date | string) => {
+              return new Date(date).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+              });
+            };
+
+            // Determine if we should show metrics
+            const showMetrics = certificate.totalCharacters > 0;
+            const lowActivity = certificate.totalEvents < 5;
+            const pendingActivity = !certificate.totalEvents && !certificate.totalCharacters;
+
+            return (
+              <Card 
+                key={certificate.id} 
+                className="transition-shadow hover:shadow-md cursor-pointer h-full flex flex-col border-border/40"
+                onClick={() => router.push(`/certificates/${certificate.id}`)}
+              >
+                <CardContent className="p-5 flex flex-col gap-3 flex-1">
+                  {/* Title and Badge row */}
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="text-lg font-semibold line-clamp-1 text-foreground flex-1">
+                      {certificate.title}
+                    </h3>
+                    {certificate.certificateType && (
+                      <Badge variant={certificate.certificateType === 'full_authorship' ? 'default' : 'secondary'} className="shrink-0">
+                        {certificate.certificateType === 'full_authorship' ? 'Full' : 'Partial'}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Metadata row */}
+                  <div className="text-xs text-muted-foreground">
+                    Issued {formatDate(certificate.generatedAt)}
+                  </div>
+
+                  {/* Metrics block */}
+                  {pendingActivity ? (
+                    <div className="text-sm text-muted-foreground/80">
+                      Certificate pending activity
+                    </div>
+                  ) : lowActivity ? (
+                    <div className="text-sm text-muted-foreground/80">
+                      Low activity
+                    </div>
+                  ) : showMetrics ? (
+                    <div className="text-sm text-muted-foreground/80">
+                      Input events: {certificate.totalEvents} · Final characters: {certificate.totalCharacters}
+                    </div>
+                  ) : null}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

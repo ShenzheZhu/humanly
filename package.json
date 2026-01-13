@@ -1,0 +1,37 @@
+{
+  "name": "humory",
+  "version": "1.0.0",
+  "description": "Text provenance service for tracking typing activities in external forms and surveys",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev --workspace=@humory/backend",
+    "dev:frontend": "npm run dev --workspace=@humory/frontend",
+    "dev:tracker": "npm run dev --workspace=@humory/tracker",
+    "build:backend": "npm run build --workspace=@humory/backend",
+    "build:frontend": "npm run build --workspace=@humory/frontend",
+    "build:tracker": "npm run build --workspace=@humory/tracker",
+    "build:all": "npm run build:tracker && npm run build:backend && npm run build:frontend",
+    "test": "npm run test --workspaces",
+    "lint": "npm run lint --workspaces",
+    "clean": "npm run clean --workspaces && rm -rf node_modules",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "eslint": "^8.55.0",
+    "prettier": "^3.1.0",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1"
+  }
+}

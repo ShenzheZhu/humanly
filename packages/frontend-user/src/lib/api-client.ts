@@ -1,0 +1,181 @@
+import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+/**
+ * Custom error class for API errors
+ */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public statusCode?: number,
+    public data?: any
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+/**
+ * Token management utilities
+ */
+export const TokenManager = {
+  getAccessToken: (): string | null => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('accessToken');
+  },
+
+  setAccessToken: (token: string): void => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('accessToken', token);
+  },
+
+  getRefreshToken: (): string | null => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('refreshToken');
+  },
+
+  setRefreshToken: (token: string): void => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('refreshToken', token);
+  },
+
+  clearTokens: (): void => {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+  },
+};
+
+/**
+ * Create axios instance with base configuration
+ */
+const createApiClient = (): AxiosInstance => {
+  const client = axios.create({
+    baseURL: API_URL,
+    timeout: 30000,
+    withCredentials: true, // Send cookies with requests
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  /**
+   * Request interceptor - Add auth token to requests
+   */
+  client.interceptors.request.use(
+    (config) => {
+      const token = TokenManager.getAccessToken();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    },
+    (error) => {
+      return Promise.reject(error);
+    }
+  );
+
+  /**
+   * Response interceptor - Handle errors and token refresh
+   */
+  client.interceptors.response.use(
+    (response: AxiosResponse) => response,
+    async (error: AxiosError) => {
+      const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
+
+      // Handle 401 errors (unauthorized)
+      if (error.response?.status === 401 && !originalRequest._retry) {
+        originalRequest._retry = true;
+
+        try {
+          // Try to refresh the token (refresh token sent via httpOnly cookie)
+          const response = await axios.post(
+            `${API_URL}/auth/refresh`,
+            {}, // Empty body - refresh token is in cookie
+            { withCredentials: true } // Include cookies
+          );
+
+          const accessToken = response.data.data.accessToken;
+          TokenManager.setAccessToken(accessToken);
+
+          // Retry the original request with new token
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+          }
+          return client(originalRequest);
+        } catch (refreshError) {
+          // Refresh failed, clear tokens and redirect to login
+          TokenManager.clearTokens();
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+          }
+          return Promise.reject(refreshError);
+        }
+      }
+
+      // Transform error to ApiError
+      const errorMessage =
+        (error.response?.data as any)?.message ||
+        error.message ||
+        'An unexpected error occurred';
+
+      const apiError = new ApiError(
+        errorMessage,
+        error.response?.status,
+        error.response?.data
+      );
+
+      return Promise.reject(apiError);
+    }
+  );
+
+  return client;
+};
+
+/**
+ * API client instance
+ */
+export const apiClient = createApiClient();
+
+/**
+ * API helper methods
+ */
+export const api = {
+  /**
+   * GET request
+   */
+  get: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> => {
+    return apiClient.get<T>(url, config).then((res) => res.data);
+  },
+
+  /**
+   * POST request
+   */
+  post: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
+    return apiClient.post<T>(url, data, config).then((res) => res.data);
+  },
+
+  /**
+   * PUT request
+   */
+  put: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
+    return apiClient.put<T>(url, data, config).then((res) => res.data);
+  },
+
+  /**
+   * PATCH request
+   */
+  patch: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
+    return apiClient.patch<T>(url, data, config).then((res) => res.data);
+  },
+
+  /**
+   * DELETE request
+   */
+  delete: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> => {
+    return apiClient.delete<T>(url, config).then((res) => res.data);
+  },
+};
+
+export default api;

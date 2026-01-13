@@ -1,0 +1,639 @@
+import { LexicalEditor, EditorState, $getRoot, $getSelection, $isRangeSelection, COMMAND_PRIORITY_LOW, COMMAND_PRIORITY_HIGH, KEY_DOWN_COMMAND, PASTE_COMMAND, COPY_COMMAND, CUT_COMMAND, SELECTION_CHANGE_COMMAND, FOCUS_COMMAND, BLUR_COMMAND, INDENT_CONTENT_COMMAND, OUTDENT_CONTENT_COMMAND, FORMAT_TEXT_COMMAND, TextFormatType } from 'lexical';
+import { EventType } from '@humory/shared';
+import { EditorTrackerConfig, TrackedEvent } from '../types';
+import {
+  HEADING_CHANGE_COMMAND,
+  FONT_FAMILY_CHANGE_COMMAND,
+  FONT_SIZE_CHANGE_COMMAND,
+  TEXT_COLOR_CHANGE_COMMAND,
+  HIGHLIGHT_COLOR_CHANGE_COMMAND,
+  LIST_CREATE_COMMAND,
+  LIST_DELETE_COMMAND,
+  LIST_ITEM_CHECK_COMMAND,
+  ALIGNMENT_CHANGE_COMMAND,
+} from '../commands/formatting-commands';
+
+/**
+ * EditorTracker handles keystroke tracking and event batching for Lexical editor
+ */
+export class EditorTracker {
+  private editor: LexicalEditor;
+  private config: EditorTrackerConfig;
+  private eventBuffer: TrackedEvent[] = [];
+  private flushTimer: NodeJS.Timeout | null = null;
+  private listeners: Array<() => void> = [];
+  private isTracking: boolean = false;
+  private lastEventType: EventType | null = null;
+  private lastSelectionStart: number = 0;
+  private lastSelectionEnd: number = 0;
+
+  constructor(editor: LexicalEditor, config: EditorTrackerConfig) {
+    this.editor = editor;
+    this.config = {
+      batchSize: 20,
+      flushInterval: 30000, // 30 seconds
+      enabled: true,
+      ...config,
+    };
+  }
+
+  /**
+   * Start tracking editor events
+   */
+  start(): void {
+    if (this.isTracking || !this.config.enabled) {
+      return;
+    }
+
+    this.isTracking = true;
+
+    // Track keydown events
+    const removeKeyDownListener = this.editor.registerCommand(
+      KEY_DOWN_COMMAND,
+      (event: KeyboardEvent) => {
+        this.handleKeyDown(event);
+        return false; // Don't prevent default
+      },
+      COMMAND_PRIORITY_LOW
+    );
+
+    // Track paste events
+    const removePasteListener = this.editor.registerCommand(
+      PASTE_COMMAND,
+      () => {
+        this.lastEventType = 'paste';
+        return false; // Don't prevent default
+      },
+      COMMAND_PRIORITY_LOW
+    );
+
+    // Track copy events
+    const removeCopyListener = this.editor.registerCommand(
+      COPY_COMMAND,
+      () => {
+        this.trackCopyOrCut('copy');
+        return false;
+      },
+      COMMAND_PRIORITY_LOW
+    );
+
+    // Track cut events
+    const removeCutListener = this.editor.registerCommand(
+      CUT_COMMAND,
+      () => {
+        this.lastEventType = 'cut';
+        return false;
+      },
+      COMMAND_PRIORITY_LOW
+    );
+
+    // Track selection changes
+    const removeSelectionListener = this.editor.registerCommand(
+      SELECTION_CHANGE_COMMAND,
+      () => {
+        this.handleSelectionChange();
+        return false;
+      },
+      COMMAND_PRIORITY_LOW
+    );
+
+    // Track focus events
+    const removeFocusListener = this.editor.registerCommand(
+      FOCUS_COMMAND,
+      () => {
+        this.trackFocusBlur('focus');
+        return false;
+      },
+      COMMAND_PRIORITY_LOW
+    );
+
+    // Track blur events
+    const removeBlurListener = this.editor.registerCommand(
+      BLUR_COMMAND,
+      () => {
+        this.trackFocusBlur('blur');
+        return false;
+      },
+      COMMAND_PRIORITY_LOW
+    );
+
+    // Track text format changes (bold, italic, underline, etc.) - HIGH priority
+    const removeFormatTextListener = this.editor.registerCommand(
+      FORMAT_TEXT_COMMAND,
+      (format: TextFormatType) => {
+        this.trackTextFormat(format);
+        return false;
+      },
+      COMMAND_PRIORITY_HIGH
+    );
+
+    // Track heading changes (HIGH priority to run before command is consumed)
+    const removeHeadingListener = this.editor.registerCommand(
+      HEADING_CHANGE_COMMAND,
+      (payload) => {
+        this.trackHeadingChange(payload);
+        return false;
+      },
+      COMMAND_PRIORITY_HIGH
+    );
+
+    // Track font family changes (HIGH priority to run before command is consumed)
+    const removeFontFamilyListener = this.editor.registerCommand(
+      FONT_FAMILY_CHANGE_COMMAND,
+      (payload) => {
+        this.trackFormattingChange('font-family-change', { fontFamily: payload.fontFamily });
+        return false;
+      },
+      COMMAND_PRIORITY_HIGH
+    );
+
+    // Track font size changes (HIGH priority to run before command is consumed)
+    const removeFontSizeListener = this.editor.registerCommand(
+      FONT_SIZE_CHANGE_COMMAND,
+      (payload) => {
+        this.trackFormattingChange('font-size-change', { fontSize: payload.fontSize });
+        return false;
+      },
+      COMMAND_PRIORITY_HIGH
+    );
+
+    // Track text color changes (HIGH priority to run before command is consumed)
+    const removeTextColorListener = this.editor.registerCommand(
+      TEXT_COLOR_CHANGE_COMMAND,
+      (payload) => {
+        this.trackFormattingChange('text-color-change', { textColor: payload.color });
+        return false;
+      },
+      COMMAND_PRIORITY_HIGH
+    );
+
+    // Track highlight color changes (HIGH priority to run before command is consumed)
+    const removeHighlightColorListener = this.editor.registerCommand(
+      HIGHLIGHT_COLOR_CHANGE_COMMAND,
+      (payload) => {
+        this.trackFormattingChange('highlight-color-change', { highlightColor: payload.color });
+        return false;
+      },
+      COMMAND_PRIORITY_HIGH
+    );
+
+    // Track list create (HIGH priority to run before command is consumed)
+    const removeListCreateListener = this.editor.registerCommand(
+      LIST_CREATE_COMMAND,
+      (payload) => {
+        this.trackFormattingChange('list-create', { listType: payload.listType });
+        return false;
+      },
+      COMMAND_PRIORITY_HIGH
+    );
+
+    // Track list delete (HIGH priority to run before command is consumed)
+    const removeListDeleteListener = this.editor.registerCommand(
+      LIST_DELETE_COMMAND,
+      () => {
+        this.trackFormattingChange('list-delete', {});
+        return false;
+      },
+      COMMAND_PRIORITY_HIGH
+    );
+
+    // Track content indent (HIGH priority to run before command is consumed)
+    const removeListIndentListener = this.editor.registerCommand(
+      INDENT_CONTENT_COMMAND,
+      () => {
+        this.trackFormattingChange('list-indent', {});
+        return false;
+      },
+      COMMAND_PRIORITY_HIGH
+    );
+
+    // Track content outdent (HIGH priority to run before command is consumed)
+    const removeListOutdentListener = this.editor.registerCommand(
+      OUTDENT_CONTENT_COMMAND,
+      () => {
+        this.trackFormattingChange('list-outdent', {});
+        return false;
+      },
+      COMMAND_PRIORITY_HIGH
+    );
+
+    // Track list item check (HIGH priority to run before command is consumed)
+    const removeListItemCheckListener = this.editor.registerCommand(
+      LIST_ITEM_CHECK_COMMAND,
+      (payload) => {
+        this.trackFormattingChange('list-item-check', { listItemChecked: payload.checked });
+        return false;
+      },
+      COMMAND_PRIORITY_HIGH
+    );
+
+    // Track alignment changes (HIGH priority to run before command is consumed)
+    const removeAlignmentListener = this.editor.registerCommand(
+      ALIGNMENT_CHANGE_COMMAND,
+      (payload) => {
+        this.trackFormattingChange('alignment-change', {
+          alignment: payload.alignment,
+          previousAlignment: payload.previousAlignment
+        });
+        return false;
+      },
+      COMMAND_PRIORITY_HIGH
+    );
+
+    // Track editor updates (text changes)
+    const removeUpdateListener = this.editor.registerUpdateListener(
+      ({ editorState, prevEditorState, dirtyElements, dirtyLeaves }) => {
+        if (dirtyElements.size > 0 || dirtyLeaves.size > 0) {
+          this.trackTextChange(prevEditorState, editorState);
+        }
+      }
+    );
+
+    this.listeners.push(
+      removeKeyDownListener,
+      removePasteListener,
+      removeCopyListener,
+      removeCutListener,
+      removeSelectionListener,
+      removeFocusListener,
+      removeBlurListener,
+      removeFormatTextListener,
+      removeHeadingListener,
+      removeFontFamilyListener,
+      removeFontSizeListener,
+      removeTextColorListener,
+      removeHighlightColorListener,
+      removeListCreateListener,
+      removeListDeleteListener,
+      removeListIndentListener,
+      removeListOutdentListener,
+      removeListItemCheckListener,
+      removeAlignmentListener,
+      removeUpdateListener
+    );
+
+    // Start flush timer
+    this.scheduleFlush();
+  }
+
+  /**
+   * Stop tracking and flush remaining events
+   */
+  stop(): void {
+    if (!this.isTracking) {
+      return;
+    }
+
+    this.isTracking = false;
+
+    // Remove all listeners
+    this.listeners.forEach((remove) => remove());
+    this.listeners = [];
+
+    // Clear timer
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+
+    // Flush remaining events
+    this.flush();
+  }
+
+  /**
+   * Handle keydown events
+   */
+  private handleKeyDown(event: KeyboardEvent): void {
+    const key = event.key;
+
+    // Determine event type based on key
+    if (key === 'Backspace' || key === 'Delete') {
+      this.lastEventType = 'delete';
+    } else if (event.ctrlKey || event.metaKey) {
+      // Ignore meta/ctrl key combinations (they're handled by other commands)
+      return;
+    } else {
+      this.lastEventType = 'keydown';
+    }
+  }
+
+  /**
+   * Handle selection changes
+   */
+  private handleSelectionChange(): void {
+    this.editor.getEditorState().read(() => {
+      const selection = $getSelection();
+
+      if (!selection || !$isRangeSelection(selection)) {
+        return;
+      }
+
+      const anchor = selection.anchor;
+      const focus = selection.focus;
+      const selectionStart = Math.min(anchor.offset, focus.offset);
+      const selectionEnd = Math.max(anchor.offset, focus.offset);
+
+      // Only track if selection actually changed
+      if (selectionStart !== this.lastSelectionStart || selectionEnd !== this.lastSelectionEnd) {
+        // Only track as 'select' event if there's an actual selection (not just cursor movement)
+        if (selectionStart !== selectionEnd) {
+          const currentText = this.extractPlainText(this.editor.getEditorState());
+
+          const event: TrackedEvent = {
+            eventType: 'select',
+            timestamp: new Date(),
+            textBefore: currentText,
+            textAfter: currentText,
+            cursorPosition: anchor.offset,
+            selectionStart,
+            selectionEnd,
+            editorStateAfter: this.editor.getEditorState().toJSON(),
+          };
+
+          this.addEvent(event);
+        }
+
+        this.lastSelectionStart = selectionStart;
+        this.lastSelectionEnd = selectionEnd;
+      }
+    });
+  }
+
+  /**
+   * Track copy or cut events
+   */
+  private trackCopyOrCut(eventType: 'copy' | 'cut'): void {
+    this.editor.getEditorState().read(() => {
+      const currentText = this.extractPlainText(this.editor.getEditorState());
+      const { cursorPosition, selectionStart, selectionEnd } = this.getSelectionInfo(this.editor.getEditorState());
+
+      const event: TrackedEvent = {
+        eventType,
+        timestamp: new Date(),
+        textBefore: currentText,
+        textAfter: currentText,
+        cursorPosition,
+        selectionStart,
+        selectionEnd,
+        editorStateAfter: this.editor.getEditorState().toJSON(),
+      };
+
+      this.addEvent(event);
+    });
+  }
+
+  /**
+   * Track focus or blur events
+   */
+  private trackFocusBlur(eventType: 'focus' | 'blur'): void {
+    const currentText = this.extractPlainText(this.editor.getEditorState());
+    const { cursorPosition, selectionStart, selectionEnd } = this.getSelectionInfo(this.editor.getEditorState());
+
+    const event: TrackedEvent = {
+      eventType,
+      timestamp: new Date(),
+      textBefore: currentText,
+      textAfter: currentText,
+      cursorPosition,
+      selectionStart,
+      selectionEnd,
+      editorStateAfter: this.editor.getEditorState().toJSON(),
+    };
+
+    this.addEvent(event);
+  }
+
+  /**
+   * Track text format changes (bold, italic, underline, etc.)
+   */
+  private trackTextFormat(format: TextFormatType): void {
+    const currentText = this.extractPlainText(this.editor.getEditorState());
+    const { cursorPosition, selectionStart, selectionEnd } = this.getSelectionInfo(this.editor.getEditorState());
+
+    // Get the selected text if there's a selection
+    let selectedText = '';
+    if (selectionStart !== selectionEnd && currentText) {
+      selectedText = currentText.substring(selectionStart, selectionEnd);
+    }
+
+    const event: TrackedEvent = {
+      eventType: format as EventType,
+      timestamp: new Date(),
+      textBefore: currentText,
+      textAfter: currentText,
+      cursorPosition,
+      selectionStart,
+      selectionEnd,
+      editorStateAfter: this.editor.getEditorState().toJSON(),
+      metadata: {
+        formatType: format,
+        selectedText: selectedText || undefined,
+      },
+    };
+
+    this.addEvent(event);
+  }
+
+  /**
+   * Track heading changes
+   */
+  private trackHeadingChange(payload: { level: 1 | 2 | 3 | 4 | 5 | 6 | null; previousLevel?: 1 | 2 | 3 | 4 | 5 | 6 | null }): void {
+    const currentText = this.extractPlainText(this.editor.getEditorState());
+    const { cursorPosition, selectionStart, selectionEnd } = this.getSelectionInfo(this.editor.getEditorState());
+
+    const event: TrackedEvent = {
+      eventType: 'heading-change',
+      timestamp: new Date(),
+      textBefore: currentText,
+      textAfter: currentText,
+      cursorPosition,
+      selectionStart,
+      selectionEnd,
+      editorStateAfter: this.editor.getEditorState().toJSON(),
+      metadata: {
+        headingLevel: payload.level || undefined,
+        previousHeadingLevel: payload.previousLevel,
+      },
+    };
+
+    this.addEvent(event);
+  }
+
+  /**
+   * Track formatting changes (font, size, color)
+   */
+  private trackFormattingChange(eventType: EventType, metadata: Record<string, any>): void {
+    const currentText = this.extractPlainText(this.editor.getEditorState());
+    const { cursorPosition, selectionStart, selectionEnd } = this.getSelectionInfo(this.editor.getEditorState());
+
+    const event: TrackedEvent = {
+      eventType,
+      timestamp: new Date(),
+      textBefore: currentText,
+      textAfter: currentText,
+      cursorPosition,
+      selectionStart,
+      selectionEnd,
+      editorStateAfter: this.editor.getEditorState().toJSON(),
+      metadata,
+    };
+
+    this.addEvent(event);
+  }
+
+  /**
+   * Track a text change in the editor
+   */
+  private trackTextChange(prevState: EditorState, currentState: EditorState): void {
+    const prevText = this.extractPlainText(prevState);
+    const currentText = this.extractPlainText(currentState);
+
+    // Only track if text actually changed
+    if (prevText === currentText) {
+      return;
+    }
+
+    const { cursorPosition, selectionStart, selectionEnd } = this.getSelectionInfo(currentState);
+
+    // Determine the event type based on the last recorded event
+    let eventType: EventType = this.lastEventType || 'input';
+
+    // Reset last event type for next change
+    this.lastEventType = null;
+
+    const event: TrackedEvent = {
+      eventType,
+      timestamp: new Date(),
+      textBefore: prevText,
+      textAfter: currentText,
+      cursorPosition,
+      selectionStart,
+      selectionEnd,
+      editorStateBefore: prevState.toJSON(),
+      editorStateAfter: currentState.toJSON(),
+    };
+
+    this.addEvent(event);
+  }
+
+  /**
+   * Add event to buffer and flush if needed
+   */
+  private addEvent(event: TrackedEvent): void {
+    console.log('[EditorTracker] Adding event:', event.eventType, event.metadata);
+    this.eventBuffer.push(event);
+
+    // Notify individual event callback
+    if (this.config.onEvent) {
+      this.config.onEvent(event);
+    }
+
+    // Flush if buffer is full
+    console.log(`[EditorTracker] Buffer size: ${this.eventBuffer.length}/${this.config.batchSize || 20}`);
+    if (this.eventBuffer.length >= (this.config.batchSize || 20)) {
+      console.log('[EditorTracker] Buffer full, flushing...');
+      this.flush();
+    }
+  }
+
+  /**
+   * Flush buffered events
+   */
+  private flush(): void {
+    if (this.eventBuffer.length === 0) {
+      return;
+    }
+
+    const events = [...this.eventBuffer];
+    console.log(`[EditorTracker] Flushing ${events.length} events:`, events.map(e => e.eventType));
+    this.eventBuffer = [];
+
+    // Notify batch callback
+    if (this.config.onEventsBuffer) {
+      console.log('[EditorTracker] Calling onEventsBuffer callback');
+      this.config.onEventsBuffer(events);
+    } else {
+      console.log('[EditorTracker] No onEventsBuffer callback configured');
+    }
+
+    // Reset flush timer
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+
+    this.scheduleFlush();
+  }
+
+  /**
+   * Schedule next flush
+   */
+  private scheduleFlush(): void {
+    if (this.flushTimer || !this.isTracking) {
+      return;
+    }
+
+    this.flushTimer = setTimeout(() => {
+      this.flush();
+    }, this.config.flushInterval || 30000);
+  }
+
+  /**
+   * Extract plain text from editor state
+   */
+  private extractPlainText(editorState: EditorState): string {
+    return editorState.read(() => {
+      const root = $getRoot();
+      return root.getTextContent();
+    });
+  }
+
+  /**
+   * Get selection information from editor state
+   */
+  private getSelectionInfo(editorState: EditorState): {
+    cursorPosition: number;
+    selectionStart: number;
+    selectionEnd: number;
+  } {
+    return editorState.read(() => {
+      const selection = $getSelection();
+
+      if (!selection || !$isRangeSelection(selection)) {
+        return {
+          cursorPosition: 0,
+          selectionStart: 0,
+          selectionEnd: 0,
+        };
+      }
+
+      const anchor = selection.anchor;
+      const focus = selection.focus;
+
+      // Calculate text offset for cursor position
+      const cursorPosition = anchor.offset;
+      const selectionStart = Math.min(anchor.offset, focus.offset);
+      const selectionEnd = Math.max(anchor.offset, focus.offset);
+
+      return {
+        cursorPosition,
+        selectionStart,
+        selectionEnd,
+      };
+    });
+  }
+
+  /**
+   * Get current event buffer (for testing)
+   */
+  getBufferSize(): number {
+    return this.eventBuffer.length;
+  }
+
+  /**
+   * Manually flush events (for testing or forced save)
+   */
+  forceFlush(): void {
+    this.flush();
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "name": "@humory/tracker",
+  "version": "1.0.0",
+  "description": "Lightweight JavaScript tracking library for Humory",
+  "type": "module",
+  "main": "dist/humory-tracker.js",
+  "module": "dist/humory-tracker.esm.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "build:watch": "rollup -c -w",
+    "clean": "rm -rf dist",
+    "prebuild": "npm run clean"
+  },
+  "keywords": [
+    "tracking",
+    "analytics",
+    "input-tracking",
+    "user-behavior"
+  ],
+  "author": "Humory",
+  "license": "MIT",
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^11.1.6",
+    "rollup": "^4.9.6",
+    "rollup-plugin-terser": "^7.0.2",
+    "tslib": "^2.6.2",
+    "typescript": "^5.3.3"
+  }
+}

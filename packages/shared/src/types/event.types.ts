@@ -1,0 +1,83 @@
+export type EventType =
+  // Basic input events
+  | 'keydown'
+  | 'keyup'
+  | 'paste'
+  | 'copy'
+  | 'cut'
+  | 'focus'
+  | 'blur'
+  | 'input'
+  | 'delete'
+  | 'select'
+  // Text formatting
+  | 'font-family-change'
+  | 'font-size-change'
+  | 'text-color-change'
+  | 'highlight-color-change'
+  | 'bold'
+  | 'italic'
+  | 'underline'
+  | 'strikethrough'
+  | 'code'
+  | 'subscript'
+  | 'superscript'
+  // Headings
+  | 'heading-change'
+  // Lists
+  | 'list-create'
+  | 'list-delete'
+  | 'list-indent'
+  | 'list-outdent'
+  | 'list-item-check'
+  // Alignment
+  | 'alignment-change'
+  // Find/Replace
+  | 'find-open'
+  | 'find-search'
+  | 'find-next'
+  | 'find-previous'
+  | 'replace'
+  | 'replace-all'
+  | 'find-close'
+  // Other formatting
+  | 'line-spacing-change'
+  | 'indent-change'
+  | 'clear-formatting';
+
+export interface TrackerEvent {
+  eventType: EventType;
+  timestamp: Date | string;
+  targetElement?: string;
+  keyCode?: string;
+  keyChar?: string;
+  textBefore?: string;
+  textAfter?: string;
+  cursorPosition?: number;
+  selectionStart?: number;
+  selectionEnd?: number;
+  metadata?: Record<string, any>;
+}
+
+export interface Event extends TrackerEvent {
+  id: string;
+  sessionId: string;
+  projectId: string;
+  createdAt: Date;
+}
+
+export interface EventBatchInput {
+  sessionId: string;
+  events: TrackerEvent[];
+}
+
+export interface EventQueryFilters {
+  projectId?: string;
+  sessionId?: string;
+  externalUserId?: string;
+  startDate?: Date;
+  endDate?: Date;
+  eventTypes?: EventType[];
+  limit?: number;
+  offset?: number;
+}

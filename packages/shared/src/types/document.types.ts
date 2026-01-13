@@ -1,0 +1,253 @@
+/**
+ * Document types for user-created documents
+ */
+
+import { EventType } from './event.types';
+
+export type DocumentStatus = 'draft' | 'published' | 'archived';
+
+export interface Document {
+  id: string;
+  userId: string;
+  title: string;
+  content: Record<string, any>; // Lexical editor state (JSON)
+  plainText: string;
+  status: DocumentStatus;
+  version: number;
+  wordCount: number;
+  characterCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+  lastEditedAt: Date;
+}
+
+export interface DocumentInsertData {
+  userId: string;
+  title: string;
+  content: Record<string, any>;
+  plainText: string;
+  status?: DocumentStatus;
+  wordCount?: number;
+  characterCount?: number;
+}
+
+export interface DocumentUpdateData {
+  title?: string;
+  content?: Record<string, any>;
+  plainText?: string;
+  status?: DocumentStatus;
+  wordCount?: number;
+  characterCount?: number;
+}
+
+export interface DocumentFilters {
+  status?: DocumentStatus;
+  search?: string;
+  limit?: number;
+  offset?: number;
+  sortBy?: 'createdAt' | 'updatedAt' | 'title';
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface DocumentStatistics {
+  documentId: string;
+  userId: string;
+  title: string;
+  status: DocumentStatus;
+  wordCount: number;
+  characterCount: number;
+  totalEvents: number;
+  typingEvents: number;
+  pasteEvents: number;
+  firstEvent: Date | null;
+  lastEvent: Date | null;
+  editingDurationSeconds: number;
+}
+
+// Document event types (extends existing event types)
+export interface DocumentEvent {
+  id: string;
+  documentId: string;
+  userId: string;
+  eventType: EventType;
+  timestamp: Date;
+  keyCode?: string;
+  keyChar?: string;
+  textBefore?: string;
+  textAfter?: string;
+  cursorPosition?: number;
+  selectionStart?: number;
+  selectionEnd?: number;
+  editorStateBefore?: Record<string, any>;
+  editorStateAfter?: Record<string, any>;
+  metadata?: Record<string, any>;
+  createdAt: Date;
+}
+
+export interface DocumentEventInsertData {
+  documentId: string;
+  userId: string;
+  eventType: EventType;
+  timestamp: Date;
+  keyCode?: string;
+  keyChar?: string;
+  textBefore?: string;
+  textAfter?: string;
+  cursorPosition?: number;
+  selectionStart?: number;
+  selectionEnd?: number;
+  editorStateBefore?: Record<string, any>;
+  editorStateAfter?: Record<string, any>;
+  metadata?: Record<string, any>;
+}
+
+export interface DocumentEventQueryFilters {
+  eventType?: EventType | EventType[];
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+  offset?: number;
+}
+
+// Certificate types
+export type CertificateType = 'full_authorship' | 'partial_authorship';
+
+export interface Certificate {
+  id: string;
+  documentId: string;
+  userId: string;
+  certificateType: CertificateType;
+
+  // Certificate data
+  title: string;
+  documentSnapshot: Record<string, any>;
+  plainTextSnapshot: string;
+
+  // Statistics
+  totalEvents: number;
+  typingEvents: number;
+  pasteEvents: number;
+  totalCharacters: number;
+  typedCharacters: number;
+  pastedCharacters: number;
+  editingTimeSeconds: number;
+
+  // Verification
+  signature: string;
+  verificationToken: string;
+
+  // Certificate options
+  signerName?: string | null;
+  includeFullText: boolean;
+  includeEditHistory: boolean;
+  isProtected: boolean;
+  accessCode?: string | null; // Plaintext access code (only for owner)
+
+  // Metadata
+  generatedAt: Date;
+  pdfGenerated: boolean;
+  pdfUrl: string | null;
+  jsonUrl: string | null;
+  createdAt: Date;
+}
+
+export interface CertificateInsertData {
+  documentId: string;
+  userId: string;
+  certificateType: CertificateType;
+  title: string;
+  documentSnapshot: Record<string, any>;
+  plainTextSnapshot: string;
+  totalEvents: number;
+  typingEvents: number;
+  pasteEvents: number;
+  totalCharacters: number;
+  typedCharacters: number;
+  pastedCharacters: number;
+  editingTimeSeconds: number;
+  signature: string;
+  verificationToken: string;
+  signerName?: string;
+  includeFullText?: boolean;
+  includeEditHistory?: boolean;
+  accessCode?: string;
+  accessCodeHash?: string;
+  isProtected?: boolean;
+}
+
+export interface CertificateGenerationOptions {
+  documentId: string;
+  certificateType: CertificateType;
+  signerName?: string;
+  includeFullText: boolean;
+  includeEditHistory: boolean;
+  accessCode?: string;
+}
+
+export interface CertificateFilters {
+  documentId?: string;
+  limit?: number;
+  offset?: number;
+  sortBy?: 'createdAt' | 'generatedAt';
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface CertificateVerification {
+  valid: boolean;
+  certificate: Certificate | null;
+  verifiedAt: Date;
+  message: string;
+}
+
+export interface CertificateMetrics {
+  totalEvents: number;
+  typingEvents: number;
+  pasteEvents: number;
+  totalCharacters: number;
+  typedCharacters: number;
+  pastedCharacters: number;
+  editingTimeSeconds: number;
+  typedPercentage: number;
+  pastedPercentage: number;
+}
+
+// JSON certificate format for export
+export interface JSONCertificate {
+  version: string;
+  certificateId: string;
+  documentId: string;
+  userId: string;
+  generatedAt: string;
+  document: {
+    title: string;
+    wordCount: number;
+    characterCount: number;
+  };
+  authorship: {
+    totalCharacters: number;
+    typedCharacters: number;
+    pastedCharacters: number;
+    typedPercentage: number;
+    pastedPercentage: number;
+    totalEvents: number;
+    typingEvents: number;
+    pasteEvents: number;
+    editingTimeMinutes: number;
+  };
+  verification: {
+    token: string;
+    verifyUrl: string;
+    signature: string;
+  };
+}
+
+// Paginated results
+export interface PaginatedResult<T> {
+  data: T[];
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  };
+}

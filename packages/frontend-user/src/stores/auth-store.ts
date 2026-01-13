@@ -1,0 +1,371 @@
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import api, { TokenManager, ApiError } from '@/lib/api-client';
+import { disconnectSocket, initializeSocket } from '@/lib/socket-client';
+
+/**
+ * User interface
+ */
+export interface User {
+  id: string;
+  email: string;
+  name?: string;
+  emailVerified: boolean;
+  avatar?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Auth state interface
+ */
+interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+
+  // Actions
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, name?: string) => Promise<void>;
+  logout: () => Promise<void>;
+  verifyEmail: (code: string) => Promise<void>;
+  resendVerificationEmail: (email?: string) => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (token: string, newPassword: string) => Promise<void>;
+  checkAuth: () => Promise<void>;
+  fetchUser: () => Promise<void>;
+  updateUser: (data: Partial<User>) => Promise<void>;
+  clearError: () => void;
+  setLoading: (loading: boolean) => void;
+}
+
+/**
+ * Auth store
+ */
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set, get) => ({
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+
+      /**
+       * Login user
+       */
+      login: async (email: string, password: string) => {
+        try {
+          set({ isLoading: true, error: null });
+
+          const response = await api.post<{
+            success: boolean;
+            message: string;
+            data: {
+              user: User;
+              accessToken: string;
+            };
+          }>('/auth/login', { email, password });
+
+          // Store access token (refresh token is set as httpOnly cookie by backend)
+          TokenManager.setAccessToken(response.data.accessToken);
+
+          // Update state
+          set({
+            user: response.data.user,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          });
+
+          // Initialize socket connection
+          initializeSocket();
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Login failed';
+          set({ isLoading: false, error: errorMessage });
+          throw error;
+        }
+      },
+
+      /**
+       * Register new user
+       */
+      register: async (email: string, password: string, name?: string) => {
+        try {
+          set({ isLoading: true, error: null });
+
+          const response = await api.post<{
+            success: boolean;
+            message: string;
+            data: {
+              user: User;
+            };
+          }>('/auth/register', { email, password, name });
+
+          // Registration successful - user needs to verify email before logging in
+          // Don't set authenticated state or tokens
+          set({
+            user: null, // Don't store unverified user
+            isAuthenticated: false,
+            isLoading: false,
+            error: null,
+          });
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Registration failed';
+          set({ isLoading: false, error: errorMessage });
+          throw error;
+        }
+      },
+
+      /**
+       * Logout user
+       */
+      logout: async () => {
+        try {
+          set({ isLoading: true, error: null });
+
+          // Call logout endpoint
+          await api.post('/auth/logout');
+
+          // Clear tokens
+          TokenManager.clearTokens();
+
+          // Disconnect socket
+          disconnectSocket();
+
+          // Clear state
+          set({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+            error: null,
+          });
+        } catch (error) {
+          // Still clear state even if API call fails
+          TokenManager.clearTokens();
+          disconnectSocket();
+          set({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+            error: null,
+          });
+        }
+      },
+
+      /**
+       * Verify email with code
+       */
+      verifyEmail: async (code: string) => {
+        try {
+          set({ isLoading: true, error: null });
+
+          const response = await api.post<{
+            success: boolean;
+            message: string;
+            data: {
+              user: User;
+            };
+          }>('/auth/verify-email', { code });
+
+          // Update user
+          set({
+            user: response.data.user,
+            isLoading: false,
+            error: null,
+          });
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Email verification failed';
+          set({ isLoading: false, error: errorMessage });
+          throw error;
+        }
+      },
+
+  /**
+   * Resend verification email
+   */
+  resendVerificationEmail: async (email?: string) => {
+    try {
+      set({ isLoading: true, error: null });
+
+      // Use provided email or get from state
+      const emailToUse = email || get().user?.email;
+      if (!emailToUse) {
+        throw new ApiError('Email is required to resend verification');
+      }
+
+      await api.post('/auth/resend-verification', { email: emailToUse });
+
+      set({ isLoading: false, error: null });
+    } catch (error) {
+      const errorMessage = error instanceof ApiError ? error.message : 'Failed to resend verification email';
+      set({ isLoading: false, error: errorMessage });
+      throw error;
+    }
+  },
+
+      /**
+       * Request password reset
+       */
+      forgotPassword: async (email: string) => {
+        try {
+          set({ isLoading: true, error: null });
+
+          await api.post('/auth/forgot-password', { email });
+
+          set({ isLoading: false, error: null });
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Failed to send reset email';
+          set({ isLoading: false, error: errorMessage });
+          throw error;
+        }
+      },
+
+      /**
+       * Reset password with token
+       */
+      resetPassword: async (token: string, newPassword: string) => {
+        try {
+          set({ isLoading: true, error: null });
+
+          await api.post('/auth/reset-password', { token, newPassword });
+
+          set({ isLoading: false, error: null });
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Password reset failed';
+          set({ isLoading: false, error: errorMessage });
+          throw error;
+        }
+      },
+
+      /**
+       * Check authentication status
+       */
+      checkAuth: async () => {
+        set({ isLoading: true });
+
+        const token = TokenManager.getAccessToken();
+        if (!token) {
+          set({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+            error: null,
+          });
+          return;
+        }
+
+        try {
+          const response = await api.get<{
+            success: boolean;
+            data: {
+              user: User;
+            };
+          }>('/auth/me');
+
+          set({
+            user: response.data.data?.user || null,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          });
+
+          // Initialize socket if not connected
+          initializeSocket();
+        } catch (error) {
+          // If fetching user fails, clear auth state
+          TokenManager.clearTokens();
+          set({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+            error: null,
+          });
+        }
+      },
+
+      /**
+       * Fetch current user
+       */
+      fetchUser: async () => {
+        try {
+          set({ isLoading: true, error: null });
+
+          const response = await api.get<{
+            success: boolean;
+            data: {
+              user: User;
+            };
+          }>('/auth/me');
+
+          set({
+            user: response.data.user,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          });
+
+          // Initialize socket if not connected
+          initializeSocket();
+        } catch (error) {
+          // If fetching user fails, clear auth state
+          TokenManager.clearTokens();
+          set({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+            error: null,
+          });
+          throw error;
+        }
+      },
+
+      /**
+       * Update user profile
+       */
+      updateUser: async (data: Partial<User>) => {
+        try {
+          set({ isLoading: true, error: null });
+
+          const response = await api.patch<{
+            success: boolean;
+            data: {
+              user: User;
+            };
+          }>('/auth/me', data);
+
+          set({
+            user: response.data.user,
+            isLoading: false,
+            error: null,
+          });
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Failed to update profile';
+          set({ isLoading: false, error: errorMessage });
+          throw error;
+        }
+      },
+
+      /**
+       * Clear error
+       */
+      clearError: () => {
+        set({ error: null });
+      },
+
+      /**
+       * Set loading state
+       */
+      setLoading: (loading: boolean) => {
+        set({ isLoading: loading });
+      },
+    }),
+    {
+      name: 'auth-storage',
+      partialize: (state) => ({
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+      }),
+    }
+  )
+);
