@@ -22,7 +22,7 @@ humanly/
 ├── packages/
 │   ├── shared/          # Shared TypeScript types and validators
 │   ├── backend/         # Express.js API server with Socket.IO
-│   ├── frontend/        # Next.js 14 admin dashboard
+│   ├── frontend/        # Next.js 14 developer portal
 │   ├── frontend-user/   # Next.js 14 user portal for documents
 │   ├── editor/          # Lexical-based rich text editor with tracking
 │   └── tracker/         # JavaScript tracking library for external forms
