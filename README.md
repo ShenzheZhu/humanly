@@ -1,6 +1,6 @@
-# Humory - Text Provenance Service
+# Humanly - Text Provenance Service
 
-A comprehensive text provenance service that tracks user typing activities in external forms and surveys with real-time monitoring and analytics.
+A comprehensive text provenance service that tracks user typing activities in external forms and surveys with real-time monitoring, analytics, and certificate generation.
 
 ## 🎯 Features
 
@@ -9,21 +9,35 @@ A comprehensive text provenance service that tracks user typing activities in ex
 - **Event Tracking** - Capture every keystroke, paste, copy, and cursor movement
 - **Real-time Live Preview** - WebSocket-based live event monitoring
 - **Analytics Dashboard** - Statistics, timelines, event distributions, and user activity
+- **Certificate Generation** - Generate verifiable certificates of authenticity for documents
+- **Document Management** - User portal for documents and certificate verification
+- **Rich Text Editor** - Lexical-based editor with formatting and tracking capabilities
 - **Data Export** - Export events to JSON or CSV with filtering
-- **Tracking Library** - Lightweight JavaScript library (<15KB) for embedding
+- **Tracking Library** - Lightweight JavaScript library (<15KB) for embedding in external forms
 
 ## 📦 Project Structure
 
 ```
-humory/
+humanly/
 ├── packages/
 │   ├── shared/          # Shared TypeScript types and validators
 │   ├── backend/         # Express.js API server with Socket.IO
-│   ├── frontend/        # Next.js 14 web application
-│   └── tracker/         # JavaScript tracking library
+│   ├── frontend/        # Next.js 14 admin dashboard
+│   ├── frontend-user/   # Next.js 14 user portal for documents
+│   ├── editor/          # Lexical-based rich text editor with tracking
+│   └── tracker/         # JavaScript tracking library for external forms
 ├── docker/              # Docker configurations
 ├── docker-compose.yml   # Local development environment
-└── package.json         # Root workspace configuration
+├── package.json         # Root workspace configuration
+├── pnpm-workspace.yaml  # PNPM workspace configuration
+└── Documentation:
+    ├── HTTPS_SETUP.md              # HTTPS configuration for production
+    ├── QUALTRICS_INTEGRATION.md    # Qualtrics integration guide
+    ├── CERTIFICATE_QUICK_REFERENCE.md
+    ├── DOMAIN_CONFIGURATION.md
+    ├── EXPORT_PAGE_SETUP.md
+    ├── TESTING_GUIDE.md
+    └── IMPLEMENTATION_STATUS.md
 ```
 
 ## 🚀 Quick Start
@@ -39,7 +53,7 @@ humory/
 
 1. **Clone the repository** (if not already done)
    ```bash
-   cd /home/ubuntu/humory
+   cd /home/ubuntu/humanly
    ```
 
 2. **Install Node.js** (if not installed)
@@ -74,7 +88,7 @@ humory/
 6. **Run database migrations**
    ```bash
    # Wait for PostgreSQL to be ready (check with docker-compose logs postgres)
-   docker-compose exec postgres psql -U humory_user -d humory_dev -f /docker-entrypoint-initdb.d/001_initial_schema.sql
+   docker-compose exec postgres psql -U humanly_user -d humanly_dev -f /docker-entrypoint-initdb.d/001_initial_schema.sql
    ```
 
 7. **Start the backend**
@@ -181,6 +195,19 @@ docker-compose up -d --build backend
 - `GET /json` - Export as JSON
 - `GET /csv` - Export as CSV
 
+### Document Endpoints (`/documents`)
+- `GET /` - List user documents
+- `GET /:id` - Get document details
+- `GET /:id/events` - Get document events
+
+### Certificate Endpoints (`/certificates`)
+- `POST /` - Generate certificate for document
+- `GET /` - List user certificates
+- `GET /:id` - Get certificate details
+- `GET /:id/verify` - Verify certificate with access code
+- `PUT /:id/access-code` - Update access code
+- `DELETE /:id/access-code` - Remove access code
+
 For detailed API documentation with examples, see:
 - `packages/backend/AUTH_IMPLEMENTATION.md`
 - `packages/backend/ANALYTICS.md`
@@ -193,16 +220,16 @@ For detailed API documentation with examples, see:
 Include the tracker script in your HTML:
 
 ```html
-<script src="https://your-domain.com/tracker/humory-tracker.min.js"></script>
+<script src="https://your-domain.com/tracker/humanly-tracker.min.js"></script>
 ```
 
 ### Usage
 
 ```javascript
 // Initialize tracker
-const tracker = new HumoryTracker({
+const tracker = new HumanlyTracker({
   projectToken: 'your-project-token-here',
-  apiUrl: 'https://api.humory.com',
+  apiUrl: 'https://api.humanly.com',
   userIdSelector: '#respondentId',  // CSS selector for user ID
   debug: false
 });
@@ -238,18 +265,18 @@ For complete documentation, see `packages/tracker/README.md`.
 2. **Deploy backend**
    ```bash
    # Build Docker image
-   docker build -f docker/backend.Dockerfile -t humory-backend:latest .
+   docker build -f docker/backend.Dockerfile -t humanly-backend:latest .
 
    # Push to ECR/Docker Hub
-   docker tag humory-backend:latest your-registry/humory-backend:latest
-   docker push your-registry/humory-backend:latest
+   docker tag humanly-backend:latest your-registry/humanly-backend:latest
+   docker push your-registry/humanly-backend:latest
 
    # Deploy to EC2/ECS/EKS
    ```
 
 3. **Configure environment variables**
    ```bash
-   DATABASE_URL=postgresql://user:pass@your-rds-endpoint:5432/humory_prod
+   DATABASE_URL=postgresql://user:pass@your-rds-endpoint:5432/humanly_prod
    REDIS_URL=redis://your-redis-endpoint:6379
    JWT_SECRET=your-secure-random-secret
    EMAIL_SERVICE=sendgrid
@@ -268,7 +295,7 @@ For complete documentation, see `packages/tracker/README.md`.
    ```bash
    NEXT_PUBLIC_API_URL=https://api.your-domain.com
    NEXT_PUBLIC_WS_URL=wss://api.your-domain.com
-   NEXT_PUBLIC_TRACKER_URL=https://api.your-domain.com/tracker/humory-tracker.min.js
+   NEXT_PUBLIC_TRACKER_URL=https://api.your-domain.com/tracker/humanly-tracker.min.js
    ```
 
 3. **Deploy**
@@ -280,13 +307,13 @@ For complete documentation, see `packages/tracker/README.md`.
 
 ```bash
 # Backend tests
-npm test --workspace=@humory/backend
+npm test --workspace=@humanly/backend
 
 # Frontend tests
-npm test --workspace=@humory/frontend
+npm test --workspace=@humanly/frontend
 
 # Tracker tests
-npm test --workspace=@humory/tracker
+npm test --workspace=@humanly/tracker
 
 # All tests
 npm test
@@ -300,9 +327,12 @@ The database uses PostgreSQL with TimescaleDB for efficient time-series data sto
 - **projects** - User projects with tracking tokens
 - **sessions** - External user tracking sessions
 - **events** - TimescaleDB hypertable for event data (auto-partitioned by day)
+- **documents** - User-created documents with content and metadata
+- **document_events** - Link table between documents and events
+- **certificates** - Document authenticity certificates with access codes
 - **refresh_tokens** - JWT refresh tokens
 
-For complete schema, see `packages/backend/src/db/migrations/001_initial_schema.sql`.
+For complete schema, see `packages/backend/src/db/migrations/` directory.
 
 ## 🔐 Security Features
 
@@ -326,7 +356,7 @@ For complete schema, see `packages/backend/src/db/migrations/001_initial_schema.
 - Nodemailer - Email service
 - Zod - Schema validation
 
-### Frontend
+### Frontend (Admin Dashboard)
 - Next.js 14 - React framework with App Router
 - Tailwind CSS - Utility-first styling
 - shadcn/ui - Component library
@@ -334,6 +364,20 @@ For complete schema, see `packages/backend/src/db/migrations/001_initial_schema.
 - Axios - HTTP client
 - Socket.IO Client - Real-time updates
 - Recharts - Data visualization
+
+### Frontend User Portal
+- Next.js 14 - React framework with App Router
+- Tailwind CSS - Utility-first styling
+- shadcn/ui - Component library
+- Zustand - State management
+- Document viewer and certificate management
+
+### Editor
+- Lexical - Extensible text editor framework
+- React - UI library
+- TypeScript - Type-safe JavaScript
+- Rich text formatting (fonts, colors, alignment, lists)
+- Built-in tracking integration
 
 ### Tracker
 - TypeScript - Type-safe JavaScript
@@ -346,21 +390,21 @@ For complete schema, see `packages/backend/src/db/migrations/001_initial_schema.
 ```bash
 NODE_ENV=development
 PORT=3001
-DATABASE_URL=postgresql://humory_user:humory_password@localhost:5432/humory_dev
+DATABASE_URL=postgresql://humanly_user:humanly_password@localhost:5432/humanly_dev
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=your-secret-key-here
 JWT_ACCESS_EXPIRES=15m
 JWT_REFRESH_EXPIRES=7d
 CORS_ORIGIN=http://localhost:3000
 EMAIL_SERVICE=console
-EMAIL_FROM=noreply@humory.com
+EMAIL_FROM=noreply@humanly.com
 ```
 
 ### Frontend (`packages/frontend/.env.local`)
 ```bash
 NEXT_PUBLIC_API_URL=http://localhost:3001
 NEXT_PUBLIC_WS_URL=ws://localhost:3001
-NEXT_PUBLIC_TRACKER_URL=http://localhost:3001/tracker/humory-tracker.min.js
+NEXT_PUBLIC_TRACKER_URL=http://localhost:3001/tracker/humanly-tracker.min.js
 ```
 
 ## 🐛 Troubleshooting
@@ -374,7 +418,7 @@ docker-compose ps postgres
 docker-compose logs postgres
 
 # Test connection
-docker-compose exec postgres psql -U humory_user -d humory_dev -c "SELECT 1;"
+docker-compose exec postgres psql -U humanly_user -d humanly_dev -c "SELECT 1;"
 ```
 
 ### Redis Connection Issues
@@ -397,11 +441,31 @@ kill -9 <PID>
 
 ## 📖 Additional Documentation
 
+### Backend Documentation
 - **Authentication**: `packages/backend/AUTH_IMPLEMENTATION.md`
 - **WebSocket**: `packages/backend/WEBSOCKET.md`
 - **Analytics**: `packages/backend/ANALYTICS.md`
-- **Tracker**: `packages/tracker/README.md`
-- **Frontend Setup**: `packages/frontend/SETUP.md`
+
+### Frontend Documentation
+- **Admin Dashboard Setup**: `packages/frontend/SETUP.md`
+- **Admin Dashboard Quick Start**: `packages/frontend/QUICK-START.md`
+- **Export Page**: `packages/frontend/EXPORT_PAGE_DOCUMENTATION.md`
+- **Live Preview Features**: `packages/frontend/src/app/projects/[id]/live-preview/README.md`
+
+### Integration & Deployment
+- **Tracker Library**: `packages/tracker/README.md`
+- **Qualtrics Integration**: `QUALTRICS_INTEGRATION.md`
+- **HTTPS Setup**: `HTTPS_SETUP.md`
+- **Domain Configuration**: `DOMAIN_CONFIGURATION.md`
+
+### Certificate System
+- **Certificate Quick Reference**: `CERTIFICATE_QUICK_REFERENCE.md`
+- **Certificate Types**: `CERTIFICATE_TYPES_SUMMARY.md`
+- **Badge Possibilities**: `CERTIFICATE_BADGE_POSSIBILITIES.md`
+
+### Testing & Status
+- **Testing Guide**: `TESTING_GUIDE.md`
+- **Implementation Status**: `IMPLEMENTATION_STATUS.md`
 
 ## 🤝 Contributing
 
@@ -409,8 +473,10 @@ This is a comprehensive full-stack application. Key areas for contribution:
 - Additional analytics visualizations
 - More export formats (Excel, Parquet)
 - Enhanced tracking library features
+- Certificate customization and badge options
 - Performance optimizations
 - Additional authentication methods (OAuth, 2FA)
+- Rich text editor enhancements
 
 ## 📄 License
 
@@ -421,11 +487,21 @@ MIT License - see LICENSE file for details
 Built with modern web technologies:
 - TimescaleDB for efficient time-series data
 - Socket.IO for real-time communication
+- Lexical for extensible text editing
 - shadcn/ui for beautiful components
 - Next.js for excellent developer experience
 
 ---
 
-**Status**: ✅ Backend 100% Complete | ⏳ Frontend Foundation Ready
+**Status**: ✅ Full-Stack Application Complete
+
+**Features**:
+- ✅ Backend API with authentication and tracking
+- ✅ Admin dashboard with analytics and live preview
+- ✅ User portal with document and certificate management
+- ✅ Rich text editor with tracking integration
+- ✅ External form tracking library
+- ✅ WebSocket real-time communication
+- ✅ Certificate generation and verification system
 
 For questions or issues, please check the documentation in each package directory.
