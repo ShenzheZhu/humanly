@@ -13,7 +13,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@humory/shared": "workspace:*",
+    "@humory/shared": "*",
     "@types/pdfkit": "^0.17.4",
     "@types/qrcode": "^1.5.6",
     "bcrypt": "^5.1.1",
