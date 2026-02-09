@@ -13,11 +13,7 @@
     "moduleResolution": "bundler",
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "paths": {
-      "@humory/shared": ["../shared/src"],
-      "@humory/shared/*": ["../shared/src/*"]
-    }
+    "forceConsistentCasingInFileNames": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx"],
