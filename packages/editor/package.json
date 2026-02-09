@@ -18,7 +18,7 @@
   "author": "Humory",
   "license": "MIT",
   "dependencies": {
-    "@humory/shared": "workspace:*",
+    "@humory/shared": "*",
     "lexical": "^0.12.6",
     "@lexical/react": "^0.12.6",
     "@lexical/rich-text": "^0.12.6",
