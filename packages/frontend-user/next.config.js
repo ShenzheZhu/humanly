@@ -14,15 +14,18 @@ const nextConfig = {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
   },
   async rewrites() {
-    return [
-      {
+    const rewrites = [];
+    // Only add API rewrite if NEXT_PUBLIC_API_URL is set
+    if (process.env.NEXT_PUBLIC_API_URL) {
+      rewrites.push({
         source: '/api/:path*',
         destination: `${process.env.NEXT_PUBLIC_API_URL}/:path*`,
-      },
-    ];
+      });
+    }
+    return rewrites;
   },
   images: {
-    domains: ['localhost'],
+    domains: ['localhost', 'api.writehumanly.net'],
   },
 };
 
