@@ -50,5 +50,8 @@ Thumbs.db
 
 # Claude Code
 .claude/
-
 CLAUDE.md
+
+# Ad-hoc utility scripts with credentials
+check-*.js
+run-migration.js
