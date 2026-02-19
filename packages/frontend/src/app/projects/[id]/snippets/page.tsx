@@ -392,7 +392,7 @@ export default function ProjectSnippetsPage() {
                   size="sm"
                   variant="outline"
                   onClick={() => {
-                    const testUrl = `${process.env.NEXT_PUBLIC_API_URL || 'https://api.humanly.art'}/tracker/test-tracker-debug.html?token=${snippets?.projectToken}`;
+                    const testUrl = `${process.env.NEXT_PUBLIC_API_URL || 'https://api.writehumanly.net'}/tracker/test-tracker-debug.html?token=${snippets?.projectToken}`;
                     window.open(testUrl, '_blank');
                   }}
                   className="gap-2"
@@ -711,7 +711,7 @@ export default function ProjectSnippetsPage() {
                     <p className="font-medium">Script not loading / Console shows errors</p>
                     <ul className="list-disc list-inside text-muted-foreground text-xs mt-1 space-y-1">
                       <li>Verify your survey uses HTTPS (Qualtrics requirement)</li>
-                      <li>Check that api.humanly.art is accessible from your browser</li>
+                      <li>Check that api.writehumanly.net is accessible from your browser</li>
                       <li>Look for "Mixed Content" errors in console</li>
                     </ul>
                   </div>
@@ -796,7 +796,7 @@ export default function ProjectSnippetsPage() {
               <div className="bg-slate-950 rounded-lg p-4">
                 <pre className="text-xs text-slate-50 overflow-x-auto">
                   <code>{`// Initialize a tracking session
-fetch('https://api.humory.com/api/v1/tracking/init', {
+fetch('https://api.writehumanly.net/api/v1/tracking/init', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',

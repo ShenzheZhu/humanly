@@ -253,7 +253,7 @@ export class PDFService {
 
     // Generate QR code
     try {
-      const verifyUrl = `https://app.humanly.art/verify/${certificate.verificationToken}`;
+      const verifyUrl = `https://app.writehumanly.net/verify/${certificate.verificationToken}`;
       const qrCodeDataURL = await QRCode.toDataURL(verifyUrl, {
         width: 120,
         margin: 1,
@@ -306,7 +306,7 @@ export class PDFService {
         .font('Helvetica')
         .fillColor('#555555')
         .text(
-          `Verify at: https://app.humanly.art/verify/${certificate.verificationToken}`,
+          `Verify at: https://app.writehumanly.net/verify/${certificate.verificationToken}`,
           margin + 60,
           currentY,
           { width: pageWidth - 2 * margin - 120 }
@@ -341,7 +341,7 @@ export class PDFService {
       .font('Helvetica')
       .fillColor('#999999')
       .text(
-        'This certificate is cryptographically signed and can be verified at app.humanly.art',
+        'This certificate is cryptographically signed and can be verified at app.writehumanly.net',
         margin + 40,
         footerY + 20,
         {

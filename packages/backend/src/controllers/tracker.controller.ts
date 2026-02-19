@@ -422,7 +422,7 @@ What It Does:
 
 Testing:
 1. Add the code to your survey
-2. Open your project's "Tracking Code" page on developer.humanly.art
+2. Open your project's "Tracking Code" page on developer.writehumanly.net
 3. Click "Start Live Preview"
 4. Open your Qualtrics survey in another tab
 5. Type in any text field

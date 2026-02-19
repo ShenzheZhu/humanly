@@ -48,7 +48,7 @@ export default function CertificateDetailPage() {
 
   useEffect(() => {
     if (certificate) {
-      const verifyUrl = `https://app.humanly.art/verify/${certificate.verificationToken}`;
+      const verifyUrl = `https://app.writehumanly.net/verify/${certificate.verificationToken}`;
       QRCode.toDataURL(verifyUrl, {
         width: 200,
         margin: 2,
@@ -108,7 +108,7 @@ export default function CertificateDetailPage() {
 
   const handleShareVerificationLink = () => {
     if (certificate) {
-      const verifyUrl = `https://app.humanly.art/verify/${certificate.verificationToken}`;
+      const verifyUrl = `https://app.writehumanly.net/verify/${certificate.verificationToken}`;
       navigator.clipboard.writeText(verifyUrl);
       toast({
         title: 'Link Copied',

@@ -14,17 +14,17 @@ export const BRAND = {
 
   // Email branding
   email: {
-    from: 'noreply@humanly.art',
-    supportEmail: 'support@humanly.art',
+    from: 'noreply@writehumanly.net',
+    supportEmail: 'support@writehumanly.net',
     copyrightYear: 2024,
   },
 
   // URLs
   urls: {
-    website: 'https://humanly.art',
-    app: 'https://app.humanly.art',
-    developer: 'https://developer.humanly.art',
-    api: 'https://api.humanly.art',
+    website: 'https://writehumanly.net',
+    app: 'https://app.writehumanly.net',
+    developer: 'https://developer.writehumanly.net',
+    api: 'https://api.writehumanly.net',
   },
 
   // Tracker branding (for JavaScript integration)

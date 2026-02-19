@@ -9,7 +9,7 @@
  * // Initialize tracker
  * const tracker = new HumanlyTracker({
  *   projectToken: 'your-project-token',
- *   apiUrl: 'https://api.humanly.art',
+ *   apiUrl: 'https://api.writehumanly.net',
  *   debug: true
  * });
  *

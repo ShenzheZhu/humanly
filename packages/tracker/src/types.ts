@@ -5,7 +5,7 @@ export interface TrackerConfig {
   /** Project token for authentication */
   projectToken: string;
 
-  /** API base URL (e.g., https://api.humanly.art) */
+  /** API base URL (e.g., https://api.writehumanly.net) */
   apiUrl: string;
 
   /** CSS selector to extract user ID from page */
