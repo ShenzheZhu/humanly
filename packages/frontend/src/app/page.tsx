@@ -13,7 +13,7 @@ export default function HomePage() {
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm">
         <div className="text-center">
           <h1 className="text-6xl font-bold mb-4">
-            Welcome to <span className="text-primary"><img src="/humanly.svg" alt="" className="inline h-[0.75em] w-auto mb-[0.15em]" />{BRAND.name.slice(1)}</span>
+            Welcome to <span className="text-primary"><img src="/humanly.svg" alt="" className="inline h-[0.75em] w-auto mb-[0.15em] mr-1" />{BRAND.name.slice(1)}</span>
           </h1>
           <p className="text-xl text-muted-foreground mb-8">
             {BRAND.taglineAdmin}
