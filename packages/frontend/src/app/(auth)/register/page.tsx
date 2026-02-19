@@ -125,7 +125,17 @@ export default function RegisterPage() {
       await register(values.email, values.password, values.name);
       setRegistrationSuccess(true);
 
-      // Redirect to login page after 2 seconds
+      // TODO: Uncomment when email service is configured
+      // // Store email for verification page
+      // if (typeof window !== 'undefined') {
+      //   localStorage.setItem('pendingVerificationEmail', values.email);
+      // }
+      // // Redirect to verification info page after 3 seconds
+      // setTimeout(() => {
+      //   router.push(`/verify-email?email=${encodeURIComponent(values.email)}`);
+      // }, 3000);
+
+      // Redirect to login page after 2 seconds (email verification disabled)
       setTimeout(() => {
         router.push('/login');
       }, 2000);
@@ -144,6 +154,19 @@ export default function RegisterPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* TODO: Uncomment when email service is configured
+          <Alert variant="success">
+            <CheckCircle2 className="h-4 w-4" />
+            <AlertTitle>Check your email</AlertTitle>
+            <AlertDescription>
+              We have sent a 6-digit verification code to your email.
+              Please enter the code on the next page to verify your account.
+            </AlertDescription>
+          </Alert>
+          <p className="text-sm text-center text-muted-foreground">
+            Redirecting you to enter your verification code...
+          </p>
+          */}
           <Alert variant="success">
             <CheckCircle2 className="h-4 w-4" />
             <AlertTitle>Account created</AlertTitle>
