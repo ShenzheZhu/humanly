@@ -52,7 +52,8 @@ export function Navbar() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
-            <Link href="/documents" className="text-xl font-bold">
+            <Link href="/documents" className="flex items-center gap-2 text-xl font-bold">
+              <img src="/humanly.svg" alt={BRAND.name} className="h-8 w-8" />
               {BRAND.name}
             </Link>
             {/* Desktop Navigation */}
