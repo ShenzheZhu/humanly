@@ -125,15 +125,10 @@ export default function RegisterPage() {
       await register(values.email, values.password, values.name);
       setRegistrationSuccess(true);
 
-      // Store email for verification page
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('pendingVerificationEmail', values.email);
-      }
-
-      // Redirect to verification info page after 3 seconds
+      // Redirect to login page after 2 seconds
       setTimeout(() => {
-        router.push(`/verify-email?email=${encodeURIComponent(values.email)}`);
-      }, 3000);
+        router.push('/login');
+      }, 2000);
     } catch (err: any) {
       setError(err?.message || 'Registration failed. Please try again.');
     }
@@ -151,15 +146,11 @@ export default function RegisterPage() {
         <CardContent className="space-y-4">
           <Alert variant="success">
             <CheckCircle2 className="h-4 w-4" />
-            <AlertTitle>Check your email</AlertTitle>
+            <AlertTitle>Account created</AlertTitle>
             <AlertDescription>
-              We have sent a 6-digit verification code to your email.
-              Please enter the code on the next page to verify your account.
+              Your account has been created successfully. Redirecting you to sign in...
             </AlertDescription>
           </Alert>
-          <p className="text-sm text-center text-muted-foreground">
-            Redirecting you to enter your verification code...
-          </p>
         </CardContent>
       </Card>
     );
