@@ -1,3 +1,5 @@
+const path = require('path');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -17,6 +19,10 @@ const nextConfig = {
   },
   images: {
     domains: ['localhost'],
+  },
+  webpack: (config) => {
+    config.resolve.alias['@humory/shared'] = path.resolve(__dirname, '../shared');
+    return config;
   },
 };
 

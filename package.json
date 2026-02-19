@@ -15,6 +15,7 @@
     "build:frontend": "npm run build --workspace=@humory/frontend",
     "build:tracker": "npm run build --workspace=@humory/tracker",
     "build:all": "npm run build:tracker && npm run build:backend && npm run build:frontend",
+    "build:vercel-frontend": "npm run clean:ts-artifacts && npm run build --workspace=@humory/shared && npm run build --workspace=@humory/frontend",
     "build:vercel-frontend-user": "npm run clean:ts-artifacts && npm run build --workspace=@humory/shared && npm run build --workspace=@humory/editor && npm run build --workspace=@humory/frontend-user",
     "clean:ts-artifacts": "rm -rf packages/shared/dist packages/editor/dist packages/shared/tsconfig.tsbuildinfo packages/editor/tsconfig.tsbuildinfo packages/frontend-user/.next",
     "test": "npm run test --workspaces",
