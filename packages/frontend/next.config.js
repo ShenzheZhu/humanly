@@ -27,7 +27,15 @@ const nextConfig = {
     domains: ['localhost'],
   },
   webpack: (config) => {
-    config.resolve.alias['@humory/shared'] = path.resolve(__dirname, '../shared');
+    // Exact match: import from '@humory/shared'
+    config.resolve.alias['@humory/shared$'] = path.resolve(__dirname, '../shared/src/index.ts');
+    // Subpath match: import from '@humory/shared/types/...'
+    config.resolve.alias['@humory/shared'] = path.resolve(__dirname, '../shared/src');
+    // Ensure root node_modules is searchable (for zod and other deps)
+    config.resolve.modules = [
+      path.resolve(__dirname, '../../node_modules'),
+      ...(config.resolve.modules || ['node_modules']),
+    ];
     return config;
   },
 };
