@@ -3,11 +3,17 @@ import { BRAND } from '@humory/shared';
 
 export default function HomePage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24">
+    <main className="relative flex min-h-screen flex-col items-center justify-center p-24">
+      <div className="absolute top-6 left-8">
+        <Link href="/" className="flex items-center gap-2 text-xl font-bold">
+          <img src="/humanly.svg" alt={BRAND.name} className="h-8 w-8" />
+          {BRAND.name}
+        </Link>
+      </div>
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm">
         <div className="text-center">
           <h1 className="text-6xl font-bold mb-4">
-            Welcome to <span className="text-primary inline-flex items-baseline"><img src="/humanly.svg" alt="" className="inline h-[0.85em] w-auto align-baseline relative -top-[0.05em]" />{BRAND.name.slice(1)}</span>
+            Welcome to <span className="text-primary"><img src="/humanly.svg" alt="" className="inline h-[0.75em] w-auto -mb-[0.05em]" />{BRAND.name.slice(1)}</span>
           </h1>
           <p className="text-xl text-muted-foreground mb-8">
             {BRAND.taglineAdmin}
