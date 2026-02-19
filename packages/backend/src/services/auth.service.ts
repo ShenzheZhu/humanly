@@ -128,10 +128,10 @@ export class AuthService {
       throw new AppError(401, 'Invalid email or password');
     }
 
-    // Check if email is verified
-    if (!userWithPassword.emailVerified) {
-      throw new AppError(403, 'Please verify your email before logging in');
-    }
+    // Skip email verification check for now (email service not configured)
+    // if (!userWithPassword.emailVerified) {
+    //   throw new AppError(403, 'Please verify your email before logging in');
+    // }
 
     // Generate tokens
     const payload: TokenPayload = {
