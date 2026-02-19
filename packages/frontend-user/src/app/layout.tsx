@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   description: 'Verify and certify human-written content through behavioral keystroke tracking. Generate cryptographically signed certificates proving authentic human authorship.',
   keywords: ['human authorship', 'authorship verification', 'keystroke tracking', 'writing certification', 'AI detection', 'human proof'],
   authors: [{ name: `${BRAND.name} Team` }],
-  icons: { icon: '/humanly.svg' },
+  icons: { icon: '/icon.svg' },
   openGraph: {
     title: getBrandText().pageTitles.user,
     description: 'Verify human-written content with behavioral proof and cryptographic certificates',

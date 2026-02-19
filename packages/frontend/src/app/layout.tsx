@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   description: 'A comprehensive text input provenance tracking and analysis platform',
   keywords: ['text tracking', 'keystroke analytics', 'form analytics', 'survey tracking'],
   authors: [{ name: `${BRAND.name} Team` }],
-  icons: { icon: '/humanly.svg' },
+  icons: { icon: '/icon.svg' },
   openGraph: {
     title: getBrandText().pageTitles.admin,
     description: 'A comprehensive text input provenance tracking and analysis platform',
