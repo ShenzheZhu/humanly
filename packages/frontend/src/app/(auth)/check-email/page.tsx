@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Mail, Loader2, CheckCircle2, ArrowLeft } from 'lucide-react';
@@ -10,6 +10,14 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 
 export default function CheckEmailPage() {
+  return (
+    <Suspense fallback={<div className="w-full flex justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+      <CheckEmailContent />
+    </Suspense>
+  );
+}
+
+function CheckEmailContent() {
   const searchParams = useSearchParams();
   const { resendVerificationEmail } = useAuthStore();
   const [email, setEmail] = useState<string>('');
