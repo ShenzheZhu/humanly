@@ -93,7 +93,8 @@ export interface LexicalEditorProps {
   renderSelectionPopup?: (props: {
     selection: SelectionPopupInfo;
     onClose: () => void;
-    replaceSelection: (newText: string) => void;
+    replaceSelection: (newText: string, keepOpen?: boolean) => void;
+    undoLastAction: () => void;
   }) => React.ReactNode;
 }
 

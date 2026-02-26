@@ -8,6 +8,7 @@ import {
   $setSelection,
   SELECTION_CHANGE_COMMAND,
   COMMAND_PRIORITY_LOW,
+  UNDO_COMMAND,
 } from 'lexical';
 import { createPortal } from 'react-dom';
 
@@ -23,8 +24,9 @@ export interface SelectionPopupPluginProps {
   renderPopup?: (props: {
     selection: SelectionInfo;
     onClose: () => void;
-    replaceSelection: (newText: string) => void;
+    replaceSelection: (newText: string, keepOpen?: boolean) => void;
     cancelAIAction: () => void;
+    undoLastAction: () => void;
   }) => React.ReactNode;
 }
 
@@ -99,9 +101,8 @@ export function SelectionPopupPlugin({
   }, []);
 
   // Replace the current selection with new text
-  const replaceSelection = useCallback((newText: string) => {
-    console.log('[SelectionPopupPlugin] replaceSelection called with:', newText);
-
+  // keepOpen: if true, don't close the popup (for inline review mode)
+  const replaceSelection = useCallback((newText: string, keepOpen?: boolean) => {
     // Store the selection info before updating, in case it gets cleared
     const storedSelectionInfo = selectionInfo;
 
@@ -109,13 +110,6 @@ export function SelectionPopupPlugin({
       console.warn('[SelectionPopupPlugin] No selection info available for replacement');
       return;
     }
-
-    console.log('[SelectionPopupPlugin] Replacing text:', {
-      start: storedSelectionInfo.start,
-      end: storedSelectionInfo.end,
-      originalText: storedSelectionInfo.text,
-      newText
-    });
 
     // Set flag to prevent popup from closing during AI dialog interaction
     isProcessingAIAction.current = true;
@@ -125,11 +119,9 @@ export function SelectionPopupPlugin({
 
       // If selection is still active, use it directly
       if ($isRangeSelection(selection) && !selection.isCollapsed()) {
-        console.log('[SelectionPopupPlugin] Using active selection');
         selection.insertText(newText);
       } else {
         // Selection was lost (e.g., user clicked on dialog), restore it using stored offsets
-        console.log('[SelectionPopupPlugin] Restoring selection from stored offsets');
         const root = $getRoot();
         const textNodes: any[] = [];
 
@@ -170,11 +162,20 @@ export function SelectionPopupPlugin({
       }
     });
 
-    // Reset flag and close popup
-    isProcessingAIAction.current = false;
-    handleClose();
-    console.log('[SelectionPopupPlugin] Text replacement complete');
+    if (keepOpen) {
+      // Keep popup open for inline review (Undo/Keep)
+      isProcessingAIAction.current = true;
+    } else {
+      // Reset flag and close popup
+      isProcessingAIAction.current = false;
+      handleClose();
+    }
   }, [editor, handleClose, selectionInfo]);
+
+  // Undo the last editor action (used for reverting AI text replacements)
+  const undoLastAction = useCallback(() => {
+    editor.dispatchCommand(UNDO_COMMAND, undefined);
+  }, [editor]);
 
   useEffect(() => {
     // Listen for selection changes
@@ -282,7 +283,7 @@ export function SelectionPopupPlugin({
 
   return createPortal(
     <div ref={popupRef} style={popupStyle}>
-      {renderPopup({ selection: selectionInfo, onClose: handleClose, replaceSelection, cancelAIAction })}
+      {renderPopup({ selection: selectionInfo, onClose: handleClose, replaceSelection, cancelAIAction, undoLastAction })}
     </div>,
     document.body
   );

@@ -1,11 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Check, Wand2, BookOpen, Loader2, MessageSquare, AlertCircle } from 'lucide-react';
+import { Sparkles, Check, Wand2, BookOpen, Loader2, MessageSquare, AlertCircle, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api-client';
-import { AISuggestionDialog } from './ai-suggestion-dialog';
 
 interface SelectionInfo {
   text: string;
@@ -17,16 +16,17 @@ interface SelectionInfo {
 interface AISelectionMenuProps {
   documentId: string;
   selection: SelectionInfo;
-  onClose: () => void;  // Called when user clicks outside or action completes
-  replaceSelection: (newText: string) => void;
-  cancelAIAction: () => void; // Called when user rejects AI suggestion
+  onClose: () => void;
+  replaceSelection: (newText: string, keepOpen?: boolean) => void;
+  cancelAIAction: () => void;
+  undoLastAction: () => void;
   onActionApplied?: (actionType: ActionType, originalText: string, newText: string) => void;
   onAskAI?: (selectedText: string) => void;
 }
 
 export type ActionType = 'grammar' | 'improve' | 'simplify' | 'formal';
 
-interface PendingSuggestion {
+interface ReviewState {
   actionType: ActionType;
   actionLabel: string;
   originalText: string;
@@ -64,15 +64,16 @@ const ACTIONS: { type: ActionType; label: string; icon: React.ReactNode; prompt:
 export function AISelectionMenu({
   documentId,
   selection,
-  onClose: _onClose,  // Available but not currently used - replaceSelection handles closing
+  onClose,
   replaceSelection,
   cancelAIAction,
+  undoLastAction,
   onActionApplied,
   onAskAI,
 }: AISelectionMenuProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingAction, setLoadingAction] = useState<ActionType | null>(null);
-  const [pendingSuggestion, setPendingSuggestion] = useState<PendingSuggestion | null>(null);
+  const [reviewState, setReviewState] = useState<ReviewState | null>(null);
   const [hasAISettings, setHasAISettings] = useState<boolean | null>(null);
   const [showWarning, setShowWarning] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -105,8 +106,6 @@ export function AISelectionMenu({
     setLoadingAction(action.type);
 
     try {
-      // Call the AI chat endpoint with silent flag to avoid creating session/logs
-      // Response format: { success: true, data: { message: { id, role, content } } }
       const result = await api.post<{
         success: boolean;
         data: {
@@ -115,13 +114,12 @@ export function AISelectionMenu({
       }>('/ai/chat', {
         documentId,
         message: `${action.prompt}\n\n"${selection.text}"`,
-        silent: true, // Don't save to chat history
+        silent: true,
         context: {
           selectedText: selection.text,
         },
       });
 
-      // Extract the improved text from the message content
       let improvedText = result.data?.message?.content || '';
 
       if (!improvedText) {
@@ -138,8 +136,11 @@ export function AISelectionMenu({
         improvedText = improvedText.slice(1, -1);
       }
 
-      // Show confirmation dialog instead of auto-applying
-      setPendingSuggestion({
+      // Immediately replace the text in the editor, keep popup open for review
+      replaceSelection(improvedText, true);
+
+      // Switch to review mode (Undo / Keep)
+      setReviewState({
         actionType: action.type,
         actionLabel: action.label,
         originalText: selection.text,
@@ -155,88 +156,87 @@ export function AISelectionMenu({
     }
   };
 
-  const handleAcceptSuggestion = async () => {
-    console.log('[AISelectionMenu] Accept button clicked', { pendingSuggestion });
-    if (!pendingSuggestion) {
-      console.warn('[AISelectionMenu] No pending suggestion found');
-      return;
-    }
-
-    console.log('[AISelectionMenu] About to call replaceSelection with:', pendingSuggestion.suggestedText);
-    console.log('[AISelectionMenu] replaceSelection function:', replaceSelection);
-
-    // Replace the selected text with the AI suggestion
-    replaceSelection(pendingSuggestion.suggestedText);
-    console.log('[AISelectionMenu] replaceSelection called');
+  const handleKeep = async () => {
+    if (!reviewState) return;
 
     // Track the action in event history (local tracking)
     if (onActionApplied) {
-      console.log('[AISelectionMenu] Tracking action in event history');
       onActionApplied(
-        pendingSuggestion.actionType,
-        pendingSuggestion.originalText,
-        pendingSuggestion.suggestedText
+        reviewState.actionType,
+        reviewState.originalText,
+        reviewState.suggestedText
       );
     }
 
-    // Track the acceptance in the backend for certificate statistics
+    // Track acceptance in the backend
     try {
       await api.post('/ai/selection-action', {
         documentId,
-        actionType: pendingSuggestion.actionType,
-        originalText: pendingSuggestion.originalText,
-        suggestedText: pendingSuggestion.suggestedText,
+        actionType: reviewState.actionType,
+        originalText: reviewState.originalText,
+        suggestedText: reviewState.suggestedText,
         decision: 'accepted',
       });
-      console.log('[AISelectionMenu] Selection action tracked (accepted)');
     } catch (error) {
-      console.error('[AISelectionMenu] Failed to track selection action:', error);
       // Don't block the user flow if tracking fails
     }
 
-    // Clear the pending suggestion
-    console.log('[AISelectionMenu] Clearing pending suggestion');
-    setPendingSuggestion(null);
+    setReviewState(null);
+    onClose();
   };
 
-  const handleRejectSuggestion = async () => {
-    console.log('[AISelectionMenu] Reject button clicked');
+  const handleUndo = async () => {
+    if (!reviewState) return;
 
-    // Track the rejection in the backend for certificate statistics
-    if (pendingSuggestion) {
-      try {
-        await api.post('/ai/selection-action', {
-          documentId,
-          actionType: pendingSuggestion.actionType,
-          originalText: pendingSuggestion.originalText,
-          suggestedText: pendingSuggestion.suggestedText,
-          decision: 'rejected',
-        });
-        console.log('[AISelectionMenu] Selection action tracked (rejected)');
-      } catch (error) {
-        console.error('[AISelectionMenu] Failed to track selection action:', error);
-        // Don't block the user flow if tracking fails
-      }
+    // Undo the text replacement via Lexical's undo system
+    undoLastAction();
+
+    // Track rejection in the backend
+    try {
+      await api.post('/ai/selection-action', {
+        documentId,
+        actionType: reviewState.actionType,
+        originalText: reviewState.originalText,
+        suggestedText: reviewState.suggestedText,
+        decision: 'rejected',
+      });
+    } catch (error) {
+      // Don't block the user flow if tracking fails
     }
 
-    // Unlock the selection popup so it can be closed normally
+    setReviewState(null);
     cancelAIAction();
-    // Simply close the dialog without making any changes
-    setPendingSuggestion(null);
+    onClose();
   };
 
-  // When suggestion dialog is open, hide the menu bar completely
-  if (pendingSuggestion) {
+  // Review mode: show compact Undo / Keep bar
+  if (reviewState) {
     return (
-      <AISuggestionDialog
-        isOpen={true}
-        onClose={() => setPendingSuggestion(null)}
-        onAccept={handleAcceptSuggestion}
-        onReject={handleRejectSuggestion}
-        title={`${pendingSuggestion.actionLabel} - Review Suggestion`}
-        originalText={pendingSuggestion.originalText}
-        suggestedText={pendingSuggestion.suggestedText}
-      />
+      <div
+        className={cn(
+          'flex items-center gap-1 rounded-lg border bg-background/95 backdrop-blur-sm shadow-lg p-1',
+          'animate-in fade-in-0 zoom-in-95 duration-150'
+        )}
+      >
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 px-3 text-xs font-medium gap-1.5 hover:bg-muted"
+          onClick={handleUndo}
+        >
+          <Undo2 className="h-3.5 w-3.5" />
+          Undo
+        </Button>
+        <div className="w-px h-5 bg-border" />
+        <Button
+          size="sm"
+          className="h-8 px-3 text-xs font-medium gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+          onClick={handleKeep}
+        >
+          <Check className="h-3.5 w-3.5" />
+          Keep
+        </Button>
+      </div>
     );
   }
 
