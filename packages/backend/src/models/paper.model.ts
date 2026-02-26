@@ -244,9 +244,9 @@ export class PaperModel {
     }
 
     // Get total count
-    const countQuery = query.replace('SELECT p.id, p.project_id, p.title, p.abstract, p.keywords, p.submission_date, p.pdf_page_count, p.review_deadline, p.status, p.created_at, pr.review_status, pr.assigned_at', 'SELECT COUNT(*)')
-    const countResult = await pool.query(countQuery, values)
-    const total = parseInt(countResult.rows[0].count)
+    const countQuery = `SELECT COUNT(*) FROM papers p JOIN paper_reviewers pr ON p.id = pr.paper_id WHERE pr.reviewer_id = $1` + (status ? ` AND pr.review_status = $2` : '')
+    const countResult = await pool.query(countQuery, status ? [reviewerId, status] : [reviewerId])
+    const total = parseInt(countResult.rows[0]?.count || '0')
 
     // Add sorting and pagination
     query += ` ORDER BY pr.assigned_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`
