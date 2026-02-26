@@ -179,7 +179,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
             <Settings className="h-4 w-4" />
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-sm font-semibold">AI Settings</DialogTitle>
           </DialogHeader>
@@ -189,7 +189,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-4 min-w-0">
               {/* Base URL */}
               <div className="space-y-2">
                 <Label className="text-xs font-medium">Base URL</Label>
@@ -249,7 +249,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
               {/* Test Result */}
               {testResult && (
                 <div
-                  className={`flex items-start gap-2 rounded-lg border p-3 text-xs ${
+                  className={`flex items-start gap-2 rounded-lg border p-3 text-xs min-w-0 ${
                     testResult.success
                       ? 'border-green-200 bg-green-50 text-green-700'
                       : 'border-red-200 bg-red-50 text-red-700'
@@ -260,7 +260,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
                   ) : (
                     <XCircle className="h-4 w-4 shrink-0 mt-0.5" />
                   )}
-                  <span>{testResult.message}</span>
+                  <span className="break-words min-w-0">{testResult.message}</span>
                 </div>
               )}
 
