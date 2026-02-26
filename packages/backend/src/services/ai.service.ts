@@ -14,6 +14,7 @@ import {
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
+import { UserAISettingsModel } from '../models/user-ai-settings.model';
 
 /**
  * AI Provider interface for different AI backends
@@ -46,10 +47,10 @@ class OpenAIProvider implements AIProvider {
   private model: string;
   private baseUrl: string;
 
-  constructor() {
-    this.apiKey = env.aiApiKey || '';
-    this.model = env.aiModel || 'gpt-4-turbo-preview';
-    this.baseUrl = env.aiBaseUrl || 'https://api.openai.com/v1';
+  constructor(config?: { apiKey: string; model: string; baseUrl: string }) {
+    this.apiKey = config?.apiKey || env.aiApiKey || '';
+    this.model = config?.model || env.aiModel || 'gpt-4-turbo-preview';
+    this.baseUrl = config?.baseUrl || env.aiBaseUrl || 'https://api.openai.com/v1';
   }
 
   async chat(messages: { role: string; content: string }[], options?: {
@@ -398,7 +399,20 @@ Guidelines:
 }
 
 export class AIService {
-  private static provider: AIProvider = getAIProvider();
+  /**
+   * Get AI provider for a specific user (loads their settings from DB)
+   */
+  private static async getProviderForUser(userId: string): Promise<AIProvider> {
+    const settings = await UserAISettingsModel.getByUserId(userId);
+    if (!settings) {
+      throw new AppError(400, 'Please configure your AI settings first');
+    }
+    return new OpenAIProvider({
+      apiKey: settings.apiKey,
+      baseUrl: settings.baseUrl,
+      model: settings.model,
+    });
+  }
 
   /**
    * Silent chat - get AI response without creating session/logs
@@ -414,6 +428,8 @@ export class AIService {
       throw new AppError(404, 'Document not found');
     }
 
+    const provider = await this.getProviderForUser(userId);
+
     // Build simple messages without conversation history
     const messages: { role: string; content: string }[] = [
       { role: 'system', content: 'You are a helpful writing assistant. Follow the user instructions precisely and only return the requested text without any explanation.' },
@@ -421,7 +437,7 @@ export class AIService {
     ];
 
     // Get AI response
-    const response = await this.provider.chat(messages, {
+    const response = await provider.chat(messages, {
       temperature: 0.3, // Lower temperature for more consistent results
     });
 
@@ -496,8 +512,11 @@ export class AIService {
       // Add current message
       messages.push({ role: 'user', content: request.message });
 
+      // Get provider for user
+      const provider = await this.getProviderForUser(userId);
+
       // Get AI response
-      const response = await this.provider.chat(messages);
+      const response = await provider.chat(messages);
 
       const responseTimeMs = Date.now() - startTime;
 
@@ -508,12 +527,15 @@ export class AIService {
         response.content
       );
 
+      // Get user's model for logging
+      const userSettings = await UserAISettingsModel.getByUserId(userId);
+
       // Update log with response
       await AIModel.updateLogWithResponse(log.id, {
         response: response.content,
         responseTimeMs,
         tokensUsed: response.tokensUsed,
-        modelVersion: env.aiModel || 'mock',
+        modelVersion: userSettings?.model || 'unknown',
         status: 'success',
       });
 
@@ -608,8 +630,11 @@ export class AIService {
       // Add current message
       messages.push({ role: 'user', content: request.message });
 
+      // Get provider for user
+      const provider = await this.getProviderForUser(userId);
+
       // Stream AI response
-      const response = await this.provider.streamChat(messages, onChunk);
+      const response = await provider.streamChat(messages, onChunk);
 
       const responseTimeMs = Date.now() - startTime;
 
@@ -620,12 +645,15 @@ export class AIService {
         response.content
       );
 
+      // Get user's model for logging
+      const userSettings = await UserAISettingsModel.getByUserId(userId);
+
       // Update log with response
       await AIModel.updateLogWithResponse(log.id, {
         response: response.content,
         responseTimeMs,
         tokensUsed: response.tokensUsed,
-        modelVersion: env.aiModel || 'mock',
+        modelVersion: userSettings?.model || 'unknown',
         status: 'success',
       });
 

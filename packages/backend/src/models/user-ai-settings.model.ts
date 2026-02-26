@@ -1,0 +1,119 @@
+import crypto from 'crypto';
+import { pool } from '../config/database';
+import { env } from '../config/env';
+
+const ALGORITHM = 'aes-256-gcm';
+const IV_LENGTH = 16;
+const AUTH_TAG_LENGTH = 16;
+
+function getEncryptionKey(): Buffer {
+  return Buffer.from(env.aiEncryptionKey, 'hex');
+}
+
+function encrypt(text: string): string {
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv(ALGORITHM, getEncryptionKey(), iv);
+  let encrypted = cipher.update(text, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  const authTag = cipher.getAuthTag();
+  // Format: iv:authTag:encrypted
+  return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+}
+
+function decrypt(data: string): string {
+  const parts = data.split(':');
+  if (parts.length !== 3) throw new Error('Invalid encrypted data format');
+  const iv = Buffer.from(parts[0], 'hex');
+  const authTag = Buffer.from(parts[1], 'hex');
+  const encrypted = parts[2];
+  const decipher = crypto.createDecipheriv(ALGORITHM, getEncryptionKey(), iv);
+  decipher.setAuthTag(authTag);
+  let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+  decrypted += decipher.final('utf8');
+  return decrypted;
+}
+
+function maskApiKey(key: string): string {
+  if (key.length <= 8) return '****';
+  return key.substring(0, 5) + '...' + key.substring(key.length - 4);
+}
+
+export interface UserAISettingsRow {
+  id: string;
+  user_id: string;
+  encrypted_api_key: string;
+  base_url: string;
+  model: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export class UserAISettingsModel {
+  static async getByUserId(userId: string): Promise<{
+    apiKey: string;
+    baseUrl: string;
+    model: string;
+    maskedApiKey: string;
+    updatedAt: string;
+  } | null> {
+    const result = await pool.query(
+      'SELECT * FROM user_ai_settings WHERE user_id = $1',
+      [userId]
+    );
+    if (result.rows.length === 0) return null;
+    const row = result.rows[0] as UserAISettingsRow;
+    const apiKey = decrypt(row.encrypted_api_key);
+    return {
+      apiKey,
+      baseUrl: row.base_url,
+      model: row.model,
+      maskedApiKey: maskApiKey(apiKey),
+      updatedAt: row.updated_at,
+    };
+  }
+
+  static async getPublicByUserId(userId: string): Promise<{
+    baseUrl: string;
+    model: string;
+    hasApiKey: boolean;
+    maskedApiKey: string;
+    updatedAt: string;
+  } | null> {
+    const result = await pool.query(
+      'SELECT base_url, model, encrypted_api_key, updated_at FROM user_ai_settings WHERE user_id = $1',
+      [userId]
+    );
+    if (result.rows.length === 0) return null;
+    const row = result.rows[0];
+    const apiKey = decrypt(row.encrypted_api_key);
+    return {
+      baseUrl: row.base_url,
+      model: row.model,
+      hasApiKey: true,
+      maskedApiKey: maskApiKey(apiKey),
+      updatedAt: row.updated_at,
+    };
+  }
+
+  static async upsert(userId: string, apiKey: string, baseUrl: string, model: string): Promise<void> {
+    const encryptedKey = encrypt(apiKey);
+    await pool.query(
+      `INSERT INTO user_ai_settings (user_id, encrypted_api_key, base_url, model)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (user_id) DO UPDATE SET
+         encrypted_api_key = $2,
+         base_url = $3,
+         model = $4,
+         updated_at = NOW()`,
+      [userId, encryptedKey, baseUrl, model]
+    );
+  }
+
+  static async delete(userId: string): Promise<boolean> {
+    const result = await pool.query(
+      'DELETE FROM user_ai_settings WHERE user_id = $1',
+      [userId]
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+}

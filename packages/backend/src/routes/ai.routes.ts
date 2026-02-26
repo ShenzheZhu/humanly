@@ -12,11 +12,25 @@ import {
   trackSelectionAction,
   getSelectionStats,
 } from '../controllers/ai.controller';
+import {
+  getSettings,
+  saveSettings,
+  deleteSettings,
+  testConnection,
+} from '../controllers/ai-settings.controller';
 
 const router = Router();
 
 // All routes require authentication
 router.use(authenticate);
+
+// --- User AI Settings ---
+router.get('/settings', asyncHandler(getSettings));
+router.put('/settings', asyncHandler(saveSettings));
+router.delete('/settings', asyncHandler(deleteSettings));
+router.post('/settings/test', asyncHandler(testConnection));
+
+// --- AI Chat ---
 
 /**
  * POST /api/v1/ai/chat

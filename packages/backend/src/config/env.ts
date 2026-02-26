@@ -56,6 +56,9 @@ interface EnvConfig {
   aiRateLimitRequests: number;
   aiRateLimitWindowMs: number;
 
+  // Encryption
+  aiEncryptionKey: string;
+
   // Logging
   logLevel: string;
 }
@@ -142,6 +145,9 @@ export const env: EnvConfig = {
   aiTemperature: parseFloat(getEnv('AI_TEMPERATURE', '0.7')),
   aiRateLimitRequests: getEnvNumber('AI_RATE_LIMIT_REQUESTS', 20),
   aiRateLimitWindowMs: getEnvNumber('AI_RATE_LIMIT_WINDOW_MS', 60000),
+
+  // Encryption
+  aiEncryptionKey: getEnv('AI_ENCRYPTION_KEY', '0000000000000000000000000000000000000000000000000000000000000000'),
 
   // Logging
   logLevel: getEnv('LOG_LEVEL', 'info'),

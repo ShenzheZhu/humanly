@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { X, Send, Sparkles, Loader2, StopCircle, Trash2, History, ChevronDown, ChevronRight, Plus, CheckCircle } from 'lucide-react';
+import { X, Send, Sparkles, Loader2, StopCircle, Trash2, History, ChevronDown, ChevronRight, Plus, CheckCircle, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -18,6 +18,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import ReactMarkdown from 'react-markdown';
+import { AISettingsDialog } from './ai-settings-dialog';
+import api from '@/lib/api-client';
 
 interface AIAssistantPanelProps {
   documentId: string;
@@ -36,8 +38,23 @@ export function AIAssistantPanel({
 }: AIAssistantPanelProps) {
   const [input, setInput] = useState('');
   const [historyPopoverOpen, setHistoryPopoverOpen] = useState(false);
+  const [hasAISettings, setHasAISettings] = useState<boolean | null>(null); // null = loading
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Check if user has AI settings configured
+  useEffect(() => {
+    checkAISettings();
+  }, []);
+
+  const checkAISettings = async () => {
+    try {
+      const res = await api.get('/ai/settings');
+      setHasAISettings(res.data?.data?.hasApiKey === true);
+    } catch {
+      setHasAISettings(false);
+    }
+  };
 
   const {
     messages,
@@ -185,6 +202,9 @@ export function AIAssistantPanel({
           <span className="font-medium text-sm truncate">AI Assistant</span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
+          {/* Settings Button */}
+          <AISettingsDialog onSettingsChanged={checkAISettings} />
+
           {/* New Chat Button */}
           <Button
             variant="ghost"
@@ -242,7 +262,19 @@ export function AIAssistantPanel({
       {/* Messages Area - Scrollable with flex-1 to fill available space */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 w-full">
         <div className="p-4 space-y-4 w-full min-w-0">
-          {messages.length === 0 && !isStreaming && (
+          {/* No AI settings configured banner */}
+          {hasAISettings === false && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-4 text-center">
+              <Settings className="h-8 w-8 text-amber-500 mx-auto mb-2" />
+              <h3 className="font-medium text-sm mb-1">Configure AI Settings</h3>
+              <p className="text-xs text-muted-foreground mb-3 max-w-[220px] mx-auto">
+                Set up your API key to start using the AI assistant.
+              </p>
+              <AISettingsDialog onSettingsChanged={checkAISettings} />
+            </div>
+          )}
+
+          {messages.length === 0 && !isStreaming && hasAISettings !== false && (
             <div className="text-center py-12">
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                 <Sparkles className="h-6 w-6 text-primary" />

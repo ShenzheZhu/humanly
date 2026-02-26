@@ -193,6 +193,43 @@ export interface AIConfig {
 }
 
 /**
+ * User AI Settings (returned to frontend, API key masked)
+ */
+export interface UserAISettings {
+  baseUrl: string;
+  model: string;
+  hasApiKey: boolean;
+  maskedApiKey?: string;
+  updatedAt?: string;
+}
+
+/**
+ * Save AI Settings Request
+ */
+export interface SaveAISettingsRequest {
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+}
+
+/**
+ * Test AI Connection Request
+ */
+export interface TestAIConnectionRequest {
+  apiKey: string;
+  baseUrl: string;
+}
+
+/**
+ * Test AI Connection Response
+ */
+export interface TestAIConnectionResponse {
+  success: boolean;
+  message: string;
+  models?: string[];
+}
+
+/**
  * WebSocket AI Events - Client to Server
  */
 export interface AIClientToServerEvents {
