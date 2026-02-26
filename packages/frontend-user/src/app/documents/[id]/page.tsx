@@ -344,13 +344,13 @@ export default function DocumentEditorPage() {
                     onEventsBuffer={handleEventsBuffer}
                     onAutoSave={handleAutoSave}
                     className="h-full"
-                    renderSelectionPopup={({ selection, onClose, replaceSelection, undoLastAction }) => (
+                    renderSelectionPopup={({ selection, onClose, replaceSelection, cancelAIAction, undoLastAction }) => (
                       <AISelectionMenu
                         documentId={documentId}
                         selection={selection}
                         onClose={onClose}
                         replaceSelection={replaceSelection}
-                        cancelAIAction={() => {}}
+                        cancelAIAction={cancelAIAction}
                         undoLastAction={undoLastAction}
                         onActionApplied={handleAISelectionAction}
                         onAskAI={(text) => {

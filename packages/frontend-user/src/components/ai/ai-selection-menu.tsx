@@ -126,6 +126,7 @@ export function AISelectionMenu({
 
       if (!improvedText) {
         console.error('AI response was empty');
+        cancelAIAction();
         return;
       }
 
@@ -152,6 +153,7 @@ export function AISelectionMenu({
       console.error('AI action failed:', error);
       const msg = error?.response?.data?.error || error?.message || 'AI request failed';
       setErrorMessage(msg);
+      cancelAIAction();
     } finally {
       setIsLoading(false);
       setLoadingAction(null);
