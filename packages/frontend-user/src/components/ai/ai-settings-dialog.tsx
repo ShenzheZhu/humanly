@@ -65,8 +65,8 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
   const loadSettings = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/ai/settings');
-      const settings: UserAISettings | null = res.data?.data;
+      const res: any = await api.get('/ai/settings');
+      const settings: UserAISettings | null = res.data;
       if (settings && settings.hasApiKey) {
         setBaseUrl(settings.baseUrl);
         setModel(settings.model);
@@ -99,11 +99,10 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
     setModels([]);
 
     try {
-      const res = await api.post('/ai/settings/test', {
+      const data: any = await api.post('/ai/settings/test', {
         apiKey: keyToTest || '__use_existing__',
         baseUrl,
       });
-      const data = res.data;
       setTestResult({ success: data.success, message: data.message });
       if (data.success && data.models) {
         setModels(data.models);

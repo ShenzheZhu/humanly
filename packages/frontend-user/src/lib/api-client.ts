@@ -84,8 +84,11 @@ const createApiClient = (): AxiosInstance => {
     async (error: AxiosError) => {
       const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
 
-      // Handle 401 errors (unauthorized)
-      if (error.response?.status === 401 && !originalRequest._retry) {
+      // Handle 401 errors (unauthorized) — but skip token refresh for AI endpoints
+      // because a 401 from /ai/chat means invalid AI API key, not expired JWT
+      const requestUrl = originalRequest.url || '';
+      const isAIEndpoint = requestUrl.includes('/ai/chat') || requestUrl.includes('/ai/stream');
+      if (error.response?.status === 401 && !originalRequest._retry && !isAIEndpoint) {
         originalRequest._retry = true;
 
         try {

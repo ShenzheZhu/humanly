@@ -80,7 +80,7 @@ class OpenAIProvider implements AIProvider {
       logger.error('OpenAI API error', { status: response.status, error: errorBody });
       const detail = errorBody?.error?.message || '';
       if (response.status === 401) {
-        throw new AppError(401, detail || 'Invalid API key. Please check your AI settings.');
+        throw new AppError(502, detail || 'Invalid API key. Please check your AI settings.');
       } else if (response.status === 429) {
         throw new AppError(429, detail || 'Rate limit exceeded. Please try again later.');
       } else if (response.status === 404) {
@@ -129,7 +129,7 @@ class OpenAIProvider implements AIProvider {
       logger.error('OpenAI API error', { status: response.status, error: errorBody });
       const detail = errorBody?.error?.message || '';
       if (response.status === 401) {
-        throw new AppError(401, detail || 'Invalid API key. Please check your AI settings.');
+        throw new AppError(502, detail || 'Invalid API key. Please check your AI settings.');
       } else if (response.status === 429) {
         throw new AppError(429, detail || 'Rate limit exceeded. Please try again later.');
       } else if (response.status === 404) {

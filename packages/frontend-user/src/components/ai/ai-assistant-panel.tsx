@@ -49,8 +49,8 @@ export function AIAssistantPanel({
 
   const checkAISettings = async () => {
     try {
-      const res = await api.get('/ai/settings');
-      setHasAISettings(res.data?.data?.hasApiKey === true);
+      const res: any = await api.get('/ai/settings');
+      setHasAISettings(res.data?.hasApiKey === true);
     } catch {
       setHasAISettings(false);
     }
