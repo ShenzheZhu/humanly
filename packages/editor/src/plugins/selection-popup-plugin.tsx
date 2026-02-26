@@ -44,6 +44,9 @@ export function SelectionPopupPlugin({
   const isProcessingAIAction = useRef(false); // Track if AI action is in progress
 
   const updateSelection = useCallback(() => {
+    // Don't clear the popup while an AI action is being processed
+    if (isProcessingAIAction.current) return;
+
     editor.getEditorState().read(() => {
       const selection = $getSelection();
 
