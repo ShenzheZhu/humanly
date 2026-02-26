@@ -76,12 +76,21 @@ class OpenAIProvider implements AIProvider {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      logger.error('OpenAI API error', { status: response.status, error });
-      throw new AppError(500, 'AI service error');
+      const errorBody: any = await response.json().catch(() => ({}));
+      logger.error('OpenAI API error', { status: response.status, error: errorBody });
+      const detail = errorBody?.error?.message || '';
+      if (response.status === 401) {
+        throw new AppError(401, detail || 'Invalid API key. Please check your AI settings.');
+      } else if (response.status === 429) {
+        throw new AppError(429, detail || 'Rate limit exceeded. Please try again later.');
+      } else if (response.status === 404) {
+        throw new AppError(400, detail || `Model "${this.model}" not found. Please check your AI settings.`);
+      } else {
+        throw new AppError(response.status, detail || `AI service error (${response.status})`);
+      }
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     const content = data.choices?.[0]?.message?.content || '';
     const tokensUsed = data.usage ? {
       input: data.usage.prompt_tokens,
@@ -116,9 +125,18 @@ class OpenAIProvider implements AIProvider {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      logger.error('OpenAI API error', { status: response.status, error });
-      throw new AppError(500, 'AI service error');
+      const errorBody: any = await response.json().catch(() => ({}));
+      logger.error('OpenAI API error', { status: response.status, error: errorBody });
+      const detail = errorBody?.error?.message || '';
+      if (response.status === 401) {
+        throw new AppError(401, detail || 'Invalid API key. Please check your AI settings.');
+      } else if (response.status === 429) {
+        throw new AppError(429, detail || 'Rate limit exceeded. Please try again later.');
+      } else if (response.status === 404) {
+        throw new AppError(400, detail || `Model "${this.model}" not found. Please check your AI settings.`);
+      } else {
+        throw new AppError(response.status, detail || `AI service error (${response.status})`);
+      }
     }
 
     const reader = response.body?.getReader();

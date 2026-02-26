@@ -75,6 +75,7 @@ export function AISelectionMenu({
   const [pendingSuggestion, setPendingSuggestion] = useState<PendingSuggestion | null>(null);
   const [hasAISettings, setHasAISettings] = useState<boolean | null>(null);
   const [showWarning, setShowWarning] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Check if user has AI settings configured
   useEffect(() => {
@@ -144,9 +145,10 @@ export function AISelectionMenu({
         originalText: selection.text,
         suggestedText: improvedText,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('AI action failed:', error);
-      // Don't close on error, let user try again
+      const msg = error?.response?.data?.error || error?.message || 'AI request failed';
+      setErrorMessage(msg);
     } finally {
       setIsLoading(false);
       setLoadingAction(null);
@@ -274,6 +276,27 @@ export function AISelectionMenu({
             Ask AI
           </Button>
         </>
+      )}
+
+      {/* Error: AI call failed */}
+      {errorMessage && (
+        <div className="absolute top-full left-0 mt-2 w-72 rounded-lg border border-red-200 bg-background shadow-lg p-3 z-50">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+            <div className="text-xs">
+              <p className="font-medium text-foreground">AI request failed</p>
+              <p className="text-muted-foreground mt-0.5">{errorMessage}</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs mt-1.5"
+                onClick={() => setErrorMessage(null)}
+              >
+                Dismiss
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Warning: AI settings not configured */}
