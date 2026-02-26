@@ -255,12 +255,28 @@ export function SelectionPopupPlugin({
     return null;
   }
 
-  // Calculate popup position (above the selection)
+  // Calculate popup position (above the selection, clamped to viewport)
+  const POPUP_WIDTH_ESTIMATE = 500; // approximate popup width
+  const PADDING = 8;
+  const centerX = selectionInfo.rect.left + selectionInfo.rect.width / 2;
+  const viewportWidth = window.innerWidth;
+
+  // Clamp horizontal position so popup stays within viewport
+  let left = centerX;
+  let translateX = '-50%';
+  if (centerX - POPUP_WIDTH_ESTIMATE / 2 < PADDING) {
+    left = PADDING;
+    translateX = '0%';
+  } else if (centerX + POPUP_WIDTH_ESTIMATE / 2 > viewportWidth - PADDING) {
+    left = viewportWidth - PADDING;
+    translateX = '-100%';
+  }
+
   const popupStyle: React.CSSProperties = {
     position: 'fixed',
     top: selectionInfo.rect.top - 8,
-    left: selectionInfo.rect.left + selectionInfo.rect.width / 2,
-    transform: 'translate(-50%, -100%)',
+    left,
+    transform: `translate(${translateX}, -100%)`,
     zIndex: 1000,
   };
 
