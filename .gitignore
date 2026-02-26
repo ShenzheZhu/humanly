@@ -58,3 +58,6 @@ run-migration.js
 
 # Paper storage (uploaded PDFs - stored on server disk, not in git)
 packages/backend/storage/
+
+*.png
+test_config.md

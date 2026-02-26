@@ -79,14 +79,16 @@ class OpenAIProvider implements AIProvider {
       const errorBody: any = await response.json().catch(() => ({}));
       logger.error('OpenAI API error', { status: response.status, error: errorBody });
       const detail = errorBody?.error?.message || '';
+      // Prefix with "AI Provider:" so users know the error comes from the upstream API, not our system
+      const prefix = 'AI Provider: ';
       if (response.status === 401) {
-        throw new AppError(502, detail || 'Invalid API key. Please check your AI settings.');
+        throw new AppError(502, detail ? `${prefix}${detail}` : 'Invalid API key. Please check your AI settings.');
       } else if (response.status === 429) {
-        throw new AppError(429, detail || 'Rate limit exceeded. Please try again later.');
+        throw new AppError(429, detail ? `${prefix}${detail}` : 'Rate limit exceeded. Please try again later.');
       } else if (response.status === 404) {
-        throw new AppError(400, detail || `Model "${this.model}" not found. Please check your AI settings.`);
+        throw new AppError(400, detail ? `${prefix}${detail}` : `Model "${this.model}" not found. Please check your AI settings.`);
       } else {
-        throw new AppError(response.status, detail || `AI service error (${response.status})`);
+        throw new AppError(response.status, detail ? `${prefix}${detail}` : `AI service error (${response.status})`);
       }
     }
 
@@ -128,14 +130,15 @@ class OpenAIProvider implements AIProvider {
       const errorBody: any = await response.json().catch(() => ({}));
       logger.error('OpenAI API error', { status: response.status, error: errorBody });
       const detail = errorBody?.error?.message || '';
+      const prefix = 'AI Provider: ';
       if (response.status === 401) {
-        throw new AppError(502, detail || 'Invalid API key. Please check your AI settings.');
+        throw new AppError(502, detail ? `${prefix}${detail}` : 'Invalid API key. Please check your AI settings.');
       } else if (response.status === 429) {
-        throw new AppError(429, detail || 'Rate limit exceeded. Please try again later.');
+        throw new AppError(429, detail ? `${prefix}${detail}` : 'Rate limit exceeded. Please try again later.');
       } else if (response.status === 404) {
-        throw new AppError(400, detail || `Model "${this.model}" not found. Please check your AI settings.`);
+        throw new AppError(400, detail ? `${prefix}${detail}` : `Model "${this.model}" not found. Please check your AI settings.`);
       } else {
-        throw new AppError(response.status, detail || `AI service error (${response.status})`);
+        throw new AppError(response.status, detail ? `${prefix}${detail}` : `AI service error (${response.status})`);
       }
     }
 

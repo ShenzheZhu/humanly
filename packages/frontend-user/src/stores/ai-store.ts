@@ -157,6 +157,15 @@ export const useAIStore = create<AIState>()(
       sendMessageViaSocket: (documentId, message, context) => {
         const { currentSession } = get();
 
+        // Check if socket is connected before attempting to send
+        const socket = getSocket();
+        if (!socket || !socket.connected) {
+          set({
+            error: 'Not connected to server. Please refresh the page and try again.',
+          });
+          return;
+        }
+
         // Add user message immediately
         const userMessage: AIChatMessage = {
           id: `user-${Date.now()}`,
@@ -245,6 +254,10 @@ export const useAIStore = create<AIState>()(
         try {
           // Initialize socket if not connected
           initializeSocket();
+
+          // Ensure socket listeners are registered now that socket exists
+          // (setupSocketListeners may have been called before socket was created)
+          get().setupSocketListeners();
 
           // Join AI session via socket
           emitEvent('ai:join-session', { documentId });
