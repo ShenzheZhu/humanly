@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Sparkles, Check, Wand2, BookOpen, Loader2, MessageSquare } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Sparkles, Check, Wand2, BookOpen, Loader2, MessageSquare, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api-client';
@@ -73,9 +73,32 @@ export function AISelectionMenu({
   const [isLoading, setIsLoading] = useState(false);
   const [loadingAction, setLoadingAction] = useState<ActionType | null>(null);
   const [pendingSuggestion, setPendingSuggestion] = useState<PendingSuggestion | null>(null);
+  const [hasAISettings, setHasAISettings] = useState<boolean | null>(null);
+  const [showWarning, setShowWarning] = useState(false);
+
+  // Check if user has AI settings configured
+  useEffect(() => {
+    let cancelled = false;
+    api.get('/ai/settings').then((res: any) => {
+      if (!cancelled) {
+        setHasAISettings(!!res?.data);
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setHasAISettings(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const handleAction = async (action: typeof ACTIONS[number]) => {
     if (isLoading) return;
+
+    // Check if AI settings are configured
+    if (hasAISettings === false) {
+      setShowWarning(true);
+      return;
+    }
 
     setIsLoading(true);
     setLoadingAction(action.type);
@@ -203,7 +226,7 @@ export function AISelectionMenu({
   return (
     <div
       className={cn(
-        'flex items-center gap-0.5 rounded-lg border bg-background/95 backdrop-blur-sm shadow-lg p-1',
+        'relative flex items-center gap-0.5 rounded-lg border bg-background/95 backdrop-blur-sm shadow-lg p-1',
         'animate-in fade-in-0 zoom-in-95 duration-150'
       )}
     >
@@ -238,13 +261,42 @@ export function AISelectionMenu({
               'h-8 px-2.5 text-xs font-medium gap-1.5',
               'hover:bg-violet-50 hover:text-violet-700'
             )}
-            onClick={() => onAskAI(selection.text)}
+            onClick={() => {
+              if (hasAISettings === false) {
+                setShowWarning(true);
+                return;
+              }
+              onAskAI(selection.text);
+            }}
             disabled={isLoading}
           >
             <MessageSquare className="h-3.5 w-3.5" />
             Ask AI
           </Button>
         </>
+      )}
+
+      {/* Warning: AI settings not configured */}
+      {showWarning && (
+        <div className="absolute top-full left-0 mt-2 w-72 rounded-lg border bg-background shadow-lg p-3 z-50">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+            <div className="text-xs">
+              <p className="font-medium text-foreground">AI not configured</p>
+              <p className="text-muted-foreground mt-0.5">
+                Please configure your AI settings (API Key, Base URL, Model) in the AI panel first.
+              </p>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs mt-1.5"
+                onClick={() => setShowWarning(false)}
+              >
+                Dismiss
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* AI Suggestion Confirmation Dialog */}
