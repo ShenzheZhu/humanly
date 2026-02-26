@@ -118,6 +118,8 @@ export function AISelectionMenu({
         context: {
           selectedText: selection.text,
         },
+      }, {
+        timeout: 120000, // 2 min for long text AI processing
       });
 
       let improvedText = result.data?.message?.content || '';
