@@ -68,6 +68,19 @@ export function SelectionPopupPlugin({
         return;
       }
 
+      // Only show popup if the native selection is inside the editor
+      const editorRoot = editor.getRootElement();
+      if (
+        !editorRoot ||
+        !nativeSelection.anchorNode ||
+        !editorRoot.contains(nativeSelection.anchorNode)
+      ) {
+        setSelectionInfo(null);
+        setIsVisible(false);
+        onSelectionChange?.(null);
+        return;
+      }
+
       const range = nativeSelection.getRangeAt(0);
       const rect = range.getBoundingClientRect();
 
@@ -189,15 +202,21 @@ export function SelectionPopupPlugin({
       COMMAND_PRIORITY_LOW
     );
 
-    // Also listen for mouseup to catch selection via mouse
-    const handleMouseUp = () => {
-      setTimeout(updateSelection, 10);
+    // Also listen for mouseup to catch selection via mouse (only inside editor)
+    const handleMouseUp = (e: MouseEvent) => {
+      const editorRoot = editor.getRootElement();
+      if (editorRoot && editorRoot.contains(e.target as Node)) {
+        setTimeout(updateSelection, 10);
+      }
     };
 
-    // Listen for keyup to catch selection via keyboard (shift+arrow keys)
+    // Listen for keyup to catch selection via keyboard (shift+arrow keys, only inside editor)
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.shiftKey) {
-        setTimeout(updateSelection, 10);
+        const editorRoot = editor.getRootElement();
+        if (editorRoot && editorRoot.contains(e.target as Node)) {
+          setTimeout(updateSelection, 10);
+        }
       }
     };
 
