@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { X, Send, Sparkles, Loader2, StopCircle, Trash2, History, ChevronDown, ChevronRight, Plus, CheckCircle, Settings } from 'lucide-react';
+import { X, Send, Sparkles, Loader2, StopCircle, Trash2, History, ChevronDown, ChevronRight, Plus, CheckCircle, Settings, ChevronsUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -39,10 +39,14 @@ export function AIAssistantPanel({
   const [input, setInput] = useState('');
   const [historyPopoverOpen, setHistoryPopoverOpen] = useState(false);
   const [hasAISettings, setHasAISettings] = useState<boolean | null>(null); // null = loading
+  const [currentModel, setCurrentModel] = useState('');
+  const [currentBaseUrl, setCurrentBaseUrl] = useState('');
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [modelSwitching, setModelSwitching] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Check if user has AI settings configured
+  // Check if user has AI settings configured + load model info
   useEffect(() => {
     checkAISettings();
   }, []);
@@ -50,9 +54,46 @@ export function AIAssistantPanel({
   const checkAISettings = async () => {
     try {
       const res: any = await api.get('/ai/settings');
-      setHasAISettings(res.data?.hasApiKey === true);
+      const hasKey = res.data?.hasApiKey === true;
+      setHasAISettings(hasKey);
+      if (hasKey) {
+        setCurrentModel(res.data.model || '');
+        setCurrentBaseUrl(res.data.baseUrl || '');
+        loadAvailableModels(res.data.baseUrl);
+      }
     } catch {
       setHasAISettings(false);
+    }
+  };
+
+  const loadAvailableModels = async (baseUrl?: string) => {
+    try {
+      const res: any = await api.post('/ai/settings/test', {
+        apiKey: '__use_existing__',
+        baseUrl: baseUrl || currentBaseUrl,
+      });
+      if (res.success && res.models) {
+        setAvailableModels(res.models);
+      }
+    } catch {
+      // Silent fail — selector just won't show
+    }
+  };
+
+  const handleModelChange = async (newModel: string) => {
+    if (!newModel || newModel === currentModel) return;
+    setModelSwitching(true);
+    try {
+      await api.put('/ai/settings', {
+        apiKey: '__use_existing__',
+        baseUrl: currentBaseUrl,
+        model: newModel,
+      });
+      setCurrentModel(newModel);
+    } catch (err: any) {
+      console.error('Failed to switch model:', err);
+    } finally {
+      setModelSwitching(false);
     }
   };
 
@@ -404,6 +445,29 @@ export function AIAssistantPanel({
                 <X className="h-3 w-3" />
               </Button>
             </div>
+          </div>
+        )}
+        {/* Quick model selector */}
+        {hasAISettings && availableModels.length > 0 && currentModel && (
+          <div className="mb-2 flex items-center gap-1.5 min-w-0">
+            <div className="relative flex-1 min-w-0">
+              <select
+                value={currentModel}
+                onChange={(e) => handleModelChange(e.target.value)}
+                disabled={modelSwitching || isStreaming}
+                className="w-full h-7 pl-2 pr-6 text-[11px] text-muted-foreground bg-muted/50 border border-border/50 rounded-md appearance-none cursor-pointer hover:bg-muted hover:text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 truncate"
+              >
+                {availableModels.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+                {/* If current model not in list, add it */}
+                {!availableModels.includes(currentModel) && (
+                  <option value={currentModel}>{currentModel}</option>
+                )}
+              </select>
+              <ChevronsUpDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
+            </div>
+            {modelSwitching && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />}
           </div>
         )}
         <form onSubmit={handleSubmit} className="flex gap-2 min-w-0">
