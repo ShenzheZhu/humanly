@@ -176,7 +176,7 @@ export class DocumentEventModel {
         created_at as "createdAt"
       FROM document_events
       WHERE ${whereClause}
-      ORDER BY timestamp ASC
+      ORDER BY timestamp DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
 

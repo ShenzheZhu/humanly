@@ -63,6 +63,16 @@ export interface TrackedEvent {
 }
 
 /**
+ * Selection info for popup positioning
+ */
+export interface SelectionPopupInfo {
+  text: string;
+  start: number;
+  end: number;
+  rect: DOMRect;
+}
+
+/**
  * Props for the Lexical editor component
  */
 export interface LexicalEditorProps {
@@ -79,6 +89,12 @@ export interface LexicalEditorProps {
   onEventsBuffer?: (events: TrackedEvent[]) => void;
   onAutoSave?: (content: Record<string, any>, plainText: string) => void;
   className?: string;
+  /** Render a custom popup when text is selected */
+  renderSelectionPopup?: (props: {
+    selection: SelectionPopupInfo;
+    onClose: () => void;
+    replaceSelection: (newText: string) => void;
+  }) => React.ReactNode;
 }
 
 /**

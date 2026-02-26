@@ -16,6 +16,7 @@ import { HeadingPlugin } from './plugins/heading-plugin';
 import { FormattingPlugin } from './plugins/formatting-plugin';
 import { ListPlugin } from './plugins/list-plugin';
 import { AlignmentPlugin } from './plugins/alignment-plugin';
+import { SelectionPopupPlugin } from './plugins/selection-popup-plugin';
 import { LexicalEditorProps, EditorTheme } from './types';
 
 /**
@@ -68,6 +69,7 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
     onEventsBuffer,
     onAutoSave,
     className = '',
+    renderSelectionPopup,
   } = props;
 
   // Parse initial content
@@ -202,6 +204,10 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
             enabled={autoSaveEnabled}
           />
         )}
+
+        {renderSelectionPopup && (
+          <SelectionPopupPlugin renderPopup={renderSelectionPopup} />
+        )}
       </div>
     </LexicalComposer>
   );
@@ -214,10 +220,16 @@ const editorStyles = {
     borderRadius: '8px',
     overflow: 'hidden',
     backgroundColor: '#ffffff',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    height: '100%',
   },
   editorWrapper: {
     position: 'relative' as const,
     minHeight: '200px',
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column' as const,
   },
   contentEditable: {
     minHeight: '200px',
@@ -227,6 +239,7 @@ const editorStyles = {
     lineHeight: '1.6',
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    flex: 1,
   },
   placeholder: {
     position: 'absolute' as const,

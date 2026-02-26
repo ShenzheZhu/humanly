@@ -24,6 +24,8 @@ export class EditorTracker {
   private listeners: Array<() => void> = [];
   private isTracking: boolean = false;
   private lastEventType: EventType | null = null;
+  private lastKeyCode: string | null = null;
+  private lastKeyChar: string | null = null;
   private lastSelectionStart: number = 0;
   private lastSelectionEnd: number = 0;
 
@@ -306,6 +308,10 @@ export class EditorTracker {
   private handleKeyDown(event: KeyboardEvent): void {
     const key = event.key;
 
+    // Capture key information
+    this.lastKeyCode = event.code;
+    this.lastKeyChar = key.length === 1 ? key : null; // Only single characters
+
     // Determine event type based on key
     if (key === 'Backspace' || key === 'Delete') {
       this.lastEventType = 'delete';
@@ -498,12 +504,20 @@ export class EditorTracker {
     // Determine the event type based on the last recorded event
     let eventType: EventType = this.lastEventType || 'input';
 
-    // Reset last event type for next change
+    // Capture key info before resetting
+    const keyCode = this.lastKeyCode;
+    const keyChar = this.lastKeyChar;
+
+    // Reset last event type and key info for next change
     this.lastEventType = null;
+    this.lastKeyCode = null;
+    this.lastKeyChar = null;
 
     const event: TrackedEvent = {
       eventType,
       timestamp: new Date(),
+      keyCode: keyCode || undefined,
+      keyChar: keyChar || undefined,
       textBefore: prevText,
       textAfter: currentText,
       cursorPosition,

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
-import type { Certificate } from '@humory/shared';
+import type { Certificate, AIAuthorshipStats } from '@humory/shared';
 
 export interface CertificatesFilters {
   documentId?: string;
@@ -109,7 +109,9 @@ export function useCertificates(filters?: CertificatesFilters) {
 
 export function useCertificate(certificateId: string) {
   const [certificate, setCertificate] = useState<Certificate | null>(null);
+  const [aiStats, setAiStats] = useState<AIAuthorshipStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingAiStats, setIsLoadingAiStats] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchCertificate = useCallback(async () => {
@@ -130,21 +132,35 @@ export function useCertificate(certificateId: string) {
     }
   }, [certificateId]);
 
+  const fetchAIStats = useCallback(async () => {
+    try {
+      setIsLoadingAiStats(true);
+      const response = await apiClient.get<any>(`/certificates/${certificateId}/ai-stats`);
+      setAiStats(response.data.data || null);
+    } catch (err: any) {
+      console.error('Error fetching AI stats:', err);
+      setAiStats(null);
+    } finally {
+      setIsLoadingAiStats(false);
+    }
+  }, [certificateId]);
+
   useEffect(() => {
     if (certificateId) {
       fetchCertificate();
+      fetchAIStats();
     }
-  }, [certificateId, fetchCertificate]);
+  }, [certificateId, fetchCertificate, fetchAIStats]);
 
   const downloadJSON = useCallback(async () => {
     try {
-      const response = await apiClient.get(`/certificates/${certificateId}/json`, {
-        responseType: 'blob',
-      });
+      const response = await apiClient.get(`/certificates/${certificateId}/json`);
+      const data = response.data;
 
-      const blob = new Blob([JSON.stringify(response.data, null, 2)], {
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
         type: 'application/json',
       });
+
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -154,7 +170,7 @@ export function useCertificate(certificateId: string) {
     } catch (err: any) {
       throw new Error(err.response?.data?.message || 'Failed to download JSON');
     }
-  }, [certificateId]);
+  }, [certificateId]);  
 
   const downloadPDF = useCallback(async () => {
     try {
@@ -215,9 +231,12 @@ export function useCertificate(certificateId: string) {
 
   return {
     certificate,
+    aiStats,
     isLoading,
+    isLoadingAiStats,
     error,
     refetch: fetchCertificate,
+    refetchAiStats: fetchAIStats,
     downloadJSON,
     downloadPDF,
     updateAccessCode,

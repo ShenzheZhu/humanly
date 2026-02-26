@@ -7,6 +7,7 @@ import {
   SocketData,
 } from '../utils/websocket';
 import { setupLivePreviewHandlers } from './handlers/live-preview.handler';
+import { setupAIHandlers } from './handlers/ai.handler';
 
 /**
  * Socket type with typed events and data
@@ -90,6 +91,9 @@ export function setupWebSocketServer(io: SocketIOServer): void {
 
     // Setup live preview handlers
     setupLivePreviewHandlers(io, socket);
+
+    // Setup AI handlers
+    setupAIHandlers(io, socket);
 
     // Handle disconnection
     socket.on('disconnect', (reason) => {

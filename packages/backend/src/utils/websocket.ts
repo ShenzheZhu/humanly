@@ -1,5 +1,5 @@
 import { Server as SocketIOServer } from 'socket.io';
-import { TrackerEvent } from '@humory/shared';
+import { TrackerEvent, AIChatRequest, AIChatResponse, AISuggestion } from '@humory/shared';
 import { logger } from './logger';
 
 /**
@@ -8,6 +8,11 @@ import { logger } from './logger';
 export interface ClientToServerEvents {
   'join-project': (data: JoinProjectData) => void;
   'leave-project': (data: LeaveProjectData) => void;
+  // AI Assistant events
+  'ai:message': (data: AIChatRequest) => void;
+  'ai:cancel': (data: { sessionId: string }) => void;
+  'ai:join-session': (data: { documentId: string; sessionId?: string }) => void;
+  'ai:leave-session': (data: { sessionId: string }) => void;
 }
 
 export interface ServerToClientEvents {
@@ -15,6 +20,12 @@ export interface ServerToClientEvents {
   'session-started': (data: SessionStartedData) => void;
   'session-ended': (data: SessionEndedData) => void;
   error: (data: ErrorData) => void;
+  // AI Assistant events
+  'ai:response-start': (data: { sessionId: string; messageId: string }) => void;
+  'ai:response-chunk': (data: { sessionId: string; messageId: string; chunk: string }) => void;
+  'ai:response-complete': (data: AIChatResponse) => void;
+  'ai:suggestion': (data: { sessionId: string; suggestions: AISuggestion[] }) => void;
+  'ai:error': (data: { sessionId: string; message: string; code?: string }) => void;
 }
 
 /**

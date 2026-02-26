@@ -57,3 +57,39 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  .overflow-wrap-anywhere {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  /* AI Panel Message Constraints */
+  .ai-message-content {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .ai-message-content pre {
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  .ai-message-content code {
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+
+  .ai-message-content a {
+    overflow-wrap: anywhere;
+    word-break: break-all;
+  }
+
+  .ai-message-content table {
+    max-width: 100%;
+    display: block;
+    overflow-x: auto;
+  }
+}

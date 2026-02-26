@@ -28,6 +28,13 @@ import {
   Edit2,
   X,
   Trash2,
+  Bot,
+  CheckCircle,
+  XCircle,
+  MessageSquare,
+  Sparkles,
+  BookOpen,
+  Wand2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import QRCode from 'qrcode';
@@ -38,7 +45,7 @@ export default function CertificateDetailPage() {
   const router = useRouter();
   const { toast } = useToast();
   const certificateId = params.id as string;
-  const { certificate, isLoading, error, downloadJSON, downloadPDF, updateAccessCode, updateDisplayOptions } = useCertificate(certificateId);
+  const { certificate, aiStats, isLoading, isLoadingAiStats, error, downloadJSON, downloadPDF, updateAccessCode, updateDisplayOptions } = useCertificate(certificateId);
   const [qrCodeDataURL, setQrCodeDataURL] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [isEditingAccessCode, setIsEditingAccessCode] = useState(false);
@@ -48,7 +55,7 @@ export default function CertificateDetailPage() {
 
   useEffect(() => {
     if (certificate) {
-      const verifyUrl = `https://app.writehumanly.net/verify/${certificate.verificationToken}`;
+      const verifyUrl = `https://app.humanly.art/verify/${certificate.verificationToken}`;
       QRCode.toDataURL(verifyUrl, {
         width: 200,
         margin: 2,
@@ -108,7 +115,7 @@ export default function CertificateDetailPage() {
 
   const handleShareVerificationLink = () => {
     if (certificate) {
-      const verifyUrl = `https://app.writehumanly.net/verify/${certificate.verificationToken}`;
+      const verifyUrl = `https://app.humanly.art/verify/${certificate.verificationToken}`;
       navigator.clipboard.writeText(verifyUrl);
       toast({
         title: 'Link Copied',
@@ -277,134 +284,248 @@ export default function CertificateDetailPage() {
         </div>
       </div>
 
-      {/* Main Statistics and Verification Section */}
-      <div className="grid gap-6 lg:grid-cols-5">
-        {/* Left Column: Authorship Statistics (takes 3/5 width) */}
-        <div className="lg:col-span-3">
+      {/* Main Content - Two Column Layout */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Left Column (2/3 width) */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Authorship Statistics Card */}
           <Card>
-            <CardHeader>
-              <CardTitle>Authorship Statistics</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Authorship Statistics</CardTitle>
               <CardDescription>Detailed breakdown of document authorship</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Final Document Length</p>
-                  <p className="text-2xl font-bold">{certificate.totalCharacters.toLocaleString()}</p>
+              {/* Key Metrics Row */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3 bg-muted/50 rounded-lg text-center">
+                  <p className="text-xs text-muted-foreground">Document Length</p>
+                  <p className="text-xl font-bold">{certificate.totalCharacters.toLocaleString()}</p>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Total Events</p>
-                  <p className="text-2xl font-bold">{certificate.totalEvents.toLocaleString()}</p>
+                <div className="p-3 bg-muted/50 rounded-lg text-center">
+                  <p className="text-xs text-muted-foreground">Total Events</p>
+                  <p className="text-xl font-bold">{certificate.totalEvents.toLocaleString()}</p>
                 </div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Authorship Composition (cumulative throughout editing)
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Type className="h-4 w-4" />
-                      Characters Typed
-                    </p>
-                    <p className="text-xl font-semibold">
-                      {certificate.typedCharacters.toLocaleString()}
-                      <span className="text-sm font-normal text-muted-foreground ml-2">
-                        ({typedPercentage.toFixed(1)}%)
-                      </span>
-                    </p>
-                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary"
-                        style={{ width: `${typedPercentage}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <FileText className="h-4 w-4" />
-                      Characters Pasted
-                    </p>
-                    <p className="text-xl font-semibold">
-                      {certificate.pastedCharacters.toLocaleString()}
-                      <span className="text-sm font-normal text-muted-foreground ml-2">
-                        ({pastedPercentage.toFixed(1)}%)
-                      </span>
-                    </p>
-                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-orange-500"
-                        style={{ width: `${pastedPercentage}%` }}
-                      />
-                    </div>
-                  </div>
+                <div className="p-3 bg-muted/50 rounded-lg text-center">
+                  <p className="text-xs text-muted-foreground">Typing Events</p>
+                  <p className="text-xl font-bold">{certificate.typingEvents.toLocaleString()}</p>
                 </div>
-              </div>
-
-              <Separator />
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Typing Events</p>
-                  <p className="text-lg font-semibold">{certificate.typingEvents.toLocaleString()}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Paste Events</p>
-                  <p className="text-lg font-semibold">{certificate.pasteEvents.toLocaleString()}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
+                <div className="p-3 bg-muted/50 rounded-lg text-center">
+                  <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                    <Clock className="h-3 w-3" />
                     Editing Time
                   </p>
-                  <p className="text-lg font-semibold">
-                    {Math.round(certificate.editingTimeSeconds / 60)} min
-                  </p>
+                  <p className="text-xl font-bold">{Math.round(certificate.editingTimeSeconds / 60)} min</p>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Authorship Composition */}
+              <div className="space-y-3">
+                <p className="text-sm font-medium">Authorship Composition</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Type className="h-3 w-3" />
+                        Typed
+                      </p>
+                      <p className="text-sm font-semibold">{typedPercentage.toFixed(1)}%</p>
+                    </div>
+                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                      <div className="h-full bg-primary" style={{ width: `${typedPercentage}%` }} />
+                    </div>
+                    <p className="text-xs text-muted-foreground">{certificate.typedCharacters.toLocaleString()} chars</p>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <FileText className="h-3 w-3" />
+                        Pasted
+                      </p>
+                      <p className="text-sm font-semibold">{pastedPercentage.toFixed(1)}%</p>
+                    </div>
+                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                      <div className="h-full bg-orange-500" style={{ width: `${pastedPercentage}%` }} />
+                    </div>
+                    <p className="text-xs text-muted-foreground">{certificate.pastedCharacters.toLocaleString()} chars</p>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
+
+          {/* AI Authorship Statistics Card */}
+          {(aiStats || isLoadingAiStats) && (
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <Bot className="h-5 w-5 text-violet-600" />
+                  <CardTitle className="text-lg">AI Assistance</CardTitle>
+                </div>
+                <CardDescription>AI usage during document creation</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoadingAiStats ? (
+                  <div className="flex items-center justify-center py-6">
+                    <div className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-solid border-current border-r-transparent" />
+                    <span className="ml-2 text-sm text-muted-foreground">Loading...</span>
+                  </div>
+                ) : aiStats ? (
+                  <div className="space-y-4">
+                    {/* Text Improvement Actions */}
+                    <div className="space-y-3">
+                      <p className="text-sm font-medium flex items-center gap-2">
+                        <Wand2 className="h-4 w-4 text-violet-500" />
+                        Text Improvements
+                      </p>
+                      <div className="grid grid-cols-4 gap-2">
+                        <div className="p-2 bg-muted/50 rounded-lg text-center">
+                          <p className="text-[10px] text-muted-foreground">Grammar</p>
+                          <p className="text-lg font-semibold">{aiStats.selectionActions.grammarFixes}</p>
+                        </div>
+                        <div className="p-2 bg-muted/50 rounded-lg text-center">
+                          <p className="text-[10px] text-muted-foreground">Improve</p>
+                          <p className="text-lg font-semibold">{aiStats.selectionActions.improveWriting}</p>
+                        </div>
+                        <div className="p-2 bg-muted/50 rounded-lg text-center">
+                          <p className="text-[10px] text-muted-foreground">Simplify</p>
+                          <p className="text-lg font-semibold">{aiStats.selectionActions.simplify}</p>
+                        </div>
+                        <div className="p-2 bg-muted/50 rounded-lg text-center">
+                          <p className="text-[10px] text-muted-foreground">Formal</p>
+                          <p className="text-lg font-semibold">{aiStats.selectionActions.makeFormal}</p>
+                        </div>
+                      </div>
+                      {/* Acceptance Stats */}
+                      <div className="flex flex-wrap items-center gap-3 text-xs pt-1">
+                        <span className="text-muted-foreground">Total: <span className="font-medium text-foreground">{aiStats.selectionActions.total}</span></span>
+                        <span className="flex items-center gap-1">
+                          <CheckCircle className="h-3 w-3 text-green-600" />
+                          <span className="text-green-600 font-medium">{aiStats.selectionActions.accepted}</span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <XCircle className="h-3 w-3 text-red-500" />
+                          <span className="text-red-500 font-medium">{aiStats.selectionActions.rejected}</span>
+                        </span>
+                        {aiStats.selectionActions.total > 0 && (
+                          <span className="text-muted-foreground">
+                            Rate: <span className="font-medium text-foreground">{aiStats.selectionActions.acceptanceRate.toFixed(0)}%</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* AI Questions */}
+                    <div className="space-y-3">
+                      <p className="text-sm font-medium flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4 text-blue-500" />
+                        AI Questions
+                      </p>
+                      <div className="grid grid-cols-4 gap-2">
+                        <div className="p-2 bg-muted/50 rounded-lg text-center">
+                          <p className="text-[10px] text-muted-foreground">Total</p>
+                          <p className="text-lg font-semibold">{aiStats.aiQuestions.total}</p>
+                        </div>
+                        <div className="p-2 bg-blue-50 rounded-lg text-center border border-blue-100">
+                          <p className="text-[10px] text-blue-700">Understanding</p>
+                          <p className="text-lg font-semibold text-blue-700">{aiStats.aiQuestions.understanding}</p>
+                        </div>
+                        <div className="p-2 bg-violet-50 rounded-lg text-center border border-violet-100">
+                          <p className="text-[10px] text-violet-700">Generation</p>
+                          <p className="text-lg font-semibold text-violet-700">{aiStats.aiQuestions.generation}</p>
+                        </div>
+                        <div className="p-2 bg-muted/50 rounded-lg text-center">
+                          <p className="text-[10px] text-muted-foreground">Other</p>
+                          <p className="text-lg font-semibold">{aiStats.aiQuestions.other}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No AI statistics available.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Download & Details Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Download</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button onClick={handleDownloadPDF} className="w-full" size="sm">
+                  <FileText className="mr-2 h-4 w-4" />
+                  PDF Certificate
+                </Button>
+                <Button onClick={handleDownloadJSON} variant="outline" className="w-full" size="sm">
+                  <FileJson className="mr-2 h-4 w-4" />
+                  JSON Data
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-xs">
+                <div>
+                  <p className="text-muted-foreground">Certificate ID</p>
+                  <p className="font-mono truncate">{certificate.id}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Document ID</p>
+                  <p className="font-mono truncate">{certificate.documentId}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
-        {/* Right Column: Verification Section (takes 2/5 width) */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* Right Column (1/3 width) */}
+        <div className="space-y-6">
+          {/* Verification QR Code */}
           <Card>
-            <CardHeader>
-              <CardTitle>Verification QR Code</CardTitle>
-              <CardDescription>Scan to verify certificate</CardDescription>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Verification</CardTitle>
+              <CardDescription>Scan QR code to verify</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center">
               {qrCodeDataURL ? (
                 <img
                   src={qrCodeDataURL}
                   alt="Verification QR Code"
-                  className="w-48 h-48 border rounded-lg"
+                  className="w-40 h-40 border rounded-lg"
                 />
               ) : (
-                <div className="w-48 h-48 bg-muted animate-pulse rounded-lg" />
+                <div className="w-40 h-40 bg-muted animate-pulse rounded-lg" />
               )}
               <Button
                 onClick={handleShareVerificationLink}
                 variant="outline"
                 size="sm"
-                className="mt-4 w-full"
+                className="mt-3 w-full"
               >
                 <Share2 className="mr-2 h-4 w-4" />
-                Share Verification Link
+                Share Link
               </Button>
             </CardContent>
           </Card>
 
+          {/* Verification Token */}
           <Card>
-            <CardHeader>
-              <CardTitle>Verification Token</CardTitle>
-              <CardDescription>Use this token to verify the certificate</CardDescription>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Token</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <div className="p-3 bg-muted rounded-md font-mono text-xs break-all">
+              <div className="p-2 bg-muted rounded-md font-mono text-[10px] break-all max-h-20 overflow-y-auto">
                 {certificate.verificationToken}
               </div>
               <Button
@@ -421,164 +542,97 @@ export default function CertificateDetailPage() {
                 ) : (
                   <>
                     <Copy className="mr-2 h-4 w-4" />
-                    Copy Token
+                    Copy
                   </>
                 )}
               </Button>
             </CardContent>
           </Card>
-        </div>
-      </div>
 
-      {/* Downloads and Details Section */}
-      <div className="grid gap-6 lg:grid-cols-5 mt-6">
-        {/* Left Column: Downloads and Certificate Details (takes 3/5 width) */}
-        <div className="lg:col-span-3 space-y-6">
+          {/* Certificate Settings */}
           <Card>
-            <CardHeader>
-              <CardTitle>Download Certificate</CardTitle>
-              <CardDescription>Download your certificate in different formats</CardDescription>
-            </CardHeader>
-            <CardContent className="flex gap-4">
-              <Button onClick={handleDownloadPDF} className="flex-1">
-                <FileText className="mr-2 h-4 w-4" />
-                Download PDF
-              </Button>
-              <Button onClick={handleDownloadJSON} variant="outline" className="flex-1">
-                <FileJson className="mr-2 h-4 w-4" />
-                Download JSON
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Certificate Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <div>
-                <p className="text-muted-foreground">Certificate ID</p>
-                <p className="font-mono text-xs">{certificate.id}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Document ID</p>
-                <p className="font-mono text-xs">{certificate.documentId}</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Column: Certificate Settings (takes 2/5 width) */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
+            <CardHeader className="pb-3">
               <div className="flex items-center gap-2">
-                <Settings className="h-5 w-5 text-muted-foreground" />
-                <CardTitle>Certificate Settings</CardTitle>
+                <Settings className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">Settings</CardTitle>
               </div>
-              <CardDescription>
-                Manage access protection and display options
-              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Access Protection Section */}
-              <div className="space-y-3">
+            <CardContent className="space-y-4">
+              {/* Access Protection */}
+              <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  {certificate.isProtected ? (
-                    <Lock className="h-4 w-4 text-yellow-600" />
-                  ) : (
-                    <Lock className="h-4 w-4 text-muted-foreground" />
-                  )}
-                  <h3 className="font-semibold text-sm">Access Protection</h3>
+                  <Lock className={`h-3 w-3 ${certificate.isProtected ? 'text-yellow-600' : 'text-muted-foreground'}`} />
+                  <h3 className="font-medium text-sm">Protection</h3>
                 </div>
 
                 {!isEditingAccessCode ? (
                   <>
                     {certificate.isProtected && certificate.accessCode ? (
                       <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground">
-                          Certificate is protected. Viewers need this code:
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 p-2 bg-muted rounded font-mono text-sm">
+                        <div className="flex items-center gap-1">
+                          <div className="flex-1 p-2 bg-muted rounded font-mono text-xs truncate">
                             {certificate.accessCode}
                           </div>
                           <Button
                             onClick={() => {
                               navigator.clipboard.writeText(certificate.accessCode!);
-                              toast({
-                                title: 'Copied',
-                                description: 'Access code copied to clipboard',
-                              });
+                              toast({ title: 'Copied', description: 'Access code copied' });
                             }}
                             variant="ghost"
                             size="sm"
+                            className="h-8 w-8 p-0"
                           >
-                            <Copy className="h-4 w-4" />
+                            <Copy className="h-3 w-3" />
                           </Button>
-                          <Button
-                            onClick={handleStartEdit}
-                            variant="ghost"
-                            size="sm"
-                          >
-                            <Edit2 className="h-4 w-4" />
+                          <Button onClick={handleStartEdit} variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <Edit2 className="h-3 w-3" />
                           </Button>
                           <Button
                             onClick={handleRemoveAccessCode}
                             variant="ghost"
                             size="sm"
                             disabled={isUpdatingAccessCode}
+                            className="h-8 w-8 p-0"
                           >
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                            <Trash2 className="h-3 w-3 text-destructive" />
                           </Button>
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground">
-                          Certificate is public. Anyone with the link can view it.
-                        </p>
-                        <Button
-                          onClick={handleStartAddCode}
-                          variant="outline"
-                          size="sm"
-                          className="w-full"
-                        >
-                          <Lock className="h-4 w-4 mr-2" />
-                          Add Access Code
-                        </Button>
-                      </div>
+                      <Button onClick={handleStartAddCode} variant="outline" size="sm" className="w-full">
+                        <Lock className="h-3 w-3 mr-2" />
+                        Add Access Code
+                      </Button>
                     )}
                   </>
                 ) : (
                   <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">
-                      {certificate.isProtected ? 'Edit access code:' : 'Enter access code (min 4 characters):'}
-                    </p>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                       <Input
                         type="text"
-                        placeholder="Enter code"
+                        placeholder="Code (min 4 chars)"
                         value={editedAccessCode}
                         onChange={(e) => setEditedAccessCode(e.target.value)}
                         disabled={isUpdatingAccessCode}
-                        className="flex-1 h-9 text-sm font-mono"
+                        className="flex-1 h-8 text-xs font-mono"
                         autoFocus
                       />
                       <Button
                         onClick={handleSaveAccessCode}
                         size="sm"
                         disabled={isUpdatingAccessCode || editedAccessCode.trim().length < 4}
+                        className="h-8 w-8 p-0"
                       >
-                        <Check className="h-4 w-4" />
+                        <Check className="h-3 w-3" />
                       </Button>
                       <Button
                         onClick={handleCancelEdit}
                         size="sm"
                         variant="outline"
                         disabled={isUpdatingAccessCode}
+                        className="h-8 w-8 p-0"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-3 w-3" />
                       </Button>
                     </div>
                   </div>
@@ -587,16 +641,13 @@ export default function CertificateDetailPage() {
 
               <Separator />
 
-              {/* Public Display Options Section */}
+              {/* Display Options */}
               <div className="space-y-3">
-                <h3 className="font-semibold text-sm">Public Display Options</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between space-x-2">
-                    <Label htmlFor="includeFullText" className="flex flex-col space-y-1 cursor-pointer">
-                      <span className="text-sm font-medium">Show Full Text</span>
-                      <span className="text-xs text-muted-foreground font-normal">
-                        Display complete document content
-                      </span>
+                <h3 className="font-medium text-sm">Display</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="includeFullText" className="text-xs cursor-pointer">
+                      Show Full Text
                     </Label>
                     <Switch
                       id="includeFullText"
@@ -605,12 +656,9 @@ export default function CertificateDetailPage() {
                       disabled={isUpdatingDisplay}
                     />
                   </div>
-                  <div className="flex items-center justify-between space-x-2">
-                    <Label htmlFor="includeEditHistory" className="flex flex-col space-y-1 cursor-pointer">
-                      <span className="text-sm font-medium">Show Edit History</span>
-                      <span className="text-xs text-muted-foreground font-normal">
-                        Display complete editing timeline
-                      </span>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="includeEditHistory" className="text-xs cursor-pointer">
+                      Show Edit History
                     </Label>
                     <Switch
                       id="includeEditHistory"

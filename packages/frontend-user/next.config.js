@@ -27,6 +27,11 @@ const nextConfig = {
   images: {
     domains: ['localhost', 'api.writehumanly.net'],
   },
+  webpack: (config) => {
+    // Required for pdfjs-dist SSR compatibility
+    config.resolve.alias.canvas = false;
+    return config;
+  },
 };
 
 module.exports = nextConfig;

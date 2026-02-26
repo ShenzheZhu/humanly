@@ -43,7 +43,20 @@ export type EventType =
   // Other formatting
   | 'line-spacing-change'
   | 'indent-change'
-  | 'clear-formatting';
+  | 'clear-formatting'
+  // AI Assistant events
+  | 'ai_panel_open'
+  | 'ai_panel_close'
+  | 'ai_query_sent'
+  | 'ai_response_received'
+  | 'ai_suggestion_shown'
+  | 'ai_suggestion_accepted'
+  | 'ai_suggestion_rejected'
+  | 'ai_modification_applied'
+  | 'ai_logs_viewed'
+  | 'ai_logs_exported'
+  // AI Selection Menu events (inline quick actions)
+  | 'ai_selection_action';
 
 export interface TrackerEvent {
   eventType: EventType;

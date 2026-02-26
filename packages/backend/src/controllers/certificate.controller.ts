@@ -437,3 +437,26 @@ export async function getEditHistory(req: Request, res: Response): Promise<void>
     },
   });
 }
+
+/**
+ * Get AI authorship statistics for a certificate
+ */
+export async function getAIAuthorshipStats(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.userId;
+  const certificateId = req.params.id;
+
+  if (!certificateId) {
+    throw new AppError(400, 'Certificate ID is required');
+  }
+
+  // Verify ownership and get certificate
+  const certificate = await CertificateService.getCertificate(certificateId, userId);
+
+  // Get AI authorship stats for the document
+  const aiStats = await CertificateService.getAIAuthorshipStats(certificate.documentId);
+
+  res.json({
+    success: true,
+    data: aiStats,
+  });
+}

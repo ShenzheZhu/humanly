@@ -46,6 +46,16 @@ interface EnvConfig {
   awsAccessKeyId?: string;
   awsSecretAccessKey?: string;
 
+  // AI Configuration
+  aiProvider: 'openai' | 'anthropic' | 'mock';
+  aiApiKey?: string;
+  aiModel?: string;
+  aiBaseUrl?: string;
+  aiMaxTokens: number;
+  aiTemperature: number;
+  aiRateLimitRequests: number;
+  aiRateLimitWindowMs: number;
+
   // Logging
   logLevel: string;
 }
@@ -122,6 +132,16 @@ export const env: EnvConfig = {
   awsRegion: process.env.AWS_REGION,
   awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID,
   awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+
+  // AI Configuration
+  aiProvider: (getEnv('AI_PROVIDER', 'mock') as 'openai' | 'anthropic' | 'mock'),
+  aiApiKey: process.env.AI_API_KEY,
+  aiModel: process.env.AI_MODEL,
+  aiBaseUrl: process.env.AI_BASE_URL,
+  aiMaxTokens: getEnvNumber('AI_MAX_TOKENS', 2048),
+  aiTemperature: parseFloat(getEnv('AI_TEMPERATURE', '0.7')),
+  aiRateLimitRequests: getEnvNumber('AI_RATE_LIMIT_REQUESTS', 20),
+  aiRateLimitWindowMs: getEnvNumber('AI_RATE_LIMIT_WINDOW_MS', 60000),
 
   // Logging
   logLevel: getEnv('LOG_LEVEL', 'info'),

@@ -142,6 +142,7 @@ export interface Certificate {
   includeEditHistory: boolean;
   isProtected: boolean;
   accessCode?: string | null; // Plaintext access code (only for owner)
+  accessCodeHash?: string | null; // Hashed access code for verification
 
   // Metadata
   generatedAt: Date;
@@ -211,6 +212,28 @@ export interface CertificateMetrics {
   pastedPercentage: number;
 }
 
+// AI Authorship Statistics for certificates
+export interface AIAuthorshipStats {
+  // AI Selection Actions (Fix Grammar, Improve Writing, etc.)
+  selectionActions: {
+    total: number;
+    grammarFixes: number;
+    improveWriting: number;
+    simplify: number;
+    makeFormal: number;
+    accepted: number;
+    rejected: number;
+    acceptanceRate: number; // percentage
+  };
+  // AI Assistant Questions
+  aiQuestions: {
+    total: number;
+    understanding: number; // Questions about understanding content
+    generation: number; // Requests to create/modify content
+    other: number;
+  };
+}
+
 // JSON certificate format for export
 export interface JSONCertificate {
   version: string;
@@ -234,6 +257,7 @@ export interface JSONCertificate {
     pasteEvents: number;
     editingTimeMinutes: number;
   };
+  aiAuthorshipStats?: AIAuthorshipStats;
   verification: {
     token: string;
     verifyUrl: string;

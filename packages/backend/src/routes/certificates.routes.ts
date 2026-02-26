@@ -14,6 +14,7 @@ import {
   updateDisplayOptions,
   deleteCertificate,
   getEditHistory,
+  getAIAuthorshipStats,
 } from '../controllers/certificate.controller';
 
 const router = Router();
@@ -108,5 +109,12 @@ router.patch('/:id/display-options', asyncHandler(updateDisplayOptions));
  * Delete certificate
  */
 router.delete('/:id', asyncHandler(deleteCertificate));
+
+/**
+ * GET /api/v1/certificates/:id/ai-stats
+ * Get AI authorship statistics for a certificate
+ * Returns: { selectionActions: {...}, aiQuestions: {...} }
+ */
+router.get('/:id/ai-stats', asyncHandler(getAIAuthorshipStats));
 
 export default router;

@@ -4,12 +4,15 @@ import bcrypt from 'bcrypt';
 import { CertificateModel } from '../models/certificate.model';
 import { DocumentModel } from '../models/document.model';
 import { DocumentEventModel } from '../models/document-event.model';
+import { AISelectionActionModel } from '../models/ai-selection-action.model';
+import { AIModel } from '../models/ai.model';
 import {
   Certificate,
   CertificateFilters,
   CertificateVerification,
   CertificateMetrics,
   JSONCertificate,
+  AIAuthorshipStats,
   PaginatedResult,
 } from '@humory/shared';
 import { AppError } from '../middleware/error-handler';
@@ -192,6 +195,9 @@ export class CertificateService {
       ? (certificate.pastedCharacters / totalAuthored) * 100
       : 0;
 
+    // Get AI authorship statistics
+    const aiStats = await this.getAIAuthorshipStats(certificate.documentId);
+
     const jsonCertificate: JSONCertificate = {
       version: '1.0',
       certificateId: certificate.id,
@@ -214,6 +220,7 @@ export class CertificateService {
         pasteEvents: certificate.pasteEvents,
         editingTimeMinutes: Math.round(certificate.editingTimeSeconds / 60),
       },
+      aiAuthorshipStats: aiStats,
       verification: {
         token: certificate.verificationToken,
         verifyUrl: `http://localhost:3002/verify/${certificate.verificationToken}`,
@@ -222,6 +229,62 @@ export class CertificateService {
     };
 
     return jsonCertificate;
+  }
+
+  /**
+   * Get AI authorship statistics for a document
+   */
+  static async getAIAuthorshipStats(documentId: string): Promise<AIAuthorshipStats> {
+    // Default empty stats
+    const emptyStats: AIAuthorshipStats = {
+      selectionActions: {
+        total: 0,
+        grammarFixes: 0,
+        improveWriting: 0,
+        simplify: 0,
+        makeFormal: 0,
+        accepted: 0,
+        rejected: 0,
+        acceptanceRate: 0,
+      },
+      aiQuestions: {
+        total: 0,
+        understanding: 0,
+        generation: 0,
+        other: 0,
+      },
+    };
+
+    try {
+      // Get AI selection action stats
+      const selectionStats = await AISelectionActionModel.getStatsByDocumentId(documentId);
+
+      // Get AI question stats
+      const questionStats = await AIModel.getQuestionStatsByDocument(documentId);
+
+      return {
+        selectionActions: {
+          total: selectionStats.totalActions,
+          grammarFixes: selectionStats.grammarActions,
+          improveWriting: selectionStats.improveActions,
+          simplify: selectionStats.simplifyActions,
+          makeFormal: selectionStats.formalActions,
+          accepted: selectionStats.acceptedCount,
+          rejected: selectionStats.rejectedCount,
+          acceptanceRate: Math.round(selectionStats.acceptanceRate * 10) / 10,
+        },
+        aiQuestions: {
+          total: questionStats.totalQuestions,
+          understanding: questionStats.understandingQuestions,
+          generation: questionStats.generationQuestions,
+          other: questionStats.otherQuestions,
+        },
+      };
+    } catch (error) {
+      // If tables don't exist yet (migration not run), return empty stats
+      logger.warn('Error fetching AI authorship stats, returning empty stats', { error, documentId });
+      return emptyStats;
+    }
   }
 
   /**
