@@ -225,6 +225,21 @@ export function AISelectionMenu({
     setPendingSuggestion(null);
   };
 
+  // When suggestion dialog is open, hide the menu bar completely
+  if (pendingSuggestion) {
+    return (
+      <AISuggestionDialog
+        isOpen={true}
+        onClose={() => setPendingSuggestion(null)}
+        onAccept={handleAcceptSuggestion}
+        onReject={handleRejectSuggestion}
+        title={`${pendingSuggestion.actionLabel} - Review Suggestion`}
+        originalText={pendingSuggestion.originalText}
+        suggestedText={pendingSuggestion.suggestedText}
+      />
+    );
+  }
+
   return (
     <div
       className={cn(
@@ -320,19 +335,6 @@ export function AISelectionMenu({
             </div>
           </div>
         </div>
-      )}
-
-      {/* AI Suggestion Confirmation Dialog */}
-      {pendingSuggestion && (
-        <AISuggestionDialog
-          isOpen={true}
-          onClose={() => setPendingSuggestion(null)}
-          onAccept={handleAcceptSuggestion}
-          onReject={handleRejectSuggestion}
-          title={`${pendingSuggestion.actionLabel} - Review Suggestion`}
-          originalText={pendingSuggestion.originalText}
-          suggestedText={pendingSuggestion.suggestedText}
-        />
       )}
     </div>
   );
