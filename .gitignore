@@ -61,3 +61,4 @@ packages/backend/storage/
 
 *.png
 test_config.md
+DEV_LOG.md
