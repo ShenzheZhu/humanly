@@ -235,14 +235,6 @@ export default function LoginPage() {
             Sign up
           </Link>
         </p>
-        <div className="text-center">
-          <Link
-            href="/demo"
-            className="text-sm text-muted-foreground hover:text-primary transition-colors"
-          >
-            Or try the <span className="font-medium">live demo</span> →
-          </Link>
-        </div>
       </CardFooter>
     </Card>
   );
