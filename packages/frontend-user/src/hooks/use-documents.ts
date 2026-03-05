@@ -29,26 +29,24 @@ export function useDocuments() {
   }, [fetchDocuments]);
 
   const createDocument = useCallback(async (title: string, pdfFile?: File) => {
-    try {
-      // Create the document first
-      const response = await apiClient.post('/documents', {
-        title,
-        content: {},
-        status: 'draft',
-      });
-      const document = response.data.data.document;
+    // Step 1: Create the document
+    const response = await apiClient.post('/documents', {
+      title,
+      content: {},
+      status: 'draft',
+    });
+    const document = response.data.data.document;
 
-      // If a PDF file is provided, upload it and link to the document
-      if (pdfFile) {
+    // Step 2: If a PDF file is provided, upload it and link to the document
+    if (pdfFile) {
+      try {
         // Get or create user's default project
         const projectsResponse = await apiClient.get('/projects?limit=1');
         let projectId: string;
 
         if (projectsResponse.data.data && projectsResponse.data.data.length > 0) {
-          // Use first project
           projectId = projectsResponse.data.data[0].id;
         } else {
-          // Create a default project
           const newProjectResponse = await apiClient.post('/projects', {
             name: 'Default Project',
             description: 'Auto-created project for document reviews',
@@ -64,16 +62,22 @@ export function useDocuments() {
         formData.append('keywords', JSON.stringify([]));
         formData.append('documentId', document.id);
 
-        await apiClient.post(`/projects/${projectId}/papers`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        // Do NOT set Content-Type manually — let axios detect FormData and set
+        // the correct multipart/form-data boundary automatically
+        await apiClient.post(`/projects/${projectId}/papers`, formData);
+      } catch (uploadErr: any) {
+        // Rollback: delete the orphaned document so the user can retry cleanly
+        try {
+          await apiClient.delete(`/documents/${document.id}`);
+        } catch {
+          // Ignore rollback error
+        }
+        throw new Error(uploadErr.message || 'Failed to upload PDF');
       }
-
-      await fetchDocuments();
-      return document;
-    } catch (err: any) {
-      throw new Error(err.response?.data?.message || 'Failed to create document');
     }
+
+    await fetchDocuments();
+    return document;
   }, [fetchDocuments]);
 
   const deleteDocument = useCallback(async (documentId: string) => {

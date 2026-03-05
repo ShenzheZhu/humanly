@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, FileText, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,7 @@ export default function DocumentsPage() {
   const [sortBy, setSortBy] = useState<SortOption>('lastEdited');
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isCreatingRef = useRef(false);
 
   const handlePdfSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -58,7 +59,7 @@ export default function DocumentsPage() {
     }
   };
 
-  const handleCreateDocument = async () => {
+  const handleCreateDocument = useCallback(async () => {
     if (!newDocTitle.trim()) {
       toast({
         title: 'Error',
@@ -67,6 +68,10 @@ export default function DocumentsPage() {
       });
       return;
     }
+
+    // Prevent double submission from Enter key + button click racing
+    if (isCreatingRef.current) return;
+    isCreatingRef.current = true;
 
     try {
       setIsCreating(true);
@@ -87,8 +92,9 @@ export default function DocumentsPage() {
       });
     } finally {
       setIsCreating(false);
+      isCreatingRef.current = false;
     }
-  };
+  }, [newDocTitle, pdfFile, createDocument, toast, router]);
 
   const handleDeleteDocument = async (documentId: string) => {
     try {
