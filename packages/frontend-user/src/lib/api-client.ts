@@ -92,7 +92,8 @@ const createApiClient = (): AxiosInstance => {
       // because a 401 from /ai/chat means invalid AI API key, not expired JWT
       const requestUrl = originalRequest.url || '';
       const isAIEndpoint = requestUrl.includes('/ai/chat') || requestUrl.includes('/ai/stream');
-      if (error.response?.status === 401 && !originalRequest._retry && !isAIEndpoint) {
+      const isAuthEndpoint = requestUrl.includes('/auth/login') || requestUrl.includes('/auth/register');
+      if (error.response?.status === 401 && !originalRequest._retry && !isAIEndpoint && !isAuthEndpoint) {
         originalRequest._retry = true;
 
         try {
