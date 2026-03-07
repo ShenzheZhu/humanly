@@ -88,7 +88,11 @@ humanly/
 6. **Run database migrations**
    ```bash
    # Wait for PostgreSQL to be ready (check with docker-compose logs postgres)
-   docker-compose exec postgres psql -U humanly_user -d humanly_dev -f /docker-entrypoint-initdb.d/001_initial_schema.sql
+   docker-compose exec postgres psql -U humory_user -d humory_dev -f /docker-entrypoint-initdb.d/001_initial_schema.sql
+
+   for f in packages/backend/src/db/migrations/*.sql; do
+      docker-compose exec -T postgres psql -U humory_user -d humory_dev < "$f"
+   done
    ```
 
 7. **Start the backend**

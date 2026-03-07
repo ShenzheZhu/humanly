@@ -69,6 +69,10 @@ const createApiClient = (): AxiosInstance => {
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+      // Let axios set the correct Content-Type (including multipart boundary) for FormData
+      if (config.data instanceof FormData) {
+        delete config.headers['Content-Type'];
+      }
       return config;
     },
     (error) => {

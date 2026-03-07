@@ -6,14 +6,12 @@ import { Input } from '@/components/ui/input'
 import {
   ZoomIn,
   ZoomOut,
-  ChevronLeft,
-  ChevronRight,
   Search,
   ChevronUp,
   ChevronDown,
   Maximize2,
   AlertCircle,
-  CheckCircle,
+  X,
   Loader2,
 } from 'lucide-react'
 import { paperApi } from '@/lib/api/review-api'
@@ -22,7 +20,7 @@ import { usePDFTextStore } from '@/stores/pdf-text-store'
 
 interface PDFViewerProps {
   paperId: string
-  documentId?: string // optional - for AI context integration
+  documentId?: string
   onCommentAdd: (comment: {
     pageNumber: number
     positionX: number
@@ -40,98 +38,109 @@ interface SearchMatch {
 
 export default function SimplePDFViewer({ paperId, documentId, onCommentAdd, comments }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number>(0)
-  const [pageNumber, setPageNumber] = useState<number>(1)
+  const [currentPage, setCurrentPage] = useState<number>(1)
   const [textExtractionError, setTextExtractionError] = useState<string | null>(null)
-
-  // PDF text store for AI context
   const { setPDFText, setExtracting, setError: setPDFError } = usePDFTextStore()
+
   const [scale, setScale] = useState<number>(1.0)
   const [fitToWidth, setFitToWidth] = useState<boolean>(false)
   const [searchText, setSearchText] = useState<string>('')
   const [searchMatches, setSearchMatches] = useState<SearchMatch[]>([])
   const [currentMatchIndex, setCurrentMatchIndex] = useState<number>(-1)
   const [isSearching, setIsSearching] = useState<boolean>(false)
-  const [showSearchBox, setShowSearchBox] = useState<boolean>(false)
-  const [pageInput, setPageInput] = useState<string>('')
-  const [pdfUrl, setPdfUrl] = useState<string>('')
+  const [showSearch, setShowSearch] = useState<boolean>(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+
   const containerRef = useRef<HTMLDivElement>(null)
-  const highlightLayerRef = useRef<HTMLDivElement>(null)
   const pdfDocRef = useRef<any>(null)
   const textContentCache = useRef<Map<number, any>>(new Map())
-  const initialRenderComplete = useRef(false)
+  const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([])
+  const highlightRefs = useRef<(HTMLDivElement | null)[]>([])
+  const pageContainerRefs = useRef<(HTMLDivElement | null)[]>([])
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const scaleRef = useRef<number>(1.0)
+
+  // Keep scaleRef in sync
+  useEffect(() => {
+    scaleRef.current = scale
+  }, [scale])
 
   // Extract PDF text in background for AI context
   const extractPDFTextInBackground = useCallback(async (pdf: any, docId: string, pId: string) => {
     try {
-      console.log(`[PDF Text Extraction] Starting for document ${docId}...`)
       setExtracting(docId, true)
       setTextExtractionError(null)
-
       const pages: string[] = []
-      const totalPages = pdf.numPages
-
-      // Extract text from each page
-      for (let i = 1; i <= totalPages; i++) {
+      for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i)
         const textContent = await page.getTextContent()
-        const pageText = textContent.items.map((item: any) => item.str).join(' ')
-        pages.push(pageText)
+        pages.push(textContent.items.map((item: any) => item.str).join(' '))
       }
-
-      // Build full text
       const fullText = pages.join('\n\n')
-
-      // Create summary from first 2 pages (trimmed to ~2500 chars)
-      const firstTwoPages = pages.slice(0, 2).join('\n\n')
-      const summary = firstTwoPages.substring(0, 2500)
-
-      // Store in zustand
-      setPDFText(docId, {
-        paperId: pId,
-        numPages: totalPages,
-        pages,
-        fullText,
-        summary,
-        isExtracting: false,
-      })
-
-      console.log(`[PDF Text Extraction] ✓ Complete. Extracted ${pages.length} pages, ${fullText.length} chars total`)
-    } catch (error: any) {
-      console.error('[PDF Text Extraction] Failed:', error)
-      const errorMsg = error.message || 'Failed to extract PDF text'
-      setTextExtractionError(errorMsg)
-      setPDFError(docId, errorMsg)
+      const summary = pages.slice(0, 2).join('\n\n').substring(0, 2500)
+      setPDFText(docId, { paperId: pId, numPages: pdf.numPages, pages, fullText, summary, isExtracting: false })
+    } catch (err: any) {
+      const msg = err.message || 'Failed to extract PDF text'
+      setTextExtractionError(msg)
+      setPDFError(docId, msg)
     }
   }, [setPDFText, setExtracting, setPDFError])
 
-  // Load PDF.js from CDN (v3.11.174 - matches available CDN version)
+  // Load PDF.js from CDN
   useEffect(() => {
     const script = document.createElement('script')
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
     script.async = true
     script.onload = () => {
-      console.log('PDF.js loaded from CDN')
-      // Configure worker to use local file
       if (window.pdfjsLib) {
         window.pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js'
       }
     }
     script.onerror = () => {
-      console.error('Failed to load PDF.js from CDN')
       setError('Failed to load PDF library')
       setLoading(false)
     }
     document.head.appendChild(script)
+    return () => { if (document.head.contains(script)) document.head.removeChild(script) }
+  }, [])
 
-    return () => {
-      if (document.head.contains(script)) {
-        document.head.removeChild(script)
+  // Render a single page to its canvas
+  const renderPage = useCallback(async (pageNum: number, currentScale: number) => {
+    if (!pdfDocRef.current) return
+    const canvas = canvasRefs.current[pageNum - 1]
+    if (!canvas) return
+    try {
+      const page = await pdfDocRef.current.getPage(pageNum)
+      const context = canvas.getContext('2d')
+      if (!context) return
+      const pixelRatio = window.devicePixelRatio || 1
+      const viewport = page.getViewport({ scale: currentScale * pixelRatio, rotation: 0 })
+      canvas.height = viewport.height
+      canvas.width = viewport.width
+      canvas.style.height = `${viewport.height / pixelRatio}px`
+      canvas.style.width = `${viewport.width / pixelRatio}px`
+      const hl = highlightRefs.current[pageNum - 1]
+      if (hl) {
+        hl.style.width = canvas.style.width
+        hl.style.height = canvas.style.height
       }
+      context.clearRect(0, 0, canvas.width, canvas.height)
+      context.setTransform(1, 0, 0, 1, 0, 0)
+      await page.render({ canvasContext: context, viewport }).promise
+    } catch (err) {
+      console.error(`Error rendering page ${pageNum}:`, err)
     }
   }, [])
+
+  // Render all pages
+  const renderAllPages = useCallback(async (currentScale: number) => {
+    if (!pdfDocRef.current) return
+    const total = pdfDocRef.current.numPages
+    for (let i = 1; i <= total; i++) {
+      await renderPage(i, currentScale)
+    }
+  }, [renderPage])
 
   // Load PDF document
   useEffect(() => {
@@ -142,488 +151,256 @@ export default function SimplePDFViewer({ paperId, documentId, onCommentAdd, com
       try {
         setLoading(true)
         setError(null)
-
-        // Wait for PDF.js to be available
         let attempts = 0
         while (!window.pdfjsLib && attempts < 50) {
           await new Promise(resolve => setTimeout(resolve, 100))
           attempts++
         }
+        if (!window.pdfjsLib) throw new Error('PDF.js failed to load')
 
-        if (!window.pdfjsLib) {
-          throw new Error('PDF.js failed to load')
-        }
-
-        // Fetch PDF with auth headers and create blob URL
-        console.log('[PDF Viewer] Fetching PDF blob for paper:', paperId)
         const url = await paperApi.getPdfBlob(paperId)
         if (cancelled) return
         blobUrl = url
-        setPdfUrl(url)
-        console.log('[PDF Viewer] PDF blob URL created:', url.substring(0, 50) + '...')
 
-        // Load PDF document
-        console.log('[PDF Viewer] Loading PDF document...')
-        const loadingTask = window.pdfjsLib.getDocument(url)
-        const pdf = await loadingTask.promise
+        const pdf = await window.pdfjsLib.getDocument(url).promise
         if (cancelled) return
         pdfDocRef.current = pdf
-        const totalPages = pdf.numPages
-        setNumPages(totalPages)
-        console.log('[PDF Viewer] PDF loaded successfully. Total pages:', totalPages)
-
-        // Track paper access
-        await paperApi.logAccess(paperId, {
-          accessType: 'open',
-        })
-
+        setNumPages(pdf.numPages)
         setLoading(false)
 
-        // Force initial render - wait for canvas to be mounted then render
-        // This avoids race condition between setNumPages and setPageNumber
-        if (!cancelled && totalPages > 0) {
-          const initialScale = 1.0 // Use default scale for initial render
+        await paperApi.logAccess(paperId, { accessType: 'open' })
 
-          // Helper function to render first page, with retry mechanism
-          const renderFirstPage = async (retryCount = 0): Promise<void> => {
-            if (cancelled) return
-
-            const canvas = canvasRef.current
-            if (!canvas) {
-              // Canvas not mounted yet, retry after a short delay (max 10 retries = 1 second)
-              if (retryCount < 10) {
-                setTimeout(() => renderFirstPage(retryCount + 1), 100)
-              } else {
-                console.error('PDF canvas not available after retries')
-              }
-              return
-            }
-
-            try {
-              const page = await pdf.getPage(1)
-              const context = canvas.getContext('2d')
-              if (!context) return
-
-              const pixelRatio = window.devicePixelRatio || 1
-              const viewport = page.getViewport({ scale: initialScale * pixelRatio, rotation: 0 })
-
-              canvas.height = viewport.height
-              canvas.width = viewport.width
-              canvas.style.height = `${viewport.height / pixelRatio}px`
-              canvas.style.width = `${viewport.width / pixelRatio}px`
-
-              context.clearRect(0, 0, canvas.width, canvas.height)
-              context.setTransform(1, 0, 0, 1, 0, 0)
-
-              await page.render({ canvasContext: context, viewport }).promise
-              initialRenderComplete.current = true
-              console.log('PDF initial render complete (direct)')
-            } catch (error) {
-              console.error('Error in initial render:', error)
-            }
-          }
-
-          // Start the render after a brief delay for React to mount the canvas
-          setTimeout(() => renderFirstPage(), 50)
-        }
-
-        // Extract PDF text in background for AI context (if documentId provided)
         if (documentId && !cancelled) {
           extractPDFTextInBackground(pdf, documentId, paperId)
         }
-      } catch (error: any) {
+      } catch (err: any) {
         if (cancelled) return
-        console.error('Failed to load PDF:', error)
-        setError(error.message || 'Failed to load PDF')
+        setError(err.message || 'Failed to load PDF')
         setLoading(false)
       }
     }
 
     loadPDF()
-
     return () => {
       cancelled = true
-      if (blobUrl) {
-        URL.revokeObjectURL(blobUrl)
-      }
-      if (pdfDocRef.current) {
-        pdfDocRef.current.destroy()
-      }
+      if (blobUrl) URL.revokeObjectURL(blobUrl)
+      if (pdfDocRef.current) pdfDocRef.current.destroy()
     }
   }, [paperId])
 
-  // Calculate fit-to-width scale when container size changes
+  // Render all pages after numPages is set (small delay to let React mount canvases)
   useEffect(() => {
-    if (!fitToWidth || !pdfDocRef.current || !containerRef.current || numPages === 0) return
+    if (numPages === 0) return
+    const timeout = setTimeout(() => renderAllPages(scaleRef.current), 50)
+    return () => clearTimeout(timeout)
+  }, [numPages, renderAllPages])
 
-    let resizeTimeout: NodeJS.Timeout
+  // Re-render all pages on scale change
+  useEffect(() => {
+    if (numPages === 0) return
+    renderAllPages(scale)
+  }, [scale]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    const updateFitToWidthScale = async () => {
-      try {
-        const page = await pdfDocRef.current.getPage(pageNumber)
-        const containerWidth = containerRef.current!.offsetWidth - 32 // Account for padding
-        const viewport = page.getViewport({ scale: 1.0, rotation: 0 })
-        const newScale = containerWidth / viewport.width
-        setScale(newScale)
-      } catch (error) {
-        console.error('Error calculating fit-to-width scale:', error)
-      }
+  // IntersectionObserver to track current visible page
+  useEffect(() => {
+    if (numPages === 0 || !containerRef.current) return
+    const ratios = new Map<number, number>()
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const pg = parseInt(entry.target.getAttribute('data-page') || '1', 10)
+          ratios.set(pg, entry.intersectionRatio)
+        })
+        let best = 1
+        let bestRatio = -1
+        ratios.forEach((ratio, pg) => {
+          if (ratio > bestRatio) { bestRatio = ratio; best = pg }
+        })
+        setCurrentPage(best)
+      },
+      { root: containerRef.current, threshold: [0, 0.25, 0.5, 0.75, 1.0] }
+    )
+    pageContainerRefs.current.forEach(el => { if (el) observer.observe(el) })
+    return () => observer.disconnect()
+  }, [numPages])
+
+  // Fit-to-width: recalculate when container resizes
+  const handleFitToWidth = useCallback(async () => {
+    if (!pdfDocRef.current || !containerRef.current) return
+    try {
+      const page = await pdfDocRef.current.getPage(1)
+      const containerWidth = containerRef.current.offsetWidth - 32
+      const viewport = page.getViewport({ scale: 1.0, rotation: 0 })
+      setScale(containerWidth / viewport.width)
+    } catch (err) {
+      console.error('Error calculating fit-to-width:', err)
     }
+  }, [])
 
-    // Small delay to ensure container is rendered
-    const timeoutId = setTimeout(() => {
-      updateFitToWidthScale()
-    }, 100)
-
-    // Observe container resize with debouncing
-    const resizeObserver = new ResizeObserver(() => {
-      clearTimeout(resizeTimeout)
-      resizeTimeout = setTimeout(() => {
-        updateFitToWidthScale()
-      }, 150)
+  useEffect(() => {
+    if (!fitToWidth || !containerRef.current) return
+    let timeout: NodeJS.Timeout
+    const observer = new ResizeObserver(() => {
+      clearTimeout(timeout)
+      timeout = setTimeout(handleFitToWidth, 150)
     })
-    resizeObserver.observe(containerRef.current)
+    observer.observe(containerRef.current)
+    handleFitToWidth()
+    return () => { clearTimeout(timeout); observer.disconnect() }
+  }, [fitToWidth, handleFitToWidth])
 
-    return () => {
-      clearTimeout(timeoutId)
-      clearTimeout(resizeTimeout)
-      resizeObserver.disconnect()
-    }
-  }, [fitToWidth, pageNumber, numPages])
-
-  // Extract text content from a page (defined early to avoid initialization errors)
+  // Extract text from a page (cached)
   const getPageTextContent = useCallback(async (pageNum: number) => {
-    if (textContentCache.current.has(pageNum)) {
-      return textContentCache.current.get(pageNum)
-    }
-
+    if (textContentCache.current.has(pageNum)) return textContentCache.current.get(pageNum)
     try {
       const page = await pdfDocRef.current.getPage(pageNum)
       const textContent = await page.getTextContent()
       textContentCache.current.set(pageNum, textContent)
       return textContent
-    } catch (error) {
-      console.error(`Error extracting text from page ${pageNum}:`, error)
+    } catch {
       return null
     }
   }, [])
 
-  // Render page when page number or scale changes
-  useEffect(() => {
-    const renderPage = async () => {
-      if (!pdfDocRef.current || !canvasRef.current) return
+  // Render highlights for a single page
+  const renderHighlightsForPage = useCallback(async (pageNum: number, matches: SearchMatch[], query: string, currentScale: number) => {
+    const hl = highlightRefs.current[pageNum - 1]
+    if (!hl || !pdfDocRef.current) return
+    hl.innerHTML = ''
+    if (matches.filter(m => m.pageNumber === pageNum).length === 0) return
 
-      // Don't render if numPages is 0 (PDF not loaded yet)
-      if (numPages === 0) return
+    try {
+      const page = await pdfDocRef.current.getPage(pageNum)
+      const textContent = await getPageTextContent(pageNum)
+      if (!textContent) return
+      const viewport = page.getViewport({ scale: currentScale })
+      const lowerQuery = query.toLowerCase()
 
-      try {
-        const page = await pdfDocRef.current.getPage(pageNumber)
-        const canvas = canvasRef.current
-        const context = canvas.getContext('2d')
-
-        if (!context) return
-
-        // Get device pixel ratio for crisp rendering on retina displays
-        const pixelRatio = window.devicePixelRatio || 1
-        const viewport = page.getViewport({ scale: scale * pixelRatio, rotation: 0 })
-
-        // Set canvas size accounting for pixel ratio
-        canvas.height = viewport.height
-        canvas.width = viewport.width
-
-        // Scale down the display size to match intended dimensions
-        canvas.style.height = `${viewport.height / pixelRatio}px`
-        canvas.style.width = `${viewport.width / pixelRatio}px`
-
-        const renderContext = {
-          canvasContext: context,
-          viewport: viewport,
-        }
-
-        // Clear canvas before rendering
-        context.clearRect(0, 0, canvas.width, canvas.height)
-
-        // Reset any transforms that might have been applied
-        context.setTransform(1, 0, 0, 1, 0, 0)
-
-        await page.render(renderContext).promise
-
-        // Mark initial render as complete
-        if (!initialRenderComplete.current) {
-          initialRenderComplete.current = true
-          console.log('PDF initial render complete')
-        }
-      } catch (error) {
-        console.error('Error rendering page:', error)
-      }
-    }
-
-    renderPage()
-  }, [pageNumber, scale, numPages])
-
-  // Render search highlights separately after page renders
-  useEffect(() => {
-    if (searchMatches.length === 0 || !initialRenderComplete.current) return
-
-    const renderHighlights = async () => {
-      if (!highlightLayerRef.current || !canvasRef.current || !pdfDocRef.current) return
-
-      const highlightLayer = highlightLayerRef.current
-      highlightLayer.innerHTML = '' // Clear previous highlights
-
-      const currentPageMatches = searchMatches.filter(m => m.pageNumber === pageNumber)
-      if (currentPageMatches.length === 0) return
-
-      try {
-        const page = await pdfDocRef.current.getPage(pageNumber)
-        const textContent = await getPageTextContent(pageNumber)
-        if (!textContent) return
-
-        const viewport = page.getViewport({ scale })
-        const query = searchText.toLowerCase()
-
-        textContent.items.forEach((item: any) => {
-          const itemText = item.str
-          const itemLower = itemText.toLowerCase()
-
-          for (let i = 0; i < itemText.length; i++) {
-            if (itemLower.substring(i, i + query.length) === query) {
-              const transform = item.transform
-              const x = transform[4]
-              const y = transform[5]
-              const height = item.height || 12
-              const width = (item.width || itemText.length * 8) * (query.length / itemText.length)
-
-              const highlight = document.createElement('div')
-              highlight.style.position = 'absolute'
-              highlight.style.left = `${x * scale / viewport.scale}px`
-              highlight.style.top = `${(viewport.height - y - height) * scale / viewport.scale}px`
-              highlight.style.width = `${width * scale / viewport.scale}px`
-              highlight.style.height = `${height * scale / viewport.scale}px`
-              highlight.style.backgroundColor = 'rgba(255, 255, 0, 0.4)'
-              highlight.style.pointerEvents = 'none'
-              highlightLayer.appendChild(highlight)
-            }
+      textContent.items.forEach((item: any) => {
+        const itemLower = item.str.toLowerCase()
+        for (let i = 0; i < item.str.length; i++) {
+          if (itemLower.substring(i, i + lowerQuery.length) === lowerQuery) {
+            const x = item.transform[4]
+            const y = item.transform[5]
+            const height = item.height || 12
+            const width = (item.width || item.str.length * 8) * (lowerQuery.length / item.str.length)
+            const div = document.createElement('div')
+            div.style.cssText = `position:absolute;left:${x * currentScale / viewport.scale}px;top:${(viewport.height - y - height) * currentScale / viewport.scale}px;width:${width * currentScale / viewport.scale}px;height:${height * currentScale / viewport.scale}px;background:rgba(255,255,0,0.4);pointer-events:none;`
+            hl.appendChild(div)
           }
-        })
-      } catch (error) {
-        console.error('Error rendering highlights:', error)
-      }
+        }
+      })
+    } catch (err) {
+      console.error(`Error rendering highlights for page ${pageNum}:`, err)
     }
+  }, [getPageTextContent])
 
-    renderHighlights()
-  }, [searchMatches, pageNumber, scale, searchText, getPageTextContent])
-
-  // Track page view duration
+  // Re-render highlights when matches or scale changes
   useEffect(() => {
-    const startTime = Date.now()
-    return () => {
-      const duration = Math.floor((Date.now() - startTime) / 1000)
-      paperApi.logAccess(paperId, {
-        accessType: 'page_view',
-        pageNumber,
-        durationSeconds: duration,
-      }).catch(console.error)
+    if (numPages === 0) return
+    if (searchMatches.length === 0) {
+      highlightRefs.current.forEach(el => { if (el) el.innerHTML = '' })
+      return
     }
-  }, [pageNumber, paperId])
+    for (let i = 1; i <= numPages; i++) {
+      renderHighlightsForPage(i, searchMatches, searchText, scale)
+    }
+  }, [searchMatches, scale, numPages, searchText, renderHighlightsForPage])
 
-  const changePage = useCallback((offset: number) => {
-    setPageNumber((prev) => {
-      const newPage = prev + offset
-      if (newPage < 1 || newPage > numPages) return prev
-      return newPage
-    })
-  }, [numPages])
-
+  // Scroll to a page
   const jumpToPage = useCallback((page: number) => {
-    if (page >= 1 && page <= numPages) {
-      setPageNumber(page)
-      setPageInput('')
-    }
+    if (page < 1 || page > numPages) return
+    const el = pageContainerRefs.current[page - 1]
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    setCurrentPage(page)
   }, [numPages])
 
-  const handlePageInputChange = useCallback((value: string) => {
-    setPageInput(value)
-  }, [])
-
-  const handlePageInputSubmit = useCallback(() => {
-    const page = parseInt(pageInput, 10)
-    if (!isNaN(page)) {
-      jumpToPage(page)
-    }
-  }, [pageInput, jumpToPage])
-
-  const handleZoom = useCallback((delta: number) => {
-    setFitToWidth(false)
-    setScale((prev) => Math.max(0.5, Math.min(3.0, prev + delta)))
-  }, [])
-
-  const handleFitToWidth = useCallback(() => {
-    setFitToWidth(true)
-  }, [])
-
-  // Perform full-text search across all pages
+  // Full-text search
   const handleSearch = useCallback(async () => {
     if (!searchText.trim() || !pdfDocRef.current) {
       setSearchMatches([])
       setCurrentMatchIndex(-1)
       return
     }
-
     setIsSearching(true)
     const matches: SearchMatch[] = []
     const query = searchText.toLowerCase()
-
     try {
-      // Search all pages
       for (let pageNum = 1; pageNum <= numPages; pageNum++) {
         const textContent = await getPageTextContent(pageNum)
         if (!textContent) continue
-
-        // Combine all text items into a single string
-        const pageText = textContent.items
-          .map((item: any) => item.str)
-          .join(' ')
-          .toLowerCase()
-
-        // Find all matches in the page
-        let startIndex = 0
+        const pageText = textContent.items.map((item: any) => item.str).join(' ').toLowerCase()
+        let start = 0
         while (true) {
-          const index = pageText.indexOf(query, startIndex)
-          if (index === -1) break
-
-          matches.push({
-            pageNumber: pageNum,
-            matchIndex: index,
-            text: searchText,
-          })
-          startIndex = index + 1
+          const idx = pageText.indexOf(query, start)
+          if (idx === -1) break
+          matches.push({ pageNumber: pageNum, matchIndex: idx, text: searchText })
+          start = idx + 1
         }
       }
-
       setSearchMatches(matches)
-      setCurrentMatchIndex(matches.length > 0 ? 0 : -1)
-
-      // Jump to first match
-      if (matches.length > 0) {
-        setPageNumber(matches[0].pageNumber)
-      }
-
-      // Log search access
-      paperApi.logAccess(paperId, {
-        accessType: 'search',
-      }).catch(console.error)
-    } catch (error) {
-      console.error('Error searching PDF:', error)
+      const firstIdx = matches.length > 0 ? 0 : -1
+      setCurrentMatchIndex(firstIdx)
+      if (matches.length > 0) jumpToPage(matches[0].pageNumber)
+      paperApi.logAccess(paperId, { accessType: 'search' }).catch(console.error)
+    } catch (err) {
+      console.error('Error searching PDF:', err)
     } finally {
       setIsSearching(false)
     }
-  }, [searchText, numPages, paperId, getPageTextContent])
+  }, [searchText, numPages, paperId, getPageTextContent, jumpToPage])
 
   const goToNextMatch = useCallback(() => {
     if (searchMatches.length === 0) return
-    const nextIndex = (currentMatchIndex + 1) % searchMatches.length
-    setCurrentMatchIndex(nextIndex)
-    setPageNumber(searchMatches[nextIndex].pageNumber)
-  }, [searchMatches, currentMatchIndex])
+    const next = (currentMatchIndex + 1) % searchMatches.length
+    setCurrentMatchIndex(next)
+    jumpToPage(searchMatches[next].pageNumber)
+  }, [searchMatches, currentMatchIndex, jumpToPage])
 
   const goToPreviousMatch = useCallback(() => {
     if (searchMatches.length === 0) return
-    const prevIndex = (currentMatchIndex - 1 + searchMatches.length) % searchMatches.length
-    setCurrentMatchIndex(prevIndex)
-    setPageNumber(searchMatches[prevIndex].pageNumber)
-  }, [searchMatches, currentMatchIndex])
+    const prev = (currentMatchIndex - 1 + searchMatches.length) % searchMatches.length
+    setCurrentMatchIndex(prev)
+    jumpToPage(searchMatches[prev].pageNumber)
+  }, [searchMatches, currentMatchIndex, jumpToPage])
 
-  // Render search highlights on current page
-  const renderSearchHighlights = useCallback(async () => {
-    if (!highlightLayerRef.current || !canvasRef.current || !pdfDocRef.current) return
+  const openSearch = useCallback(() => {
+    setShowSearch(true)
+    setTimeout(() => searchInputRef.current?.focus(), 50)
+  }, [])
 
-    const highlightLayer = highlightLayerRef.current
-    highlightLayer.innerHTML = '' // Clear previous highlights
+  const closeSearch = useCallback(() => {
+    setShowSearch(false)
+    setSearchText('')
+    setSearchMatches([])
+    setCurrentMatchIndex(-1)
+    highlightRefs.current.forEach(el => { if (el) el.innerHTML = '' })
+  }, [])
 
-    const currentPageMatches = searchMatches.filter(m => m.pageNumber === pageNumber)
-    if (currentPageMatches.length === 0) return
-
-    try {
-      const page = await pdfDocRef.current.getPage(pageNumber)
-      const textContent = await getPageTextContent(pageNumber)
-      if (!textContent) return
-
-      const viewport = page.getViewport({ scale })
-      const canvas = canvasRef.current
-      const canvasRect = canvas.getBoundingClientRect()
-
-      // Build text positions
-      const query = searchText.toLowerCase()
-      let currentText = ''
-      let charIndex = 0
-
-      textContent.items.forEach((item: any) => {
-        const itemText = item.str
-        const itemLower = itemText.toLowerCase()
-
-        for (let i = 0; i < itemText.length; i++) {
-          if (itemLower.substring(i, i + query.length) === query) {
-            // Found a match, calculate position
-            const transform = item.transform
-            const x = transform[4]
-            const y = transform[5]
-            const height = item.height || 12
-            const width = (item.width || itemText.length * 8) * (query.length / itemText.length)
-
-            // Create highlight element
-            const highlight = document.createElement('div')
-            highlight.style.position = 'absolute'
-            highlight.style.left = `${x * scale / viewport.scale}px`
-            highlight.style.top = `${(viewport.height - y - height) * scale / viewport.scale}px`
-            highlight.style.width = `${width * scale / viewport.scale}px`
-            highlight.style.height = `${height * scale / viewport.scale}px`
-            highlight.style.backgroundColor = 'rgba(255, 255, 0, 0.4)'
-            highlight.style.pointerEvents = 'none'
-            highlightLayer.appendChild(highlight)
-          }
-        }
-      })
-    } catch (error) {
-      console.error('Error rendering highlights:', error)
-    }
-  }, [searchMatches, pageNumber, searchText, scale, getPageTextContent])
-
-  // Keyboard navigation
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't handle if user is typing in an input
-      if (e.target instanceof HTMLInputElement) return
-
-      if (e.key === 'ArrowLeft') {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
         e.preventDefault()
-        changePage(-1)
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault()
-        changePage(1)
+        openSearch()
+      }
+      if (e.key === 'Escape' && showSearch) {
+        closeSearch()
       }
     }
-
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [changePage])
+  }, [showSearch, openSearch, closeSearch])
 
-  // Trackpad/wheel zoom
+  // Ctrl+scroll zoom
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault()
-
-        // Calculate zoom centered on cursor
-        const delta = -e.deltaY * 0.01
         setFitToWidth(false)
-        setScale((prev) => {
-          const newScale = Math.max(0.5, Math.min(3.0, prev * (1 + delta)))
-          return newScale
-        })
+        setScale(prev => Math.max(0.5, Math.min(3.0, prev * (1 + -e.deltaY * 0.01))))
       }
     }
-
     const container = containerRef.current
     if (container) {
       container.addEventListener('wheel', handleWheel, { passive: false })
@@ -631,41 +408,19 @@ export default function SimplePDFViewer({ paperId, documentId, onCommentAdd, com
     }
   }, [])
 
-  const toggleSearchBox = useCallback(() => {
-    setShowSearchBox((prev) => !prev)
-    if (!showSearchBox) {
-      // Clear search when opening
-      setSearchText('')
-      setSearchMatches([])
-      setCurrentMatchIndex(-1)
-    }
-  }, [showSearchBox])
-
-  // Disable right-click
+  // Disable right-click / Ctrl+S / Ctrl+P
   useEffect(() => {
-    const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault()
-      return false
+    const noContext = (e: MouseEvent) => e.preventDefault()
+    const noSave = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'p')) e.preventDefault()
     }
-
     const container = containerRef.current
-    if (container) {
-      container.addEventListener('contextmenu', handleContextMenu)
-      return () => container.removeEventListener('contextmenu', handleContextMenu)
+    container?.addEventListener('contextmenu', noContext)
+    window.addEventListener('keydown', noSave)
+    return () => {
+      container?.removeEventListener('contextmenu', noContext)
+      window.removeEventListener('keydown', noSave)
     }
-  }, [])
-
-  // Disable Ctrl+S and Ctrl+P
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'p')) {
-        e.preventDefault()
-        return false
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
   if (loading) {
@@ -690,174 +445,116 @@ export default function SimplePDFViewer({ paperId, documentId, onCommentAdd, com
   return (
     <div className="h-full flex flex-col bg-gray-100">
       {/* Toolbar */}
-      <div className="border-b bg-white p-2 flex items-center gap-2 flex-wrap">
-        {/* Page Navigation */}
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => changePage(-1)}
-            disabled={pageNumber <= 1}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex items-center gap-1">
-            <Input
-              type="text"
-              placeholder={String(pageNumber)}
-              value={pageInput}
-              onChange={(e) => handlePageInputChange(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handlePageInputSubmit()}
-              onBlur={handlePageInputSubmit}
-              className="h-8 w-12 text-center text-sm p-0"
-            />
-            <span className="text-sm text-muted-foreground">
-              / {numPages}
-            </span>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => changePage(1)}
-            disabled={pageNumber >= numPages}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
+      <div className="border-b bg-white px-2 py-1.5 flex items-center gap-1 flex-wrap">
+        {/* Page indicator */}
+        {!showSearch && (
+          <span className="text-sm text-muted-foreground px-1 tabular-nums">
+            {currentPage} / {numPages}
+          </span>
+        )}
 
-        <div className="border-l h-6 mx-2" />
+        {!showSearch && <div className="border-l h-5 mx-1" />}
 
         {/* Zoom Controls */}
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleZoom(-0.1)}
-            disabled={scale <= 0.5}
-            title="Zoom out"
-          >
-            <ZoomOut className="h-4 w-4" />
-          </Button>
-          <span className="text-sm px-2 min-w-[60px] text-center">
-            {Math.round(scale * 100)}%
-          </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleZoom(0.1)}
-            disabled={scale >= 3.0}
-            title="Zoom in"
-          >
-            <ZoomIn className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={fitToWidth ? "default" : "ghost"}
-            size="icon"
-            onClick={handleFitToWidth}
-            title="Fit to width"
-          >
-            <Maximize2 className="h-4 w-4" />
-          </Button>
-        </div>
+        {!showSearch && (
+          <div className="flex items-center gap-0.5">
+            <Button variant="ghost" size="icon" onClick={() => { setFitToWidth(false); setScale(p => Math.max(0.5, p - 0.1)) }} disabled={scale <= 0.5} title="Zoom out">
+              <ZoomOut className="h-4 w-4" />
+            </Button>
+            <span className="text-sm px-1 min-w-[52px] text-center tabular-nums">
+              {Math.round(scale * 100)}%
+            </span>
+            <Button variant="ghost" size="icon" onClick={() => { setFitToWidth(false); setScale(p => Math.min(3.0, p + 0.1)) }} disabled={scale >= 3.0} title="Zoom in">
+              <ZoomIn className="h-4 w-4" />
+            </Button>
+            <Button variant={fitToWidth ? 'default' : 'ghost'} size="icon" onClick={() => { setFitToWidth(true); handleFitToWidth() }} title="Fit to width">
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
 
-        <div className="border-l h-6 mx-2" />
+        {!showSearch && <div className="border-l h-5 mx-1" />}
 
-        {/* Search Button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleSearchBox}
-          title="Search in document"
-        >
-          <Search className="h-4 w-4" />
-        </Button>
-      </div>
-
-      {/* Search Box Popup */}
-      {showSearchBox && (
-        <div className="border-b bg-white p-2 flex items-center gap-2">
-          <Input
-            type="text"
-            placeholder="Search in document..."
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            className="h-8 flex-1"
-            autoFocus
-          />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleSearch}
-            disabled={isSearching}
-            title="Search"
-          >
+        {/* Search — inline */}
+        {showSearch ? (
+          <div className="flex items-center gap-1 flex-1">
+            <Input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search in document..."
+              value={searchText}
+              onChange={e => setSearchText(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleSearch()
+                if (e.key === 'Escape') closeSearch()
+              }}
+              className="h-7 text-sm"
+            />
+            <Button variant="ghost" size="icon" onClick={handleSearch} disabled={isSearching} title="Search" className="h-7 w-7 shrink-0">
+              {isSearching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+            </Button>
+            {searchMatches.length > 0 && (
+              <>
+                <span className="text-xs text-muted-foreground whitespace-nowrap tabular-nums">
+                  {currentMatchIndex + 1}/{searchMatches.length}
+                </span>
+                <Button variant="ghost" size="icon" onClick={goToPreviousMatch} title="Previous match" className="h-7 w-7 shrink-0">
+                  <ChevronUp className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={goToNextMatch} title="Next match" className="h-7 w-7 shrink-0">
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </Button>
+              </>
+            )}
+            <Button variant="ghost" size="icon" onClick={closeSearch} title="Close search" className="h-7 w-7 shrink-0">
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        ) : (
+          <Button variant="ghost" size="icon" onClick={openSearch} title="Search (Ctrl+F)" className="h-7 w-7">
             <Search className="h-4 w-4" />
           </Button>
+        )}
+      </div>
 
-          {/* Search Navigation */}
-          {searchMatches.length > 0 && (
-            <>
-              <span className="text-xs text-muted-foreground whitespace-nowrap">
-                {currentMatchIndex + 1} / {searchMatches.length}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={goToPreviousMatch}
-                disabled={searchMatches.length === 0}
-                title="Previous match"
-              >
-                <ChevronUp className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={goToNextMatch}
-                disabled={searchMatches.length === 0}
-                title="Next match"
-              >
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* PDF Text Extraction Status/Error Banner (only shown when documentId provided for AI integration) */}
+      {/* PDF text extraction error */}
       {documentId && textExtractionError && (
         <div className="border-b bg-amber-50 border-amber-200 p-2 flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+          <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
           <span className="text-xs text-amber-800">
             PDF text extraction failed: {textExtractionError}. AI Assistant will not have access to PDF content.
           </span>
         </div>
       )}
 
-      {/* PDF Canvas with Highlight Layer */}
-      <div ref={containerRef} className="flex-1 overflow-auto p-4">
-        <div className="flex justify-start">
-          <div className="relative">
-            <canvas ref={canvasRef} className="shadow-lg" />
-            <div
-              ref={highlightLayerRef}
-              className="absolute top-0 left-0 pointer-events-none"
-              style={{
-                width: canvasRef.current?.style.width || '100%',
-                height: canvasRef.current?.style.height || '100%',
-              }}
-            />
+      {/* Continuous scroll canvas area */}
+      <div ref={containerRef} className="flex-1 overflow-auto py-4">
+        {Array.from({ length: numPages }, (_, i) => i + 1).map((pageNum) => (
+          <div
+            key={pageNum}
+            ref={el => { pageContainerRefs.current[pageNum - 1] = el }}
+            className="flex justify-center mb-4"
+            data-page={pageNum}
+          >
+            <div className="relative">
+              <canvas
+                ref={el => { canvasRefs.current[pageNum - 1] = el }}
+                className="shadow-lg block"
+              />
+              <div
+                ref={el => { highlightRefs.current[pageNum - 1] = el }}
+                className="absolute top-0 left-0 pointer-events-none"
+              />
+            </div>
           </div>
-        </div>
+        ))}
       </div>
     </div>
   )
 }
 
-// Extend Window interface for PDF.js from CDN
 declare global {
   interface Window {
     pdfjsLib: any
   }
 }
-
