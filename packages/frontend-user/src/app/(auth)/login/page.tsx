@@ -235,6 +235,12 @@ export default function LoginPage() {
             Sign up
           </Link>
         </p>
+        <p className="text-xs text-muted-foreground text-center">
+          By signing in, you agree to our{' '}
+          <Link href="/terms" className="underline hover:text-foreground">
+            Terms of Service
+          </Link>
+        </p>
       </CardFooter>
     </Card>
   );

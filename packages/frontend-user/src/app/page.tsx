@@ -34,12 +34,6 @@ export default function HomePage() {
             >
               Get Started
             </Link>
-            <Link
-              href="/demo"
-              className="px-6 py-3 border border-border text-foreground rounded-lg hover:bg-accent transition-colors"
-            >
-              Try Demo
-            </Link>
           </div>
         </div>
       </div>
