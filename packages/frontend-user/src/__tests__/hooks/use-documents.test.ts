@@ -89,16 +89,16 @@ describe('createDocument', () => {
     const { result } = renderHook(() => useDocuments());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    let caughtError: Error | null = null;
+    let caughtMessage = '';
     await act(async () => {
       try {
         await result.current.createDocument('Bad PDF', pdfFile);
       } catch (e: any) {
-        caughtError = e;
+        caughtMessage = e?.message ?? '';
       }
     });
 
-    expect(caughtError?.message).toMatch(/upload failed/i);
+    expect(caughtMessage).toMatch(/upload failed/i);
     // Should have deleted the orphaned document
     expect(mockApiClient.delete).toHaveBeenCalledWith(`/documents/${fakeDoc.id}`);
   });
