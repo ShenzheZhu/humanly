@@ -1,65 +1,89 @@
-# Dependencies
+# ── Dependencies ──────────────────────────────────────────────────────────────
 node_modules/
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
-# Build outputs
+# ── Build outputs ─────────────────────────────────────────────────────────────
 dist/
 build/
 .next/
 out/
+*.tsbuildinfo
 
-# Environment variables
+# ── Environment variables (all real .env files) ───────────────────────────────
 .env
 .env.local
 .env.*.local
 .env.production
+.env.staging
+.env.development
+# Keep only .env.example files
+!.env.example
+!**/.env.example
 
-# IDEs
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
+# ── SSL certificates and private keys ─────────────────────────────────────────
+nginx/ssl/
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
 
-# Logs
-logs/
-!packages/**/app/logs/
+# ── Uploaded files / storage ──────────────────────────────────────────────────
+storage/
+packages/backend/storage/
+
+# ── Exported / generated data ─────────────────────────────────────────────────
+exports/
+backups/
+*.csv
+*.sqlite
+*.db
+*.dump
+*.sql.gz
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+/logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
-# Testing
+# ── Testing ───────────────────────────────────────────────────────────────────
 coverage/
 .nyc_output/
 
-# Temporary files
+# ── Temporary files ───────────────────────────────────────────────────────────
 tmp/
 temp/
 *.tmp
 
-# Docker
-docker-compose.override.yml
+# ── IDE / editor configs ──────────────────────────────────────────────────────
+.vscode/
+.idea/
+.cursor/
+*.swp
+*.swo
+*~
 
-# OS
-Thumbs.db
-.DS_Store
-
-# Claude Code
+# ── Claude Code ───────────────────────────────────────────────────────────────
 .claude/
-CLAUDE.md
+/CLAUDE.md
 
-# Ad-hoc utility scripts with credentials
+# ── OS noise ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+**/.DS_Store
+
+# ── Ad-hoc scripts with credentials ──────────────────────────────────────────
 check-*.js
+check-*.ts
 run-migration.js
+run-migration.ts
 
-# Paper storage (uploaded PDFs - stored on server disk, not in git)
-packages/backend/storage/
-
-*.png
+# ── Test samples with real data ───────────────────────────────────────────────
 test_config.md
 DEV_LOG.md
+*.png

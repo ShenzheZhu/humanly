@@ -9,6 +9,9 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // In production the admin dashboard is served at /admin via nginx.
+  // Set NEXT_PUBLIC_BASE_PATH=/admin as a Docker build arg before building.
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
   transpilePackages: ['@humory/shared'],
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
@@ -16,6 +19,9 @@ const nextConfig = {
     NEXT_PUBLIC_TRACKER_URL: process.env.NEXT_PUBLIC_TRACKER_URL,
   },
   async rewrites() {
+    // Only proxy /api/* in local dev. In production, nginx routes /api/ directly
+    // to the backend and NEXT_PUBLIC_API_URL is an absolute https:// URL.
+    if (process.env.NODE_ENV === 'production') return [];
     return [
       {
         source: '/api/:path*',
@@ -24,7 +30,7 @@ const nextConfig = {
     ];
   },
   images: {
-    domains: ['localhost'],
+    domains: ['localhost', 'yourdomain.com'],
   },
   webpack: (config) => {
     // Exact match: import from '@humory/shared'

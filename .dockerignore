@@ -1,0 +1,26 @@
+# Exclude all compiled output — Docker builds everything fresh from source
+**/dist
+**/.next
+# Exclude TypeScript incremental build cache — stale tsbuildinfo causes tsc --build
+# to think output is up to date even though dist was excluded above
+**/*.tsbuildinfo
+
+# OS / editor noise
+.DS_Store
+**/.DS_Store
+*.log
+npm-debug.log*
+
+# Dev environment files
+.env
+.env.local
+.env.*.local
+**/node_modules
+
+# Git
+.git
+.gitignore
+
+# Docs / CI not needed in images
+*.md
+.github

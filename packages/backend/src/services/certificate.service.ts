@@ -223,7 +223,7 @@ export class CertificateService {
       aiAuthorshipStats: aiStats,
       verification: {
         token: certificate.verificationToken,
-        verifyUrl: `http://localhost:3002/verify/${certificate.verificationToken}`,
+        verifyUrl: `${env.frontendUserUrl}/verify/${certificate.verificationToken}`,
         signature: certificate.signature,
       },
     };
