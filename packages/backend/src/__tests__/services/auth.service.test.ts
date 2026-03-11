@@ -1,0 +1,248 @@
+/**
+ * Unit tests for AuthService.
+ *
+ * All database models and email service are mocked so these tests run
+ * without a real database or Redis connection.
+ */
+
+// ── Mocks ─────────────────────────────────────────────────────────────────────
+
+jest.mock('../../models/user.model');
+jest.mock('../../models/refresh-token.model');
+jest.mock('../../services/email.service', () => ({
+  emailService: {
+    sendVerificationEmail: jest.fn().mockResolvedValue(undefined),
+    sendWelcomeEmail: jest.fn().mockResolvedValue(undefined),
+    sendPasswordResetEmail: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+jest.mock('../../utils/logger', () => ({
+  logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn(), debug: jest.fn() },
+}));
+
+// ── Imports ───────────────────────────────────────────────────────────────────
+
+import { AuthService } from '../../services/auth.service';
+import { UserModel } from '../../models/user.model';
+import { RefreshTokenModel } from '../../models/refresh-token.model';
+import { hashPassword } from '../../utils/crypto';
+
+const MockUserModel = UserModel as jest.Mocked<typeof UserModel>;
+const MockRefreshTokenModel = RefreshTokenModel as jest.Mocked<typeof RefreshTokenModel>;
+
+// ── Fixtures ──────────────────────────────────────────────────────────────────
+
+async function makeUserWithPassword(overrides: Partial<any> = {}) {
+  const passwordHash = await hashPassword('password123');
+  return {
+    id: 'user-1',
+    email: 'alice@example.com',
+    passwordHash,
+    emailVerified: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+function makeUser(overrides: Partial<any> = {}) {
+  return {
+    id: 'user-1',
+    email: 'alice@example.com',
+    emailVerified: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+// ── register ──────────────────────────────────────────────────────────────────
+
+describe('AuthService.register', () => {
+  it('creates and returns a new user', async () => {
+    MockUserModel.findByEmail.mockResolvedValue(null);
+    const user = makeUser();
+    MockUserModel.create.mockResolvedValue(user as any);
+
+    const result = await AuthService.register('alice@example.com', 'password123');
+    expect(result).toEqual(user);
+    expect(MockUserModel.create).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'alice@example.com' })
+    );
+  });
+
+  it('throws 409 when email is already registered', async () => {
+    MockUserModel.findByEmail.mockResolvedValue(makeUser() as any);
+    await expect(AuthService.register('alice@example.com', 'pass')).rejects.toMatchObject({
+      statusCode: 409,
+    });
+    expect(MockUserModel.create).not.toHaveBeenCalled();
+  });
+});
+
+// ── login ─────────────────────────────────────────────────────────────────────
+
+describe('AuthService.login', () => {
+  it('returns user + tokens for valid credentials', async () => {
+    const userWithPw = await makeUserWithPassword();
+    MockUserModel.findByEmail.mockResolvedValue(userWithPw as any);
+    MockRefreshTokenModel.create.mockResolvedValue({} as any);
+    MockRefreshTokenModel.deleteExpired.mockResolvedValue(undefined);
+
+    const result = await AuthService.login('alice@example.com', 'password123');
+    expect(result.user.email).toBe('alice@example.com');
+    expect(result.accessToken).toBeTruthy();
+    expect(result.refreshToken).toBeTruthy();
+  });
+
+  it('throws 401 when user does not exist', async () => {
+    MockUserModel.findByEmail.mockResolvedValue(null);
+    await expect(AuthService.login('x@x.com', 'pass')).rejects.toMatchObject({
+      statusCode: 401,
+    });
+  });
+
+  it('throws 401 when password is wrong', async () => {
+    const userWithPw = await makeUserWithPassword();
+    MockUserModel.findByEmail.mockResolvedValue(userWithPw as any);
+    await expect(AuthService.login('alice@example.com', 'wrongpass')).rejects.toMatchObject({
+      statusCode: 401,
+    });
+  });
+});
+
+// ── logout ────────────────────────────────────────────────────────────────────
+
+describe('AuthService.logout', () => {
+  it('deletes specific refresh token when provided', async () => {
+    MockRefreshTokenModel.deleteByHash.mockResolvedValue(undefined);
+    await AuthService.logout('user-1', 'somerefreshtoken');
+    expect(MockRefreshTokenModel.deleteByHash).toHaveBeenCalledTimes(1);
+    expect(MockRefreshTokenModel.deleteByUserId).not.toHaveBeenCalled();
+  });
+
+  it('deletes all refresh tokens when no token is provided (logout all devices)', async () => {
+    MockRefreshTokenModel.deleteByUserId.mockResolvedValue(undefined);
+    await AuthService.logout('user-1');
+    expect(MockRefreshTokenModel.deleteByUserId).toHaveBeenCalledWith('user-1');
+  });
+});
+
+// ── refreshToken ──────────────────────────────────────────────────────────────
+
+describe('AuthService.refreshToken', () => {
+  it('returns new token pair for valid refresh token', async () => {
+    const { generateRefreshToken } = require('../../utils/jwt');
+    const oldToken = generateRefreshToken({ userId: 'user-1', email: 'alice@example.com' });
+
+    MockRefreshTokenModel.findByUserIdAndHash.mockResolvedValue({ id: 'rt-1' } as any);
+    MockRefreshTokenModel.deleteByHash.mockResolvedValue(undefined);
+    MockRefreshTokenModel.create.mockResolvedValue({} as any);
+    MockUserModel.findById.mockResolvedValue(makeUser() as any);
+
+    const result = await AuthService.refreshToken(oldToken);
+    expect(result.accessToken).toBeTruthy();
+    expect(result.refreshToken).toBeTruthy();
+    // Old token should have been revoked and a new one stored
+    expect(MockRefreshTokenModel.deleteByHash).toHaveBeenCalledTimes(1);
+    expect(MockRefreshTokenModel.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws 401 for an invalid/expired refresh token', async () => {
+    await expect(AuthService.refreshToken('not-a-jwt')).rejects.toMatchObject({
+      statusCode: 401,
+    });
+  });
+
+  it('throws 401 when refresh token is not found in database', async () => {
+    const { generateRefreshToken } = require('../../utils/jwt');
+    const token = generateRefreshToken({ userId: 'user-1', email: 'a@b.com' });
+    MockRefreshTokenModel.findByUserIdAndHash.mockResolvedValue(null);
+    await expect(AuthService.refreshToken(token)).rejects.toMatchObject({
+      statusCode: 401,
+    });
+  });
+});
+
+// ── verifyEmail ───────────────────────────────────────────────────────────────
+
+describe('AuthService.verifyEmail', () => {
+  it('verifies email and returns updated user', async () => {
+    const userWithPw = await makeUserWithPassword();
+    MockUserModel.findByVerificationToken.mockResolvedValue(userWithPw as any);
+    MockUserModel.verifyEmail.mockResolvedValue(undefined);
+    MockRefreshTokenModel.deleteByUserId.mockResolvedValue(undefined);
+    const updatedUser = makeUser({ emailVerified: true });
+    MockUserModel.findById.mockResolvedValue(updatedUser as any);
+
+    const result = await AuthService.verifyEmail('123456');
+    expect(result.emailVerified).toBe(true);
+  });
+
+  it('throws 400 for invalid verification code', async () => {
+    MockUserModel.findByVerificationToken.mockResolvedValue(null);
+    await expect(AuthService.verifyEmail('000000')).rejects.toMatchObject({
+      statusCode: 400,
+    });
+  });
+});
+
+// ── forgotPassword ────────────────────────────────────────────────────────────
+
+describe('AuthService.forgotPassword', () => {
+  it('stores a reset token and sends email for known user', async () => {
+    MockUserModel.findByEmail.mockResolvedValue(makeUser() as any);
+    MockUserModel.setPasswordResetToken.mockResolvedValue(undefined);
+    await AuthService.forgotPassword('alice@example.com');
+    expect(MockUserModel.setPasswordResetToken).toHaveBeenCalledWith(
+      'user-1',
+      expect.any(String),
+      expect.any(Date)
+    );
+  });
+
+  it('does nothing (no error, no DB write) for unknown email', async () => {
+    MockUserModel.findByEmail.mockResolvedValue(null);
+    await expect(AuthService.forgotPassword('unknown@x.com')).resolves.toBeUndefined();
+    expect(MockUserModel.setPasswordResetToken).not.toHaveBeenCalled();
+  });
+});
+
+// ── resetPassword ─────────────────────────────────────────────────────────────
+
+describe('AuthService.resetPassword', () => {
+  it('resets password and invalidates all refresh tokens', async () => {
+    MockUserModel.findByResetToken.mockResolvedValue(makeUser() as any);
+    MockUserModel.resetPassword.mockResolvedValue(undefined);
+    MockRefreshTokenModel.deleteByUserId.mockResolvedValue(undefined);
+
+    await AuthService.resetPassword('validtoken', 'newPassword1!');
+    expect(MockUserModel.resetPassword).toHaveBeenCalledWith('user-1', expect.any(String));
+    expect(MockRefreshTokenModel.deleteByUserId).toHaveBeenCalledWith('user-1');
+  });
+
+  it('throws 400 for invalid/expired reset token', async () => {
+    MockUserModel.findByResetToken.mockResolvedValue(null);
+    await expect(AuthService.resetPassword('badtoken', 'newpass')).rejects.toMatchObject({
+      statusCode: 400,
+    });
+  });
+});
+
+// ── getUserById ───────────────────────────────────────────────────────────────
+
+describe('AuthService.getUserById', () => {
+  it('returns user for valid ID', async () => {
+    const user = makeUser();
+    MockUserModel.findById.mockResolvedValue(user as any);
+    const result = await AuthService.getUserById('user-1');
+    expect(result).toEqual(user);
+  });
+
+  it('throws 404 for unknown user ID', async () => {
+    MockUserModel.findById.mockResolvedValue(null);
+    await expect(AuthService.getUserById('ghost')).rejects.toMatchObject({
+      statusCode: 404,
+    });
+  });
+});

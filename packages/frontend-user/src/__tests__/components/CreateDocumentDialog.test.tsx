@@ -39,7 +39,7 @@ jest.mock('@/components/documents/document-card', () => ({
 // ─── Imports ──────────────────────────────────────────────────────────────────
 
 import React from 'react';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import DocumentsPage from '@/app/documents/page';
 import { useDocuments } from '@/hooks/use-documents';
@@ -131,6 +131,10 @@ describe('valid submission', () => {
     await waitFor(() =>
       expect(mockCreateDocument).toHaveBeenCalledWith('My Paper', undefined)
     );
+    // Wait for all post-submission state updates to flush
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: /create new document/i })).not.toBeInTheDocument()
+    );
   });
 
   it('calls createDocument with title and File when PDF is attached', async () => {
@@ -149,6 +153,10 @@ describe('valid submission', () => {
 
     await waitFor(() =>
       expect(mockCreateDocument).toHaveBeenCalledWith('With PDF', expect.any(File))
+    );
+    // Wait for all post-submission state updates to flush
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: /create new document/i })).not.toBeInTheDocument()
     );
   });
 
@@ -173,6 +181,10 @@ describe('valid submission', () => {
 
     await waitFor(() =>
       expect(mockCreateDocument).toHaveBeenCalledWith('Quick Enter', undefined)
+    );
+    // Wait for all post-submission state updates to flush
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: /create new document/i })).not.toBeInTheDocument()
     );
   });
 });
@@ -199,8 +211,10 @@ describe('loading state during creation', () => {
     // Also Cancel should be disabled
     expect(screen.getByRole('button', { name: /cancel/i })).toBeDisabled();
 
-    // Resolve to clean up
-    resolveCreate({ id: 'x', title: 'Loading Test' });
+    // Resolve to clean up — wrap in act so state updates are flushed
+    await act(async () => {
+      resolveCreate({ id: 'x', title: 'Loading Test' });
+    });
   });
 
   it('prevents double submission (idempotency guard)', async () => {
@@ -219,7 +233,9 @@ describe('loading state during creation', () => {
     await userEvent.click(createBtn);
     await userEvent.click(createBtn);
 
-    resolveCreate({ id: 'y', title: 'Double' });
+    await act(async () => {
+      resolveCreate({ id: 'y', title: 'Double' });
+    });
     await waitFor(() => expect(mockCreateDocument).toHaveBeenCalledTimes(1));
   });
 });
