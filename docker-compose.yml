@@ -1,3 +1,4 @@
+
 services:
   postgres:
     image: timescale/timescaledb:latest-pg15
@@ -37,40 +38,6 @@ services:
     restart: unless-stopped
     networks:
       - humory-network
-
-  backend:
-    build:
-      context: .
-      dockerfile: docker/backend.Dockerfile
-    container_name: humory-backend
-    environment:
-      NODE_ENV: development
-      PORT: 3001
-      DATABASE_URL: postgresql://humory_user:humory_password@postgres:5432/humory_dev
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: dev-secret-key-change-in-production
-      JWT_ACCESS_EXPIRES: 15m
-      JWT_REFRESH_EXPIRES: 7d
-      CORS_ORIGIN: http://localhost:3000
-      EMAIL_SERVICE: console
-      EMAIL_FROM: noreply@humory.dev
-    ports:
-      - "3001:3001"
-    volumes:
-      - ./packages/backend/src:/app/packages/backend/src
-      - ./packages/shared/src:/app/packages/shared/src
-      - /app/node_modules
-      - /app/packages/backend/node_modules
-      - /app/packages/shared/node_modules
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - humory-network
-    command: npm run dev --workspace=@humory/backend
 
 volumes:
   postgres_data:

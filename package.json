@@ -8,9 +8,9 @@
     "packages/*"
   ],
   "scripts": {
-    "dev:backend": "npm run dev --workspace=@humory/backend",
+    "dev:backend": "npm --workspace=@humory/backend run dev",
     "dev:frontend": "npm run dev --workspace=@humory/frontend",
-    "dev:frontend-user": "npm run dev --workspace=@humory/frontend-user",
+    "dev:frontend-user": "npm --workspace=@humory/frontend-user run dev",
     "dev:tracker": "npm run dev --workspace=@humory/tracker",
     "build:backend": "npm run build --workspace=@humory/backend",
     "build:frontend": "npm run build --workspace=@humory/frontend",

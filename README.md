@@ -44,69 +44,53 @@ humanly/
 
 ### Prerequisites
 
-- **Node.js** 18+ and npm 9+
-- **Docker** and Docker Compose (for local development)
-- **PostgreSQL** 14+ with TimescaleDB (or use Docker)
-- **Redis** (or use Docker)
+- **Node.js** 20+ and npm 9+
+- **Docker** and Docker Compose
 
 ### Installation
 
-1. **Clone the repository** (if not already done)
+1. **Clone the repository**
    ```bash
-   cd /home/ubuntu/humanly
+   git clone <repo-url>
+   cd humanly
    ```
 
-2. **Install Node.js** (if not installed)
-   ```bash
-   # Using nvm (recommended)
-   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
-   source ~/.bashrc
-   nvm install 18
-   nvm use 18
-
-   # Or using package manager
-   curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-   sudo apt-get install -y nodejs
-   ```
-
-3. **Install dependencies**
+2. **Install dependencies**
    ```bash
    npm install
    ```
 
-4. **Set up environment variables**
+3. **Set up environment variables**
    ```bash
-   cp .env.example .env
-   # Edit .env and set your values (especially JWT_SECRET)
+   bash scripts/setup-env.sh
+   # Edit packages/backend/.env and set your values (especially JWT_SECRET)
    ```
 
-5. **Start Docker services** (PostgreSQL + Redis)
+4. **Start Docker services** (PostgreSQL + Redis)
    ```bash
-   docker-compose up -d postgres redis
+   npm run docker:up
    ```
 
-6. **Run database migrations**
+5. **Build shared packages** (required before running frontend)
    ```bash
-   # Wait for PostgreSQL to be ready (check with docker-compose logs postgres)
-   docker-compose exec postgres psql -U humory_user -d humory_dev -f /docker-entrypoint-initdb.d/001_initial_schema.sql
-
-   for f in packages/backend/src/db/migrations/*.sql; do
-      docker-compose exec -T postgres psql -U humory_user -d humory_dev < "$f"
-   done
+   npm run build --workspace=@humory/shared
+   npm run build --workspace=@humory/editor
    ```
 
-7. **Start the backend**
+6. **Start the backend** (runs DB migrations automatically on startup)
    ```bash
    npm run dev:backend
    ```
 
-8. **Start the frontend** (in a new terminal)
+7. **Start the frontends** (each in a new terminal)
    ```bash
-   npm run dev:frontend
+   npm run dev:frontend       # Admin dashboard
+   npm run dev:frontend-user  # User portal
    ```
 
-9. **Access the application**
-   - Frontend: http://localhost:3000
+8. **Access the application**
+   - User Portal: http://localhost:3002
+   - Admin Dashboard: http://localhost:3000
    - Backend API: http://localhost:3001
    - API Health: http://localhost:3001/health
 
@@ -311,13 +295,10 @@ For complete documentation, see `packages/tracker/README.md`.
 
 ```bash
 # Backend tests
-npm test --workspace=@humanly/backend
+npm test --workspace=@humory/backend
 
-# Frontend tests
-npm test --workspace=@humanly/frontend
-
-# Tracker tests
-npm test --workspace=@humanly/tracker
+# Frontend-user tests
+npm test --workspace=@humory/frontend-user
 
 # All tests
 npm test
@@ -394,21 +375,19 @@ For complete schema, see `packages/backend/src/db/migrations/` directory.
 ```bash
 NODE_ENV=development
 PORT=3001
-DATABASE_URL=postgresql://humanly_user:humanly_password@localhost:5432/humanly_dev
+DATABASE_URL=postgresql://humory_user:humory_password@localhost:5432/humory_dev
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=your-secret-key-here
 JWT_ACCESS_EXPIRES=15m
 JWT_REFRESH_EXPIRES=7d
-CORS_ORIGIN=http://localhost:3000
+CORS_ORIGIN=http://localhost:3000,http://localhost:3002
 EMAIL_SERVICE=console
-EMAIL_FROM=noreply@humanly.com
+EMAIL_FROM=noreply@humory.dev
 ```
 
-### Frontend (`packages/frontend/.env.local`)
+### Frontend-User (`packages/frontend-user/.env`)
 ```bash
-NEXT_PUBLIC_API_URL=http://localhost:3001
-NEXT_PUBLIC_WS_URL=ws://localhost:3001
-NEXT_PUBLIC_TRACKER_URL=http://localhost:3001/tracker/humanly-tracker.min.js
+NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
 ```
 
 ## 🐛 Troubleshooting
@@ -422,7 +401,7 @@ docker-compose ps postgres
 docker-compose logs postgres
 
 # Test connection
-docker-compose exec postgres psql -U humanly_user -d humanly_dev -c "SELECT 1;"
+docker-compose exec postgres psql -U humory_user -d humory_dev -c "SELECT 1;"
 ```
 
 ### Redis Connection Issues
