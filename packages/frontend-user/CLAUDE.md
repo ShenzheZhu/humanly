@@ -18,7 +18,7 @@ This package is part of a PNPM workspace monorepo at `/home/haoqian2131/humanly/
 
 ## Development Commands
 
-Run from the frontend-user package directory (`/home/haoqian2131/humanly/packages/frontend-user`):
+Run from the frontend-user package directory (`packages/frontend-user`):
 
 ```bash
 # Development server (runs on port 3002)
@@ -37,17 +37,17 @@ npm run type-check
 npm run lint
 ```
 
-Run from monorepo root (`/home/haoqian2131/humanly`):
+Run from monorepo root:
 
 ```bash
 # Run this package's dev server
-npm run dev:frontend
+npm run dev:frontend-user
 
 # Build all packages
 npm run build:all
 
 # Start Docker services (PostgreSQL, Redis)
-docker-compose up -d
+npm run docker:up
 ```
 
 ## Architecture

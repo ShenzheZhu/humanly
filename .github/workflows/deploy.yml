@@ -1,0 +1,26 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+
+# Prevent concurrent deploys (queue them instead of cancelling)
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: SSH deploy to GCP VM
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: bash /home/humanly/humanly/scripts/deploy.sh
+          script_stop: true   # fail the step if any command in script fails

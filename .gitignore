@@ -87,3 +87,6 @@ run-migration.ts
 test_config.md
 DEV_LOG.md
 *.png
+
+# ── Uploads (VM local storage, not in git) ───────────────────────────────────
+uploads/

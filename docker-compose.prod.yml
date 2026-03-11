@@ -43,6 +43,9 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3001
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - ./uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
