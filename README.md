@@ -115,12 +115,10 @@ npm run dev:backend & npm run dev:frontend
 ### Building for Production
 
 ```bash
-# Build all packages
-npm run build:all
-
 # Build individually
 npm run build:backend
 npm run build:frontend
+npm run build::frontend-user
 npm run build:tracker
 ```
 

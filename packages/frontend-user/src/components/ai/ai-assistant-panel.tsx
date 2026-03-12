@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { getWhitelist } from '@/lib/ai-models';
 import { useAI, useAILogs } from '@/hooks/use-ai';
 import { useAIStore } from '@/stores/ai-store';
 import { usePDFTextStore } from '@/stores/pdf-text-store';
@@ -67,13 +68,21 @@ export function AIAssistantPanel({
   };
 
   const loadAvailableModels = async (baseUrl?: string) => {
+    const url = baseUrl || currentBaseUrl;
+    // For known providers, use the whitelist directly without an API call.
+    const whitelist = getWhitelist(url);
+    if (whitelist) {
+      setAvailableModels(whitelist);
+      return;
+    }
+    // Unknown provider: fetch from API.
     try {
       const res: any = await api.post('/ai/settings/test', {
         apiKey: '__use_existing__',
-        baseUrl: baseUrl || currentBaseUrl,
+        baseUrl: url,
       });
-      if (res.success && res.models) {
-        setAvailableModels(res.models);
+      if (res.data?.success && res.data?.models?.length > 0) {
+        setAvailableModels(res.data.models);
       }
     } catch {
       // Silent fail — selector just won't show

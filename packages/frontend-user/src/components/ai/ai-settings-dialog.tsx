@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Settings, Loader2, CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import api from '@/lib/api-client';
 import { UserAISettings } from '@humory/shared';
+import { getWhitelist } from '@/lib/ai-models';
 
 interface AISettingsDialogProps {
   onSettingsChanged?: () => void;
@@ -53,6 +54,13 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [models, setModels] = useState<string[]>([]);
   const [hasExisting, setHasExisting] = useState(false);
+
+  // Known providers always use the whitelist.
+  // Unknown providers fall back to API-fetched models (stored in `models`).
+  const displayModels = useMemo(
+    () => getWhitelist(baseUrl) ?? models,
+    [baseUrl, models]
+  );
   const [maskedKey, setMaskedKey] = useState('');
 
   // Load existing settings when dialog opens
@@ -103,12 +111,20 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
         apiKey: keyToTest || '__use_existing__',
         baseUrl,
       });
-      setTestResult({ success: data.success, message: data.message });
-      if (data.success && data.models) {
-        setModels(data.models);
-        // Auto-select first model if none selected
-        if (!model && data.models.length > 0) {
-          setModel(data.models[0]);
+      setTestResult({
+        success: data.success,
+        message: data.success ? 'Connection successful.' : data.message,
+      });
+      if (data.success) {
+        const whitelist = getWhitelist(baseUrl);
+        if (whitelist) {
+          // Known provider: whitelist drives the dropdown, no need to store API models.
+          // Auto-select the first whitelisted item if nothing is selected yet.
+          if (!model) setModel(whitelist[0]);
+        } else if (data.models?.length > 0) {
+          // Unknown provider: store whatever the API returned.
+          setModels(data.models);
+          if (!model) setModel(data.models[0]);
         }
       }
     } catch (err: any) {
@@ -264,8 +280,8 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
                 </div>
               )}
 
-              {/* Model Selection (shown after successful test) */}
-              {models.length > 0 && (
+              {/* Model Selection */}
+              {displayModels.length > 0 && (
                 <div className="space-y-2">
                   <Label className="text-xs font-medium">Model</Label>
                   <Select value={model} onValueChange={setModel}>
@@ -273,7 +289,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
                       <SelectValue placeholder="Select a model" />
                     </SelectTrigger>
                     <SelectContent className="max-h-[200px]">
-                      {models.map((m) => (
+                      {displayModels.map((m) => (
                         <SelectItem key={m} value={m} className="text-xs">
                           {m}
                         </SelectItem>
@@ -283,8 +299,8 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
                 </div>
               )}
 
-              {/* Model (manual input if no models fetched but has existing) */}
-              {models.length === 0 && hasExisting && model && (
+              {/* Model (manual input only when no dropdown list is available) */}
+              {displayModels.length === 0 && hasExisting && model && (
                 <div className="space-y-2">
                   <Label className="text-xs font-medium">Model</Label>
                   <Input
