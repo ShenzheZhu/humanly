@@ -103,7 +103,7 @@ export default function DocumentEditorPage() {
   const handleTitleSave = async () => {
     if (!document) return;
     try {
-      await updateDocument(document.content, document.plainText || '');
+      await updateDocument(document.content, document.plainText || '', title);
       setIsTitleEditing(false);
       toast({ title: 'Success', description: 'Document title updated' });
     } catch {

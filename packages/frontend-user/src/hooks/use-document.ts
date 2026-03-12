@@ -47,13 +47,15 @@ export function useDocument(documentId: string) {
 
   const updateDocument = useCallback(async (
     content: Record<string, any>,
-    plainText: string
+    plainText: string,
+    title?: string
   ) => {
     try {
       setIsSaving(true);
       const response = await apiClient.put(`/documents/${documentId}`, {
         content,
         plainText,
+        ...(title !== undefined && { title }),
       });
       setDocument(response.data.data?.document || null);
       return response.data.data?.document;
