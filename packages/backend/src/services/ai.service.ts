@@ -32,7 +32,10 @@ interface AIProvider {
   streamChat(
     messages: { role: string; content: string }[],
     onChunk: (chunk: string) => void,
-    options?: { maxTokens?: number; temperature?: number }
+    options?: {
+      maxTokens?: number;
+      temperature?: number;
+    }
   ): Promise<{
     content: string;
     tokensUsed?: { input: number; output: number };
@@ -70,7 +73,7 @@ class OpenAIProvider implements AIProvider {
       body: JSON.stringify({
         model: this.model,
         messages,
-        max_tokens: options?.maxTokens || 2048,
+        max_completion_tokens: options?.maxTokens || 2048,
         temperature: options?.temperature || 0.7,
       }),
     });
@@ -120,7 +123,7 @@ class OpenAIProvider implements AIProvider {
       body: JSON.stringify({
         model: this.model,
         messages,
-        max_tokens: options?.maxTokens || 2048,
+        max_completion_tokens: options?.maxTokens || 2048,
         temperature: options?.temperature || 0.7,
         stream: true,
       }),
