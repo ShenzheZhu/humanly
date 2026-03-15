@@ -6,6 +6,7 @@ import {
   FORMAT_TEXT_COMMAND,
   SELECTION_CHANGE_COMMAND,
   TextFormatType,
+  TextNode,
 } from 'lexical';
 import { mergeRegister } from '@lexical/utils';
 import { Bold, Italic, Underline, Strikethrough, Code, Eraser } from 'lucide-react';
@@ -78,12 +79,9 @@ export function ToolbarPlugin(config: ToolbarConfig = {}): JSX.Element {
       const selection = $getSelection();
       if ($isRangeSelection(selection)) {
         selection.getNodes().forEach((node) => {
-          if (node.getType() === 'text') {
-            const textNode = node as any;
-            // Clear text format (bold, italic, underline, etc.)
-            textNode.setFormat(0);
-            // Clear inline styles (font, color, etc.)
-            textNode.setStyle('');
+          if (node instanceof TextNode) {
+            node.setFormat(0);
+            node.setStyle('');
           }
         });
       }
@@ -199,6 +197,7 @@ export function ToolbarPlugin(config: ToolbarConfig = {}): JSX.Element {
         <>
           <div style={toolbarStyles.divider} />
           <button
+            onMouseDown={(e) => e.preventDefault()}
             onClick={clearFormatting}
             style={toolbarStyles.button}
             aria-label="Clear Formatting"
@@ -247,6 +246,6 @@ const toolbarStyles = {
   activeButton: {
     backgroundColor: '#3b82f6',
     color: '#ffffff',
-    borderColor: '#2563eb',
+    border: '1px solid #2563eb',
   },
 };

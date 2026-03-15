@@ -54,7 +54,7 @@ export function applyTextColor(color: string): void {
     if (node instanceof TextNode) {
       const style = node.getStyle();
       const newStyle = style
-        ? style.replace(/color:[^;]+;?/g, '') + `color:${color};`
+        ? style.replace(/(?<![a-z-])color:[^;]+;?\s*/g, '') + `color:${color};`
         : `color:${color};`;
       node.setStyle(newStyle.trim());
     }
@@ -72,9 +72,10 @@ export function applyHighlightColor(color: string): void {
   nodes.forEach((node) => {
     if (node instanceof TextNode) {
       const style = node.getStyle();
-      const newStyle = style
-        ? style.replace(/background-color:[^;]+;?/g, '') + `background-color:${color};`
-        : `background-color:${color};`;
+      const stripped = style ? style.replace(/background-color:[^;]+;?\s*/g, '').trim() : '';
+      const newStyle = (color === 'transparent' || color === '')
+        ? stripped
+        : (stripped ? stripped + ` background-color:${color};` : `background-color:${color};`);
       node.setStyle(newStyle.trim());
     }
   });
@@ -130,7 +131,7 @@ export function getCurrentTextColor(): string | null {
   if (!(firstNode instanceof TextNode)) return null;
 
   const style = firstNode.getStyle();
-  const match = style.match(/color:([^;]+)/);
+  const match = style.match(/(?<![a-z-])color:([^;]+)/);
   return match ? match[1].trim() : null;
 }
 

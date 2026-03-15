@@ -80,6 +80,7 @@ export function ColorControls(): JSX.Element {
         onColorChange={handleHighlightColorChange}
         buttonLabel={<Highlighter size={16} />}
         buttonTitle="Highlight color"
+        colorIndicator="swatch"
       />
     </div>
   );

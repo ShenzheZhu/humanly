@@ -122,6 +122,8 @@ export interface EditorTheme {
     ul?: string;
     ol?: string;
     listitem?: string;
+    listitemChecked?: string;
+    listitemUnchecked?: string;
     nested?: {
       listitem?: string;
     };

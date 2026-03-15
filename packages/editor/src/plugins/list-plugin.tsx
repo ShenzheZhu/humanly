@@ -1,11 +1,12 @@
 import React, { useEffect } from 'react';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import { ListPlugin as LexicalListPlugin } from '@lexical/react/LexicalListPlugin';
+import { CheckListPlugin as LexicalCheckListPlugin } from '@lexical/react/LexicalCheckListPlugin';
 import {
   INSERT_ORDERED_LIST_COMMAND,
   INSERT_UNORDERED_LIST_COMMAND,
+  INSERT_CHECK_LIST_COMMAND,
   REMOVE_LIST_COMMAND,
-  insertList,
 } from '@lexical/list';
 import { COMMAND_PRIORITY_LOW } from 'lexical';
 import {
@@ -32,8 +33,7 @@ export function ListPlugin(): JSX.Element {
         } else if (listType === 'number') {
           editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
         } else if (listType === 'check') {
-          // For checklist, we'll insert an unordered list and convert items to checklist
-          insertList(editor, 'bullet');
+          editor.dispatchCommand(INSERT_CHECK_LIST_COMMAND, undefined);
         }
 
         return true;
@@ -77,5 +77,10 @@ export function ListPlugin(): JSX.Element {
     };
   }, [editor]);
 
-  return <LexicalListPlugin />;
+  return (
+    <>
+      <LexicalListPlugin />
+      <LexicalCheckListPlugin />
+    </>
+  );
 }

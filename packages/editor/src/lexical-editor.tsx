@@ -44,6 +44,8 @@ const defaultTheme: EditorTheme = {
     ul: 'list-disc list-outside ml-6 mb-2',
     ol: 'list-decimal list-outside ml-6 mb-2',
     listitem: 'mb-1',
+    listitemChecked: 'editor-checklist-checked',
+    listitemUnchecked: 'editor-checklist-unchecked',
     nested: {
       listitem: 'list-none',
     },
@@ -161,6 +163,61 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
             /* Nested list indentation */
             .editor-content-editable li li {
               margin-left: 24px;
+            }
+
+            /* Checklist styles */
+            .editor-content-editable ul[data-lexical-list-type="check"] {
+              list-style: none;
+              padding: 0;
+            }
+
+            .editor-checklist-unchecked,
+            .editor-checklist-checked {
+              list-style: none;
+              margin-left: 8px;
+              padding-left: 28px;
+              position: relative;
+              outline: none;
+            }
+
+            .editor-checklist-unchecked::before,
+            .editor-checklist-checked::before {
+              content: '';
+              position: absolute;
+              left: 0;
+              top: 50%;
+              transform: translateY(-50%);
+              width: 16px;
+              height: 16px;
+              border: 2px solid #9ca3af;
+              border-radius: 50%;
+              background: transparent;
+              cursor: pointer;
+              transition: border-color 0.15s, background-color 0.15s;
+            }
+
+            .editor-checklist-checked::before {
+              border-color: #3b82f6;
+              background-color: #3b82f6;
+            }
+
+            .editor-checklist-checked::after {
+              content: '';
+              position: absolute;
+              left: 5px;
+              top: 50%;
+              transform: translateY(-65%) rotate(45deg);
+              width: 5px;
+              height: 9px;
+              border: 2px solid #ffffff;
+              border-top: none;
+              border-left: none;
+              pointer-events: none;
+            }
+
+            .editor-checklist-checked > span {
+              text-decoration: line-through;
+              color: #9ca3af;
             }
           `}</style>
           <RichTextPlugin
