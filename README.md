@@ -17,7 +17,7 @@ A comprehensive text provenance service that tracks user typing activities in ex
 
 ## 📦 Project Structure
 
-```
+```text
 humanly/
 ├── packages/
 │   ├── shared/          # Shared TypeScript types and validators
@@ -50,49 +50,57 @@ humanly/
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
-   git clone <repo-url>
+   git clone https://github.com/ShenzheZhu/humanly.git
    cd humanly
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Set up environment variables**
+
    ```bash
    bash scripts/setup-env.sh
    # Edit packages/backend/.env and set your values (especially JWT_SECRET)
    ```
 
 4. **Start Docker services** (PostgreSQL + Redis)
+
    ```bash
    npm run docker:up
    ```
 
 5. **Build shared packages** (required before running frontend)
+
    ```bash
    npm run build --workspace=@humory/shared
    npm run build --workspace=@humory/editor
    ```
 
 6. **Start the backend** (runs DB migrations automatically on startup)
+
    ```bash
    npm run dev:backend
    ```
 
 7. **Start the frontends** (each in a new terminal)
+
    ```bash
    npm run dev:frontend       # Admin dashboard
    npm run dev:frontend-user  # User portal
    ```
 
 8. **Access the application**
-   - User Portal: http://localhost:3002
-   - Admin Dashboard: http://localhost:3000
-   - Backend API: http://localhost:3001
-   - API Health: http://localhost:3001/health
+
+   - User Portal: <http://localhost:3002>
+   - Admin Dashboard: <http://localhost:3000>
+   - Backend API: <http://localhost:3001>
+   - API Health: <http://localhost:3001/health>
 
 ## 🏗️ Development
 
@@ -141,12 +149,14 @@ docker-compose up -d --build backend
 ## 📚 API Documentation
 
 ### Base URL
+
 - Development: `http://localhost:3001/api/v1`
 - Production: `https://your-domain.com/api/v1`
 
 **Important for Qualtrics Integration:** Qualtrics requires HTTPS for external scripts. See [HTTPS_SETUP.md](./HTTPS_SETUP.md) for configuration instructions.
 
 ### Authentication Endpoints (`/auth`)
+
 - `POST /register` - Register new user
 - `POST /verify-email` - Verify email with token
 - `POST /login` - Login and get tokens
@@ -157,6 +167,7 @@ docker-compose up -d --build backend
 - `GET /me` - Get current user
 
 ### Project Endpoints (`/projects`)
+
 - `GET /` - List projects (paginated)
 - `POST /` - Create project
 - `GET /:id` - Get project details
@@ -166,11 +177,13 @@ docker-compose up -d --build backend
 - `GET /:id/snippet` - Get tracking snippets
 
 ### Tracking Endpoints (`/track`)
+
 - `POST /init` - Initialize tracking session
 - `POST /events` - Batch event ingestion
 - `POST /submit` - Submit session
 
 ### Analytics Endpoints (`/projects/:id/analytics`)
+
 - `GET /summary` - Summary statistics
 - `GET /events-timeline` - Events over time
 - `GET /event-types` - Event type distribution
@@ -178,15 +191,18 @@ docker-compose up -d --build backend
 - `GET /sessions/:sessionId` - Session details
 
 ### Export Endpoints (`/projects/:id/export`)
+
 - `GET /json` - Export as JSON
 - `GET /csv` - Export as CSV
 
 ### Document Endpoints (`/documents`)
+
 - `GET /` - List user documents
 - `GET /:id` - Get document details
 - `GET /:id/events` - Get document events
 
 ### Certificate Endpoints (`/certificates`)
+
 - `POST /` - Generate certificate for document
 - `GET /` - List user certificates
 - `GET /:id` - Get certificate details
@@ -195,6 +211,7 @@ docker-compose up -d --build backend
 - `DELETE /:id/access-code` - Remove access code
 
 For detailed API documentation with examples, see:
+
 - `packages/backend/AUTH_IMPLEMENTATION.md`
 - `packages/backend/ANALYTICS.md`
 - `packages/backend/WEBSOCKET.md`
@@ -240,6 +257,7 @@ For complete documentation, see `packages/tracker/README.md`.
 ### Backend Deployment (AWS)
 
 1. **Set up AWS RDS PostgreSQL with TimescaleDB**
+
    ```bash
    # Create RDS instance
    # - Engine: PostgreSQL 14+
@@ -249,6 +267,7 @@ For complete documentation, see `packages/tracker/README.md`.
    ```
 
 2. **Deploy backend**
+
    ```bash
    # Build Docker image
    docker build -f docker/backend.Dockerfile -t humanly-backend:latest .
@@ -261,6 +280,7 @@ For complete documentation, see `packages/tracker/README.md`.
    ```
 
 3. **Configure environment variables**
+
    ```bash
    DATABASE_URL=postgresql://user:pass@your-rds-endpoint:5432/humanly_prod
    REDIS_URL=redis://your-redis-endpoint:6379
@@ -272,12 +292,14 @@ For complete documentation, see `packages/tracker/README.md`.
 ### Frontend Deployment (Vercel)
 
 1. **Connect to Vercel**
+
    ```bash
    cd packages/frontend
    vercel
    ```
 
 2. **Configure environment variables** in Vercel dashboard:
+
    ```bash
    NEXT_PUBLIC_API_URL=https://api.your-domain.com
    NEXT_PUBLIC_WS_URL=wss://api.your-domain.com
@@ -285,6 +307,7 @@ For complete documentation, see `packages/tracker/README.md`.
    ```
 
 3. **Deploy**
+
    ```bash
    vercel --prod
    ```
@@ -331,6 +354,7 @@ For complete schema, see `packages/backend/src/db/migrations/` directory.
 ## 🎨 Technology Stack
 
 ### Backend
+
 - Express.js - Web framework
 - Socket.IO - Real-time WebSocket communication
 - PostgreSQL + TimescaleDB - Time-series database
@@ -340,6 +364,7 @@ For complete schema, see `packages/backend/src/db/migrations/` directory.
 - Zod - Schema validation
 
 ### Frontend (Admin Dashboard)
+
 - Next.js 14 - React framework with App Router
 - Tailwind CSS - Utility-first styling
 - shadcn/ui - Component library
@@ -349,6 +374,7 @@ For complete schema, see `packages/backend/src/db/migrations/` directory.
 - Recharts - Data visualization
 
 ### Frontend User Portal
+
 - Next.js 14 - React framework with App Router
 - Tailwind CSS - Utility-first styling
 - shadcn/ui - Component library
@@ -356,6 +382,7 @@ For complete schema, see `packages/backend/src/db/migrations/` directory.
 - Document viewer and certificate management
 
 ### Editor
+
 - Lexical - Extensible text editor framework
 - React - UI library
 - TypeScript - Type-safe JavaScript
@@ -363,6 +390,7 @@ For complete schema, see `packages/backend/src/db/migrations/` directory.
 - Built-in tracking integration
 
 ### Tracker
+
 - TypeScript - Type-safe JavaScript
 - Rollup - Module bundler
 - Terser - Code minification
@@ -370,6 +398,7 @@ For complete schema, see `packages/backend/src/db/migrations/` directory.
 ## 📝 Environment Variables
 
 ### Backend (`packages/backend/.env`)
+
 ```bash
 NODE_ENV=development
 PORT=3001
@@ -384,6 +413,7 @@ EMAIL_FROM=noreply@humory.dev
 ```
 
 ### Frontend-User (`packages/frontend-user/.env`)
+
 ```bash
 NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
 ```
@@ -391,6 +421,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
 ## 🐛 Troubleshooting
 
 ### Database Connection Issues
+
 ```bash
 # Check if PostgreSQL is running
 docker-compose ps postgres
@@ -403,6 +434,7 @@ docker-compose exec postgres psql -U humory_user -d humory_dev -c "SELECT 1;"
 ```
 
 ### Redis Connection Issues
+
 ```bash
 # Check if Redis is running
 docker-compose ps redis
@@ -412,6 +444,7 @@ docker-compose exec redis redis-cli ping
 ```
 
 ### Port Already in Use
+
 ```bash
 # Find process using port 3001
 lsof -i :3001
@@ -423,34 +456,40 @@ kill -9 <PID>
 ## 📖 Additional Documentation
 
 ### Backend Documentation
+
 - **Authentication**: `packages/backend/AUTH_IMPLEMENTATION.md`
 - **WebSocket**: `packages/backend/WEBSOCKET.md`
 - **Analytics**: `packages/backend/ANALYTICS.md`
 
 ### Frontend Documentation
+
 - **Admin Dashboard Setup**: `packages/frontend/SETUP.md`
 - **Admin Dashboard Quick Start**: `packages/frontend/QUICK-START.md`
 - **Export Page**: `packages/frontend/EXPORT_PAGE_DOCUMENTATION.md`
 - **Live Preview Features**: `packages/frontend/src/app/projects/[id]/live-preview/README.md`
 
 ### Integration & Deployment
+
 - **Tracker Library**: `packages/tracker/README.md`
 - **Qualtrics Integration**: `QUALTRICS_INTEGRATION.md`
 - **HTTPS Setup**: `HTTPS_SETUP.md`
 - **Domain Configuration**: `DOMAIN_CONFIGURATION.md`
 
-### Certificate System
+### Certificate Documentation
+
 - **Certificate Quick Reference**: `CERTIFICATE_QUICK_REFERENCE.md`
 - **Certificate Types**: `CERTIFICATE_TYPES_SUMMARY.md`
 - **Badge Possibilities**: `CERTIFICATE_BADGE_POSSIBILITIES.md`
 
 ### Testing & Status
+
 - **Testing Guide**: `TESTING_GUIDE.md`
 - **Implementation Status**: `IMPLEMENTATION_STATUS.md`
 
 ## 🤝 Contributing
 
 This is a comprehensive full-stack application. Key areas for contribution:
+
 - Additional analytics visualizations
 - More export formats (Excel, Parquet)
 - Enhanced tracking library features
@@ -466,6 +505,7 @@ MIT License - see LICENSE file for details
 ## 🙏 Acknowledgments
 
 Built with modern web technologies:
+
 - TimescaleDB for efficient time-series data
 - Socket.IO for real-time communication
 - Lexical for extensible text editing
@@ -477,6 +517,7 @@ Built with modern web technologies:
 **Status**: ✅ Full-Stack Application Complete
 
 **Features**:
+
 - ✅ Backend API with authentication and tracking
 - ✅ Admin dashboard with analytics and live preview
 - ✅ User portal with document and certificate management

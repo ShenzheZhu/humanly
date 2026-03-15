@@ -118,6 +118,7 @@ export function AIAssistantPanel({
     clearMessages,
     startNewChat,
     loadSession,
+    viewLogsAsMessages,
     clearError,
   } = useAI(documentId);
 
@@ -238,8 +239,12 @@ export function AIAssistantPanel({
   };
 
   const handleSelectHistorySession = async (sessionId: string) => {
-    // Load the selected session's messages into the chat
     await loadSession(sessionId);
+    setHistoryPopoverOpen(false);
+  };
+
+  const handleSelectHistoryLogs = (logs: AIInteractionLog[]) => {
+    viewLogsAsMessages(logs);
     setHistoryPopoverOpen(false);
   };
 
@@ -297,6 +302,7 @@ export function AIAssistantPanel({
                   hasMore={hasMore}
                   onLoadMore={loadMore}
                   onSelectSession={handleSelectHistorySession}
+                  onSelectLogs={handleSelectHistoryLogs}
                 />
               </div>
             </DialogContent>
@@ -578,9 +584,10 @@ interface ChatHistoryListProps {
   hasMore: boolean;
   onLoadMore: () => void;
   onSelectSession?: (sessionId: string) => void;
+  onSelectLogs?: (logs: AIInteractionLog[]) => void;
 }
 
-function ChatHistoryList({ logs, isLoading, hasMore, onLoadMore, onSelectSession }: ChatHistoryListProps) {
+function ChatHistoryList({ logs, isLoading, hasMore, onLoadMore, onSelectSession, onSelectLogs }: ChatHistoryListProps) {
   // Group logs by session
   const groupedLogs = useMemo(() => {
     const groups: { sessionId: string | null; date: string; logs: AIInteractionLog[] }[] = [];
@@ -648,6 +655,7 @@ function ChatHistoryList({ logs, isLoading, hasMore, onLoadMore, onSelectSession
             date={group.date}
             logs={group.logs}
             onSelect={onSelectSession}
+            onSelectLogs={onSelectLogs}
           />
         ))}
 
@@ -676,9 +684,10 @@ interface ChatSessionItemProps {
   date: string;
   logs: AIInteractionLog[];
   onSelect?: (sessionId: string) => void;
+  onSelectLogs?: (logs: AIInteractionLog[]) => void;
 }
 
-function ChatSessionItem({ sessionId, date, logs, onSelect }: ChatSessionItemProps) {
+function ChatSessionItem({ sessionId, date, logs, onSelect, onSelectLogs }: ChatSessionItemProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const firstQuery = logs[0]?.query || 'Chat session';
@@ -691,6 +700,8 @@ function ChatSessionItem({ sessionId, date, logs, onSelect }: ChatSessionItemPro
   const handleClick = () => {
     if (sessionId && onSelect) {
       onSelect(sessionId);
+    } else if (!sessionId && onSelectLogs) {
+      onSelectLogs(logs);
     }
   };
 
@@ -698,7 +709,7 @@ function ChatSessionItem({ sessionId, date, logs, onSelect }: ChatSessionItemPro
     <div className="rounded-lg border bg-card overflow-hidden hover:bg-accent/50 transition-colors">
       <button
         className="w-full p-3 text-left"
-        onClick={isExpanded ? () => setIsExpanded(false) : handleClick}
+        onClick={handleClick}
       >
         <div className="flex items-start gap-2">
           <div

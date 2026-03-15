@@ -58,6 +58,7 @@ interface AIState {
   // Session actions
   initSession: (documentId: string) => Promise<void>;
   loadSession: (sessionId: string) => Promise<void>;
+  viewLogsAsMessages: (logs: AIInteractionLog[]) => void;
   closeSession: () => Promise<void>;
 
   // Suggestion actions
@@ -318,6 +319,27 @@ export const useAIStore = create<AIState>()(
             error: error.message || 'Failed to load session',
           });
         }
+      },
+
+      viewLogsAsMessages: (logs: AIInteractionLog[]) => {
+        const messages: AIChatMessage[] = [];
+        logs.forEach((log) => {
+          messages.push({
+            id: `${log.id}-user`,
+            role: 'user',
+            content: log.query,
+            timestamp: log.timestamp,
+          });
+          if (log.response) {
+            messages.push({
+              id: `${log.id}-assistant`,
+              role: 'assistant',
+              content: log.response,
+              timestamp: log.timestamp,
+            });
+          }
+        });
+        set({ messages, currentSession: null });
       },
 
       closeSession: async () => {
