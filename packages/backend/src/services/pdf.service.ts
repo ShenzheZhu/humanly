@@ -2,6 +2,7 @@ import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
 import { Certificate } from '@humory/shared';
 import { logger } from '../utils/logger';
+import { env } from '../config/env';
 
 export class PDFService {
   /**
@@ -316,7 +317,7 @@ export class PDFService {
 
     // Generate QR code
     try {
-      const verifyUrl = `https://app.humanly.art/verify/${certificate.verificationToken}`;
+      const verifyUrl = `${env.frontendUserUrl}/verify/${certificate.verificationToken}`;
       const qrCodeDataURL = await QRCode.toDataURL(verifyUrl, {
         width: 120,
         margin: 1,
@@ -369,7 +370,7 @@ export class PDFService {
         .font('Helvetica')
         .fillColor('#555555')
         .text(
-          `Verify at: https://app.humanly.art/verify/${certificate.verificationToken}`,
+          `Verify at: ${env.frontendUserUrl}/verify/${certificate.verificationToken}`,
           margin + 60,
           currentY,
           { width: pageWidth - 2 * margin - 120 }
@@ -404,7 +405,7 @@ export class PDFService {
       .font('Helvetica')
       .fillColor('#999999')
       .text(
-        'This certificate is cryptographically signed and can be verified at app.humanly.art',
+        `This certificate is cryptographically signed and can be verified at ${new URL(env.frontendUserUrl).hostname}`,
         margin + 40,
         footerY + 20,
         {

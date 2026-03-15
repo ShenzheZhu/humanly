@@ -421,9 +421,11 @@ export async function getEditHistory(req: Request, res: Response): Promise<void>
     offset: 0,
   });
 
-  // Filter and simplify events to only those that changed the editor state
+  // Filter and simplify events to only those that changed the editor state.
+  // Reverse so events are in chronological order (oldest first) for playback.
   const editHistory = events
     .filter(event => event.editorStateAfter && typeof event.editorStateAfter === 'object')
+    .reverse()
     .map(event => ({
       timestamp: event.timestamp,
       editorState: event.editorStateAfter,

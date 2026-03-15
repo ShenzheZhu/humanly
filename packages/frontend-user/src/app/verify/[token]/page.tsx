@@ -385,7 +385,7 @@ export default function VerifyPage() {
         )}
 
         <div className="text-center text-xs sm:text-sm text-muted-foreground py-2">
-          <p>Powered by <span className="font-semibold">Humanly.art</span></p>
+          <p>Powered by <span className="font-semibold">Humanly.net</span></p>
         </div>
       </div>
     </div>
