@@ -6,6 +6,7 @@ interface ColorPickerProps {
   onColorChange: (color: string) => void;
   buttonLabel?: React.ReactNode;
   buttonTitle?: string;
+  colorIndicator?: 'icon' | 'swatch';
 }
 
 /**
@@ -17,6 +18,7 @@ export function ColorPicker({
   onColorChange,
   buttonLabel = '●',
   buttonTitle = 'Color',
+  colorIndicator = 'icon',
 }: ColorPickerProps): JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
   const [customColor, setCustomColor] = useState(currentColor);
@@ -57,12 +59,25 @@ export function ColorPicker({
         onClick={() => setIsOpen(!isOpen)}
         style={{
           ...styles.button,
-          color: currentColor !== 'transparent' ? currentColor : '#000000',
+          ...(colorIndicator === 'icon'
+            ? { color: currentColor !== 'transparent' ? currentColor : '#000000' }
+            : {}),
         }}
         aria-label={buttonTitle}
         title={buttonTitle}
       >
-        {buttonLabel}
+        {colorIndicator === 'swatch' ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+            {buttonLabel}
+            <div style={{
+              width: '16px',
+              height: '3px',
+              borderRadius: '1px',
+              backgroundColor: currentColor !== 'transparent' ? currentColor : 'transparent',
+              border: currentColor === 'transparent' ? '1px solid #d1d5db' : 'none',
+            }} />
+          </div>
+        ) : buttonLabel}
       </button>
 
       {isOpen && (
