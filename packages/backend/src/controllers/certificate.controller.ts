@@ -155,7 +155,8 @@ export async function downloadCertificatePDF(req: Request, res: Response): Promi
   }
 
   const certificate = await CertificateService.getCertificate(certificateId, userId);
-  const pdfBuffer = await PDFService.generateCertificatePDF(certificate);
+  const aiStats = await CertificateService.getAIAuthorshipStats(certificate.documentId);
+  const pdfBuffer = await PDFService.generateCertificatePDF({ ...certificate, aiAuthorshipStats: aiStats } as any);
 
   // Set headers for file download
   res.setHeader('Content-Type', 'application/pdf');
