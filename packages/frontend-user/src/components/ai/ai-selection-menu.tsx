@@ -5,6 +5,7 @@ import { Sparkles, Check, Wand2, BookOpen, Loader2, MessageSquare, AlertCircle, 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api-client';
+import { emitEvent, initializeSocket, offEvent, onEvent } from '@/lib/socket-client';
 
 interface SelectionInfo {
   text: string;
@@ -31,6 +32,7 @@ interface ReviewState {
   actionLabel: string;
   originalText: string;
   suggestedText: string;
+  isStreaming?: boolean;
 }
 
 // Define the available AI actions with their prompts and icons
@@ -77,6 +79,7 @@ export function AISelectionMenu({
   const [hasAISettings, setHasAISettings] = useState<boolean | null>(null);
   const [showWarning, setShowWarning] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
   // Check if user has AI settings configured
   useEffect(() => {
@@ -93,6 +96,82 @@ export function AISelectionMenu({
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      offEvent('ai:response-start', handleResponseStart);
+      offEvent('ai:response-chunk', handleResponseChunk);
+      offEvent('ai:response-complete', handleResponseComplete);
+      offEvent('ai:error', handleResponseError);
+    };
+  }, []);
+
+  const handleResponseStart = ({ sessionId }: { sessionId: string }) => {
+    setActiveSessionId(sessionId);
+    setReviewState((state) => state ? { ...state, isStreaming: true } : state);
+  };
+
+  const handleResponseChunk = ({ chunk }: { chunk: string }) => {
+    setReviewState((state) => {
+      if (!state) return state;
+      return {
+        ...state,
+        suggestedText: state.suggestedText + chunk,
+        isStreaming: true,
+      };
+    });
+  };
+
+  const handleResponseComplete = (response: { sessionId: string; message?: { content: string } }) => {
+    setActiveSessionId(response.sessionId);
+    setReviewState((state) => {
+      if (!state) return state;
+      return {
+        ...state,
+        suggestedText: response.message?.content?.trim() || state.suggestedText.trim(),
+        isStreaming: false,
+      };
+    });
+    setIsLoading(false);
+    setLoadingAction(null);
+  };
+
+  const handleResponseError = ({ message }: { sessionId: string; message: string }) => {
+    setIsLoading(false);
+    setLoadingAction(null);
+    setReviewState(null);
+    setErrorMessage(message || 'AI request failed');
+  };
+
+  const waitForSocketConnection = async () => {
+    const socket = initializeSocket();
+
+    if (socket.connected) {
+      return socket;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      const cleanup = () => {
+        socket.off('connect', onConnect);
+        socket.off('connect_error', onConnectError);
+      };
+
+      const onConnect = () => {
+        cleanup();
+        resolve();
+      };
+
+      const onConnectError = (error: Error) => {
+        cleanup();
+        reject(error);
+      };
+
+      socket.once('connect', onConnect);
+      socket.once('connect_error', onConnectError);
+    });
+
+    return socket;
+  };
+
   const handleAction = async (action: typeof ACTIONS[number]) => {
     if (isLoading) return;
 
@@ -104,64 +183,90 @@ export function AISelectionMenu({
 
     setIsLoading(true);
     setLoadingAction(action.type);
+    setErrorMessage(null);
+    setReviewState({
+      actionType: action.type,
+      actionLabel: action.label,
+      originalText: selection.text,
+      suggestedText: '',
+      isStreaming: true,
+    });
 
     try {
-      const result = await api.post<{
-        success: boolean;
-        data: {
-          message: { id: string; role: string; content: string };
-        };
-      }>('/ai/chat', {
+      offEvent('ai:response-start', handleResponseStart);
+      offEvent('ai:response-chunk', handleResponseChunk);
+      offEvent('ai:response-complete', handleResponseComplete);
+      offEvent('ai:error', handleResponseError);
+
+      onEvent('ai:response-start', handleResponseStart);
+      onEvent('ai:response-chunk', handleResponseChunk);
+      onEvent('ai:response-complete', handleResponseComplete);
+      onEvent('ai:error', handleResponseError);
+
+      await waitForSocketConnection();
+
+      emitEvent('ai:message', {
         documentId,
         message: `${action.prompt}\n\n"${selection.text}"`,
-        silent: true,
         context: {
           selectedText: selection.text,
         },
-      }, {
-        timeout: 120000, // 2 min for long text AI processing
-      });
-
-      let improvedText = result.data?.message?.content || '';
-
-      if (!improvedText) {
-        console.error('AI response was empty');
-        cancelAIAction();
-        return;
-      }
-
-      // Clean up the response - remove surrounding quotes if present
-      improvedText = improvedText.trim();
-      if (improvedText.startsWith('"') && improvedText.endsWith('"')) {
-        improvedText = improvedText.slice(1, -1);
-      }
-      if (improvedText.startsWith("'") && improvedText.endsWith("'")) {
-        improvedText = improvedText.slice(1, -1);
-      }
-
-      // Immediately replace the text in the editor, keep popup open for review
-      replaceSelection(improvedText, true);
-
-      // Switch to review mode (Undo / Keep)
-      setReviewState({
-        actionType: action.type,
-        actionLabel: action.label,
-        originalText: selection.text,
-        suggestedText: improvedText,
       });
     } catch (error: any) {
-      console.error('AI action failed:', error);
-      const msg = error?.response?.data?.error || error?.message || 'AI request failed';
-      setErrorMessage(msg);
-      cancelAIAction();
-    } finally {
-      setIsLoading(false);
-      setLoadingAction(null);
+      // Fallback to existing non-streaming request if socket streaming fails
+      try {
+        const result = await api.post<{
+          success: boolean;
+          data: {
+            message: { id: string; role: string; content: string };
+          };
+        }>('/ai/chat', {
+          documentId,
+          message: `${action.prompt}\n\n"${selection.text}"`,
+          silent: true,
+          context: {
+            selectedText: selection.text,
+          },
+        }, {
+          timeout: 120000,
+        });
+
+        const improvedText = (result.data?.message?.content || '').trim();
+        if (!improvedText) {
+          throw new Error('AI response was empty');
+        }
+
+        setReviewState({
+          actionType: action.type,
+          actionLabel: action.label,
+          originalText: selection.text,
+          suggestedText: improvedText.replace(/^["']|["']$/g, ''),
+          isStreaming: false,
+        });
+        setIsLoading(false);
+        setLoadingAction(null);
+      } catch (fallbackError: any) {
+        console.error('AI action failed:', fallbackError);
+        const msg = fallbackError?.response?.data?.error || fallbackError?.message || 'AI request failed';
+        setErrorMessage(msg);
+        setReviewState(null);
+        cancelAIAction();
+        setIsLoading(false);
+        setLoadingAction(null);
+      }
     }
   };
 
   const handleKeep = async () => {
     if (!reviewState) return;
+
+    const improvedText = reviewState.suggestedText.trim();
+    if (!improvedText) {
+      setErrorMessage('AI response was empty');
+      return;
+    }
+
+    replaceSelection(improvedText, true);
 
     // Track the action in event history (local tracking)
     if (onActionApplied) {
@@ -192,8 +297,13 @@ export function AISelectionMenu({
   const handleUndo = async () => {
     if (!reviewState) return;
 
-    // Undo the text replacement via Lexical's undo system
-    undoLastAction();
+    if (reviewState.isStreaming && activeSessionId) {
+      emitEvent('ai:cancel', { sessionId: activeSessionId });
+      setReviewState(null);
+      cancelAIAction();
+      onClose();
+      return;
+    }
 
     // Track rejection in the backend
     try {
@@ -218,28 +328,44 @@ export function AISelectionMenu({
     return (
       <div
         className={cn(
-          'flex items-center gap-1 rounded-lg border bg-background/95 backdrop-blur-sm shadow-lg p-1',
+          'min-w-[320px] max-w-[480px] rounded-lg border bg-background/95 backdrop-blur-sm shadow-lg p-3',
           'animate-in fade-in-0 zoom-in-95 duration-150'
         )}
       >
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 px-3 text-xs font-medium gap-1.5 hover:bg-muted"
-          onClick={handleUndo}
-        >
-          <Undo2 className="h-3.5 w-3.5" />
-          Undo
-        </Button>
-        <div className="w-px h-5 bg-border" />
-        <Button
-          size="sm"
-          className="h-8 px-3 text-xs font-medium gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
-          onClick={handleKeep}
-        >
-          <Check className="h-3.5 w-3.5" />
-          Keep
-        </Button>
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <div className="text-xs font-medium text-foreground">
+            {reviewState.actionLabel}
+          </div>
+          {reviewState.isStreaming ? (
+            <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Generating...
+            </div>
+          ) : null}
+        </div>
+        <div className="max-h-40 overflow-y-auto rounded-md bg-muted/40 p-2 text-xs whitespace-pre-wrap text-foreground">
+          {reviewState.suggestedText || 'Waiting for AI response...'}
+        </div>
+        <div className="mt-3 flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 px-3 text-xs font-medium gap-1.5 hover:bg-muted"
+            onClick={handleUndo}
+          >
+            <Undo2 className="h-3.5 w-3.5" />
+            {reviewState.isStreaming ? 'Cancel' : 'Discard'}
+          </Button>
+          <Button
+            size="sm"
+            className="h-8 px-3 text-xs font-medium gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+            onClick={handleKeep}
+            disabled={reviewState.isStreaming || !reviewState.suggestedText.trim()}
+          >
+            <Check className="h-3.5 w-3.5" />
+            Apply
+          </Button>
+        </div>
       </div>
     );
   }
