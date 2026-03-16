@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, FileText, Clock, Award, PanelLeftClose, PanelLeft } from 'lucide-react';
+import { ArrowLeft, FileText, Clock, Award, PanelLeftClose, PanelLeft, Upload, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,7 @@ import { useDocument } from '@/hooks/use-document';
 import { useCertificates } from '@/hooks/use-certificates';
 import { useAuthStore } from '@/stores/auth-store';
 import { useToast } from '@/components/ui/use-toast';
+import { validatePdfFile } from '@/lib/document-pdf';
 import {
   CertificateGenerationDialog,
   type CertificateGenerationOptions,
@@ -18,7 +19,7 @@ import { AIAssistantButton, AIAssistantPanel, AISelectionMenu, type ActionType }
 import { useAI } from '@/hooks/use-ai';
 import { useAIStore } from '@/stores/ai-store';
 import type { TrackedEvent } from '@humory/editor';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, type ChangeEvent } from 'react';
 import dynamic from 'next/dynamic';
 
 // ✅ Overleaf-style: resizable panels
@@ -52,6 +53,7 @@ export default function DocumentEditorPage() {
     isSaving,
     updateDocument,
     trackEvents,
+    uploadPdf,
   } = useDocument(documentId);
   const [showPdfPanel, setShowPdfPanel] = useState(true);
   const { generateCertificate } = useCertificates();
@@ -60,6 +62,8 @@ export default function DocumentEditorPage() {
   const [isTitleEditing, setIsTitleEditing] = useState(false);
   const [isGeneratingCertificate, setIsGeneratingCertificate] = useState(false);
   const [showCertificateDialog, setShowCertificateDialog] = useState(false);
+  const [isUploadingPdf, setIsUploadingPdf] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // AI Assistant
   const {
@@ -97,6 +101,12 @@ export default function DocumentEditorPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [toggleAIPanel]);
+
+  useEffect(() => {
+    if (linkedPaper) {
+      setShowPdfPanel(true);
+    }
+  }, [linkedPaper]);
 
   const getFullContent = useCallback(() => currentContent, [currentContent]);
 
@@ -181,6 +191,30 @@ export default function DocumentEditorPage() {
     }
   };
 
+  const handlePdfSelect = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      validatePdfFile(file);
+      setIsUploadingPdf(true);
+      await uploadPdf(file, title);
+      toast({
+        title: 'Success',
+        description: 'PDF uploaded and linked to this document.',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to upload PDF',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploadingPdf(false);
+      event.target.value = '';
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -253,6 +287,32 @@ export default function DocumentEditorPage() {
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+              {!linkedPaper && (
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handlePdfSelect}
+                    className="hidden"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingPdf}
+                    className="sm:size-default"
+                  >
+                    {isUploadingPdf ? (
+                      <Loader2 className="h-4 w-4 sm:mr-2 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4 sm:mr-2" />
+                    )}
+                    <span className="hidden sm:inline">{isUploadingPdf ? 'Uploading...' : 'Upload PDF'}</span>
+                  </Button>
+                </>
+              )}
+
               {linkedPaper && (
                 <Button
                   variant="outline"
@@ -332,6 +392,18 @@ export default function DocumentEditorPage() {
             >
               <div className="h-full overflow-auto">
                 <div className={`${linkedPaper || isAIPanelOpen ? 'px-4 py-4' : 'px-6 py-6'} h-full`}>
+                  {!linkedPaper && (
+                    <div className="mb-4 rounded-lg border border-dashed border-border bg-muted/30 p-4">
+                      <div>
+                        <div>
+                          <h2 className="text-sm font-semibold">No PDF linked</h2>
+                          <p className="text-sm text-muted-foreground">
+                            You can keep writing here and upload the source PDF later for side-by-side review.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <LexicalEditor
                     documentId={documentId}
                     userId={user?.id}

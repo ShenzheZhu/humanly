@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
+import { uploadPdfForDocument } from '@/lib/document-pdf';
 import type { Document, DocumentEvent } from '@humory/shared';
 
 export interface LinkedPaper {
@@ -75,6 +76,13 @@ export function useDocument(documentId: string) {
     }
   }, [documentId]);
 
+  const uploadPdf = useCallback(async (file: File, titleOverride?: string) => {
+    const uploadTitle = titleOverride?.trim() || document?.title || file.name.replace(/\.pdf$/i, '');
+
+    await uploadPdfForDocument(documentId, uploadTitle, file);
+    await fetchDocument();
+  }, [document?.title, documentId, fetchDocument]);
+
   return {
     document,
     linkedPaper,
@@ -83,6 +91,7 @@ export function useDocument(documentId: string) {
     isSaving,
     updateDocument,
     trackEvents,
+    uploadPdf,
     refetch: fetchDocument,
   };
 }

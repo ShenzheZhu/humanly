@@ -71,7 +71,9 @@ temp/
 
 # ── Claude Code ───────────────────────────────────────────────────────────────
 .claude/
+.AGENTS/
 /CLAUDE.md
+/AGENTS.md
 /DEPLOY.md
 /STRUCTURE.md
 

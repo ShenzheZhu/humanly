@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
+import { uploadPdfForDocument } from '@/lib/document-pdf';
 import type { Document, DocumentListResponse } from '@humory/shared';
 
 export function useDocuments() {
@@ -40,31 +41,7 @@ export function useDocuments() {
     // Step 2: If a PDF file is provided, upload it and link to the document
     if (pdfFile) {
       try {
-        // Get or create user's default project
-        const projectsResponse = await apiClient.get('/projects?limit=1');
-        let projectId: string;
-
-        if (projectsResponse.data.data && projectsResponse.data.data.length > 0) {
-          projectId = projectsResponse.data.data[0].id;
-        } else {
-          const newProjectResponse = await apiClient.post('/projects', {
-            name: 'Default Project',
-            description: 'Auto-created project for document reviews',
-          });
-          projectId = newProjectResponse.data.data.project.id;
-        }
-
-        const formData = new FormData();
-        formData.append('pdf', pdfFile);
-        formData.append('title', title);
-        formData.append('authors', JSON.stringify([]));
-        formData.append('abstract', '');
-        formData.append('keywords', JSON.stringify([]));
-        formData.append('documentId', document.id);
-
-        // Do NOT set Content-Type manually — let axios detect FormData and set
-        // the correct multipart/form-data boundary automatically
-        await apiClient.post(`/projects/${projectId}/papers`, formData);
+        await uploadPdfForDocument(document.id, title, pdfFile);
       } catch (uploadErr: any) {
         // Rollback: delete the orphaned document so the user can retry cleanly
         try {
