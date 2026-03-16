@@ -9,6 +9,7 @@
 
 jest.mock('../../models/user.model');
 jest.mock('../../models/refresh-token.model');
+jest.mock('../../models/user-ai-settings.model');
 jest.mock('../../services/email.service', () => ({
   emailService: {
     sendVerificationEmail: jest.fn().mockResolvedValue(undefined),
@@ -25,10 +26,12 @@ jest.mock('../../utils/logger', () => ({
 import { AuthService } from '../../services/auth.service';
 import { UserModel } from '../../models/user.model';
 import { RefreshTokenModel } from '../../models/refresh-token.model';
+import { UserAISettingsModel } from '../../models/user-ai-settings.model';
 import { hashPassword } from '../../utils/crypto';
 
 const MockUserModel = UserModel as jest.Mocked<typeof UserModel>;
 const MockRefreshTokenModel = RefreshTokenModel as jest.Mocked<typeof RefreshTokenModel>;
+const MockUserAISettingsModel = UserAISettingsModel as jest.Mocked<typeof UserAISettingsModel>;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -56,10 +59,23 @@ function makeUser(overrides: Partial<any> = {}) {
   };
 }
 
+const originalEnv = { ...process.env };
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  process.env = { ...originalEnv };
+});
+
+afterEach(() => {
+  process.env = { ...originalEnv };
+});
+
 // ── register ──────────────────────────────────────────────────────────────────
 
 describe('AuthService.register', () => {
   it('creates and returns a new user', async () => {
+    delete process.env.DEFAULT_AI_API_KEY;
+    delete process.env.AI_API_KEY;
     MockUserModel.findByEmail.mockResolvedValue(null);
     const user = makeUser();
     MockUserModel.create.mockResolvedValue(user as any);
@@ -69,6 +85,7 @@ describe('AuthService.register', () => {
     expect(MockUserModel.create).toHaveBeenCalledWith(
       expect.objectContaining({ email: 'alice@example.com' })
     );
+    expect(MockUserAISettingsModel.upsert).not.toHaveBeenCalled();
   });
 
   it('throws 409 when email is already registered', async () => {
@@ -77,6 +94,37 @@ describe('AuthService.register', () => {
       statusCode: 409,
     });
     expect(MockUserModel.create).not.toHaveBeenCalled();
+  });
+
+  it('initializes default AI settings for new users when a default key is configured', async () => {
+    process.env.DEFAULT_AI_API_KEY = 'prof-key';
+    process.env.DEFAULT_AI_MODEL = 'gpt-4o-mini';
+    process.env.DEFAULT_AI_BASE_URL = 'https://api.openai.com/v1';
+
+    MockUserModel.findByEmail.mockResolvedValue(null);
+    const user = makeUser();
+    MockUserModel.create.mockResolvedValue(user as any);
+    MockUserAISettingsModel.upsert.mockResolvedValue(undefined);
+
+    await AuthService.register('alice@example.com', 'password123');
+
+    expect(MockUserAISettingsModel.upsert).toHaveBeenCalledWith(
+      user.id,
+      'prof-key',
+      'https://api.openai.com/v1',
+      'gpt-4o-mini'
+    );
+  });
+
+  it('does not fail registration when default AI settings initialization fails', async () => {
+    process.env.DEFAULT_AI_API_KEY = 'prof-key';
+
+    MockUserModel.findByEmail.mockResolvedValue(null);
+    const user = makeUser();
+    MockUserModel.create.mockResolvedValue(user as any);
+    MockUserAISettingsModel.upsert.mockRejectedValue(new Error('db error'));
+
+    await expect(AuthService.register('alice@example.com', 'password123')).resolves.toEqual(user);
   });
 });
 
