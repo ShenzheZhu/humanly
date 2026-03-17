@@ -74,6 +74,36 @@ describe('createDocument', () => {
     expect(paperCall![1]).toBeInstanceOf(FormData);
   });
 
+  it('creates a default project for a new user before uploading the PDF', async () => {
+    mockApiClient.post
+      .mockResolvedValueOnce({ data: { data: { document: fakeDoc } } })
+      .mockResolvedValueOnce({ data: { data: { id: 'proj-new' } } })
+      .mockResolvedValueOnce({ data: { success: true } });
+
+    mockApiClient.get
+      .mockResolvedValueOnce({ data: { data: [] } })
+      .mockResolvedValueOnce({ data: { data: [] } })
+      .mockResolvedValueOnce({ data: { data: [fakeDoc] } });
+
+    const pdfFile = new File(['%PDF-1.4'], 'new-user.pdf', { type: 'application/pdf' });
+
+    const { result } = renderHook(() => useDocuments());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await act(async () => {
+      await result.current.createDocument('Fresh User Doc', pdfFile);
+    });
+
+    expect(mockApiClient.post).toHaveBeenCalledWith(
+      '/projects',
+      expect.objectContaining({ name: 'Default Project' })
+    );
+    expect(mockApiClient.post).toHaveBeenCalledWith(
+      '/projects/proj-new/papers',
+      expect.any(FormData)
+    );
+  });
+
   it('rolls back document when PDF upload fails', async () => {
     mockApiClient.post
       .mockResolvedValueOnce({ data: { data: { document: fakeDoc } } }) // create doc

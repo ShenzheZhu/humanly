@@ -24,7 +24,12 @@ async function getOrCreateDefaultProjectId() {
     description: 'Auto-created project for document reviews',
   });
 
-  return newProjectResponse.data.data.project.id as string;
+  const createdProject = newProjectResponse.data.data?.project || newProjectResponse.data.data;
+  if (!createdProject?.id) {
+    throw new Error('Failed to create default project');
+  }
+
+  return createdProject.id as string;
 }
 
 export async function uploadPdfForDocument(documentId: string, title: string, pdfFile: File) {
