@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   icons: { icon: '/icon.svg' },
   openGraph: {
     title: getBrandText().pageTitles.user,
-    description: 'Verify human-written content with behavioral proof and cryptographic certificates',
+    description: 'Trustworthy enviroment for human-ai collaborative writing',
     type: 'website',
   },
 };
