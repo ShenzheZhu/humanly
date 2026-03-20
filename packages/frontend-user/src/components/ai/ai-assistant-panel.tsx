@@ -30,6 +30,27 @@ interface AIAssistantPanelProps {
   getFullContent?: () => string;
 }
 
+const QUICK_ACTION_PROMPT_PREFIXES = [
+  'Fix any grammar, spelling, and punctuation errors in the following text.',
+  'Improve the following text to make it clearer and more professional while keeping the same meaning.',
+  'Simplify the following text to make it easier to understand while keeping the same meaning.',
+  'Rewrite the following text in a more formal and professional tone.',
+];
+
+const QUICK_ACTION_HISTORY_LABEL_PREFIXES = [
+  'Fix grammar:',
+  'Improve writing:',
+  'Simplify text:',
+  'Make formal:',
+];
+
+function isQuickActionHistoryLog(log: AIInteractionLog): boolean {
+  const query = log.query.trim();
+
+  return QUICK_ACTION_PROMPT_PREFIXES.some((prefix) => query.startsWith(prefix))
+    || QUICK_ACTION_HISTORY_LABEL_PREFIXES.some((prefix) => query.startsWith(prefix));
+}
+
 export function AIAssistantPanel({
   documentId,
   onClose,
@@ -124,6 +145,11 @@ export function AIAssistantPanel({
 
   const { logs, isLoading: logsLoading, loadMore, hasMore, refresh: refreshLogs } = useAILogs(documentId);
 
+  const chatHistoryLogs = useMemo(
+    () => logs.filter((log) => !isQuickActionHistoryLog(log)),
+    [logs]
+  );
+
   const quotedText = useAIStore((state) => state.quotedText);
   const clearQuotedText = useAIStore((state) => state.clearQuotedText);
 
@@ -134,12 +160,12 @@ export function AIAssistantPanel({
   // Calculate unique session count from logs
   const sessionCount = useMemo(() => {
     const uniqueSessions = new Set<string>();
-    logs.forEach(log => {
+    chatHistoryLogs.forEach(log => {
       const key = log.sessionId || `standalone-${log.id}`;
       uniqueSessions.add(key);
     });
     return uniqueSessions.size;
-  }, [logs]);
+  }, [chatHistoryLogs]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -297,7 +323,7 @@ export function AIAssistantPanel({
               {/* History List - scrollable */}
               <div className="flex-1 overflow-hidden">
                 <ChatHistoryList
-                  logs={logs}
+                  logs={chatHistoryLogs}
                   isLoading={logsLoading}
                   hasMore={hasMore}
                   onLoadMore={loadMore}

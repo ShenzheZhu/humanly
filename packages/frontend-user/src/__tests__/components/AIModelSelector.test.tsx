@@ -18,6 +18,7 @@ window.HTMLElement.prototype.scrollIntoView = jest.fn();
 const mockApiGet = jest.fn();
 const mockApiPost = jest.fn();
 const mockApiPut = jest.fn();
+let mockLogs: any[] = [];
 
 jest.mock('@/lib/api-client', () => ({
   __esModule: true,
@@ -44,7 +45,7 @@ jest.mock('@/hooks/use-ai', () => ({
     clearError: jest.fn(),
   }),
   useAILogs: () => ({
-    logs: [],
+    logs: mockLogs,
     isLoading: false,
     loadMore: jest.fn(),
     hasMore: false,
@@ -112,6 +113,7 @@ async function renderPanel() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockLogs = [];
 });
 
 // 1. Known provider — whitelist used, no /test call ────────────────────────────
@@ -246,6 +248,49 @@ describe('unknown provider model selector', () => {
     await new Promise((r) => setTimeout(r, 50));
     // No combobox should render since availableModels stays empty
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+  });
+});
+
+describe('chat history filtering', () => {
+  it('does not show quick AI action entries in chat history', async () => {
+    mockApiGet.mockResolvedValue(
+      makeSettingsResponse('https://api.openai.com/v1', 'gpt-4o')
+    );
+    mockLogs = [
+      {
+        id: 'quick-action-log',
+        documentId: 'doc-1',
+        userId: 'user-1',
+        sessionId: 'session-1',
+        timestamp: '2026-03-19T12:00:00.000Z',
+        query: 'Fix grammar: this are bad grammar.',
+        queryType: 'grammar_check',
+        response: 'This is bad grammar.',
+        modificationsApplied: true,
+        status: 'success',
+        createdAt: '2026-03-19T12:00:00.000Z',
+      },
+      {
+        id: 'chat-log',
+        documentId: 'doc-1',
+        userId: 'user-1',
+        sessionId: 'session-2',
+        timestamp: '2026-03-19T12:05:00.000Z',
+        query: 'Can you summarize this paragraph?',
+        queryType: 'question',
+        response: 'Here is a short summary.',
+        modificationsApplied: false,
+        status: 'success',
+        createdAt: '2026-03-19T12:05:00.000Z',
+      },
+    ];
+
+    renderPanel();
+
+    await userEvent.click(await screen.findByTitle('Chat History'));
+
+    expect(await screen.findByText('Can you summarize this paragraph?')).toBeInTheDocument();
+    expect(screen.queryByText('Fix grammar: this are bad grammar.')).not.toBeInTheDocument();
   });
 });
 

@@ -3,6 +3,15 @@ import { AIService } from '../services/ai.service';
 import { AIChatRequest, AILogQueryFilters, AIContentModification } from '@humory/shared';
 import { AppError } from '../middleware/error-handler';
 import { AISelectionActionModel, AIActionType, AIDecision } from '../models/ai-selection-action.model';
+import { AIModel } from '../models/ai.model';
+import { logger } from '../utils/logger';
+
+const AI_ACTION_QUERY_MAP: Record<AIActionType, { queryType: 'grammar_check' | 'rewrite'; label: string }> = {
+  grammar: { queryType: 'grammar_check', label: 'Fix grammar' },
+  improve: { queryType: 'rewrite', label: 'Improve writing' },
+  simplify: { queryType: 'rewrite', label: 'Simplify text' },
+  formal: { queryType: 'rewrite', label: 'Make formal' },
+};
 
 /**
  * Send a chat message to AI assistant
@@ -236,7 +245,7 @@ export async function trackSelectionAction(req: Request, res: Response): Promise
     throw new AppError(401, 'Unauthorized');
   }
 
-  const { documentId, actionType, originalText, suggestedText, decision, responseTimeMs, modelVersion } = req.body;
+  const { documentId, logId, actionType, originalText, suggestedText, decision, responseTimeMs, modelVersion } = req.body;
 
   if (!documentId) {
     throw new AppError(400, 'Document ID is required');
@@ -270,6 +279,71 @@ export async function trackSelectionAction(req: Request, res: Response): Promise
     responseTimeMs,
     modelVersion,
   });
+
+  try {
+    let targetLogId = logId as string | undefined;
+    const { queryType, label } = AI_ACTION_QUERY_MAP[actionType];
+
+    if (!targetLogId) {
+      const existingLog = await AIModel.findRecentSelectionLog({
+        documentId,
+        userId,
+        queryType,
+        originalText,
+        suggestedText,
+      });
+      targetLogId = existingLog?.id;
+    }
+
+    if (!targetLogId) {
+      const log = await AIModel.createLog({
+        documentId,
+        userId,
+        query: `${label}: ${originalText}`,
+        queryType,
+        questionCategory: 'generation',
+        contextSnapshot: {
+          selection: {
+            text: originalText,
+            startOffset: 0,
+            endOffset: originalText.length,
+          },
+        },
+      });
+
+      targetLogId = log.id;
+    }
+
+    await AIModel.updateLogWithResponse(targetLogId, {
+      response: suggestedText,
+      responseTimeMs,
+      modelVersion,
+      status: decision === 'accepted' ? 'success' : 'cancelled',
+    });
+
+    if (decision === 'accepted' && targetLogId) {
+      const modification: AIContentModification = {
+        id: `selection-action-${action.id}`,
+        type: 'replace',
+        before: originalText,
+        after: suggestedText,
+        location: {
+          startOffset: 0,
+          endOffset: originalText.length,
+        },
+        timestamp: action.createdAt,
+      };
+
+      await AIModel.updateLogWithModifications(targetLogId, [modification]);
+    }
+  } catch (error) {
+    logger.warn('Failed to mirror AI selection action into AI interaction logs', {
+      userId,
+      documentId,
+      actionType,
+      error,
+    });
+  }
 
   res.json({
     success: true,

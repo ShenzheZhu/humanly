@@ -145,7 +145,7 @@ function LogEntry({ log }: LogEntryProps) {
       format: { label: 'Format', className: 'bg-pink-100 text-pink-700' },
       question: { label: 'Q&A', className: 'bg-yellow-100 text-yellow-700' },
       reference: { label: 'Reference', className: 'bg-indigo-100 text-indigo-700' },
-      other: { label: 'Other', className: 'bg-gray-100 text-gray-700' },
+      other: { label: 'Chat', className: 'bg-gray-100 text-gray-700' },
     };
 
     const variant = variants[type] || variants.other;

@@ -1,14 +1,14 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { Fragment, useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Clock, Keyboard, Copy, MousePointer, Type } from 'lucide-react';
+import { ArrowLeft, Clock, Keyboard, Copy, MousePointer, Type, Sparkles, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/stores/auth-store';
 import { format } from 'date-fns';
-import type { DocumentEvent } from '@humory/shared';
+import type { AIInteractionLog, DocumentEvent } from '@humory/shared';
 
 const EVENT_ICONS: Record<string, React.ReactNode> = {
   keydown: <Keyboard className="h-3 w-3" />,
@@ -34,6 +34,48 @@ const EVENT_COLORS: Record<string, string> = {
   input: 'bg-teal-100 text-teal-800',
 };
 
+const AI_ACTION_LABELS: Record<string, string> = {
+  grammar_check: 'Fix grammar',
+  rewrite: 'Rewrite',
+  other: 'Chat',
+};
+
+function getSelectionText(log: AIInteractionLog) {
+  return log.modifications?.[0]?.before || log.contextSnapshot?.selection?.text || '';
+}
+
+function getSuggestedText(log: AIInteractionLog) {
+  return log.modifications?.[0]?.after || log.response || '';
+}
+
+function getAILogLabel(log: AIInteractionLog) {
+  if (log.queryType === 'grammar_check') {
+    return 'Fix grammar';
+  }
+
+  if (log.queryType === 'other') {
+    return 'Chat';
+  }
+
+  if (log.query.toLowerCase().includes('simplify')) {
+    return 'Simplify';
+  }
+
+  if (log.query.toLowerCase().includes('formal')) {
+    return 'Make formal';
+  }
+
+  if (log.query.toLowerCase().includes('improve')) {
+    return 'Improve writing';
+  }
+
+  return AI_ACTION_LABELS[log.queryType] || log.queryType;
+}
+
+type HistoryItem =
+  | { kind: 'event'; id: string; timestamp: string | Date; event: DocumentEvent }
+  | { kind: 'ai'; id: string; timestamp: string | Date; log: AIInteractionLog };
+
 export default function DocumentLogsPage() {
   const params = useParams();
   const router = useRouter();
@@ -42,10 +84,12 @@ export default function DocumentLogsPage() {
 
   const [documentTitle, setDocumentTitle] = useState<string>('Document');
   const [events, setEvents] = useState<DocumentEvent[]>([]);
+  const [aiLogs, setAiLogs] = useState<AIInteractionLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
+  const [expandedAIIds, setExpandedAIIds] = useState<Set<string>>(new Set());
   const LIMIT = 100;
 
   useEffect(() => {
@@ -57,15 +101,20 @@ export default function DocumentLogsPage() {
       setIsLoading(true);
       setError(null);
 
-      const [docRes, eventsRes] = await Promise.all([
+      const [docRes, eventsRes, aiLogsRes] = await Promise.all([
         apiClient.get(`/documents/${documentId}`),
         apiClient.get(`/documents/${documentId}/events?limit=${LIMIT}&offset=${currentOffset}`),
+        apiClient
+          .get(`/ai/logs?documentId=${documentId}&limit=50&offset=0`)
+          .catch(() => ({ data: { data: [] } })),
       ]);
 
       setDocumentTitle(docRes.data.data?.document?.title || 'Document');
       const eventsData = eventsRes.data.data?.events || eventsRes.data.data || [];
       setEvents(Array.isArray(eventsData) ? eventsData : []);
-      setTotal(eventsRes.data.data?.total ?? eventsData.length);
+      setTotal(eventsRes.data.count ?? eventsRes.data.data?.total ?? eventsData.length);
+      const aiLogData = aiLogsRes.data.data || [];
+      setAiLogs(Array.isArray(aiLogData) ? aiLogData : []);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to load logs');
     } finally {
@@ -77,6 +126,70 @@ export default function DocumentLogsPage() {
     fetchEvents(offset);
   }, [fetchEvents, offset]);
 
+  const visibleAILogs = useMemo(() => {
+    return aiLogs.filter((log) => {
+      const selectionText = getSelectionText(log);
+      const suggestedText = getSuggestedText(log);
+
+      // Hide the raw inline AI response log when we also have the user-facing
+      // selection action log for the same before/after pair.
+      if (!log.modificationsApplied && log.status === 'success' && selectionText && suggestedText) {
+        const hasMirrorActionLog = aiLogs.some((candidate) => {
+          if (candidate.id === log.id) return false;
+
+          const candidateSelection = getSelectionText(candidate);
+          const candidateSuggested = getSuggestedText(candidate);
+
+          return (
+            candidate.queryType === log.queryType &&
+            candidateSelection === selectionText &&
+            candidateSuggested === suggestedText &&
+            (candidate.modificationsApplied || candidate.status === 'cancelled')
+          );
+        });
+
+        if (hasMirrorActionLog) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [aiLogs]);
+
+  const historyItems = useMemo<HistoryItem[]>(() => {
+    const items: HistoryItem[] = [
+      ...events.map((event) => ({
+        kind: 'event' as const,
+        id: event.id,
+        timestamp: event.timestamp,
+        event,
+      })),
+      ...visibleAILogs.map((log) => ({
+        kind: 'ai' as const,
+        id: log.id,
+        timestamp: log.timestamp,
+        log,
+      })),
+    ];
+
+    return items.sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+  }, [events, visibleAILogs]);
+
+  const toggleAIEntry = (logId: string) => {
+    setExpandedAIIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(logId)) {
+        next.delete(logId);
+      } else {
+        next.add(logId);
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -87,7 +200,7 @@ export default function DocumentLogsPage() {
         </Button>
         <div>
           <h1 className="font-semibold text-sm">{documentTitle}</h1>
-          <p className="text-xs text-muted-foreground">Keystroke Logs</p>
+          <p className="text-xs text-muted-foreground">Document and AI Activity Logs</p>
         </div>
       </div>
 
@@ -104,6 +217,9 @@ export default function DocumentLogsPage() {
             <p className="text-sm text-muted-foreground">
               Total recorded events: <span className="font-medium text-foreground">{total}</span>
             </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              AI actions logged: <span className="font-medium text-foreground">{visibleAILogs.length}</span>
+            </p>
           </CardContent>
         </Card>
 
@@ -112,7 +228,7 @@ export default function DocumentLogsPage() {
           <div className="text-center py-12 text-muted-foreground text-sm">Loading logs...</div>
         ) : error ? (
           <div className="text-center py-12 text-destructive text-sm">{error}</div>
-        ) : events.length === 0 ? (
+        ) : historyItems.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground text-sm">No events recorded yet.</div>
         ) : (
           <>
@@ -127,29 +243,105 @@ export default function DocumentLogsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {events.map((event) => (
-                    <tr key={event.id} className="hover:bg-muted/30">
-                      <td className="px-4 py-2 text-xs text-muted-foreground font-mono">
-                        {format(new Date(event.timestamp), 'HH:mm:ss.SSS')}
-                      </td>
-                      <td className="px-4 py-2">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${EVENT_COLORS[event.eventType] ?? 'bg-gray-100 text-gray-700'}`}>
-                          {EVENT_ICONS[event.eventType] ?? null}
-                          {event.eventType}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2 font-mono text-xs">
-                        {event.keyChar
-                          ? <span className="bg-muted px-1 rounded">{event.keyChar}</span>
-                          : event.keyCode
-                          ? <span className="text-muted-foreground">{event.keyCode}</span>
-                          : <span className="text-muted-foreground">—</span>}
-                      </td>
-                      <td className="px-4 py-2 text-xs text-muted-foreground">
-                        {event.cursorPosition ?? '—'}
-                      </td>
-                    </tr>
-                  ))}
+                  {historyItems.map((item) => {
+                    if (item.kind === 'event') {
+                      const { event } = item;
+                      return (
+                        <tr key={event.id} className="hover:bg-muted/30">
+                          <td className="px-4 py-2 text-xs text-muted-foreground font-mono">
+                            {format(new Date(event.timestamp), 'HH:mm:ss.SSS')}
+                          </td>
+                          <td className="px-4 py-2">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${EVENT_COLORS[event.eventType] ?? 'bg-gray-100 text-gray-700'}`}>
+                              {EVENT_ICONS[event.eventType] ?? null}
+                              {event.eventType}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2 font-mono text-xs">
+                            {event.keyChar
+                              ? <span className="bg-muted px-1 rounded">{event.keyChar}</span>
+                              : event.keyCode
+                              ? <span className="text-muted-foreground">{event.keyCode}</span>
+                              : <span className="text-muted-foreground">—</span>}
+                          </td>
+                          <td className="px-4 py-2 text-xs text-muted-foreground">
+                            {event.cursorPosition ?? '—'}
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    const { log } = item;
+                    const isExpanded = expandedAIIds.has(log.id);
+                    const beforeText = getSelectionText(log);
+                    const afterText = getSuggestedText(log);
+                    const label = getAILogLabel(log);
+                    const isChatLog = log.queryType === 'other';
+                    const detailBeforeText = isChatLog ? log.query : beforeText;
+
+                    return (
+                      <Fragment key={log.id}>
+                        <tr
+                          className="cursor-pointer hover:bg-muted/30"
+                          onClick={() => toggleAIEntry(log.id)}
+                        >
+                          <td className="px-4 py-2 text-xs text-muted-foreground font-mono">
+                            <div className="flex items-center gap-2">
+                              {isExpanded ? (
+                                <ChevronDown className="h-3 w-3" />
+                              ) : (
+                                <ChevronRight className="h-3 w-3" />
+                              )}
+                              {format(new Date(log.timestamp), 'HH:mm:ss.SSS')}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-violet-100 text-violet-800">
+                              <Sparkles className="h-3 w-3" />
+                              {label}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2 text-xs">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-medium text-foreground">
+                                {log.modificationsApplied ? 'Applied' : log.status === 'cancelled' ? 'Discarded' : log.status}
+                              </span>
+                              <span className="truncate text-muted-foreground max-w-[360px]">
+                                {detailBeforeText || log.query}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-2 text-xs text-muted-foreground">
+                            AI
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr className="bg-muted/20">
+                            <td colSpan={4} className="px-4 py-3">
+                              <div className="grid gap-3 md:grid-cols-2">
+                                <div>
+                                  <p className="mb-1 text-xs font-medium text-muted-foreground">
+                                    {isChatLog ? 'Question' : 'Previous text'}
+                                  </p>
+                                  <div className="rounded bg-background p-3 text-sm whitespace-pre-wrap border">
+                                    {detailBeforeText || '—'}
+                                  </div>
+                                </div>
+                                <div>
+                                  <p className="mb-1 text-xs font-medium text-muted-foreground">
+                                    {isChatLog ? 'AI response' : 'AI modified text'}
+                                  </p>
+                                  <div className="rounded bg-background p-3 text-sm whitespace-pre-wrap border">
+                                    {afterText || '—'}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

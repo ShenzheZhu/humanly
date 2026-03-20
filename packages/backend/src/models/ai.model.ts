@@ -397,6 +397,41 @@ export class AIModel {
   }
 
   /**
+   * Find a recent AI log generated from the same inline selection action.
+   * Used to avoid duplicate log rows when the client fails to pass logId back.
+   */
+  static async findRecentSelectionLog(params: {
+    documentId: string;
+    userId: string;
+    queryType: AIQueryType;
+    originalText: string;
+    suggestedText: string;
+  }): Promise<AIInteractionLog | null> {
+    const sql = `
+      SELECT *
+      FROM ai_interaction_logs
+      WHERE document_id = $1
+        AND user_id = $2
+        AND query_type = $3
+        AND response = $4
+        AND context_snapshot->'selection'->>'text' = $5
+        AND created_at >= NOW() - INTERVAL '10 minutes'
+      ORDER BY created_at DESC
+      LIMIT 1
+    `;
+
+    const row = await queryOne<AIInteractionLogRow>(sql, [
+      params.documentId,
+      params.userId,
+      params.queryType,
+      params.suggestedText,
+      params.originalText,
+    ]);
+
+    return row ? toAIInteractionLog(row) : null;
+  }
+
+  /**
    * Get logs with filters
    */
   static async getLogs(filters: AILogQueryFilters): Promise<{

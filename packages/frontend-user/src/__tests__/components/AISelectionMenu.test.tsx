@@ -14,16 +14,14 @@ jest.mock('@/lib/socket-client', () => ({
 }));
 
 import React from 'react';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AISelectionMenu } from '@/components/ai/ai-selection-menu';
 import api from '@/lib/api-client';
-import { emitEvent, initializeSocket, onEvent } from '@/lib/socket-client';
+import { emitEvent } from '@/lib/socket-client';
 
 const mockedApi = api as jest.Mocked<typeof api>;
-const mockedInitializeSocket = initializeSocket as jest.Mock;
 const mockedEmitEvent = emitEvent as jest.Mock;
-const mockedOnEvent = onEvent as jest.Mock;
 
 const selection = {
   text: 'This are bad grammar.',
@@ -70,46 +68,45 @@ function renderMenu() {
   };
 }
 
-describe('AISelectionMenu streaming flow', () => {
+describe('AISelectionMenu quick actions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockedApi.get.mockResolvedValue({ data: { data: { hasApiKey: true } } } as any);
-    mockedApi.post.mockResolvedValue({} as any);
-    mockedInitializeSocket.mockReturnValue({
-      connected: true,
-      once: jest.fn(),
-      off: jest.fn(),
-    });
+    mockedApi.post.mockResolvedValue({
+      data: {
+        message: {
+          id: 'msg-1',
+          role: 'assistant',
+          content: 'This is better.',
+        },
+      },
+    } as any);
   });
 
-  it('streams suggestion text and applies it after completion', async () => {
-    const handlers: Record<string, (payload: any) => void> = {};
-    mockedOnEvent.mockImplementation((event: string, callback: (payload: any) => void) => {
-      handlers[event] = callback;
-    });
-
+  it('requests a silent quick-action response and applies it without using chat streaming', async () => {
     const { replaceSelection, onActionApplied, onClose } = renderMenu();
 
     await userEvent.click(await screen.findByRole('button', { name: /fix grammar/i }));
 
-    expect(mockedEmitEvent).toHaveBeenCalledWith(
+    await waitFor(() => {
+      expect(mockedApi.post).toHaveBeenCalledWith(
+        '/ai/chat',
+        expect.objectContaining({
+          documentId: 'doc-1',
+          silent: true,
+          context: { selectedText: selection.text },
+        }),
+        expect.any(Object)
+      );
+    });
+
+    expect(mockedEmitEvent).not.toHaveBeenCalledWith(
       'ai:message',
       expect.objectContaining({
         documentId: 'doc-1',
         context: { selectedText: selection.text },
       })
     );
-
-    await act(async () => {
-      handlers['ai:response-start']?.({ sessionId: 'session-1', messageId: 'msg-1' });
-      handlers['ai:response-chunk']?.({ sessionId: 'session-1', messageId: 'msg-1', chunk: 'This' });
-      handlers['ai:response-chunk']?.({ sessionId: 'session-1', messageId: 'msg-1', chunk: ' is' });
-      handlers['ai:response-chunk']?.({ sessionId: 'session-1', messageId: 'msg-1', chunk: ' better.' });
-      handlers['ai:response-complete']?.({
-        sessionId: 'session-1',
-        message: { content: 'This is better.' },
-      });
-    });
 
     await waitFor(() => {
       expect(screen.getByText('This is better.')).toBeInTheDocument();

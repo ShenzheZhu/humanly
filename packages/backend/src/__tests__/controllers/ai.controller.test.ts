@@ -7,6 +7,7 @@
 
 jest.mock('../../services/ai.service');
 jest.mock('../../models/ai-selection-action.model');
+jest.mock('../../models/ai.model');
 jest.mock('../../utils/logger', () => ({
   logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
@@ -27,9 +28,11 @@ import {
 } from '../../controllers/ai.controller';
 import { AIService } from '../../services/ai.service';
 import { AISelectionActionModel } from '../../models/ai-selection-action.model';
+import { AIModel } from '../../models/ai.model';
 
 const MockAIService = AIService as jest.Mocked<typeof AIService>;
 const MockSelectionActionModel = AISelectionActionModel as jest.Mocked<typeof AISelectionActionModel>;
+const MockAIModel = AIModel as jest.Mocked<typeof AIModel>;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -456,6 +459,7 @@ describe('deleteSession', () => {
 describe('trackSelectionAction', () => {
   const validBody = {
     documentId: 'doc-1',
+    logId: 'log-1',
     actionType: 'grammar',
     originalText: 'teh cat',
     suggestedText: 'the cat',
@@ -465,6 +469,10 @@ describe('trackSelectionAction', () => {
   it('creates and returns selection action', async () => {
     const action = makeSelectionAction();
     MockSelectionActionModel.create.mockResolvedValue(action);
+    MockAIModel.updateLogWithResponse.mockResolvedValue(makeLog({ response: 'the cat' }));
+    MockAIModel.updateLogWithModifications.mockResolvedValue(
+      makeLog({ modificationsApplied: true, modifications: [{ before: 'teh cat', after: 'the cat' }] })
+    );
 
     const req = makeReq({ body: validBody });
     const res = makeRes();
@@ -481,6 +489,99 @@ describe('trackSelectionAction', () => {
         actionType: 'grammar',
         decision: 'accepted',
       })
+    );
+    expect(MockAIModel.createLog).not.toHaveBeenCalled();
+    expect(MockAIModel.updateLogWithResponse).toHaveBeenCalled();
+    expect(MockAIModel.updateLogWithModifications).toHaveBeenCalled();
+  });
+
+  it('reuses the existing ai_interaction_log when logId is provided', async () => {
+    const action = makeSelectionAction();
+    MockSelectionActionModel.create.mockResolvedValue(action);
+    MockAIModel.updateLogWithResponse.mockResolvedValue(makeLog({ id: 'log-1', response: 'the cat' }));
+    MockAIModel.updateLogWithModifications.mockResolvedValue(
+      makeLog({ id: 'log-1', modificationsApplied: true, modifications: [{ before: 'teh cat', after: 'the cat' }] })
+    );
+
+    const req = makeReq({ body: validBody });
+    const res = makeRes();
+
+    await trackSelectionAction(req, res);
+
+    expect(MockAIModel.createLog).not.toHaveBeenCalled();
+    expect(MockAIModel.updateLogWithResponse).toHaveBeenCalledWith(
+      'log-1',
+      expect.objectContaining({ status: 'success' })
+    );
+  });
+
+  it('reuses a recent matching ai_interaction_log when logId is missing', async () => {
+    const action = makeSelectionAction();
+    MockSelectionActionModel.create.mockResolvedValue(action);
+    MockAIModel.findRecentSelectionLog.mockResolvedValue(makeLog({ id: 'log-recent' }));
+    MockAIModel.updateLogWithResponse.mockResolvedValue(makeLog({ id: 'log-recent', response: 'the cat' }));
+    MockAIModel.updateLogWithModifications.mockResolvedValue(
+      makeLog({ id: 'log-recent', modificationsApplied: true, modifications: [{ before: 'teh cat', after: 'the cat' }] })
+    );
+
+    const req = makeReq({ body: { ...validBody, logId: undefined } });
+    const res = makeRes();
+
+    await trackSelectionAction(req, res);
+
+    expect(MockAIModel.findRecentSelectionLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        documentId: 'doc-1',
+        userId: 'user-1',
+        queryType: 'grammar_check',
+      })
+    );
+    expect(MockAIModel.createLog).not.toHaveBeenCalled();
+    expect(MockAIModel.updateLogWithResponse).toHaveBeenCalledWith(
+      'log-recent',
+      expect.objectContaining({ status: 'success' })
+    );
+  });
+
+  it('creates a fallback ai_interaction_log when logId is missing', async () => {
+    const action = makeSelectionAction();
+    MockSelectionActionModel.create.mockResolvedValue(action);
+    MockAIModel.findRecentSelectionLog.mockResolvedValue(null);
+    MockAIModel.createLog.mockResolvedValue(makeLog({ id: 'log-fallback' }));
+    MockAIModel.updateLogWithResponse.mockResolvedValue(makeLog({ id: 'log-fallback', response: 'the cat' }));
+    MockAIModel.updateLogWithModifications.mockResolvedValue(
+      makeLog({ id: 'log-fallback', modificationsApplied: true, modifications: [{ before: 'teh cat', after: 'the cat' }] })
+    );
+
+    const req = makeReq({ body: { ...validBody, logId: undefined } });
+    const res = makeRes();
+
+    await trackSelectionAction(req, res);
+
+    expect(MockAIModel.createLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        documentId: 'doc-1',
+        userId: 'user-1',
+        queryType: 'grammar_check',
+      })
+    );
+    expect(MockAIModel.updateLogWithResponse).toHaveBeenCalledWith(
+      'log-fallback',
+      expect.objectContaining({ status: 'success' })
+    );
+  });
+
+  it('still returns success when mirroring to ai_interaction_logs fails', async () => {
+    const action = makeSelectionAction();
+    MockSelectionActionModel.create.mockResolvedValue(action);
+    MockAIModel.updateLogWithResponse.mockRejectedValue(new Error('log update failed'));
+
+    const req = makeReq({ body: validBody });
+    const res = makeRes();
+
+    await expect(trackSelectionAction(req, res)).resolves.not.toThrow();
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true, data: action })
     );
   });
 

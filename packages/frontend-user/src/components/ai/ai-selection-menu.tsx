@@ -5,7 +5,6 @@ import { Sparkles, Check, Wand2, BookOpen, Loader2, MessageSquare, AlertCircle, 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api-client';
-import { emitEvent, initializeSocket, offEvent, onEvent } from '@/lib/socket-client';
 
 interface SelectionInfo {
   text: string;
@@ -32,6 +31,7 @@ interface ReviewState {
   actionLabel: string;
   originalText: string;
   suggestedText: string;
+  logId?: string;
   isStreaming?: boolean;
 }
 
@@ -79,7 +79,6 @@ export function AISelectionMenu({
   const [hasAISettings, setHasAISettings] = useState<boolean | null>(null);
   const [showWarning, setShowWarning] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
   // Check if user has AI settings configured
   useEffect(() => {
@@ -95,82 +94,6 @@ export function AISelectionMenu({
     });
     return () => { cancelled = true; };
   }, []);
-
-  useEffect(() => {
-    return () => {
-      offEvent('ai:response-start', handleResponseStart);
-      offEvent('ai:response-chunk', handleResponseChunk);
-      offEvent('ai:response-complete', handleResponseComplete);
-      offEvent('ai:error', handleResponseError);
-    };
-  }, []);
-
-  const handleResponseStart = ({ sessionId }: { sessionId: string }) => {
-    setActiveSessionId(sessionId);
-    setReviewState((state) => state ? { ...state, isStreaming: true } : state);
-  };
-
-  const handleResponseChunk = ({ chunk }: { chunk: string }) => {
-    setReviewState((state) => {
-      if (!state) return state;
-      return {
-        ...state,
-        suggestedText: state.suggestedText + chunk,
-        isStreaming: true,
-      };
-    });
-  };
-
-  const handleResponseComplete = (response: { sessionId: string; message?: { content: string } }) => {
-    setActiveSessionId(response.sessionId);
-    setReviewState((state) => {
-      if (!state) return state;
-      return {
-        ...state,
-        suggestedText: response.message?.content?.trim() || state.suggestedText.trim(),
-        isStreaming: false,
-      };
-    });
-    setIsLoading(false);
-    setLoadingAction(null);
-  };
-
-  const handleResponseError = ({ message }: { sessionId: string; message: string }) => {
-    setIsLoading(false);
-    setLoadingAction(null);
-    setReviewState(null);
-    setErrorMessage(message || 'AI request failed');
-  };
-
-  const waitForSocketConnection = async () => {
-    const socket = initializeSocket();
-
-    if (socket.connected) {
-      return socket;
-    }
-
-    await new Promise<void>((resolve, reject) => {
-      const cleanup = () => {
-        socket.off('connect', onConnect);
-        socket.off('connect_error', onConnectError);
-      };
-
-      const onConnect = () => {
-        cleanup();
-        resolve();
-      };
-
-      const onConnectError = (error: Error) => {
-        cleanup();
-        reject(error);
-      };
-
-      socket.once('connect', onConnect);
-      socket.once('connect_error', onConnectError);
-    });
-
-    return socket;
-  };
 
   const handleAction = async (action: typeof ACTIONS[number]) => {
     if (isLoading) return;
@@ -193,67 +116,45 @@ export function AISelectionMenu({
     });
 
     try {
-      offEvent('ai:response-start', handleResponseStart);
-      offEvent('ai:response-chunk', handleResponseChunk);
-      offEvent('ai:response-complete', handleResponseComplete);
-      offEvent('ai:error', handleResponseError);
-
-      onEvent('ai:response-start', handleResponseStart);
-      onEvent('ai:response-chunk', handleResponseChunk);
-      onEvent('ai:response-complete', handleResponseComplete);
-      onEvent('ai:error', handleResponseError);
-
-      await waitForSocketConnection();
-
-      emitEvent('ai:message', {
+      const result = await api.post<{
+        success: boolean;
+        data: {
+          message: { id: string; role: string; content: string };
+        };
+      }>('/ai/chat', {
         documentId,
         message: `${action.prompt}\n\n"${selection.text}"`,
+        silent: true,
         context: {
           selectedText: selection.text,
         },
+      }, {
+        timeout: 120000,
       });
-    } catch (error: any) {
-      // Fallback to existing non-streaming request if socket streaming fails
-      try {
-        const result = await api.post<{
-          success: boolean;
-          data: {
-            message: { id: string; role: string; content: string };
-          };
-        }>('/ai/chat', {
-          documentId,
-          message: `${action.prompt}\n\n"${selection.text}"`,
-          silent: true,
-          context: {
-            selectedText: selection.text,
-          },
-        }, {
-          timeout: 120000,
-        });
 
-        const improvedText = (result.data?.message?.content || '').trim();
-        if (!improvedText) {
-          throw new Error('AI response was empty');
-        }
-
-        setReviewState({
-          actionType: action.type,
-          actionLabel: action.label,
-          originalText: selection.text,
-          suggestedText: improvedText.replace(/^["']|["']$/g, ''),
-          isStreaming: false,
-        });
-        setIsLoading(false);
-        setLoadingAction(null);
-      } catch (fallbackError: any) {
-        console.error('AI action failed:', fallbackError);
-        const msg = fallbackError?.response?.data?.error || fallbackError?.message || 'AI request failed';
-        setErrorMessage(msg);
-        setReviewState(null);
-        cancelAIAction();
-        setIsLoading(false);
-        setLoadingAction(null);
+      const improvedText = (result.data?.message?.content || '').trim();
+      if (!improvedText) {
+        throw new Error('AI response was empty');
       }
+
+      setReviewState({
+        actionType: action.type,
+        actionLabel: action.label,
+        originalText: selection.text,
+        suggestedText: improvedText.replace(/^["']|["']$/g, ''),
+        logId: undefined,
+        isStreaming: false,
+      });
+      setIsLoading(false);
+      setLoadingAction(null);
+    } catch (error: any) {
+      console.error('AI action failed:', error);
+      const msg = error?.response?.data?.error || error?.message || 'AI request failed';
+      setErrorMessage(msg);
+      setReviewState(null);
+      cancelAIAction();
+      setIsLoading(false);
+      setLoadingAction(null);
     }
   };
 
@@ -281,6 +182,7 @@ export function AISelectionMenu({
     try {
       await api.post('/ai/selection-action', {
         documentId,
+        logId: reviewState.logId,
         actionType: reviewState.actionType,
         originalText: reviewState.originalText,
         suggestedText: reviewState.suggestedText,
@@ -297,18 +199,11 @@ export function AISelectionMenu({
   const handleUndo = async () => {
     if (!reviewState) return;
 
-    if (reviewState.isStreaming && activeSessionId) {
-      emitEvent('ai:cancel', { sessionId: activeSessionId });
-      setReviewState(null);
-      cancelAIAction();
-      onClose();
-      return;
-    }
-
     // Track rejection in the backend
     try {
       await api.post('/ai/selection-action', {
         documentId,
+        logId: reviewState.logId,
         actionType: reviewState.actionType,
         originalText: reviewState.originalText,
         suggestedText: reviewState.suggestedText,
