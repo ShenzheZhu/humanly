@@ -174,15 +174,15 @@ export default function DocumentsPage() {
               New Document
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="overflow-hidden sm:max-w-xl">
             <DialogHeader>
               <DialogTitle>Create New Document</DialogTitle>
               <DialogDescription>
                 Enter a title for your new document. Optionally upload a PDF to review it in a 3-panel workspace.
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
+            <div className="grid min-w-0 gap-4 py-4">
+              <div className="grid min-w-0 gap-2">
                 <Label htmlFor="title">Document Title</Label>
                 <Input
                   id="title"
@@ -198,13 +198,15 @@ export default function DocumentsPage() {
               </div>
 
               {/* PDF Upload */}
-              <div className="grid gap-2">
+              <div className="grid min-w-0 gap-2">
                 <Label>Upload PDF (optional)</Label>
                 {pdfFile ? (
-                  <div className="flex items-center gap-3 rounded-lg border p-3 bg-muted/50">
+                  <div className="flex max-w-full min-w-0 items-center gap-3 overflow-hidden rounded-lg border bg-muted/50 p-3">
                     <FileText className="h-8 w-8 text-red-500 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{pdfFile.name}</p>
+                    <div className="min-w-0 flex-1 overflow-hidden">
+                      <p className="truncate text-sm font-medium" title={pdfFile.name}>
+                        {pdfFile.name}
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         {(pdfFile.size / 1024 / 1024).toFixed(2)} MB
                       </p>
