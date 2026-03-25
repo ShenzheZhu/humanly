@@ -344,6 +344,7 @@ export class EditorTracker {
         // Only track as 'select' event if there's an actual selection (not just cursor movement)
         if (selectionStart !== selectionEnd) {
           const currentText = this.extractPlainText(this.editor.getEditorState());
+          const selectedText = currentText.substring(selectionStart, selectionEnd);
 
           const event: TrackedEvent = {
             eventType: 'select',
@@ -354,6 +355,9 @@ export class EditorTracker {
             selectionStart,
             selectionEnd,
             editorStateAfter: this.editor.getEditorState().toJSON(),
+            metadata: {
+              selectedText: selectedText || undefined,
+            },
           };
 
           this.addEvent(event);

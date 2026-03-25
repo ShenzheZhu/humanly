@@ -10,6 +10,18 @@ import { DocumentViewer } from './document-viewer';
 interface EditEvent {
   timestamp: string;
   editorState: any;
+  eventType?: string;
+  textBefore?: string;
+  textAfter?: string;
+  selectionStart?: number;
+  selectionEnd?: number;
+  metadata?: {
+    actionType?: string;
+    selectedText?: string;
+    originalText?: string;
+    newText?: string;
+    [key: string]: any;
+  };
 }
 
 interface DocumentReplayProps {
@@ -136,7 +148,7 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
   }, []);
 
   const handleSpeedChange = useCallback(() => {
-    const speeds = [1, 2, 4, 8];
+    const speeds = [0.5, 1, 2, 4, 8];
     const currentSpeedIndex = speeds.indexOf(speed);
     const nextSpeedIndex = (currentSpeedIndex + 1) % speeds.length;
     setSpeed(speeds[nextSpeedIndex]);
@@ -169,6 +181,22 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
 
   const currentState = editHistory[currentIndex];
   const progress = ((currentIndex / (editHistory.length - 1)) * 100).toFixed(0);
+  const aiActionLabel = currentState.eventType === 'ai_selection_action'
+    ? currentState.metadata?.actionType
+      ? `AI: ${currentState.metadata.actionType}`
+      : 'AI action'
+    : null;
+  const selectedText = currentState.metadata?.selectedText
+    || (typeof currentState.selectionStart === 'number'
+      && typeof currentState.selectionEnd === 'number'
+      && currentState.textAfter
+        ? currentState.textAfter.slice(currentState.selectionStart, currentState.selectionEnd)
+        : '');
+  const showQuickActions = currentState.eventType === 'select' && !!selectedText;
+  const showQuickActionApplication = currentState.eventType === 'ai_selection_action';
+  const quickActionLabel = currentState.metadata?.actionType
+    ? currentState.metadata.actionType.charAt(0).toUpperCase() + currentState.metadata.actionType.slice(1)
+    : null;
 
   // Helper to extract text from editor state
   const extractText = (editorState: any): string => {
@@ -201,6 +229,77 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
           <DocumentViewer content={currentState.editorState} />
         </div>
 
+        {showQuickActions && (
+          <div className="absolute left-1/2 top-4 z-20 w-[320px] max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur-sm">
+            <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Selected Text
+            </p>
+            <p className="mb-3 line-clamp-2 text-xs text-foreground/80">
+              {selectedText}
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {['Fix grammar', 'Improve writing', 'Simplify', 'Make formal'].map((label) => (
+                <div
+                  key={label}
+                  className="rounded-md border bg-muted/40 px-2 py-1.5 text-center text-[11px] font-medium text-muted-foreground"
+                >
+                  {label}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {showQuickActionApplication && (
+          <div className="absolute left-1/2 top-4 z-20 w-[360px] max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur-sm">
+            <div className="mb-3 flex flex-wrap gap-2">
+              {[
+                { key: 'grammar', label: 'Fix grammar' },
+                { key: 'improve', label: 'Improve writing' },
+                { key: 'simplify', label: 'Simplify' },
+                { key: 'formal', label: 'Make formal' },
+              ].map((action) => {
+                const isActive = currentState.metadata?.actionType === action.key;
+                return (
+                  <div
+                    key={action.key}
+                    className={`rounded-md border px-2 py-1.5 text-[11px] font-medium ${
+                      isActive
+                        ? 'border-violet-300 bg-violet-100 text-violet-800'
+                        : 'bg-muted/40 text-muted-foreground'
+                    }`}
+                  >
+                    {action.label}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="grid gap-2 md:grid-cols-2">
+              <div>
+                <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Before
+                </p>
+                <div className="rounded-md border bg-background px-3 py-2 text-xs text-foreground/80">
+                  {currentState.metadata?.originalText || currentState.textBefore || '—'}
+                </div>
+              </div>
+              <div>
+                <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  After
+                </p>
+                <div className="rounded-md border bg-background px-3 py-2 text-xs text-foreground/80">
+                  {currentState.metadata?.newText || currentState.textAfter || '—'}
+                </div>
+              </div>
+            </div>
+            {quickActionLabel && (
+              <p className="mt-2 text-[11px] font-medium text-violet-700">
+                {quickActionLabel} applied
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Fallback plain text overlay for debugging */}
         {currentText && (
           <div className="absolute inset-0 pointer-events-none p-3 sm:p-4 text-xs sm:text-sm font-mono whitespace-pre-wrap opacity-0 hover:opacity-100 transition-opacity bg-white/95 dark:bg-gray-950/95 overflow-auto">
@@ -219,6 +318,11 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
         {currentIndex === 0 && (
           <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 text-[10px] sm:text-xs text-muted-foreground bg-muted/80 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded z-10">
             Frame 1 - Start
+          </div>
+        )}
+        {aiActionLabel && (
+          <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 text-[10px] sm:text-xs text-violet-700 bg-violet-100 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded z-10 font-medium capitalize">
+            {aiActionLabel}
           </div>
         )}
         {currentText && (

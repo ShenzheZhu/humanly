@@ -430,6 +430,12 @@ export async function getEditHistory(req: Request, res: Response): Promise<void>
     .map(event => ({
       timestamp: event.timestamp,
       editorState: event.editorStateAfter,
+      eventType: event.eventType,
+      metadata: event.metadata || undefined,
+      textBefore: event.textBefore || undefined,
+      textAfter: event.textAfter || undefined,
+      selectionStart: event.selectionStart ?? undefined,
+      selectionEnd: event.selectionEnd ?? undefined,
     }));
 
   res.json({

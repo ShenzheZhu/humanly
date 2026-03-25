@@ -118,7 +118,7 @@ describe('AISelectionMenu quick actions', () => {
     await userEvent.click(applyButton);
 
     expect(replaceSelection).toHaveBeenCalledWith('This is better.', true);
-    expect(onActionApplied).toHaveBeenCalledWith('grammar', selection.text, 'This is better.');
+    expect(onActionApplied).toHaveBeenCalledWith('grammar', selection.text, 'This is better.', undefined);
     expect(mockedApi.post).toHaveBeenCalledWith(
       '/ai/selection-action',
       expect.objectContaining({

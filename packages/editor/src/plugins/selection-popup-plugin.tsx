@@ -19,12 +19,20 @@ export interface SelectionInfo {
   rect: DOMRect;
 }
 
+export interface SelectionReplacementResult {
+  selectionStart: number;
+  selectionEnd: number;
+  cursorPosition: number;
+  editorStateBefore?: Record<string, any>;
+  editorStateAfter?: Record<string, any>;
+}
+
 export interface SelectionPopupPluginProps {
   onSelectionChange?: (selection: SelectionInfo | null) => void;
   renderPopup?: (props: {
     selection: SelectionInfo;
     onClose: () => void;
-    replaceSelection: (newText: string, keepOpen?: boolean) => void;
+    replaceSelection: (newText: string, keepOpen?: boolean) => SelectionReplacementResult | undefined;
     cancelAIAction: () => void;
     undoLastAction: () => void;
   }) => React.ReactNode;
@@ -118,14 +126,18 @@ export function SelectionPopupPlugin({
 
   // Replace the current selection with new text
   // keepOpen: if true, don't close the popup (for inline review mode)
-  const replaceSelection = useCallback((newText: string, keepOpen?: boolean) => {
+  const replaceSelection = useCallback((newText: string, keepOpen?: boolean): SelectionReplacementResult | undefined => {
     // Store the selection info before updating, in case it gets cleared
     const storedSelectionInfo = selectionInfo;
 
     if (!storedSelectionInfo) {
       console.warn('[SelectionPopupPlugin] No selection info available for replacement');
-      return;
+      return undefined;
     }
+
+    const editorStateBefore = editor.getEditorState().toJSON();
+    let editorStateAfter: Record<string, any> | undefined;
+    const cursorPosition = storedSelectionInfo.start + newText.length;
 
     // Set flag to prevent popup from closing during AI dialog interaction
     isProcessingAIAction.current = true;
@@ -176,6 +188,8 @@ export function SelectionPopupPlugin({
           currentOffset += nodeLength;
         }
       }
+
+      editorStateAfter = editor.getEditorState().toJSON();
     });
 
     if (keepOpen) {
@@ -186,6 +200,14 @@ export function SelectionPopupPlugin({
       isProcessingAIAction.current = false;
       handleClose();
     }
+
+    return {
+      selectionStart: storedSelectionInfo.start,
+      selectionEnd: storedSelectionInfo.end,
+      cursorPosition,
+      editorStateBefore,
+      editorStateAfter,
+    };
   }, [editor, handleClose, selectionInfo]);
 
   // Undo the last editor action (used for reverting AI text replacements)

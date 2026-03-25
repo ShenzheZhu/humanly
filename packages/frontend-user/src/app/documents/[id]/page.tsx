@@ -5,7 +5,7 @@ import { ArrowLeft, FileText, Clock, Award, PanelLeftClose, PanelLeft, Upload, L
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { LexicalEditor } from '@humory/editor';
+import { LexicalEditor, type SelectionReplacementResult } from '@humory/editor';
 import { useDocument } from '@/hooks/use-document';
 import { useCertificates } from '@/hooks/use-certificates';
 import { useAuthStore } from '@/stores/auth-store';
@@ -156,12 +156,22 @@ export default function DocumentEditorPage() {
   const handleAskAI = useCallback((selectedText: string) => openPanelWithQuote(selectedText), [openPanelWithQuote]);
 
   const handleAISelectionAction = useCallback(
-    async (actionType: ActionType, originalText: string, newText: string) => {
+    async (
+      actionType: ActionType,
+      originalText: string,
+      newText: string,
+      replacementResult?: SelectionReplacementResult
+    ) => {
       const event = {
         eventType: 'ai_selection_action',
         timestamp: new Date(),
         textBefore: originalText,
         textAfter: newText,
+        cursorPosition: replacementResult?.cursorPosition,
+        selectionStart: replacementResult?.selectionStart,
+        selectionEnd: replacementResult?.selectionEnd,
+        editorStateBefore: replacementResult?.editorStateBefore,
+        editorStateAfter: replacementResult?.editorStateAfter,
         metadata: { actionType, originalText, newText },
       };
       await trackEvents([event as any]);

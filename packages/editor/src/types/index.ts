@@ -72,6 +72,14 @@ export interface SelectionPopupInfo {
   rect: DOMRect;
 }
 
+export interface SelectionReplacementResult {
+  selectionStart: number;
+  selectionEnd: number;
+  cursorPosition: number;
+  editorStateBefore?: Record<string, any>;
+  editorStateAfter?: Record<string, any>;
+}
+
 /**
  * Props for the Lexical editor component
  */
@@ -93,7 +101,8 @@ export interface LexicalEditorProps {
   renderSelectionPopup?: (props: {
     selection: SelectionPopupInfo;
     onClose: () => void;
-    replaceSelection: (newText: string, keepOpen?: boolean) => void;
+    replaceSelection: (newText: string, keepOpen?: boolean) => SelectionReplacementResult | undefined;
+    cancelAIAction: () => void;
     undoLastAction: () => void;
   }) => React.ReactNode;
 }

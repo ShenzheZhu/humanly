@@ -10,7 +10,11 @@ export { TrackingPlugin } from './plugins/tracking-plugin';
 export { ToolbarPlugin } from './plugins/toolbar-plugin';
 export { AutoSavePlugin } from './plugins/auto-save-plugin';
 export { SelectionPopupPlugin } from './plugins/selection-popup-plugin';
-export type { SelectionInfo, SelectionPopupPluginProps } from './plugins/selection-popup-plugin';
+export type {
+  SelectionInfo,
+  SelectionPopupPluginProps,
+  SelectionReplacementResult,
+} from './plugins/selection-popup-plugin';
 
 // Tracking infrastructure
 export { EditorTracker } from './tracking/editor-tracker';
