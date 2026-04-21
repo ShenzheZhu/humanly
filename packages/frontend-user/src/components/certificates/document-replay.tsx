@@ -29,6 +29,25 @@ interface DocumentReplayProps {
   className?: string;
 }
 
+const AI_ACTION_FLASH_STYLES: Record<string, { overlay: string; border: string }> = {
+  grammar: {
+    overlay: 'bg-sky-200/45',
+    border: 'ring-sky-300',
+  },
+  improve: {
+    overlay: 'bg-emerald-200/45',
+    border: 'ring-emerald-300',
+  },
+  simplify: {
+    overlay: 'bg-amber-200/50',
+    border: 'ring-amber-300',
+  },
+  formal: {
+    overlay: 'bg-violet-200/45',
+    border: 'ring-violet-300',
+  },
+};
+
 export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
   const [editHistory, setEditHistory] = useState<EditEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -37,7 +56,7 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [useRealIntervals, setUseRealIntervals] = useState(false); // Default to uniform timing
   const [speed, setSpeed] = useState(2); // Default 2x for uniform timing
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [flashingActionType, setFlashingActionType] = useState<string | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch edit history
@@ -154,6 +173,34 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
     setSpeed(speeds[nextSpeedIndex]);
   }, [speed]);
 
+  useEffect(() => {
+    const actionType = editHistory[currentIndex]?.metadata?.actionType;
+
+    if (editHistory[currentIndex]?.eventType !== 'ai_selection_action' || !actionType) {
+      return;
+    }
+
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    setFlashingActionType(actionType);
+
+    const flashDurationMs = 1000 / speed;
+    timeoutRef.current = setTimeout(() => {
+      setFlashingActionType(null);
+      timeoutRef.current = null;
+    }, flashDurationMs);
+  }, [currentIndex, editHistory, speed]);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -197,6 +244,9 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
   const quickActionLabel = currentState.metadata?.actionType
     ? currentState.metadata.actionType.charAt(0).toUpperCase() + currentState.metadata.actionType.slice(1)
     : null;
+  const flashStyle = flashingActionType
+    ? AI_ACTION_FLASH_STYLES[flashingActionType]
+    : undefined;
 
   // Helper to extract text from editor state
   const extractText = (editorState: any): string => {
@@ -223,11 +273,21 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
 
   return (
     <div className={`space-y-3 sm:space-y-4 ${className}`}>
-      <div className="border rounded-lg overflow-hidden min-h-[200px] sm:min-h-[250px] relative bg-white dark:bg-gray-950">
+      <div
+        className={`border rounded-lg overflow-hidden min-h-[200px] sm:min-h-[250px] relative bg-white dark:bg-gray-950 transition-shadow duration-200 ${
+          flashStyle ? `ring-4 ${flashStyle.border}` : ''
+        }`}
+      >
         {/* Lexical viewer */}
         <div className="h-full">
           <DocumentViewer content={currentState.editorState} />
         </div>
+
+        <div
+          className={`pointer-events-none absolute inset-0 z-10 transition-opacity duration-300 ${
+            flashStyle ? `${flashStyle.overlay} opacity-100` : 'opacity-0'
+          }`}
+        />
 
         {showQuickActions && (
           <div className="absolute left-1/2 top-4 z-20 w-[320px] max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-xl border bg-background/95 p-3 shadow-lg backdrop-blur-sm">
