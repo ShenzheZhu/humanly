@@ -8,6 +8,9 @@ import { PolyfillProvider } from '@/components/polyfill-provider';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3002'
+  ),
   title: getBrandText().pageTitles.user,
   description: 'Verify and certify human-written content through behavioral keystroke tracking. Generate cryptographically signed certificates proving authentic human authorship.',
   keywords: ['human authorship', 'authorship verification', 'keystroke tracking', 'writing certification', 'AI detection', 'human proof'],
@@ -15,7 +18,7 @@ export const metadata: Metadata = {
   icons: { icon: '/icon.svg' },
   openGraph: {
     title: getBrandText().pageTitles.user,
-    description: 'Trustworthy enviroment for human-ai collaborative writing',
+    description: 'Trustworthy environment for human-AI collaborative writing',
     type: 'website',
   },
 };
