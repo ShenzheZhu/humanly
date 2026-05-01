@@ -16,8 +16,8 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
-    "@humory/editor": "*",
-    "@humory/shared": "*",
+    "@humory/editor": "workspace:*",
+    "@humory/shared": "workspace:*",
     "@lexical/list": "^0.12.6",
     "@lexical/react": "^0.12.6",
     "@lexical/rich-text": "^0.12.6",
