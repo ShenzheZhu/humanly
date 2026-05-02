@@ -44,7 +44,7 @@ humanly/
 
 ### Prerequisites
 
-- **Node.js** 20+ and npm 9+
+- **Node.js** 20.19+ and npm 9+
 - **Docker** and Docker Compose
 
 ### Installation
