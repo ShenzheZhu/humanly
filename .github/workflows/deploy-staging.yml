@@ -1,0 +1,39 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [fix/pnpm-workspace]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to deploy
+        required: true
+        default: fix/pnpm-workspace
+
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: SSH deploy to GCP VM staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DEPLOY_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.ref_name }}
+
+    steps:
+      - name: Deploy staging via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd /home/humanly/humanly
+            git fetch origin "${{ env.DEPLOY_BRANCH }}"
+            git show "origin/${{ env.DEPLOY_BRANCH }}:scripts/deploy-staging.sh" > /tmp/humanly-deploy-staging.sh
+            DEPLOY_BRANCH="${{ env.DEPLOY_BRANCH }}" bash /tmp/humanly-deploy-staging.sh
+          script_stop: true
+          command_timeout: 40m
