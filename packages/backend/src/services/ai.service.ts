@@ -1,5 +1,7 @@
+import OpenAI from 'openai';
 import { AIModel } from '../models/ai.model';
 import { DocumentModel } from '../models/document.model';
+import { AIRetrievalService } from './ai-retrieval.service';
 import {
   AIChatSession,
   AIChatMessage,
@@ -29,6 +31,15 @@ interface AIProvider {
     tokensUsed?: { input: number; output: number };
   }>;
 
+  agentChat?(messages: { role: string; content: string }[], options: {
+    userId: string;
+    documentId: string;
+    maxTokens?: number;
+  }): Promise<{
+    content: string;
+    tokensUsed?: { input: number; output: number };
+  }>;
+
   streamChat(
     messages: { role: string; content: string }[],
     onChunk: (chunk: string) => void,
@@ -49,11 +60,16 @@ class OpenAIProvider implements AIProvider {
   private apiKey: string;
   private model: string;
   private baseUrl: string;
+  private client: OpenAI;
 
   constructor(config?: { apiKey: string; model: string; baseUrl: string }) {
     this.apiKey = config?.apiKey || env.aiApiKey || '';
     this.model = config?.model || env.aiModel || 'gpt-4-turbo-preview';
-    this.baseUrl = config?.baseUrl || env.aiBaseUrl || 'https://api.openai.com/v1';
+    this.baseUrl = config?.baseUrl || env.aiBaseUrl || 'https://openrouter.ai/api/v1';
+    this.client = new OpenAI({
+      apiKey: this.apiKey || 'missing-api-key',
+      baseURL: this.baseUrl,
+    });
   }
 
   async chat(messages: { role: string; content: string }[], options?: {
@@ -180,6 +196,230 @@ class OpenAIProvider implements AIProvider {
     }
 
     return { content: fullContent };
+  }
+
+  async agentChat(
+    messages: { role: string; content: string }[],
+    options: { userId: string; documentId: string; maxTokens?: number }
+  ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
+    if (!this.apiKey) {
+      throw new AppError(500, 'AI service not configured');
+    }
+
+    if (!this.baseUrl.includes('api.openai.com')) {
+      return this.agentChatCompletions(messages, options);
+    }
+
+    const input: any[] = messages.map(message => ({
+      role: message.role === 'system' ? 'developer' : message.role,
+      content: message.content,
+    }));
+
+    let response: any;
+    for (let i = 0; i < 6; i++) {
+      try {
+        response = await this.client.responses.create({
+          model: this.model,
+          input,
+          instructions: buildRetrievalInstructions(options.documentId),
+          tools: AIRetrievalService.tools,
+          max_output_tokens: options.maxTokens || 2048,
+          parallel_tool_calls: true,
+        });
+      } catch (error) {
+        this.handleSDKError(error);
+      }
+
+      const toolCalls = response.output?.filter((item: any) => item.type === 'function_call') || [];
+      if (toolCalls.length === 0) {
+        logger.info('AI agent completed without additional tool calls', {
+          userId: options.userId,
+          documentId: options.documentId,
+          iteration: i + 1,
+        });
+        return {
+          content: response.output_text || '',
+          tokensUsed: response.usage ? {
+            input: response.usage.input_tokens,
+            output: response.usage.output_tokens,
+          } : undefined,
+        };
+      }
+
+      logger.info('AI agent requested retrieval tools', {
+        userId: options.userId,
+        documentId: options.documentId,
+        iteration: i + 1,
+        tools: toolCalls.map((toolCall: any) => toolCall.name),
+      });
+
+      input.push(...response.output);
+      for (const toolCall of toolCalls) {
+        let output: string;
+        try {
+          const args = JSON.parse(toolCall.arguments || '{}');
+          output = await AIRetrievalService.executeTool(
+            options.userId,
+            options.documentId,
+            toolCall.name,
+            args
+          );
+        } catch (error) {
+          output = JSON.stringify({
+            error: error instanceof Error ? error.message : 'Tool execution failed',
+          });
+        }
+
+        logger.info('AI agent retrieval tool completed', {
+          userId: options.userId,
+          documentId: options.documentId,
+          tool: toolCall.name,
+          outputBytes: output.length,
+        });
+
+        input.push({
+          type: 'function_call_output',
+          call_id: toolCall.call_id,
+          output,
+        });
+      }
+    }
+
+    return {
+      content: response?.output_text || 'I could not complete retrieval within the tool-call limit.',
+      tokensUsed: response?.usage ? {
+        input: response.usage.input_tokens,
+        output: response.usage.output_tokens,
+      } : undefined,
+    };
+  }
+
+  private async agentChatCompletions(
+    messages: { role: string; content: string }[],
+    options: { userId: string; documentId: string; maxTokens?: number }
+  ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
+    const chatTools = AIRetrievalService.tools.map(tool => ({
+      type: 'function' as const,
+      function: {
+        name: tool.name,
+        description: tool.description || '',
+        parameters: tool.parameters || {},
+        strict: tool.strict ?? true,
+      },
+    }));
+
+    const chatMessages: any[] = [
+      {
+        role: 'system',
+        content: buildRetrievalInstructions(options.documentId),
+      },
+      ...messages.map(message => ({
+        role: message.role === 'system' ? 'system' : message.role,
+        content: message.content,
+      })),
+    ];
+
+    let lastUsage: { input: number; output: number } | undefined;
+
+    for (let i = 0; i < 6; i++) {
+      let completion: any;
+      try {
+        completion = await this.client.chat.completions.create({
+          model: this.model,
+          messages: chatMessages,
+          tools: chatTools,
+          tool_choice: 'auto',
+          max_tokens: options.maxTokens || 2048,
+        } as any);
+      } catch (error) {
+        this.handleSDKError(error);
+      }
+
+      lastUsage = completion.usage ? {
+        input: completion.usage.prompt_tokens,
+        output: completion.usage.completion_tokens,
+      } : lastUsage;
+
+      const assistantMessage = completion.choices?.[0]?.message || {};
+      const toolCalls = assistantMessage.tool_calls || [];
+      if (toolCalls.length === 0) {
+        logger.info('AI agent completed without additional tool calls', {
+          userId: options.userId,
+          documentId: options.documentId,
+          iteration: i + 1,
+          transport: 'chat_completions',
+        });
+        return {
+          content: assistantMessage.content || '',
+          tokensUsed: lastUsage,
+        };
+      }
+
+      logger.info('AI agent requested retrieval tools', {
+        userId: options.userId,
+        documentId: options.documentId,
+        iteration: i + 1,
+        transport: 'chat_completions',
+        tools: toolCalls.map((toolCall: any) => toolCall.function?.name),
+      });
+
+      chatMessages.push(assistantMessage);
+      for (const toolCall of toolCalls) {
+        const toolName = toolCall.function?.name;
+        let output: string;
+        try {
+          const args = JSON.parse(toolCall.function?.arguments || '{}');
+          output = await AIRetrievalService.executeTool(
+            options.userId,
+            options.documentId,
+            toolName,
+            args
+          );
+        } catch (error) {
+          output = JSON.stringify({
+            error: error instanceof Error ? error.message : 'Tool execution failed',
+          });
+        }
+
+        logger.info('AI agent retrieval tool completed', {
+          userId: options.userId,
+          documentId: options.documentId,
+          transport: 'chat_completions',
+          tool: toolName,
+          outputBytes: output.length,
+        });
+
+        chatMessages.push({
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: output,
+        });
+      }
+    }
+
+    return {
+      content: 'I could not complete retrieval within the tool-call limit.',
+      tokensUsed: lastUsage,
+    };
+  }
+
+  private handleSDKError(error: unknown): never {
+    const sdkError = error as any;
+    logger.error('OpenAI API error', { status: sdkError?.status, error: sdkError });
+    const detail = sdkError?.error?.message || sdkError?.message || '';
+    const prefix = 'AI Provider: ';
+
+    if (sdkError?.status === 401) {
+      throw new AppError(502, detail ? `${prefix}${detail}` : 'Invalid API key. Please check your AI settings.');
+    }
+    if (sdkError?.status === 429) {
+      throw new AppError(429, detail ? `${prefix}${detail}` : 'Rate limit exceeded. Please try again later.');
+    }
+    if (sdkError?.status === 404) {
+      throw new AppError(400, detail ? `${prefix}${detail}` : `Model "${this.model}" not found. Please check your AI settings.`);
+    }
+
+    throw new AppError(sdkError?.status || 502, detail ? `${prefix}${detail}` : 'AI service error');
   }
 }
 
@@ -422,6 +662,21 @@ Guidelines:
   return prompt;
 }
 
+function buildRetrievalInstructions(documentId: string): string {
+  return `You are an AI writing assistant integrated into a document editor and PDF review system.
+
+Use the retrieval tools as your source of truth. Do not rely only on preloaded summaries, selected text, or prior chat context when the user asks about the document, writing process, or linked PDF.
+
+Routing:
+- For the current written document, inspect getDocumentPlainText first. Use searchDocumentText for targeted questions and getDocumentContent only when Lexical structure matters.
+- For writing process, revision behavior, paste behavior, cursor activity, or evidence of editing, inspect getDocumentEvents.
+- For uploaded papers/PDFs, call getLinkedPapers first, then searchPaperText, getPaperPage, or getPaperSection as needed.
+- If the answer requires multiple sources, call multiple tools and synthesize them.
+
+Current scoped documentId: ${documentId}
+Answer concisely. Mention when available evidence is incomplete or a tool returns no relevant data.`;
+}
+
 export class AIService {
   /**
    * Get AI provider for a specific user (loads their settings from DB)
@@ -540,7 +795,12 @@ export class AIService {
       const provider = await this.getProviderForUser(userId);
 
       // Get AI response
-      const response = await provider.chat(messages);
+      const response = provider.agentChat
+        ? await provider.agentChat(messages, {
+          userId,
+          documentId: request.documentId,
+        })
+        : await provider.chat(messages);
 
       const responseTimeMs = Date.now() - startTime;
 
@@ -657,8 +917,18 @@ export class AIService {
       // Get provider for user
       const provider = await this.getProviderForUser(userId);
 
-      // Stream AI response
-      const response = await provider.streamChat(messages, onChunk);
+      // Use the retrieval-capable agent for OpenAI-backed chats. It returns a
+      // complete response today; chunk-level tool streaming can be added later.
+      const response = provider.agentChat
+        ? await provider.agentChat(messages, {
+          userId,
+          documentId: request.documentId,
+        })
+        : await provider.streamChat(messages, onChunk);
+
+      if (provider.agentChat && response.content) {
+        onChunk(response.content);
+      }
 
       const responseTimeMs = Date.now() - startTime;
 

@@ -27,7 +27,6 @@ interface AIAssistantPanelProps {
   onClose: () => void;
   onApplySuggestion?: (suggestion: AISuggestion, text: string) => void;
   getSelection?: () => { text: string; start: number; end: number } | null;
-  getFullContent?: () => string;
 }
 
 const QUICK_ACTION_PROMPT_PREFIXES = [
@@ -56,7 +55,6 @@ export function AIAssistantPanel({
   onClose,
   onApplySuggestion,
   getSelection,
-  getFullContent,
 }: AIAssistantPanelProps) {
   const [input, setInput] = useState('');
   const [historyPopoverOpen, setHistoryPopoverOpen] = useState(false);
@@ -190,11 +188,9 @@ export function AIAssistantPanel({
     e?.preventDefault();
     if (!input.trim() || isStreaming) return;
 
-    // Build context
+    // Build context. Full document/PDF retrieval now happens server-side through
+    // OpenAI tool calls, so do not preload fullContent or pdfContext here.
     const context: any = {};
-    if (getFullContent) {
-      context.fullContent = getFullContent();
-    }
     if (getSelection) {
       const selection = getSelection();
       if (selection && selection.text) {
@@ -202,24 +198,10 @@ export function AIAssistantPanel({
       }
     }
 
-    // Include PDF context if available (max ~10k chars)
     if (pdfTextData && !pdfTextData.error && !pdfTextData.isExtracting) {
-      const MAX_PDF_CONTEXT_CHARS = 10000;
-
-      // Prefer: summary (~2500 chars) + indicate full document available
-      let pdfContext = '';
-      if (pdfTextData.summary) {
-        pdfContext = `[PDF Document Summary (${pdfTextData.numPages} pages)]:\n${pdfTextData.summary}`;
-      } else if (pdfTextData.fullText) {
-        // Fallback: truncate full text
-        const truncated = pdfTextData.fullText.substring(0, MAX_PDF_CONTEXT_CHARS);
-        pdfContext = `[PDF Document Content (${pdfTextData.numPages} pages, truncated)]:\n${truncated}`;
-      }
-
-      if (pdfContext) {
-        context.pdfContext = pdfContext;
-        console.log(`[AI Assistant] Including PDF context: ${pdfContext.length} chars from ${pdfTextData.numPages} page document`);
-      }
+      console.log(`[AI Assistant] PDF available (${pdfTextData.numPages} pages); using server-side retrieval tools instead of preloaded PDF context`);
+    } else {
+      console.log('[AI Assistant] Using server-side document retrieval tools instead of preloaded full document context');
     }
 
     // Include quoted text as context

@@ -1,8 +1,10 @@
 import { PaperModel } from '../models/paper.model'
 import { PaperReviewerModel } from '../models/paper-reviewer.model'
 import { PaperStorageService } from './paper-storage.service'
+import { AIRetrievalService } from './ai-retrieval.service'
 import { pool } from '../config/database'
 import { v4 as uuidv4 } from 'uuid'
+import { logger } from '../utils/logger'
 import {
   Paper,
   InsertPaper,
@@ -61,6 +63,12 @@ export class PaperService {
         'UPDATE papers SET document_id = $1 WHERE id = $2',
         [metadata.documentId, paper.id]
       )
+    }
+
+    try {
+      await AIRetrievalService.indexPaper(paper.id)
+    } catch (error) {
+      logger.warn('Paper uploaded but text indexing failed', { paperId: paper.id, error })
     }
 
     return paper

@@ -72,8 +72,7 @@ export default function DocumentEditorPage() {
     closePanel: closeAIPanel,
   } = useAI(documentId);
 
-  // Store document content for AI context
-  const [currentContent, setCurrentContent] = useState<string>('');
+  // Store document metrics for the editor UI. AI full-document retrieval happens server-side.
   const [wordCount, setWordCount] = useState<number>(0);
 
   const calculateWordCount = useCallback((text: string): number => {
@@ -85,7 +84,6 @@ export default function DocumentEditorPage() {
   useEffect(() => {
     if (document) {
       setTitle(document.title || '');
-      setCurrentContent(document.plainText || '');
       setWordCount(document.wordCount || 0);
     }
   }, [document]);
@@ -108,8 +106,6 @@ export default function DocumentEditorPage() {
     }
   }, [linkedPaper]);
 
-  const getFullContent = useCallback(() => currentContent, [currentContent]);
-
   const handleTitleSave = async () => {
     if (!document) return;
     try {
@@ -122,7 +118,6 @@ export default function DocumentEditorPage() {
   };
 
   const handleContentChange = async (_content: Record<string, any>, plainText: string) => {
-    setCurrentContent(plainText);
     setWordCount(calculateWordCount(plainText));
   };
 
@@ -452,7 +447,7 @@ export default function DocumentEditorPage() {
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={25} minSize={18}>
                   <div className="h-full border-l bg-background overflow-hidden">
-                    <AIAssistantPanel documentId={documentId} onClose={closeAIPanel} getFullContent={getFullContent} />
+                    <AIAssistantPanel documentId={documentId} onClose={closeAIPanel} />
                   </div>
                 </ResizablePanel>
               </>

@@ -21,7 +21,7 @@ function parseArgs(argv: string[]): Options {
   const options: Options = {
     days: 14,
     model: process.env.DEFAULT_AI_MODEL || process.env.AI_MODEL || 'gpt-4o',
-    baseUrl: process.env.DEFAULT_AI_BASE_URL || process.env.AI_BASE_URL || 'https://api.openai.com/v1',
+    baseUrl: process.env.DEFAULT_AI_BASE_URL || process.env.AI_BASE_URL || 'https://openrouter.ai/api/v1',
     overwrite: false,
     apply: false,
   };

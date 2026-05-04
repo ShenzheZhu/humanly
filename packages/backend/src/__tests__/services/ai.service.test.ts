@@ -90,6 +90,27 @@ function mockChatResponse(content: string) {
   };
 }
 
+function mockResponsesResponse(content: string) {
+  return new Response(JSON.stringify({
+    id: 'resp-1',
+    object: 'response',
+    created_at: Date.now(),
+    status: 'completed',
+    output_text: content,
+    output: [
+      {
+        type: 'message',
+        role: 'assistant',
+        content: [{ type: 'output_text', text: content }],
+      },
+    ],
+    usage: { input_tokens: 10, output_tokens: 5, total_tokens: 15 },
+  }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
 // ── classifyQuestionCategory ──────────────────────────────────────────────────
 
 describe('classifyQuestionCategory', () => {
@@ -223,7 +244,7 @@ describe('AIService.chat', () => {
     MockAIModel.createLog.mockResolvedValue(makeLog());
     MockAIModel.addMessage.mockResolvedValue(makeMessage());
     MockAIModel.updateLogWithResponse.mockResolvedValue(makeLog());
-    mockFetch.mockResolvedValue(mockChatResponse('Here is the improved text.'));
+    mockFetch.mockResolvedValue(mockResponsesResponse('Here is the improved text.'));
   });
 
   it('returns sessionId, message, logId on success', async () => {
@@ -262,11 +283,10 @@ describe('AIService.chat', () => {
   });
 
   it('updates log with error status on provider failure', async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
+    mockFetch.mockResolvedValue(new Response(JSON.stringify({ error: { message: 'server error' } }), {
       status: 500,
-      json: jest.fn().mockResolvedValue({}),
-    });
+      headers: { 'content-type': 'application/json' },
+    }));
 
     await expect(AIService.chat('user-1', request as any)).rejects.toThrow();
 
