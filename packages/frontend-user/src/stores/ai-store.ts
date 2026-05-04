@@ -201,12 +201,13 @@ export const useAIStore = create<AIState>()(
 
       clearMessages: async () => {
         const { currentSession } = get();
+        const deletedSessionId = currentSession?.id;
 
         // If there's an active session, delete it from the backend
-        if (currentSession) {
+        if (deletedSessionId) {
           try {
-            await api.delete(`/ai/sessions/${currentSession.id}`);
-            emitEvent('ai:leave-session', { sessionId: currentSession.id });
+            await api.delete(`/ai/sessions/${deletedSessionId}`);
+            emitEvent('ai:leave-session', { sessionId: deletedSessionId });
           } catch (error) {
             // Log but continue - we still want to clear the local state
             console.warn('Failed to delete session:', error);
@@ -220,17 +221,21 @@ export const useAIStore = create<AIState>()(
           currentSession: null,
           activeSuggestions: [],
           quotedText: null,
+          logs: deletedSessionId
+            ? get().logs.filter((log) => log.sessionId !== deletedSessionId)
+            : get().logs,
         });
       },
 
       startNewChat: async () => {
         const { currentSession } = get();
+        const deletedSessionId = currentSession?.id;
 
         // Close the current session on the backend to ensure a new one is created
-        if (currentSession) {
+        if (deletedSessionId) {
           try {
-            await api.delete(`/ai/sessions/${currentSession.id}`);
-            emitEvent('ai:leave-session', { sessionId: currentSession.id });
+            await api.delete(`/ai/sessions/${deletedSessionId}`);
+            emitEvent('ai:leave-session', { sessionId: deletedSessionId });
           } catch (error) {
             // Log but continue - we still want to clear the local state
             console.warn('Failed to close previous session:', error);
@@ -245,6 +250,9 @@ export const useAIStore = create<AIState>()(
           activeSuggestions: [],
           quotedText: null,
           error: null,
+          logs: deletedSessionId
+            ? get().logs.filter((log) => log.sessionId !== deletedSessionId)
+            : get().logs,
         });
       },
 
@@ -345,15 +353,17 @@ export const useAIStore = create<AIState>()(
       closeSession: async () => {
         const { currentSession } = get();
         if (!currentSession) return;
+        const deletedSessionId = currentSession.id;
 
         try {
-          await api.delete(`/ai/sessions/${currentSession.id}`);
-          emitEvent('ai:leave-session', { sessionId: currentSession.id });
+          await api.delete(`/ai/sessions/${deletedSessionId}`);
+          emitEvent('ai:leave-session', { sessionId: deletedSessionId });
 
           set({
             currentSession: null,
             messages: [],
             activeSuggestions: [],
+            logs: get().logs.filter((log) => log.sessionId !== deletedSessionId),
           });
         } catch (error: any) {
           set({ error: error.message || 'Failed to close session' });

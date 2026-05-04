@@ -99,7 +99,11 @@ export interface AIInteractionLog {
       startOffset: number;
       endOffset: number;
     };
+    selectedText?: string;
     cursorPosition?: number;
+    conversationDeleted?: boolean;
+    deletedSessionId?: string;
+    conversationDeletedAt?: string;
   };
   questionCategory?: 'understanding' | 'generation' | 'other';
 

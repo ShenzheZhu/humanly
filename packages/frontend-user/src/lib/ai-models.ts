@@ -31,6 +31,14 @@ export const MODEL_WHITELIST: Record<string, string[]> = {
     'deepseek/deepseek-chat',
     'mistralai/mistral-large',
   ],
+  'api.together.xyz': [
+    'Qwen/Qwen3.5-9B',
+    'moonshotai/Kimi-K2.5',
+    'deepseek-ai/DeepSeek-V4-Pro',
+    'deepseek-ai/DeepSeek-V3',
+    'meta-llama/Llama-3.3-70B-Instruct-Turbo',
+    'Qwen/Qwen2.5-7B-Instruct-Turbo',
+  ],
 };
 
 /**

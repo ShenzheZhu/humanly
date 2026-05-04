@@ -88,12 +88,27 @@ export async function testConnection(req: Request, res: Response) {
   }
 
   // Validate URL format
+  let parsedBaseUrl: URL;
   try {
-    new URL(baseUrl);
+    parsedBaseUrl = new URL(baseUrl);
   } catch {
     return res.status(400).json({
       success: false,
       error: 'Invalid base URL format',
+    });
+  }
+
+  if (parsedBaseUrl.hostname.endsWith('together.ai')) {
+    return res.json({
+      success: false,
+      message: 'Together AI uses the OpenAI-compatible API base URL https://api.together.xyz/v1. The together.ai website URL returns HTML, not model JSON.',
+    });
+  }
+
+  if (parsedBaseUrl.hostname === 'api.together.xyz' && !parsedBaseUrl.pathname.includes('/v1')) {
+    return res.json({
+      success: false,
+      message: 'Together AI base URL should include /v1: https://api.together.xyz/v1',
     });
   }
 
@@ -111,20 +126,25 @@ export async function testConnection(req: Request, res: Response) {
       signal: AbortSignal.timeout(15000),
     });
 
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const bodyPreview = await response.text().catch(() => '');
+      return res.json({
+        success: false,
+        message: `Expected JSON from ${modelsUrl}, but received ${contentType || 'unknown content type'}. Check that the Base URL is an OpenAI-compatible API endpoint, for Together AI use https://api.together.xyz/v1.${bodyPreview.trim().startsWith('<!DOCTYPE') || bodyPreview.trim().startsWith('<html') ? ' The endpoint returned an HTML page.' : ''}`,
+      });
+    }
+
+    const data = await response.json();
+
     if (!response.ok) {
-      const errorText = await response.text().catch(() => '');
       let errorMessage = `API returned ${response.status}`;
-      try {
-        const errorJson = JSON.parse(errorText);
-        errorMessage = errorJson.error?.message || errorJson.message || errorMessage;
-      } catch {}
+      errorMessage = data.error?.message || data.message || errorMessage;
       return res.json({
         success: false,
         message: errorMessage,
       });
     }
-
-    const data = await response.json();
 
     // Extract model IDs from response
     // OpenAI format: { data: [{ id: "gpt-4o", ... }, ...] }

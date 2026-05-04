@@ -42,7 +42,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   // Form state
-  const [baseUrl, setBaseUrl] = useState('https://openrouter.ai/api/v1');
+  const [baseUrl, setBaseUrl] = useState('https://api.together.xyz/v1');
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState('');
 
@@ -84,7 +84,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
       } else {
         setHasExisting(false);
         setMaskedKey('');
-        setBaseUrl('https://openrouter.ai/api/v1');
+        setBaseUrl('https://api.together.xyz/v1');
         setApiKey('');
         setModel('');
       }
@@ -177,7 +177,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
       setModel('');
       setModels([]);
       setTestResult(null);
-      setBaseUrl('https://openrouter.ai/api/v1');
+      setBaseUrl('https://api.together.xyz/v1');
       setDeleteConfirmOpen(false);
       onSettingsChanged?.();
     } catch {
@@ -216,11 +216,11 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
                     setTestResult(null);
                     setModels([]);
                   }}
-                  placeholder="https://openrouter.ai/api/v1"
+                  placeholder="https://api.together.xyz/v1"
                   className="text-sm"
                 />
                 <p className="text-[10px] text-muted-foreground">
-                  OpenAI, OpenRouter, Deepseek, or any OpenAI-compatible API
+                  Together AI or any OpenAI-compatible API with tool calling
                 </p>
               </div>
 

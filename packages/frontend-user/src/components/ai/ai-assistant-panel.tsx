@@ -50,6 +50,13 @@ function isQuickActionHistoryLog(log: AIInteractionLog): boolean {
     || QUICK_ACTION_HISTORY_LABEL_PREFIXES.some((prefix) => query.startsWith(prefix));
 }
 
+function isVisibleConversationHistoryLog(log: AIInteractionLog): boolean {
+  const contextSnapshot = log.contextSnapshot as any;
+  return Boolean(log.sessionId)
+    && !contextSnapshot?.conversationDeleted
+    && !isQuickActionHistoryLog(log);
+}
+
 export function AIAssistantPanel({
   documentId,
   onClose,
@@ -144,7 +151,7 @@ export function AIAssistantPanel({
   const { logs, isLoading: logsLoading, loadMore, hasMore, refresh: refreshLogs } = useAILogs(documentId);
 
   const chatHistoryLogs = useMemo(
-    () => logs.filter((log) => !isQuickActionHistoryLog(log)),
+    () => logs.filter(isVisibleConversationHistoryLog),
     [logs]
   );
 
@@ -189,7 +196,7 @@ export function AIAssistantPanel({
     if (!input.trim() || isStreaming) return;
 
     // Build context. Full document/PDF retrieval now happens server-side through
-    // OpenAI tool calls, so do not preload fullContent or pdfContext here.
+    // Server-side tool calls handle full document and PDF retrieval.
     const context: any = {};
     if (getSelection) {
       const selection = getSelection();

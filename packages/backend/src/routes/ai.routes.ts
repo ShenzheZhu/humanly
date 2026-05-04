@@ -35,7 +35,7 @@ router.post('/settings/test', asyncHandler(testConnection));
 /**
  * POST /api/v1/ai/chat
  * Send a chat message to AI assistant
- * Body: { documentId: string, sessionId?: string, message: string, context?: { fullContent?, selection?, cursorPosition? } }
+ * Body: { documentId: string, sessionId?: string, message: string, context?: { selection?, selectedText?, cursorPosition? } }
  */
 router.post('/chat', asyncHandler(sendChatMessage));
 

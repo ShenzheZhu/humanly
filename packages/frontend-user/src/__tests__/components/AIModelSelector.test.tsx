@@ -292,6 +292,50 @@ describe('chat history filtering', () => {
     expect(await screen.findByText('Can you summarize this paragraph?')).toBeInTheDocument();
     expect(screen.queryByText('Fix grammar: this are bad grammar.')).not.toBeInTheDocument();
   });
+
+  it('does not show deleted conversations in chat history', async () => {
+    mockApiGet.mockResolvedValue(
+      makeSettingsResponse('https://api.openai.com/v1', 'gpt-4o')
+    );
+    mockLogs = [
+      {
+        id: 'deleted-chat-log',
+        documentId: 'doc-1',
+        userId: 'user-1',
+        timestamp: '2026-03-19T12:00:00.000Z',
+        query: 'This deleted conversation should be hidden',
+        queryType: 'question',
+        response: 'Hidden response.',
+        modificationsApplied: false,
+        status: 'success',
+        contextSnapshot: {
+          conversationDeleted: true,
+          deletedSessionId: 'session-deleted',
+        },
+        createdAt: '2026-03-19T12:00:00.000Z',
+      },
+      {
+        id: 'visible-chat-log',
+        documentId: 'doc-1',
+        userId: 'user-1',
+        sessionId: 'session-visible',
+        timestamp: '2026-03-19T12:05:00.000Z',
+        query: 'This visible conversation should remain',
+        queryType: 'question',
+        response: 'Visible response.',
+        modificationsApplied: false,
+        status: 'success',
+        createdAt: '2026-03-19T12:05:00.000Z',
+      },
+    ];
+
+    renderPanel();
+
+    await userEvent.click(await screen.findByTitle('Chat History'));
+
+    expect(await screen.findByText('This visible conversation should remain')).toBeInTheDocument();
+    expect(screen.queryByText('This deleted conversation should be hidden')).not.toBeInTheDocument();
+  });
 });
 
 // 3. No AI settings ────────────────────────────────────────────────────────────

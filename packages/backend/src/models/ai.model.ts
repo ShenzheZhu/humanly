@@ -199,9 +199,19 @@ export class AIModel {
    * Delete a chat session completely (messages are deleted, but logs are preserved for statistics)
    */
   static async deleteSession(sessionId: string): Promise<void> {
-    // Preserve interaction logs for statistics - just clear the session_id reference
-    // This keeps the question category stats intact for certificate generation
-    await query(`UPDATE ai_interaction_logs SET session_id = NULL WHERE session_id = $1`, [sessionId]);
+    // Preserve interaction logs for statistics/audit, but mark them so the
+    // frontend can hide the deleted conversation from chat history.
+    await query(`
+      UPDATE ai_interaction_logs
+      SET
+        session_id = NULL,
+        context_snapshot = COALESCE(context_snapshot, '{}'::jsonb) || jsonb_build_object(
+          'conversationDeleted', true,
+          'deletedSessionId', $1,
+          'conversationDeletedAt', NOW()
+        )
+      WHERE session_id = $1
+    `, [sessionId]);
 
     // Delete messages associated with this session
     await query(`DELETE FROM ai_chat_messages WHERE session_id = $1`, [sessionId]);

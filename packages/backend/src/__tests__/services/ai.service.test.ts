@@ -79,17 +79,6 @@ function makeMessage(overrides: Partial<any> = {}): any {
   };
 }
 
-/** Build a successful fetch response for chat completions */
-function mockChatResponse(content: string) {
-  return {
-    ok: true,
-    json: jest.fn().mockResolvedValue({
-      choices: [{ message: { content } }],
-      usage: { prompt_tokens: 10, completion_tokens: 5 },
-    }),
-  };
-}
-
 function mockResponsesResponse(content: string) {
   return new Response(JSON.stringify({
     id: 'resp-1',
@@ -151,7 +140,7 @@ describe('AIService.silentChat', () => {
   beforeEach(() => {
     MockDocumentModel.isOwner.mockResolvedValue(true);
     MockUserAISettings.getByUserId.mockResolvedValue(makeSettings());
-    mockFetch.mockResolvedValue(mockChatResponse('Grammar fixed.'));
+    mockFetch.mockResolvedValue(mockResponsesResponse('Grammar fixed.'));
   });
 
   it('returns assistant message without creating session/log', async () => {
@@ -183,11 +172,10 @@ describe('AIService.silentChat', () => {
   });
 
   it('throws 502 on 401 from provider', async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
+    mockFetch.mockResolvedValue(new Response(JSON.stringify({ error: { message: 'Invalid key' } }), {
       status: 401,
-      json: jest.fn().mockResolvedValue({ error: { message: 'Invalid key' } }),
-    });
+      headers: { 'content-type': 'application/json' },
+    }));
 
     await expect(AIService.silentChat('user-1', request as any)).rejects.toMatchObject({
       statusCode: 502,
@@ -195,11 +183,10 @@ describe('AIService.silentChat', () => {
   });
 
   it('throws 429 on rate limit from provider', async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
+    mockFetch.mockResolvedValue(new Response(JSON.stringify({}), {
       status: 429,
-      json: jest.fn().mockResolvedValue({}),
-    });
+      headers: { 'content-type': 'application/json' },
+    }));
 
     await expect(AIService.silentChat('user-1', request as any)).rejects.toMatchObject({
       statusCode: 429,
@@ -207,23 +194,24 @@ describe('AIService.silentChat', () => {
   });
 
   it('throws 400 on 404 from provider (model not found)', async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
+    mockFetch.mockResolvedValue(new Response(JSON.stringify({}), {
       status: 404,
-      json: jest.fn().mockResolvedValue({}),
-    });
+      headers: { 'content-type': 'application/json' },
+    }));
 
     await expect(AIService.silentChat('user-1', request as any)).rejects.toMatchObject({
       statusCode: 400,
     });
   });
 
-  it('sends max_completion_tokens in request body', async () => {
+  it('uses retrieval-capable Responses API for silent chat', async () => {
     await AIService.silentChat('user-1', request as any);
 
+    const url = String(mockFetch.mock.calls[0][0]);
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(body).toHaveProperty('max_completion_tokens');
-    expect(body).not.toHaveProperty('max_tokens');
+    expect(url).toContain('/responses');
+    expect(body).toHaveProperty('tools');
+    expect(body.tools.map((tool: any) => tool.name)).toContain('getDocumentPlainText');
   });
 });
 

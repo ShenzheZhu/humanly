@@ -22,16 +22,7 @@ import { UserAISettingsModel } from '../models/user-ai-settings.model';
  * AI Provider interface for different AI backends
  */
 interface AIProvider {
-  chat(messages: { role: string; content: string }[], options?: {
-    maxTokens?: number;
-    temperature?: number;
-    stream?: boolean;
-  }): Promise<{
-    content: string;
-    tokensUsed?: { input: number; output: number };
-  }>;
-
-  agentChat?(messages: { role: string; content: string }[], options: {
+  agentChat(messages: { role: string; content: string }[], options: {
     userId: string;
     documentId: string;
     maxTokens?: number;
@@ -40,12 +31,13 @@ interface AIProvider {
     tokensUsed?: { input: number; output: number };
   }>;
 
-  streamChat(
+  agentStreamChat(
     messages: { role: string; content: string }[],
     onChunk: (chunk: string) => void,
-    options?: {
+    options: {
+      userId: string;
+      documentId: string;
       maxTokens?: number;
-      temperature?: number;
     }
   ): Promise<{
     content: string;
@@ -54,7 +46,11 @@ interface AIProvider {
 }
 
 /**
- * OpenAI Provider implementation
+ * OpenAI-compatible provider implementation.
+ *
+ * Together AI is the default compatible backend. Official OpenAI uses the
+ * Responses API path; Together and other compatible providers use Chat
+ * Completions with tool calls.
  */
 class OpenAIProvider implements AIProvider {
   private apiKey: string;
@@ -64,138 +60,12 @@ class OpenAIProvider implements AIProvider {
 
   constructor(config?: { apiKey: string; model: string; baseUrl: string }) {
     this.apiKey = config?.apiKey || env.aiApiKey || '';
-    this.model = config?.model || env.aiModel || 'gpt-4-turbo-preview';
-    this.baseUrl = config?.baseUrl || env.aiBaseUrl || 'https://openrouter.ai/api/v1';
+    this.model = config?.model || env.aiModel || 'Qwen/Qwen3.5-9B';
+    this.baseUrl = config?.baseUrl || env.aiBaseUrl || 'https://api.together.xyz/v1';
     this.client = new OpenAI({
       apiKey: this.apiKey || 'missing-api-key',
       baseURL: this.baseUrl,
     });
-  }
-
-  async chat(messages: { role: string; content: string }[], options?: {
-    maxTokens?: number;
-    temperature?: number;
-  }): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
-    if (!this.apiKey) {
-      throw new AppError(500, 'AI service not configured');
-    }
-
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: this.model,
-        messages,
-        max_completion_tokens: options?.maxTokens || 2048,
-        temperature: options?.temperature || 0.7,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorBody: any = await response.json().catch(() => ({}));
-      logger.error('OpenAI API error', { status: response.status, error: errorBody });
-      const detail = errorBody?.error?.message || '';
-      // Prefix with "AI Provider:" so users know the error comes from the upstream API, not our system
-      const prefix = 'AI Provider: ';
-      if (response.status === 401) {
-        throw new AppError(502, detail ? `${prefix}${detail}` : 'Invalid API key. Please check your AI settings.');
-      } else if (response.status === 429) {
-        throw new AppError(429, detail ? `${prefix}${detail}` : 'Rate limit exceeded. Please try again later.');
-      } else if (response.status === 404) {
-        throw new AppError(400, detail ? `${prefix}${detail}` : `Model "${this.model}" not found. Please check your AI settings.`);
-      } else {
-        throw new AppError(response.status, detail ? `${prefix}${detail}` : `AI service error (${response.status})`);
-      }
-    }
-
-    const data: any = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
-    const tokensUsed = data.usage ? {
-      input: data.usage.prompt_tokens,
-      output: data.usage.completion_tokens,
-    } : undefined;
-
-    return { content, tokensUsed };
-  }
-
-  async streamChat(
-    messages: { role: string; content: string }[],
-    onChunk: (chunk: string) => void,
-    options?: { maxTokens?: number; temperature?: number }
-  ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
-    if (!this.apiKey) {
-      throw new AppError(500, 'AI service not configured');
-    }
-
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: this.model,
-        messages,
-        max_completion_tokens: options?.maxTokens || 2048,
-        temperature: options?.temperature || 0.7,
-        stream: true,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorBody: any = await response.json().catch(() => ({}));
-      logger.error('OpenAI API error', { status: response.status, error: errorBody });
-      const detail = errorBody?.error?.message || '';
-      const prefix = 'AI Provider: ';
-      if (response.status === 401) {
-        throw new AppError(502, detail ? `${prefix}${detail}` : 'Invalid API key. Please check your AI settings.');
-      } else if (response.status === 429) {
-        throw new AppError(429, detail ? `${prefix}${detail}` : 'Rate limit exceeded. Please try again later.');
-      } else if (response.status === 404) {
-        throw new AppError(400, detail ? `${prefix}${detail}` : `Model "${this.model}" not found. Please check your AI settings.`);
-      } else {
-        throw new AppError(response.status, detail ? `${prefix}${detail}` : `AI service error (${response.status})`);
-      }
-    }
-
-    const reader = response.body?.getReader();
-    if (!reader) {
-      throw new AppError(500, 'Failed to get response stream');
-    }
-
-    const decoder = new TextDecoder();
-    let fullContent = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value);
-      const lines = chunk.split('\n').filter(line => line.trim() !== '');
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          if (data === '[DONE]') continue;
-
-          try {
-            const parsed = JSON.parse(data);
-            const content = parsed.choices?.[0]?.delta?.content || '';
-            if (content) {
-              fullContent += content;
-              onChunk(content);
-            }
-          } catch {
-            // Ignore parsing errors for partial chunks
-          }
-        }
-      }
-    }
-
-    return { content: fullContent };
   }
 
   async agentChat(
@@ -294,11 +164,57 @@ class OpenAIProvider implements AIProvider {
     };
   }
 
-  private async agentChatCompletions(
+  async agentStreamChat(
     messages: { role: string; content: string }[],
+    onChunk: (chunk: string) => void,
     options: { userId: string; documentId: string; maxTokens?: number }
   ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
-    const chatTools = AIRetrievalService.tools.map(tool => ({
+    if (!this.apiKey) {
+      throw new AppError(500, 'AI service not configured');
+    }
+
+    if (!this.baseUrl.includes('api.openai.com')) {
+      return this.agentStreamChatCompletions(messages, onChunk, options);
+    }
+
+    // The official OpenAI Responses path remains retrieval-capable. It falls
+    // back to complete-response delivery until Responses streaming is wired in.
+    const response = await this.agentChat(messages, options);
+    if (response.content) {
+      onChunk(response.content);
+    }
+    return response;
+  }
+
+  private buildChatCompletionMessages(
+    messages: { role: string; content: string }[],
+    documentId: string
+  ): any[] {
+    const systemMessages = messages
+      .filter(message => message.role === 'system')
+      .map(message => message.content)
+      .filter(Boolean);
+    const nonSystemMessages = messages
+      .filter(message => message.role !== 'system')
+      .map(message => ({
+        role: message.role,
+        content: message.content,
+      }));
+
+    return [
+      {
+        role: 'system',
+        content: [
+          buildRetrievalInstructions(documentId),
+          ...systemMessages,
+        ].join('\n\n'),
+      },
+      ...nonSystemMessages,
+    ];
+  }
+
+  private buildChatCompletionTools() {
+    return AIRetrievalService.tools.map(tool => ({
       type: 'function' as const,
       function: {
         name: tool.name,
@@ -307,17 +223,14 @@ class OpenAIProvider implements AIProvider {
         strict: tool.strict ?? true,
       },
     }));
+  }
 
-    const chatMessages: any[] = [
-      {
-        role: 'system',
-        content: buildRetrievalInstructions(options.documentId),
-      },
-      ...messages.map(message => ({
-        role: message.role === 'system' ? 'system' : message.role,
-        content: message.content,
-      })),
-    ];
+  private async agentChatCompletions(
+    messages: { role: string; content: string }[],
+    options: { userId: string; documentId: string; maxTokens?: number }
+  ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
+    const chatTools = this.buildChatCompletionTools();
+    const chatMessages = this.buildChatCompletionMessages(messages, options.documentId);
 
     let lastUsage: { input: number; output: number } | undefined;
 
@@ -403,6 +316,128 @@ class OpenAIProvider implements AIProvider {
     };
   }
 
+  private async agentStreamChatCompletions(
+    messages: { role: string; content: string }[],
+    onChunk: (chunk: string) => void,
+    options: { userId: string; documentId: string; maxTokens?: number }
+  ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
+    const chatTools = this.buildChatCompletionTools();
+    const chatMessages = this.buildChatCompletionMessages(messages, options.documentId);
+    let lastUsage: { input: number; output: number } | undefined;
+
+    for (let i = 0; i < 6; i++) {
+      let completion: any;
+      try {
+        completion = await this.client.chat.completions.create({
+          model: this.model,
+          messages: chatMessages,
+          tools: chatTools,
+          tool_choice: 'auto',
+          max_tokens: options.maxTokens || 2048,
+        } as any);
+      } catch (error) {
+        this.handleSDKError(error);
+      }
+
+      lastUsage = completion.usage ? {
+        input: completion.usage.prompt_tokens,
+        output: completion.usage.completion_tokens,
+      } : lastUsage;
+
+      const assistantMessage = completion.choices?.[0]?.message || {};
+      const toolCalls = assistantMessage.tool_calls || [];
+      if (toolCalls.length === 0) {
+        logger.info('AI agent final response streaming started', {
+          userId: options.userId,
+          documentId: options.documentId,
+          iteration: i + 1,
+          transport: 'chat_completions',
+        });
+        return {
+          content: await this.streamFinalChatCompletion(chatMessages, onChunk, options),
+          tokensUsed: lastUsage,
+        };
+      }
+
+      logger.info('AI agent requested retrieval tools', {
+        userId: options.userId,
+        documentId: options.documentId,
+        iteration: i + 1,
+        transport: 'chat_completions',
+        tools: toolCalls.map((toolCall: any) => toolCall.function?.name),
+      });
+
+      chatMessages.push(assistantMessage);
+      for (const toolCall of toolCalls) {
+        const toolName = toolCall.function?.name;
+        let output: string;
+        try {
+          const args = JSON.parse(toolCall.function?.arguments || '{}');
+          output = await AIRetrievalService.executeTool(
+            options.userId,
+            options.documentId,
+            toolName,
+            args
+          );
+        } catch (error) {
+          output = JSON.stringify({
+            error: error instanceof Error ? error.message : 'Tool execution failed',
+          });
+        }
+
+        logger.info('AI agent retrieval tool completed', {
+          userId: options.userId,
+          documentId: options.documentId,
+          transport: 'chat_completions',
+          tool: toolName,
+          outputBytes: output.length,
+        });
+
+        chatMessages.push({
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: output,
+        });
+      }
+    }
+
+    const fallback = 'I could not complete retrieval within the tool-call limit.';
+    onChunk(fallback);
+    return {
+      content: fallback,
+      tokensUsed: lastUsage,
+    };
+  }
+
+  private async streamFinalChatCompletion(
+    chatMessages: any[],
+    onChunk: (chunk: string) => void,
+    options: { maxTokens?: number }
+  ): Promise<string> {
+    let stream: any;
+    try {
+      stream = await this.client.chat.completions.create({
+        model: this.model,
+        messages: chatMessages,
+        stream: true,
+        max_tokens: options.maxTokens || 2048,
+      } as any);
+    } catch (error) {
+      this.handleSDKError(error);
+    }
+
+    let fullContent = '';
+    for await (const chunk of stream) {
+      const content = chunk.choices?.[0]?.delta?.content || '';
+      if (content) {
+        fullContent += content;
+        onChunk(content);
+      }
+    }
+
+    return fullContent;
+  }
+
   private handleSDKError(error: unknown): never {
     const sdkError = error as any;
     logger.error('OpenAI API error', { status: sdkError?.status, error: sdkError });
@@ -427,7 +462,7 @@ class OpenAIProvider implements AIProvider {
  * Mock provider for development/testing
  */
 class MockAIProvider implements AIProvider {
-  async chat(messages: { role: string; content: string }[]): Promise<{
+  async agentChat(messages: { role: string; content: string }[]): Promise<{
     content: string;
     tokensUsed?: { input: number; output: number };
   }> {
@@ -443,14 +478,12 @@ class MockAIProvider implements AIProvider {
     };
   }
 
-  async streamChat(
+  async agentStreamChat(
     messages: { role: string; content: string }[],
     onChunk: (chunk: string) => void
   ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
     const lastMessage = messages[messages.length - 1];
     const mockResponse = this.generateMockResponse(lastMessage?.content || '');
-
-    // Stream word by word
     const words = mockResponse.split(' ');
     let fullContent = '';
 
@@ -620,9 +653,7 @@ export function classifyQuestionCategory(query: string, queryType: AIQueryType):
  * Build system prompt for the AI assistant
  */
 function buildSystemPrompt(context?: {
-  fullContent?: string;
   selection?: { text: string; startOffset: number; endOffset: number };
-  pdfContext?: string;
   selectedText?: string;
 }): string {
   let prompt = `You are an AI writing assistant integrated into a document editor. Your role is to help users improve their writing through:
@@ -642,14 +673,6 @@ Guidelines:
 - For formatting, use markdown syntax
 
 `;
-
-  if (context?.pdfContext) {
-    prompt += `\nThe user has a PDF research paper open in their workspace. Here is the content from the PDF:\n\n---\n${context.pdfContext}\n---\n\nYou can reference this paper when answering the user's questions.\n\n`;
-  }
-
-  if (context?.fullContent) {
-    prompt += `\nThe user is working on a document with the following content:\n\n---\n${context.fullContent.slice(0, 4000)}\n---\n`;
-  }
 
   if (context?.selectedText) {
     prompt += `\nThe user has selected/quoted this text from the editor:\n\n---\n${context.selectedText}\n---\n`;
@@ -716,8 +739,9 @@ export class AIService {
     ];
 
     // Get AI response
-    const response = await provider.chat(messages, {
-      temperature: 0.3, // Lower temperature for more consistent results
+    const response = await provider.agentChat(messages, {
+      userId,
+      documentId: request.documentId,
     });
 
     logger.info('AI silent chat completed', {
@@ -795,12 +819,10 @@ export class AIService {
       const provider = await this.getProviderForUser(userId);
 
       // Get AI response
-      const response = provider.agentChat
-        ? await provider.agentChat(messages, {
-          userId,
-          documentId: request.documentId,
-        })
-        : await provider.chat(messages);
+      const response = await provider.agentChat(messages, {
+        userId,
+        documentId: request.documentId,
+      });
 
       const responseTimeMs = Date.now() - startTime;
 
@@ -917,18 +939,12 @@ export class AIService {
       // Get provider for user
       const provider = await this.getProviderForUser(userId);
 
-      // Use the retrieval-capable agent for OpenAI-backed chats. It returns a
-      // complete response today; chunk-level tool streaming can be added later.
-      const response = provider.agentChat
-        ? await provider.agentChat(messages, {
-          userId,
-          documentId: request.documentId,
-        })
-        : await provider.streamChat(messages, onChunk);
-
-      if (provider.agentChat && response.content) {
-        onChunk(response.content);
-      }
+      // Use the retrieval-capable agent and stream the final response once any
+      // needed retrieval tool calls have completed.
+      const response = await provider.agentStreamChat(messages, onChunk, {
+        userId,
+        documentId: request.documentId,
+      });
 
       const responseTimeMs = Date.now() - startTime;
 

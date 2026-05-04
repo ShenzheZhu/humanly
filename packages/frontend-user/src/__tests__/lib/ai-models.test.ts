@@ -9,6 +9,7 @@ describe('MODEL_WHITELIST', () => {
     'api.anthropic.com',
     'generativelanguage.googleapis.com',
     'openrouter.ai',
+    'api.together.xyz',
   ];
 
   it('contains all expected providers', () => {
@@ -75,6 +76,11 @@ describe('getWhitelist', () => {
     expect(result).toEqual(MODEL_WHITELIST['openrouter.ai']);
   });
 
+  it('returns Together whitelist for https://api.together.xyz/v1', () => {
+    const result = getWhitelist('https://api.together.xyz/v1');
+    expect(result).toEqual(MODEL_WHITELIST['api.together.xyz']);
+  });
+
   // ── known provider: list size ────────────────────────────────────────────
 
   it('returns a small list (≤10) for every known provider', () => {
@@ -84,6 +90,7 @@ describe('getWhitelist', () => {
       'https://api.anthropic.com/v1',
       'https://generativelanguage.googleapis.com/v1beta',
       'https://openrouter.ai/api/v1',
+      'https://api.together.xyz/v1',
     ];
     urls.forEach((url) => {
       const result = getWhitelist(url);
