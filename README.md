@@ -268,63 +268,14 @@ For complete documentation, see `packages/tracker/README.md`.
 
 ## 🐳 Production Deployment
 
-### Backend Deployment (AWS)
+Production runs on a single GCP VM with Docker Compose. GitHub Actions builds
+the `backend` and `frontend-user` Docker images, pushes immutable commit-SHA
+tags to GCP Artifact Registry, then SSHes into the VM to pull and run those
+exact images.
 
-1. **Set up AWS RDS PostgreSQL with TimescaleDB**
-
-   ```bash
-   # Create RDS instance
-   # - Engine: PostgreSQL 14+
-   # - Instance: db.t3.medium or larger
-   # - Storage: gp3 with autoscaling
-   # - Enable TimescaleDB extension after creation
-   ```
-
-2. **Deploy backend**
-
-   ```bash
-   # Build Docker image
-   docker build -f docker/backend.Dockerfile -t humanly-backend:latest .
-
-   # Push to ECR/Docker Hub
-   docker tag humanly-backend:latest your-registry/humanly-backend:latest
-   docker push your-registry/humanly-backend:latest
-
-   # Deploy to EC2/ECS/EKS
-   ```
-
-3. **Configure environment variables**
-
-   ```bash
-   DATABASE_URL=postgresql://user:pass@your-rds-endpoint:5432/humanly_prod
-   REDIS_URL=redis://your-redis-endpoint:6379
-   JWT_SECRET=your-secure-random-secret
-   EMAIL_SERVICE=sendgrid
-   EMAIL_API_KEY=your-sendgrid-key
-   ```
-
-### Frontend Deployment (Vercel)
-
-1. **Connect to Vercel**
-
-   ```bash
-   cd packages/frontend
-   vercel
-   ```
-
-2. **Configure environment variables** in Vercel dashboard:
-
-   ```bash
-   NEXT_PUBLIC_API_URL=https://api.your-domain.com
-   NEXT_PUBLIC_WS_URL=wss://api.your-domain.com
-   NEXT_PUBLIC_TRACKER_URL=https://api.your-domain.com/tracker/humanly-tracker.min.js
-   ```
-
-3. **Deploy**
-
-   ```bash
-   vercel --prod
-   ```
+See [Production Deployment](./docs/PRODUCTION_DEPLOYMENT.md) for setup,
+required GitHub secrets, Artifact Registry permissions, manual deploys, and
+rollback commands.
 
 ## 🧪 Testing
 

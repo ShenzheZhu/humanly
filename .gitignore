@@ -16,6 +16,7 @@ out/
 .env.local
 .env.*.local
 .env.production
+.env.production-images
 .env.staging
 .env.development
 # Keep only .env.example files
