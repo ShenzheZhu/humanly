@@ -12,7 +12,7 @@ import {
   PaperFilter,
   PaperForReviewer,
   InsertPaperAccessLog
-} from '@humory/shared'
+} from '@humanly/shared'
 import { AppError } from '../middleware/error-handler'
 
 export class PaperService {

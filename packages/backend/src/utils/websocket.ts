@@ -1,5 +1,5 @@
 import { Server as SocketIOServer } from 'socket.io';
-import { TrackerEvent, AIChatRequest, AIChatResponse, AISuggestion } from '@humory/shared';
+import { TrackerEvent, AIChatRequest, AIChatResponse, AISuggestion } from '@humanly/shared';
 import { logger } from './logger';
 
 /**

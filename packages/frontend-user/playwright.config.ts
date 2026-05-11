@@ -22,7 +22,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run build --workspace=@humory/shared && npm run build --workspace=@humory/editor && npm run dev --workspace=@humory/frontend-user',
+    command: 'npm run build --workspace=@humanly/shared && npm run build --workspace=@humanly/editor && npm run dev --workspace=@humanly/frontend-user',
     url: `http://127.0.0.1:${port}`,
     reuseExistingServer: !process.env.CI,
     timeout: 120000,

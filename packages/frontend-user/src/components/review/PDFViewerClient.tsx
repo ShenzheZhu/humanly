@@ -12,7 +12,7 @@ import {
   MessageSquarePlus,
 } from 'lucide-react'
 import { paperApi } from '@/lib/api/review-api'
-import type { ReviewComment } from '@humory/shared'
+import type { ReviewComment } from '@humanly/shared'
 
 interface PDFViewerProps {
   paperId: string

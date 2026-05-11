@@ -1,5 +1,5 @@
 /**
- * @humory/editor - Reusable Lexical editor with integrated keystroke tracking
+ * @humanly/editor - Reusable Lexical editor with integrated keystroke tracking
  */
 
 // Main editor component

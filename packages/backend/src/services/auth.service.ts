@@ -1,4 +1,4 @@
-import { User } from '@humory/shared';
+import { User, UserRole } from '@humanly/shared';
 import { UserModel } from '../models/user.model';
 import { RefreshTokenModel } from '../models/refresh-token.model';
 import { emailService } from './email.service';
@@ -41,8 +41,8 @@ export class AuthService {
   /**
    * Register a new user
    */
-  static async register(email: string, password: string): Promise<User> {
-    logger.info('Attempting to register user', { email });
+  static async register(email: string, password: string, role: UserRole = 'user'): Promise<User> {
+    logger.info('Attempting to register user', { email, role });
 
     // Check if user already exists
     const existingUser = await UserModel.findByEmail(email);
@@ -61,6 +61,7 @@ export class AuthService {
     const user = await UserModel.create({
       email,
       passwordHash,
+      role,
       emailVerificationToken: verificationToken,
       emailVerificationExpires: verificationExpires,
     });
@@ -133,14 +134,24 @@ export class AuthService {
    */
   static async login(
     email: string,
-    password: string
+    password: string,
+    requestedRole?: UserRole
   ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
-    logger.info('Attempting login', { email });
+    logger.info('Attempting login', { email, requestedRole });
 
     // Find user by email
     const userWithPassword = await UserModel.findByEmail(email);
     if (!userWithPassword) {
       throw new AppError(401, 'Invalid email or password');
+    }
+
+    if (requestedRole && userWithPassword.role !== requestedRole) {
+      throw new AppError(
+        403,
+        requestedRole === 'admin'
+          ? 'This email is not registered as an admin account'
+          : 'This email is not registered as a user account'
+      );
     }
 
     // Compare password
@@ -158,6 +169,7 @@ export class AuthService {
     const payload: TokenPayload = {
       userId: userWithPassword.id,
       email: userWithPassword.email,
+      role: userWithPassword.role,
     };
 
     const accessToken = generateAccessToken(payload);
@@ -175,6 +187,7 @@ export class AuthService {
     const user: User = {
       id: userWithPassword.id,
       email: userWithPassword.email,
+      role: userWithPassword.role,
       emailVerified: userWithPassword.emailVerified,
       createdAt: userWithPassword.createdAt,
       updatedAt: userWithPassword.updatedAt,
@@ -240,6 +253,7 @@ export class AuthService {
     const newPayload: TokenPayload = {
       userId: user.id,
       email: user.email,
+      role: user.role,
     };
 
     const accessToken = generateAccessToken(newPayload);

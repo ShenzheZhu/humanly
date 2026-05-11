@@ -11,7 +11,7 @@ import { getWhitelist } from '@/lib/ai-models';
 import { useAI, useAILogs } from '@/hooks/use-ai';
 import { useAIStore } from '@/stores/ai-store';
 import { usePDFTextStore } from '@/stores/pdf-text-store';
-import { AIChatMessage, AISuggestion, AIInteractionLog } from '@humory/shared';
+import { AIChatMessage, AISuggestion, AIInteractionLog } from '@humanly/shared';
 import {
   Dialog,
   DialogContent,

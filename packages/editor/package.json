@@ -1,5 +1,5 @@
 {
-  "name": "@humory/editor",
+  "name": "@humanly/editor",
   "version": "1.0.0",
   "description": "Lexical editor with integrated keystroke tracking",
   "main": "dist/index.js",
@@ -15,10 +15,10 @@
     "tracking",
     "rich-text"
   ],
-  "author": "Humory",
+  "author": "humanly",
   "license": "MIT",
   "dependencies": {
-    "@humory/shared": "*",
+    "@humanly/shared": "workspace:*",
     "lexical": "^0.12.6",
     "@lexical/react": "^0.12.6",
     "@lexical/rich-text": "^0.12.6",

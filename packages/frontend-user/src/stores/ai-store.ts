@@ -7,7 +7,7 @@ import {
   AISuggestion,
   AIChatRequest,
   AIChatResponse,
-} from '@humory/shared';
+} from '@humanly/shared';
 import api from '@/lib/api-client';
 import { getSocket, initializeSocket, emitEvent, onEvent, offEvent } from '@/lib/socket-client';
 

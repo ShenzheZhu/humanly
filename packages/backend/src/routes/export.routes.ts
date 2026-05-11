@@ -20,7 +20,7 @@ router.use(authenticate);
  *
  * Response:
  * - Content-Type: application/json
- * - Content-Disposition: attachment; filename="humory-export-{projectId}-{timestamp}.json"
+ * - Content-Disposition: attachment; filename="humanly-export-{projectId}-{timestamp}.json"
  * - Streamed JSON response with project metadata and events
  *
  * Security:
@@ -44,7 +44,7 @@ router.get('/:projectId/export/json', asyncHandler(exportJSON));
  *
  * Response:
  * - Content-Type: text/csv
- * - Content-Disposition: attachment; filename="humory-export-{projectId}-{timestamp}.csv"
+ * - Content-Disposition: attachment; filename="humanly-export-{projectId}-{timestamp}.csv"
  * - Streamed CSV response with headers and flattened event data
  *
  * CSV Format:

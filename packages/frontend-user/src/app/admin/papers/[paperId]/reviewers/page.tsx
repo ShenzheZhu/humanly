@@ -23,7 +23,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { UserPlus, Trash2, Edit, Clock, CheckCircle, Eye, Pencil, Bot } from 'lucide-react'
-import type { Paper, PaperReviewer } from '@humory/shared'
+import type { Paper, PaperReviewer } from '@humanly/shared'
 import { paperApi, reviewerApi } from '@/lib/api/review-api'
 import { useToast } from '@/hooks/use-toast'
 

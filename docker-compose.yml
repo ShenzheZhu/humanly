@@ -2,11 +2,11 @@
 services:
   postgres:
     image: timescale/timescaledb:latest-pg15
-    container_name: humory-db
+    container_name: humanly-db
     environment:
-      POSTGRES_DB: humory_dev
-      POSTGRES_USER: humory_user
-      POSTGRES_PASSWORD: humory_password
+      POSTGRES_DB: humanly_dev
+      POSTGRES_USER: humanly_user
+      POSTGRES_PASSWORD: humanly_password
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5432:5432"
@@ -14,17 +14,17 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./packages/backend/src/db/migrations:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U humory_user -d humory_dev"]
+      test: ["CMD-SHELL", "pg_isready -U humanly_user -d humanly_dev"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
     networks:
-      - humory-network
+      - humanly-network
 
   redis:
     image: redis:7-alpine
-    container_name: humory-redis
+    container_name: humanly-redis
     command: redis-server --appendonly yes
     ports:
       - "6379:6379"
@@ -37,7 +37,7 @@ services:
       retries: 5
     restart: unless-stopped
     networks:
-      - humory-network
+      - humanly-network
 
 volumes:
   postgres_data:
@@ -46,5 +46,5 @@ volumes:
     driver: local
 
 networks:
-  humory-network:
+  humanly-network:
     driver: bridge

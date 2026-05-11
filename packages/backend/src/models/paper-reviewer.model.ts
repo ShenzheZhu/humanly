@@ -3,7 +3,7 @@ import {
   PaperReviewer,
   InsertPaperReviewer,
   UpdatePaperReviewer
-} from '@humory/shared'
+} from '@humanly/shared'
 import { AppError } from '../middleware/error-handler'
 
 export class PaperReviewerModel {

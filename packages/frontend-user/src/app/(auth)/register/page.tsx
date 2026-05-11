@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Eye, EyeOff, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
-import { getBrandText } from '@humory/shared';
+import { getBrandText } from '@humanly/shared';
 
 import { useAuthStore } from '@/stores/auth-store';
 import { Button } from '@/components/ui/button';
@@ -122,7 +122,7 @@ export default function RegisterPage() {
   async function onSubmit(values: RegisterFormValues) {
     try {
       setError(null);
-      await register(values.email, values.password, values.name);
+      await register(values.email, values.password, values.name, 'user');
       setRegistrationSuccess(true);
 
       // TODO: Uncomment when email service is configured

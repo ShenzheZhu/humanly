@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { uploadPdfForDocument } from '@/lib/document-pdf';
-import type { Document, DocumentListResponse } from '@humory/shared';
+import type { Document, DocumentListResponse } from '@humanly/shared';
 
 export function useDocuments() {
   const [documents, setDocuments] = useState<Document[]>([]);

@@ -9,6 +9,7 @@ import { disconnectSocket, initializeSocket } from '@/lib/socket-client';
 export interface User {
   id: string;
   email: string;
+  role?: 'admin' | 'user';
   name?: string;
   emailVerified: boolean;
   avatar?: string;
@@ -26,8 +27,8 @@ interface AuthState {
   error: string | null;
 
   // Actions
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name?: string) => Promise<void>;
+  login: (email: string, password: string, role?: 'admin' | 'user') => Promise<void>;
+  register: (email: string, password: string, name?: string, role?: 'admin' | 'user') => Promise<void>;
   logout: () => Promise<void>;
   verifyEmail: (code: string) => Promise<void>;
   resendVerificationEmail: (email?: string) => Promise<void>;
@@ -53,7 +54,7 @@ export const useAuthStore = create<AuthState>()(
       /**
        * Login user
        */
-      login: async (email: string, password: string) => {
+      login: async (email: string, password: string, role: 'admin' | 'user' = 'admin') => {
         try {
           set({ isLoading: true, error: null });
 
@@ -64,7 +65,7 @@ export const useAuthStore = create<AuthState>()(
               user: User;
               accessToken: string;
             };
-          }>('/api/v1/auth/login', { email, password });
+          }>('/api/v1/auth/login', { email, password, role });
 
           // Store access token (refresh token is set as httpOnly cookie by backend)
           TokenManager.setAccessToken(response.data.accessToken);
@@ -89,7 +90,7 @@ export const useAuthStore = create<AuthState>()(
       /**
        * Register new user
        */
-      register: async (email: string, password: string, name?: string) => {
+      register: async (email: string, password: string, name?: string, role: 'admin' | 'user' = 'admin') => {
         try {
           set({ isLoading: true, error: null });
 
@@ -99,7 +100,7 @@ export const useAuthStore = create<AuthState>()(
             data: {
               user: User;
             };
-          }>('/api/v1/auth/register', { email, password, name });
+          }>('/api/v1/auth/register', { email, password, name, role });
 
           // Registration successful - user needs to verify email before logging in
           // Don't set authenticated state or tokens

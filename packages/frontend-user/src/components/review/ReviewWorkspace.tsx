@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ChevronLeft, ChevronRight, Bot, FileText, PanelLeftClose, PanelRightClose } from 'lucide-react'
-import type { Review, ReviewComment } from '@humory/shared'
+import type { Review, ReviewComment } from '@humanly/shared'
 import { reviewApi, commentApi } from '@/lib/api/review-api'
 import { useToast } from '@/hooks/use-toast'
 

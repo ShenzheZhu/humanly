@@ -18,17 +18,18 @@ ENV NEXT_PUBLIC_TRACKER_URL=$NEXT_PUBLIC_TRACKER_URL
 ENV NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
 
 COPY package.json ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/frontend/package.json ./packages/frontend/
 COPY packages/shared/package.json   ./packages/shared/
 
-RUN npm install
+RUN corepack enable && pnpm install --frozen-lockfile
 
 COPY packages/shared  ./packages/shared
 COPY packages/frontend ./packages/frontend
 COPY tsconfig.json ./
 
-RUN npm run build --workspace=@humory/shared
-RUN npm run build --workspace=@humory/frontend
+RUN pnpm --filter @humanly/shared build
+RUN pnpm --filter @humanly/frontend build
 
 # ── Production stage ──────────────────────────────────────────────────────────
 FROM node:20-alpine
@@ -36,10 +37,11 @@ FROM node:20-alpine
 WORKDIR /app
 
 COPY package.json ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/frontend/package.json ./packages/frontend/
 COPY packages/shared/package.json   ./packages/shared/
 
-RUN npm install --omit=dev
+RUN corepack enable && pnpm install --frozen-lockfile --prod
 
 COPY --from=builder /app/packages/frontend/.next  ./packages/frontend/.next
 COPY --from=builder /app/packages/frontend/public ./packages/frontend/public

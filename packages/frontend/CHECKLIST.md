@@ -203,7 +203,7 @@ NEXT_PUBLIC_TRACKER_URL=http://localhost:3001
 
 ## Monorepo Integration
 
-- [x] Workspace dependency on `@humory/shared`
+- [x] Workspace dependency on `@humanly/shared`
 - [x] Scripts added to root `package.json`
 - [x] TypeScript extends root configuration
 - [x] Next.js configured to transpile shared package

@@ -1,5 +1,7 @@
 import { DocumentModel } from '../models/document.model';
 import { DocumentEventModel } from '../models/document-event.model';
+import { query } from '../config/database';
+import { cacheDelPattern } from '../config/redis';
 import {
   Document,
   DocumentInsertData,
@@ -10,7 +12,7 @@ import {
   DocumentEventInsertData,
   DocumentEventQueryFilters,
   PaginatedResult,
-} from '@humory/shared';
+} from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 
@@ -114,6 +116,7 @@ export class DocumentService {
   static async deleteDocument(documentId: string, userId: string): Promise<void> {
     try {
       logger.info('Deleting document', { documentId, userId });
+      await this.invalidateProjectAnalyticsForDocument(documentId);
 
       const deleted = await DocumentModel.delete(documentId, userId);
 
@@ -168,6 +171,7 @@ export class DocumentService {
       }));
 
       await DocumentEventModel.batchInsert(validatedEvents);
+      await this.invalidateProjectAnalyticsForDocument(documentId);
 
       logger.info('Document events tracked', {
         documentId,
@@ -183,6 +187,21 @@ export class DocumentService {
       });
       throw error;
     }
+  }
+
+  private static async invalidateProjectAnalyticsForDocument(documentId: string): Promise<void> {
+    const linkedProjects = await query<{ projectId: string }>(
+      `
+        SELECT DISTINCT project_id as "projectId"
+        FROM project_enrollments
+        WHERE submission_document_id = $1
+      `,
+      [documentId]
+    );
+
+    await Promise.all(
+      linkedProjects.map((project) => cacheDelPattern(`analytics:${project.projectId}:*`))
+    );
   }
 
   /**
@@ -321,7 +340,7 @@ export class DocumentService {
   static async verifyOwnership(documentId: string, userId: string): Promise<void> {
     const isOwner = await DocumentModel.isOwner(documentId, userId);
     if (!isOwner) {
-      throw new AppError('Document not found or unauthorized', 404);
+      throw new AppError(404, 'Document not found or unauthorized');
     }
   }
 }

@@ -5,6 +5,10 @@ import {
   createProject,
   getProject,
   listProjects,
+  joinProject,
+  leaveProject,
+  getInstructionPaper,
+  linkSubmissionDocument,
   updateProject,
   deleteProject,
   regenerateToken,
@@ -32,6 +36,30 @@ router.get('/', asyncHandler(listProjects));
  * Body: { name, description?, userIdKey?, externalServiceType?, externalServiceUrl? }
  */
 router.post('/', asyncHandler(createProject));
+
+/**
+ * POST /api/v1/projects/join
+ * Look up an active project by 6-character invite code.
+ */
+router.post('/join', asyncHandler(joinProject));
+
+/**
+ * DELETE /api/v1/projects/enrollments/:projectId
+ * Remove the current user's enrollment from a project.
+ */
+router.delete('/enrollments/:projectId', asyncHandler(leaveProject));
+
+/**
+ * GET /api/v1/projects/enrollments/:projectId/instruction-paper
+ * Get instruction PDF metadata for an enrolled project.
+ */
+router.get('/enrollments/:projectId/instruction-paper', asyncHandler(getInstructionPaper));
+
+/**
+ * PUT /api/v1/projects/enrollments/:projectId/submission-document
+ * Link the current user's enrollment to a submission document.
+ */
+router.put('/enrollments/:projectId/submission-document', asyncHandler(linkSubmissionDocument));
 
 /**
  * GET /api/v1/projects/:id

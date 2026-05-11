@@ -6,7 +6,7 @@ import {
   DocumentFilters,
   DocumentStatistics,
   PaginatedResult,
-} from '@humory/shared';
+} from '@humanly/shared';
 
 export class DocumentModel {
   /**

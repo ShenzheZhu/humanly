@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="user-id" content="test-user-123">
-  <title>Humory Tracker Example</title>
+  <title>humanly Tracker Example</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -118,8 +118,8 @@
   </style>
 </head>
 <body>
-  <h1>Humory Tracker Demo</h1>
-  <p>This form demonstrates the Humory tracking library. All input events are captured and sent to the backend.</p>
+  <h1>humanly Tracker Demo</h1>
+  <p>This form demonstrates the humanly tracking library. All input events are captured and sent to the backend.</p>
 
   <div class="status" id="status"></div>
 
@@ -150,7 +150,7 @@
   </div>
 
   <!-- Include the tracker library -->
-  <script src="dist/humory-tracker.min.js"></script>
+  <script src="dist/humanly-tracker.min.js"></script>
 
   <script>
     // Configuration
@@ -189,10 +189,10 @@
 
     async function initTracker() {
       try {
-        // Get the HumoryTracker class
-        const { HumoryTracker } = window.HumoryTracker;
+        // Get the humanlyTracker class
+        const { humanlyTracker } = window.humanlyTracker;
 
-        tracker = new HumoryTracker(CONFIG);
+        tracker = new humanlyTracker(CONFIG);
 
         log('Initializing tracker session...', 'info');
         await tracker.init();

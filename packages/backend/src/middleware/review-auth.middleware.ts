@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express'
 import { AppError } from './error-handler'
 import { PaperReviewerModel } from '../models/paper-reviewer.model'
 import { PaperModel } from '../models/paper.model'
+import { ProjectModel } from '../models/project.model'
 import { ReviewModel } from '../models/review.model'
 
 // Check if user is assigned reviewer for paper
@@ -136,11 +137,14 @@ export const requirePaperViewAccess = async (
     const isReviewer = await PaperReviewerModel.hasAccess(paperId, userId)
 
     // Check if user is admin
+    const paper = await PaperModel.findById(paperId)
     const isUploader = await PaperModel.isUploader(paperId, userId)
     const hasProjectAccess = await PaperModel.hasProjectAccess(paperId, userId)
     const isAdmin = isUploader || hasProjectAccess
+    const isProjectInstruction = paper?.keywords?.includes('instructions') ?? false
+    const isEnrolled = paper ? await ProjectModel.hasEnrollment(paper.projectId, userId) : false
 
-    if (!isReviewer && !isAdmin) {
+    if (!isReviewer && !isAdmin && !(isProjectInstruction && isEnrolled)) {
       throw new AppError(403, 'Access denied')
     }
 

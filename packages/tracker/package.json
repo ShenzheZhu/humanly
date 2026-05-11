@@ -1,10 +1,10 @@
 {
-  "name": "@humory/tracker",
+  "name": "@humanly/tracker",
   "version": "1.0.0",
-  "description": "Lightweight JavaScript tracking library for Humory",
+  "description": "Lightweight JavaScript tracking library for humanly",
   "type": "module",
-  "main": "dist/humory-tracker.js",
-  "module": "dist/humory-tracker.esm.js",
+  "main": "dist/humanly-tracker.js",
+  "module": "dist/humanly-tracker.esm.js",
   "types": "dist/index.d.ts",
   "files": [
     "dist"
@@ -13,7 +13,7 @@
     "build": "rollup -c",
     "build:watch": "rollup -c -w",
     "clean": "rm -rf dist",
-    "prebuild": "npm run clean",
+    "prebuild": "pnpm clean",
     "test": "echo \"No tests in tracker package\" && exit 0"
   },
   "keywords": [
@@ -22,7 +22,7 @@
     "input-tracking",
     "user-behavior"
   ],
-  "author": "Humory",
+  "author": "humanly",
   "license": "MIT",
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^15.2.3",

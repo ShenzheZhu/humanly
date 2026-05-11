@@ -1,5 +1,5 @@
 import { pool, query, queryOne } from '../config/database';
-import { Event, TrackerEvent, EventType, EventQueryFilters } from '@humory/shared';
+import { Event, TrackerEvent, EventType, EventQueryFilters } from '@humanly/shared';
 
 export interface EventInsertData {
   sessionId: string;

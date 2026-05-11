@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { DocumentService } from '../services/document.service';
 import { AppError } from '../middleware/error-handler';
-import { DocumentEventInsertData, EventType } from '@humory/shared';
+import { DocumentEventInsertData, EventType } from '@humanly/shared';
 
 /**
  * Create a new document

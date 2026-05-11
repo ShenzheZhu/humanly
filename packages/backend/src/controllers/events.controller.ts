@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { EventService } from '../services/event.service';
 import { asyncHandler } from '../middleware/error-handler';
-import { TrackerEvent, EventType } from '@humory/shared';
+import { TrackerEvent, EventType } from '@humanly/shared';
 import { logger } from '../utils/logger';
 
 // Validation schemas

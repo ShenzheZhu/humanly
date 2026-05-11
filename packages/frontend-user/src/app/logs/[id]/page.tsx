@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiClient } from '@/lib/api-client';
 import { useAuthStore } from '@/stores/auth-store';
 import { format } from 'date-fns';
-import type { AIInteractionLog, DocumentEvent } from '@humory/shared';
+import type { AIInteractionLog, DocumentEvent } from '@humanly/shared';
 
 const EVENT_ICONS: Record<string, React.ReactNode> = {
   keydown: <Keyboard className="h-3 w-3" />,

@@ -9,7 +9,7 @@ export interface UseSelectedMetricsReturn {
 }
 
 export function useSelectedMetrics(projectId: string): UseSelectedMetricsReturn {
-  const storageKey = `humory-analytics-metrics-${projectId}`;
+  const storageKey = `humanly-analytics-metrics-${projectId}`;
 
   // Initialize from localStorage or defaults
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>(() => {

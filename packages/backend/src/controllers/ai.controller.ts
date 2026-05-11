@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { AIService } from '../services/ai.service';
-import { AIChatRequest, AILogQueryFilters, AIContentModification } from '@humory/shared';
+import { AIChatRequest, AILogQueryFilters, AIContentModification } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { AISelectionActionModel, AIActionType, AIDecision } from '../models/ai-selection-action.model';
 import { AIModel } from '../models/ai.model';

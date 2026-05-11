@@ -15,7 +15,7 @@ import {
   MessageSquarePlus,
 } from 'lucide-react'
 import { paperApi } from '@/lib/api/review-api'
-import type { ReviewComment } from '@humory/shared'
+import type { ReviewComment } from '@humanly/shared'
 
 // Configure PDF.js worker from public directory
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'

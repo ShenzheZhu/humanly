@@ -32,7 +32,7 @@ describe('createApp integration', () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual(
       expect.objectContaining({
-        name: 'Humory API',
+        name: 'humanly API',
         version: '1.0.0',
       })
     );

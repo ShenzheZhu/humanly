@@ -1,5 +1,5 @@
 import { LexicalEditor, EditorState, $getRoot, $getSelection, $isRangeSelection, COMMAND_PRIORITY_LOW, COMMAND_PRIORITY_HIGH, KEY_DOWN_COMMAND, PASTE_COMMAND, COPY_COMMAND, CUT_COMMAND, SELECTION_CHANGE_COMMAND, FOCUS_COMMAND, BLUR_COMMAND, INDENT_CONTENT_COMMAND, OUTDENT_CONTENT_COMMAND, FORMAT_TEXT_COMMAND, TextFormatType } from 'lexical';
-import { EventType } from '@humory/shared';
+import { EventType } from '@humanly/shared';
 import { EditorTrackerConfig, TrackedEvent } from '../types';
 import {
   HEADING_CHANGE_COMMAND,

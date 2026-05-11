@@ -2,7 +2,7 @@
 
 import { useEffect, useCallback } from 'react';
 import { useAIStore } from '@/stores/ai-store';
-import { AISuggestion, AIChatRequest } from '@humory/shared';
+import { AISuggestion, AIChatRequest } from '@humanly/shared';
 
 /**
  * Hook for AI Assistant functionality

@@ -5,11 +5,12 @@ WORKDIR /app
 
 # Copy workspace manifests first (better layer caching)
 COPY package.json ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/backend/package.json  ./packages/backend/
 COPY packages/shared/package.json   ./packages/shared/
 COPY packages/tracker/package.json  ./packages/tracker/
 
-RUN npm install --legacy-peer-deps
+RUN corepack enable && pnpm install --frozen-lockfile
 
 # Copy source
 COPY packages/shared  ./packages/shared
@@ -18,12 +19,12 @@ COPY packages/backend ./packages/backend
 COPY tsconfig.json    ./
 
 # Build in dependency order: shared → tracker → backend
-RUN npm run build --workspace=@humory/shared
-RUN npm run build --workspace=@humory/tracker
+RUN pnpm --filter @humanly/shared build
+RUN pnpm --filter @humanly/tracker build
 # Backend has pre-existing TS type errors (same situation as Next.js ignoreBuildErrors: true).
 # noEmitOnError defaults to false so tsc still emits JS; we only fail if no output is produced.
 WORKDIR /app/packages/backend
-RUN npx tsc --skipLibCheck; test -f dist/index.js || (echo "ERROR: Backend build produced no output" && exit 1)
+RUN pnpm exec tsc --skipLibCheck; test -f dist/index.js || (echo "ERROR: Backend build produced no output" && exit 1)
 
 # ── Production stage ──────────────────────────────────────────────────────────
 FROM node:20-alpine
@@ -31,10 +32,11 @@ FROM node:20-alpine
 WORKDIR /app
 
 COPY package.json ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/backend/package.json  ./packages/backend/
 COPY packages/shared/package.json   ./packages/shared/
 
-RUN npm install --omit=dev
+RUN corepack enable && pnpm install --frozen-lockfile --prod
 
 # Compiled JS
 COPY --from=builder /app/packages/backend/dist  ./packages/backend/dist

@@ -20,7 +20,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
-import { AIInteractionLog, AIQueryType } from '@humory/shared';
+import { AIInteractionLog, AIQueryType } from '@humanly/shared';
 
 interface AILogsListProps {
   logs: AIInteractionLog[];

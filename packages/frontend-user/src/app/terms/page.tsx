@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { BRAND } from '@humory/shared';
+import { BRAND } from '@humanly/shared';
 
 export default function TermsOfServicePage() {
   return (

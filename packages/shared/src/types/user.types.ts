@@ -1,6 +1,9 @@
+export type UserRole = 'admin' | 'user';
+
 export interface User {
   id: string;
   email: string;
+  role: UserRole;
   emailVerified: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -9,11 +12,13 @@ export interface User {
 export interface UserCreateInput {
   email: string;
   password: string;
+  role?: UserRole;
 }
 
 export interface UserLoginInput {
   email: string;
   password: string;
+  role?: UserRole;
 }
 
 export interface UserWithPassword extends User {

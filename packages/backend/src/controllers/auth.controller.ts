@@ -7,7 +7,7 @@ import {
   verifyEmailSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
-} from '@humory/shared';
+} from '@humanly/shared';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
 
@@ -17,10 +17,10 @@ import { env } from '../config/env';
  */
 export const register = asyncHandler(async (req: Request, res: Response) => {
   // Validate request body
-  const { email, password } = registerSchema.parse(req.body);
+  const { email, password, role } = registerSchema.parse(req.body);
 
   // Register user
-  const user = await AuthService.register(email, password);
+  const user = await AuthService.register(email, password, role);
 
   res.status(201).json({
     success: true,
@@ -78,10 +78,10 @@ export const resendVerificationEmail = asyncHandler(async (req: Request, res: Re
  */
 export const login = asyncHandler(async (req: Request, res: Response) => {
   // Validate request body
-  const { email, password } = loginSchema.parse(req.body);
+  const { email, password, role } = loginSchema.parse(req.body);
 
   // Login user
-  const { user, accessToken, refreshToken } = await AuthService.login(email, password);
+  const { user, accessToken, refreshToken } = await AuthService.login(email, password, role);
 
   // Set refresh token as httpOnly cookie
   res.cookie('refreshToken', refreshToken, {

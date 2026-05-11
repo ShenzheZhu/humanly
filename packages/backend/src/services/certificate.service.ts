@@ -14,7 +14,7 @@ import {
   JSONCertificate,
   AIAuthorshipStats,
   PaginatedResult,
-} from '@humory/shared';
+} from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';

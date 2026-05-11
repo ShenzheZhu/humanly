@@ -15,7 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Upload, FileText, Search, Users, Eye, Calendar, Plus } from 'lucide-react'
-import type { Paper } from '@humory/shared'
+import type { Paper } from '@humanly/shared'
 import { paperApi } from '@/lib/api/review-api'
 import { useToast } from '@/hooks/use-toast'
 

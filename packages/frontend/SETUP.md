@@ -1,6 +1,6 @@
 # Frontend Setup Guide
 
-This guide will walk you through setting up the Humory frontend application.
+This guide will walk you through setting up the humanly frontend application.
 
 ## Quick Start
 
@@ -413,7 +413,7 @@ npm install
 ```
 
 ### TypeScript errors with shared package
-Make sure `@humory/shared` package exists and is built:
+Make sure `@humanly/shared` package exists and is built:
 ```bash
 cd packages/shared
 npm run build

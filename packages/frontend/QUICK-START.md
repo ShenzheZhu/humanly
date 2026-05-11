@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-Get the Humory frontend running in 3 steps.
+Get the humanly frontend running in 3 steps.
 
 ## 1. Install Dependencies
 
@@ -98,7 +98,7 @@ export default function LoginPage() {
 # Development
 npm run dev:frontend          # Start dev server
 npm run build:frontend        # Build for production
-npm run lint --workspace=@humory/frontend  # Lint code
+npm run lint --workspace=@humanly/frontend  # Lint code
 
 # From frontend directory
 cd packages/frontend

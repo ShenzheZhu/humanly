@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
-import type { DocumentEvent } from '@humory/shared';
+import type { DocumentEvent } from '@humanly/shared';
 
 export interface DocumentEventsFilters {
   eventType?: string;

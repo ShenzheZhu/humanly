@@ -15,7 +15,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import { paperApi } from '@/lib/api/review-api'
-import type { ReviewComment } from '@humory/shared'
+import type { ReviewComment } from '@humanly/shared'
 import { usePDFTextStore } from '@/stores/pdf-text-store'
 
 interface PDFViewerProps {
@@ -43,7 +43,7 @@ export default function SimplePDFViewer({ paperId, documentId, onCommentAdd, com
   const { setPDFText, setExtracting, setError: setPDFError } = usePDFTextStore()
 
   const [scale, setScale] = useState<number>(1.0)
-  const [fitToWidth, setFitToWidth] = useState<boolean>(false)
+  const [fitToWidth, setFitToWidth] = useState<boolean>(true)
   const [searchText, setSearchText] = useState<string>('')
   const [searchMatches, setSearchMatches] = useState<SearchMatch[]>([])
   const [currentMatchIndex, setCurrentMatchIndex] = useState<number>(-1)
@@ -166,6 +166,7 @@ export default function SimplePDFViewer({ paperId, documentId, onCommentAdd, com
         if (cancelled) return
         pdfDocRef.current = pdf
         setNumPages(pdf.numPages)
+        setFitToWidth(true)
         setLoading(false)
 
         await paperApi.logAccess(paperId, { accessType: 'open' })
@@ -186,7 +187,7 @@ export default function SimplePDFViewer({ paperId, documentId, onCommentAdd, com
       if (blobUrl) URL.revokeObjectURL(blobUrl)
       if (pdfDocRef.current) pdfDocRef.current.destroy()
     }
-  }, [paperId])
+  }, [paperId, documentId, extractPDFTextInBackground])
 
   // Render all pages after numPages is set (small delay to let React mount canvases)
   useEffect(() => {
@@ -238,7 +239,7 @@ export default function SimplePDFViewer({ paperId, documentId, onCommentAdd, com
   }, [])
 
   useEffect(() => {
-    if (!fitToWidth || !containerRef.current) return
+    if (!fitToWidth || numPages === 0 || !containerRef.current) return
     let timeout: NodeJS.Timeout
     const observer = new ResizeObserver(() => {
       clearTimeout(timeout)
@@ -247,7 +248,7 @@ export default function SimplePDFViewer({ paperId, documentId, onCommentAdd, com
     observer.observe(containerRef.current)
     handleFitToWidth()
     return () => { clearTimeout(timeout); observer.disconnect() }
-  }, [fitToWidth, handleFitToWidth])
+  }, [fitToWidth, numPages, handleFitToWidth])
 
   // Extract text from a page (cached)
   const getPageTextContent = useCallback(async (pageNum: number) => {

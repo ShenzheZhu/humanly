@@ -1,9 +1,8 @@
 import { query, queryOne } from '../config/database';
-import { Project } from '@humory/shared';
+import { Project } from '@humanly/shared';
 import { generateProjectToken } from '../utils/crypto';
 
 export interface CreateProjectData {
-  userId: string;
   name: string;
   description?: string;
   userIdKey?: string;
@@ -34,6 +33,22 @@ export interface ProjectListResult {
 }
 
 export class ProjectModel {
+  private static readonly projectSelect = `
+    p.id, p.user_id as "userId", p.name, p.description, p.project_token as "projectToken",
+    p.user_id_key as "userIdKey", p.external_service_type as "externalServiceType",
+    p.external_service_url as "externalServiceUrl", p.is_active as "isActive",
+    COALESCE(pe.enrolled_user_count, 0)::int as "enrolledUserCount",
+    p.created_at as "createdAt", p.updated_at as "updatedAt"
+  `;
+
+  private static readonly enrollmentCountJoin = `
+    LEFT JOIN (
+      SELECT project_id, COUNT(*)::int as enrolled_user_count
+      FROM project_enrollments
+      GROUP BY project_id
+    ) pe ON pe.project_id = p.id
+  `;
+
   /**
    * Create a new project with a unique token
    */
@@ -50,7 +65,7 @@ export class ProjectModel {
       RETURNING id, user_id as "userId", name, description, project_token as "projectToken",
                 user_id_key as "userIdKey", external_service_type as "externalServiceType",
                 external_service_url as "externalServiceUrl", is_active as "isActive",
-                created_at as "createdAt", updated_at as "updatedAt"
+                0 as "enrolledUserCount", created_at as "createdAt", updated_at as "updatedAt"
     `;
 
     const project = await queryOne<Project>(sql, [
@@ -72,12 +87,10 @@ export class ProjectModel {
    */
   static async findById(id: string): Promise<Project | null> {
     const sql = `
-      SELECT id, user_id as "userId", name, description, project_token as "projectToken",
-             user_id_key as "userIdKey", external_service_type as "externalServiceType",
-             external_service_url as "externalServiceUrl", is_active as "isActive",
-             created_at as "createdAt", updated_at as "updatedAt"
-      FROM projects
-      WHERE id = $1
+      SELECT ${this.projectSelect}
+      FROM projects p
+      ${this.enrollmentCountJoin}
+      WHERE p.id = $1
     `;
     return queryOne<Project>(sql, [id]);
   }
@@ -103,13 +116,11 @@ export class ProjectModel {
 
     // Get projects
     const projectsSql = `
-      SELECT id, user_id as "userId", name, description, project_token as "projectToken",
-             user_id_key as "userIdKey", external_service_type as "externalServiceType",
-             external_service_url as "externalServiceUrl", is_active as "isActive",
-             created_at as "createdAt", updated_at as "updatedAt"
-      FROM projects
-      WHERE user_id = $1 ${searchCondition}
-      ORDER BY created_at DESC
+      SELECT ${this.projectSelect}
+      FROM projects p
+      ${this.enrollmentCountJoin}
+      WHERE p.user_id = $1 ${searchCondition}
+      ORDER BY p.created_at DESC
       LIMIT $2 OFFSET $3
     `;
     const projects = await query<Project>(projectsSql, params);
@@ -138,14 +149,79 @@ export class ProjectModel {
    */
   static async findByToken(projectToken: string): Promise<Project | null> {
     const sql = `
-      SELECT id, user_id as "userId", name, description, project_token as "projectToken",
-             user_id_key as "userIdKey", external_service_type as "externalServiceType",
-             external_service_url as "externalServiceUrl", is_active as "isActive",
-             created_at as "createdAt", updated_at as "updatedAt"
-      FROM projects
-      WHERE project_token = $1 AND is_active = TRUE
+      SELECT ${this.projectSelect}
+      FROM projects p
+      ${this.enrollmentCountJoin}
+      WHERE p.project_token = $1 AND p.is_active = TRUE
     `;
     return queryOne<Project>(sql, [projectToken]);
+  }
+
+  /**
+   * Find active project by short invite code.
+   * The invite code is the first 6 characters of the project token.
+   */
+  static async findByInviteCode(inviteCode: string): Promise<Project | null> {
+    const sql = `
+      SELECT ${this.projectSelect}
+      FROM projects p
+      ${this.enrollmentCountJoin}
+      WHERE UPPER(SUBSTRING(p.project_token FROM 1 FOR 6)) = $1
+        AND p.is_active = TRUE
+      ORDER BY p.created_at DESC
+      LIMIT 1
+    `;
+    return queryOne<Project>(sql, [inviteCode.toUpperCase()]);
+  }
+
+  /**
+   * Persist an invite-code enrollment. Repeated joins by the same user are idempotent.
+   */
+  static async enrollUser(projectId: string, userId: string): Promise<void> {
+    const sql = `
+      INSERT INTO project_enrollments (project_id, user_id)
+      VALUES ($1, $2)
+      ON CONFLICT (project_id, user_id) DO NOTHING
+    `;
+
+    await query(sql, [projectId, userId]);
+  }
+
+  /**
+   * Remove a user's invite-code enrollment from a project.
+   */
+  static async unenrollUser(projectId: string, userId: string): Promise<boolean> {
+    const sql = `
+      DELETE FROM project_enrollments
+      WHERE project_id = $1 AND user_id = $2
+      RETURNING id
+    `;
+
+    const deletedEnrollment = await queryOne<{ id: string }>(sql, [projectId, userId]);
+    return !!deletedEnrollment;
+  }
+
+  /**
+   * Check if a user is enrolled in a project.
+   */
+  static async hasEnrollment(projectId: string, userId: string): Promise<boolean> {
+    const sql = 'SELECT 1 FROM project_enrollments WHERE project_id = $1 AND user_id = $2';
+    const result = await queryOne(sql, [projectId, userId]);
+    return !!result;
+  }
+
+  /**
+   * Link an enrollment to the user's project submission document.
+   */
+  static async linkSubmissionDocument(projectId: string, userId: string, documentId: string): Promise<boolean> {
+    const sql = `
+      UPDATE project_enrollments
+      SET submission_document_id = $3
+      WHERE project_id = $1 AND user_id = $2
+      RETURNING id
+    `;
+    const result = await queryOne<{ id: string }>(sql, [projectId, userId, documentId]);
+    return !!result;
   }
 
   /**
@@ -197,13 +273,11 @@ export class ProjectModel {
       UPDATE projects
       SET ${updates.join(', ')}
       WHERE id = $${paramIndex}
-      RETURNING id, user_id as "userId", name, description, project_token as "projectToken",
-                user_id_key as "userIdKey", external_service_type as "externalServiceType",
-                external_service_url as "externalServiceUrl", is_active as "isActive",
-                created_at as "createdAt", updated_at as "updatedAt"
+      RETURNING id
     `;
 
-    return queryOne<Project>(sql, values);
+    const updatedProject = await queryOne<{ id: string }>(sql, values);
+    return updatedProject ? this.findById(updatedProject.id) : null;
   }
 
   /**
@@ -224,13 +298,11 @@ export class ProjectModel {
       UPDATE projects
       SET project_token = $1, updated_at = NOW()
       WHERE id = $2
-      RETURNING id, user_id as "userId", name, description, project_token as "projectToken",
-                user_id_key as "userIdKey", external_service_type as "externalServiceType",
-                external_service_url as "externalServiceUrl", is_active as "isActive",
-                created_at as "createdAt", updated_at as "updatedAt"
+      RETURNING id
     `;
 
-    return queryOne<Project>(sql, [newToken, id]);
+    const updatedProject = await queryOne<{ id: string }>(sql, [newToken, id]);
+    return updatedProject ? this.findById(updatedProject.id) : null;
   }
 
   /**

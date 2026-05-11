@@ -10,6 +10,7 @@ export interface Project {
   externalServiceType?: ExternalServiceType | null;
   externalServiceUrl?: string | null;
   isActive: boolean;
+  enrolledUserCount?: number;
   createdAt: Date;
   updatedAt: Date;
 }

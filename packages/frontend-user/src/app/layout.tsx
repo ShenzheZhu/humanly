@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import { BRAND, getBrandText } from '@humory/shared';
+import { BRAND, getBrandText } from '@humanly/shared';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { PolyfillProvider } from '@/components/polyfill-provider';

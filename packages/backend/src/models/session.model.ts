@@ -1,5 +1,5 @@
 import { query, queryOne } from '../config/database';
-import { Session, SessionWithStats } from '@humory/shared';
+import { Session, SessionWithStats } from '@humanly/shared';
 
 export interface CreateSessionData {
   projectId: string;

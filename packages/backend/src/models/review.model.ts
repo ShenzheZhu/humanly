@@ -5,7 +5,7 @@ import {
   UpdateReview,
   ReviewFilter,
   AnonymousReview
-} from '@humory/shared'
+} from '@humanly/shared'
 import { AppError } from '../middleware/error-handler'
 
 export class ReviewModel {

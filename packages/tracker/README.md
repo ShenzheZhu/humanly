@@ -79,7 +79,7 @@ This creates three files in the `dist/` directory:
 ### ES Module Usage
 
 ```javascript
-import { HumanlyTracker } from '@humory/tracker';
+import { HumanlyTracker } from '@humanly/tracker';
 
 const tracker = new HumanlyTracker({
   projectToken: 'your-project-token',

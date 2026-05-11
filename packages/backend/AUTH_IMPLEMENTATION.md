@@ -1,6 +1,6 @@
 # Authentication System Implementation
 
-This document provides an overview of the complete authentication system implemented for the Humory backend.
+This document provides an overview of the complete authentication system implemented for the humanly backend.
 
 ## Overview
 
@@ -388,7 +388,7 @@ JWT_REFRESH_EXPIRES=7d
 
 # Email Configuration
 EMAIL_SERVICE=console|smtp|sendgrid|ses
-EMAIL_FROM=noreply@humory.app
+EMAIL_FROM=noreply@humanly.app
 EMAIL_HOST=smtp.example.com (if using SMTP)
 EMAIL_PORT=587 (if using SMTP)
 EMAIL_USER=username (if using SMTP)

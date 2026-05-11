@@ -7,8 +7,8 @@ module.exports = createJestConfig({
   testEnvironment: 'jest-environment-jsdom',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
-    '^@humory/shared$': '<rootDir>/../../packages/shared/src/index.ts',
-    '^@humory/editor$': '<rootDir>/../../packages/editor/src/index.ts',
+    '^@humanly/shared$': '<rootDir>/../../packages/shared/src/index.ts',
+    '^@humanly/editor$': '<rootDir>/../../packages/editor/src/index.ts',
   },
   testMatch: ['**/__tests__/**/*.test.ts', '**/__tests__/**/*.test.tsx'],
 });

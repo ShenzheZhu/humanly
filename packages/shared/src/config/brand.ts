@@ -35,18 +35,18 @@ export const BRAND = {
     eventType: 'humanly-event',
     scriptFilename: 'humanly-tracker.min.js',
     // Legacy support - keep old names for backward compatibility
-    legacyGlobalVar: 'humory',
-    legacyEventType: 'humory-event',
+    legacyGlobalVar: 'humanly',
+    legacyEventType: 'humanly-event',
   },
 
   // Database & technical (for future use, not changing existing DB names)
   technical: {
-    dbPrefix: 'humory', // Keep existing for now
+    dbPrefix: 'humanly', // Keep existing for now
     serviceNames: {
-      backend: 'humory-backend', // Keep existing for now
-      frontend: 'humory-frontend', // Keep existing for now
+      backend: 'humanly-backend', // Keep existing for now
+      frontend: 'humanly-frontend', // Keep existing for now
     },
-    exportPrefix: 'humory-export', // Keep existing for now
+    exportPrefix: 'humanly-export', // Keep existing for now
   },
 } as const;
 

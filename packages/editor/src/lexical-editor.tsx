@@ -100,7 +100,7 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
   }
 
   const initialConfig = {
-    namespace: 'HumoryEditor',
+    namespace: 'humanlyEditor',
     theme: defaultTheme,
     nodes: [HeadingNode, QuoteNode, ListNode, ListItemNode],
     onError: (error: Error) => {

@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { BRAND } from '@humory/shared';
+import { BRAND } from '@humanly/shared';
 import { Loader2 } from 'lucide-react';
 
 export default function AuthLayout({

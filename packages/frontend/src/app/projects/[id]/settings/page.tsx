@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { ArrowLeft, Loader2, Key, Trash2 } from 'lucide-react';
-import { Project, ExternalServiceType } from '@humory/shared';
+import { Project, ExternalServiceType } from '@humanly/shared';
 
 import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';

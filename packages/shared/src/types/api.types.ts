@@ -110,15 +110,17 @@ export interface TrackEventsResponse {
 export interface AnalyticsSummary {
   totalEvents: number;
   totalSessions: number;
+  uniqueUsers?: number;
   totalUsers: number;
   avgEventsPerSession: number;
-  avgSessionDuration: number; // milliseconds
+  avgSessionDuration: number; // seconds
   completionRate: number; // percentage
+  activeUsers24h?: number;
 }
 
 export interface EventsTimelineDataPoint {
   date: string;
-  count: number;
+  eventCount: number;
 }
 
 export interface EventTypeDistribution {
@@ -132,6 +134,7 @@ export interface UserActivity {
   sessionCount: number;
   eventCount: number;
   lastActive: Date;
+  avgDuration: number;
 }
 
 export interface AnalyticsQueryParams {

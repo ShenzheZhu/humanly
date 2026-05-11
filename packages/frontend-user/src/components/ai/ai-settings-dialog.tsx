@@ -30,7 +30,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import api from '@/lib/api-client';
-import { UserAISettings } from '@humory/shared';
+import { UserAISettings } from '@humanly/shared';
 import { getWhitelist } from '@/lib/ai-models';
 
 interface AISettingsDialogProps {

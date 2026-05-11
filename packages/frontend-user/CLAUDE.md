@@ -9,12 +9,12 @@ This is the **frontend-user** package - a Next.js 14 user portal for document ma
 ## Monorepo Context
 
 This package is part of a PNPM workspace monorepo at `/home/haoqian2131/humanly/`:
-- `@humory/shared` - Shared TypeScript types, validators (Zod schemas), and utilities
-- `@humory/editor` - Lexical-based rich text editor with integrated tracking
-- `@humory/backend` - Express.js API server with Socket.IO
-- `@humory/frontend` - Next.js 14 admin dashboard for developers
-- `@humory/frontend-user` - **This package** - User portal
-- `@humory/tracker` - JavaScript tracking library for external forms
+- `@humanly/shared` - Shared TypeScript types, validators (Zod schemas), and utilities
+- `@humanly/editor` - Lexical-based rich text editor with integrated tracking
+- `@humanly/backend` - Express.js API server with Socket.IO
+- `@humanly/frontend` - Next.js 14 admin dashboard for developers
+- `@humanly/frontend-user` - **This package** - User portal
+- `@humanly/tracker` - JavaScript tracking library for external forms
 
 ## Development Commands
 
@@ -59,7 +59,7 @@ npm run docker:up
 - **Zustand** for state management (with persist middleware)
 - **Axios** for HTTP client with interceptors
 - **React Hook Form** + Zod for form validation
-- **Lexical** editor integration via `@humory/editor`
+- **Lexical** editor integration via `@humanly/editor`
 
 ### Key Directories
 
@@ -90,10 +90,10 @@ src/
 ### TypeScript Path Aliases
 
 - `@/*` maps to `src/*`
-- `@humory/shared` - Shared types from workspace
-- `@humory/editor` - Editor component from workspace
+- `@humanly/shared` - Shared types from workspace
+- `@humanly/editor` - Editor component from workspace
 
-Note: The editor package requires TypeScript path mapping configuration. If you encounter module resolution issues with `@humory/shared` or `@humory/editor`, check `tsconfig.json` paths and `next.config.js` transpilePackages.
+Note: The editor package requires TypeScript path mapping configuration. If you encounter module resolution issues with `@humanly/shared` or `@humanly/editor`, check `tsconfig.json` paths and `next.config.js` transpilePackages.
 
 ## Authentication System
 
@@ -159,7 +159,7 @@ Located at `src/lib/socket-client.ts`:
 
 ### Using Shared Types
 ```typescript
-import type { Document, Certificate, Event } from '@humory/shared';
+import type { Document, Certificate, Event } from '@humanly/shared';
 ```
 
 Common types include:
@@ -171,7 +171,7 @@ Common types include:
 
 ### Using the Editor
 ```typescript
-import { LexicalEditor } from '@humory/editor';
+import { LexicalEditor } from '@humanly/editor';
 
 <LexicalEditor
   initialContent={documentContent}
@@ -227,7 +227,7 @@ Uses Tailwind CSS with shadcn/ui design system:
 ## Build Configuration
 
 ### Next.js Config
-- Transpiles workspace packages: `@humory/shared`, `@humory/editor`
+- Transpiles workspace packages: `@humanly/shared`, `@humanly/editor`
 - API rewrites configured when `NEXT_PUBLIC_API_URL` is set
 - TypeScript and ESLint errors ignored during build (for now)
 - Allowed image domains: localhost, api.writehumanly.net
@@ -252,7 +252,7 @@ Uses Tailwind CSS with shadcn/ui design system:
 4. Update loading states appropriately
 
 ### Working with Shared Types
-1. Import types from `@humory/shared`
+1. Import types from `@humanly/shared`
 2. If types are missing, add them to `packages/shared/src/types/`
 3. Rebuild shared package: `cd packages/shared && npm run build`
 

@@ -1,6 +1,6 @@
-# Humory Frontend
+# humanly Frontend
 
-Next.js 14 frontend application for Humory - a comprehensive mood tracking and mental wellness platform.
+Next.js 14 frontend application for humanly - a comprehensive mood tracking and mental wellness platform.
 
 ## Tech Stack
 

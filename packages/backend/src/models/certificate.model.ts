@@ -4,7 +4,7 @@ import {
   CertificateInsertData,
   CertificateFilters,
   PaginatedResult,
-} from '@humory/shared';
+} from '@humanly/shared';
 
 const CERTIFICATE_SELECT_FIELDS = `
   id,

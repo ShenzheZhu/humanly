@@ -5,12 +5,19 @@ import {
   PaginationParams,
   ProjectListResult,
 } from '../models/project.model';
-import { Project, ProjectWithSnippets, BRAND, getTrackerComment, getIframeComment } from '@humory/shared';
+import { PaperModel } from '../models/paper.model';
+import { DocumentModel } from '../models/document.model';
+import { Project, ProjectWithSnippets, BRAND, getTrackerComment, getIframeComment } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
+import { cacheDelPattern } from '../config/redis';
 
 export class ProjectService {
+  private static async invalidateAnalytics(projectId: string): Promise<void> {
+    await cacheDelPattern(`analytics:${projectId}:*`);
+  }
+
   /**
    * Create a new project
    */
@@ -104,6 +111,97 @@ export class ProjectService {
   }
 
   /**
+   * Join project lookup for user portal invite-code enrollment.
+   */
+  static async joinProjectByInviteCode(inviteCode: string, userId: string): Promise<Project> {
+    const normalizedCode = inviteCode.trim().toUpperCase();
+
+    if (!/^[A-Z0-9]{6}$/.test(normalizedCode)) {
+      throw new AppError(400, 'Invite code must be 6 letters or numbers');
+    }
+
+    const project = await ProjectModel.findByInviteCode(normalizedCode);
+
+    if (!project) {
+      throw new AppError(404, 'Project invite code not found');
+    }
+
+    await ProjectModel.enrollUser(project.id, userId);
+    await this.invalidateAnalytics(project.id);
+
+    const enrolledProject = await ProjectModel.findById(project.id);
+    return enrolledProject || project;
+  }
+
+  /**
+   * Remove a user portal enrollment from a project.
+   */
+  static async leaveProject(projectIdOrInviteCode: string, userId: string): Promise<void> {
+    const normalizedIdentifier = projectIdOrInviteCode.trim();
+    const project = /^[A-Z0-9]{6}$/i.test(normalizedIdentifier)
+      ? await ProjectModel.findByInviteCode(normalizedIdentifier.toUpperCase())
+      : await ProjectModel.findById(normalizedIdentifier);
+
+    if (!project) {
+      throw new AppError(404, 'Project not found');
+    }
+
+    await ProjectModel.unenrollUser(project.id, userId);
+    await this.invalidateAnalytics(project.id);
+  }
+
+  /**
+   * Get the instruction PDF for an enrolled user or project owner.
+   */
+  static async getInstructionPaper(projectIdOrInviteCode: string, userId: string) {
+    const normalizedIdentifier = projectIdOrInviteCode.trim();
+    const project = /^[A-Z0-9]{6}$/i.test(normalizedIdentifier)
+      ? await ProjectModel.findByInviteCode(normalizedIdentifier.toUpperCase())
+      : await ProjectModel.findById(normalizedIdentifier);
+
+    if (!project) {
+      throw new AppError(404, 'Project not found');
+    }
+
+    const hasAccess = project.userId === userId || await ProjectModel.hasEnrollment(project.id, userId);
+    if (!hasAccess) {
+      throw new AppError(403, 'Access denied to this project');
+    }
+
+    return PaperModel.findInstructionByProject(project.id);
+  }
+
+  /**
+   * Link the current user's enrollment to a submission document.
+   */
+  static async linkSubmissionDocument(
+    projectIdOrInviteCode: string,
+    userId: string,
+    documentId: string
+  ): Promise<void> {
+    const normalizedIdentifier = projectIdOrInviteCode.trim();
+    const project = /^[A-Z0-9]{6}$/i.test(normalizedIdentifier)
+      ? await ProjectModel.findByInviteCode(normalizedIdentifier.toUpperCase())
+      : await ProjectModel.findById(normalizedIdentifier);
+
+    if (!project) {
+      throw new AppError(404, 'Project not found');
+    }
+
+    const isOwner = await DocumentModel.isOwner(documentId, userId);
+    if (!isOwner) {
+      throw new AppError(404, 'Document not found or unauthorized');
+    }
+
+    const linked = await ProjectModel.linkSubmissionDocument(project.id, userId, documentId);
+    if (!linked) {
+      throw new AppError(404, 'Project enrollment not found');
+    }
+
+    await this.invalidateAnalytics(project.id);
+  }
+
+  /**
    * Update project (verify ownership)
    */
   static async updateProject(
@@ -150,6 +248,7 @@ export class ProjectService {
 
     logger.info('Deleting project', { projectId, userId });
 
+    await this.invalidateAnalytics(projectId);
     await ProjectModel.delete(projectId);
 
     logger.info('Project deleted successfully', { projectId, userId });

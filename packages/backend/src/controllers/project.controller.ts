@@ -6,7 +6,7 @@ import {
   createProjectSchema,
   updateProjectSchema,
   validate,
-} from '@humory/shared';
+} from '@humanly/shared';
 
 /**
  * Create a new project
@@ -71,6 +71,97 @@ export async function listProjects(req: Request, res: Response): Promise<void> {
       total: result.total,
       totalPages: result.totalPages,
     },
+  });
+}
+
+/**
+ * Look up a project by invite code for user enrollment
+ */
+export async function joinProject(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.userId;
+  const { inviteCode } = req.body;
+
+  if (!inviteCode || typeof inviteCode !== 'string') {
+    throw new AppError(400, 'Invite code is required');
+  }
+
+  const project = await ProjectService.joinProjectByInviteCode(inviteCode, userId);
+
+  res.json({
+    success: true,
+    data: {
+      project: {
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        enrolledUserCount: project.enrolledUserCount ?? 0,
+        inviteCode: project.projectToken.slice(0, 6).toUpperCase(),
+      },
+    },
+  });
+}
+
+/**
+ * Remove current user's enrollment from a project
+ */
+export async function leaveProject(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.userId;
+  const projectId = req.params.projectId;
+
+  if (!projectId) {
+    throw new AppError(400, 'Project ID is required');
+  }
+
+  await ProjectService.leaveProject(projectId, userId);
+
+  res.json({
+    success: true,
+    message: 'Project enrollment removed successfully',
+  });
+}
+
+/**
+ * Get the current user's accessible project instruction PDF metadata
+ */
+export async function getInstructionPaper(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.userId;
+  const projectId = req.params.projectId;
+
+  if (!projectId) {
+    throw new AppError(400, 'Project ID is required');
+  }
+
+  const paper = await ProjectService.getInstructionPaper(projectId, userId);
+
+  res.json({
+    success: true,
+    data: {
+      paper,
+    },
+  });
+}
+
+/**
+ * Link current user's project enrollment to a submission document
+ */
+export async function linkSubmissionDocument(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.userId;
+  const projectId = req.params.projectId;
+  const { documentId } = req.body;
+
+  if (!projectId) {
+    throw new AppError(400, 'Project ID is required');
+  }
+
+  if (!documentId || typeof documentId !== 'string') {
+    throw new AppError(400, 'Document ID is required');
+  }
+
+  await ProjectService.linkSubmissionDocument(projectId, userId, documentId);
+
+  res.json({
+    success: true,
+    message: 'Project submission document linked successfully',
   });
 }
 

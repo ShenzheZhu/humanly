@@ -15,7 +15,7 @@ import {
   Info,
   X,
 } from 'lucide-react';
-import { EventType } from '@humory/shared';
+import { EventType } from '@humanly/shared';
 import api, { ApiError, apiClient } from '@/lib/api-client';
 import {
   Card,

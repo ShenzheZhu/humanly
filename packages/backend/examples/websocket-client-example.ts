@@ -1,7 +1,7 @@
 /**
  * WebSocket Client Example
  *
- * This is a simple example showing how to connect to the Humory WebSocket server
+ * This is a simple example showing how to connect to the humanly WebSocket server
  * and listen for live preview events.
  *
  * Install dependencies:
@@ -130,7 +130,7 @@ process.on('SIGINT', () => {
 });
 
 console.log('╔════════════════════════════════════════════════════════════╗');
-console.log('║           Humory WebSocket Client Example                 ║');
+console.log('║           humanly WebSocket Client Example                 ║');
 console.log('╚════════════════════════════════════════════════════════════╝');
 console.log('\nConnecting to:', SERVER_URL);
 console.log('Project ID:', PROJECT_ID);

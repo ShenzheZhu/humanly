@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { FolderKanban, Code, LogOut, User, Menu } from 'lucide-react';
-import { BRAND } from '@humory/shared';
+import { FolderKanban, BarChart3, LogOut, User, Menu } from 'lucide-react';
+import { BRAND } from '@humanly/shared';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -41,9 +41,9 @@ export function Navbar() {
       icon: FolderKanban,
     },
     {
-      name: 'API Docs',
-      href: '/docs',
-      icon: Code,
+      name: 'Dashboard',
+      href: '/dashboard',
+      icon: BarChart3,
     },
   ];
 
@@ -54,7 +54,7 @@ export function Navbar() {
           <div className="flex items-center">
             <Link href="/projects" className="flex items-center gap-2 text-xl font-bold">
               <img src="/humanly.svg" alt={BRAND.name} className="h-8 w-8" />
-              {BRAND.name}
+              {BRAND.name} Admin
             </Link>
             {/* Desktop Navigation */}
             <div className="ml-10 hidden md:flex items-baseline space-x-4">

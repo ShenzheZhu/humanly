@@ -17,7 +17,7 @@ router.get('/:filename', TrackerController.serveTracker);
 
 /**
  * GET /tracker
- * Serve default tracker file (humory-tracker.min.js)
+ * Serve default tracker file (humanly-tracker.min.js)
  */
 router.get('/', TrackerController.serveTracker);
 

@@ -19,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import type { Document } from '@humory/shared';
+import type { Document } from '@humanly/shared';
 
 interface DocumentCardProps {
   document: Document & { displayTitle?: string };

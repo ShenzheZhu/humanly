@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { FileText, FileCheck, LogOut, User, Menu } from 'lucide-react';
-import { BRAND } from '@humory/shared';
+import { BRAND } from '@humanly/shared';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,

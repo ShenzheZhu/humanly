@@ -51,7 +51,7 @@ export default function LoginPage() {
       setResendSuccess(false);
       setUserEmail(data.email);
       
-      await login(data.email, data.password);
+      await login(data.email, data.password, 'admin');
 
       // Redirect to projects on success
       router.push('/projects');
@@ -227,7 +227,7 @@ export default function LoginPage() {
 
       <CardFooter className="flex justify-center">
         <p className="text-sm text-muted-foreground">
-          Don't have an account?{' '}
+          Do not have an account?{' '}
           <Link
             href="/register"
             className="text-primary hover:underline font-medium"

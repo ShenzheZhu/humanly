@@ -1,7 +1,7 @@
 # Live Preview Page - Feature Summary
 
 ## Page Location
-`/home/ubuntu/humory/packages/frontend/src/app/(dashboard)/projects/[id]/live-preview/page.tsx`
+`/home/ubuntu/humanly/packages/frontend/src/app/(dashboard)/projects/[id]/live-preview/page.tsx`
 
 ## Visual Layout
 

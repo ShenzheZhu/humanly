@@ -14,7 +14,7 @@ import {
   Search,
   Calendar,
 } from 'lucide-react'
-import type { PaperForReviewer, PaperReviewer } from '@humory/shared'
+import type { PaperForReviewer, PaperReviewer } from '@humanly/shared'
 import { reviewerApi } from '@/lib/api/review-api'
 
 export default function ReviewerDashboard() {

@@ -1,7 +1,7 @@
 import { Readable } from 'stream';
 import { pool } from '../config/database';
 import { ProjectModel } from '../models/project.model';
-import { Event } from '@humory/shared';
+import { Event } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 import { QueryResult } from 'pg';
@@ -438,6 +438,6 @@ export class ExportService {
     date: Date = new Date()
   ): string {
     const timestamp = date.toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    return `humory-export-${projectId}-${timestamp}.${format}`;
+    return `humanly-export-${projectId}-${timestamp}.${format}`;
   }
 }

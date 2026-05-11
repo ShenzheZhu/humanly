@@ -1,6 +1,6 @@
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
-import { Certificate } from '@humory/shared';
+import { Certificate } from '@humanly/shared';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
 

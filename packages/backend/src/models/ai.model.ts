@@ -7,7 +7,7 @@ import {
   AIQueryType,
   AISuggestion,
   AIContentModification,
-} from '@humory/shared';
+} from '@humanly/shared';
 
 /**
  * Database row types

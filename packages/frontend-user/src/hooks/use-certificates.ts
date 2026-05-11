@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
-import type { Certificate, AIAuthorshipStats } from '@humory/shared';
+import type { Certificate, AIAuthorshipStats } from '@humanly/shared';
 
 export interface CertificatesFilters {
   documentId?: string;

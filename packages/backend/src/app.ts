@@ -108,7 +108,7 @@ export function createApp(): Express {
   // API version
   app.get('/api/v1', (req: Request, res: Response) => {
     res.json({
-      name: 'Humory API',
+      name: 'humanly API',
       version: '1.0.0',
       description: 'Text provenance service API',
     });

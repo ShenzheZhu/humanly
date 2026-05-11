@@ -1,5 +1,5 @@
 {
-  "name": "@humory/frontend-user",
+  "name": "@humanly/frontend-user",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -16,8 +16,8 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
-    "@humory/editor": "*",
-    "@humory/shared": "*",
+    "@humanly/editor": "workspace:*",
+    "@humanly/shared": "workspace:*",
     "@lexical/list": "^0.12.6",
     "@lexical/react": "^0.12.6",
     "@lexical/rich-text": "^0.12.6",

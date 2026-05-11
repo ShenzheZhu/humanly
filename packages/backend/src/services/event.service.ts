@@ -1,7 +1,7 @@
 import { SessionModel } from '../models/session.model';
 import { EventModel, EventInsertData } from '../models/event.model';
 import { ProjectModel } from '../models/project.model';
-import { Session, TrackerEvent, Event, EventQueryFilters } from '@humory/shared';
+import { Session, TrackerEvent, Event, EventQueryFilters } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 

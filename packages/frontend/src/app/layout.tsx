@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
-import { BRAND, getBrandText } from '@humory/shared';
+import { BRAND, getBrandText } from '@humanly/shared';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   title: getBrandText().pageTitles.admin,
   description: 'A comprehensive text input provenance tracking and analysis platform',
   keywords: ['text tracking', 'keystroke analytics', 'form analytics', 'survey tracking'],

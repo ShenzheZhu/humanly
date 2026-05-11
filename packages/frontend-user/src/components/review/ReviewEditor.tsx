@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { LexicalEditor, TrackedEvent } from '@humory/editor'
-import type { Review, InsertReviewEvent } from '@humory/shared'
+import { LexicalEditor, TrackedEvent } from '@humanly/editor'
+import type { Review, InsertReviewEvent } from '@humanly/shared'
 import { reviewApi } from '@/lib/api/review-api'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'

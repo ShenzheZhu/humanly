@@ -5,7 +5,7 @@ import {
   UpdatePaper,
   PaperFilter,
   PaperForReviewer
-} from '@humory/shared'
+} from '@humanly/shared'
 import { AppError } from '../middleware/error-handler'
 
 export class PaperModel {
@@ -119,6 +119,25 @@ export class PaperModel {
     const papers = result.rows.map(row => this.mapToCamelCase(row))
 
     return { papers, total }
+  }
+
+  // Find the newest project instruction PDF.
+  static async findInstructionByProject(projectId: string): Promise<Paper | null> {
+    const query = `
+      SELECT *
+      FROM papers
+      WHERE project_id = $1
+        AND keywords @> ARRAY['instructions']::text[]
+      ORDER BY submission_date DESC, created_at DESC
+      LIMIT 1
+    `
+    const result = await pool.query(query, [projectId])
+
+    if (result.rows.length === 0) {
+      return null
+    }
+
+    return this.mapToCamelCase(result.rows[0])
   }
 
   // Update paper

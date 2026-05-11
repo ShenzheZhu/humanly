@@ -2,7 +2,7 @@
  * WebSocket Module
  *
  * This module provides enhanced WebSocket functionality for live preview
- * of tracking events in Humory projects.
+ * of tracking events in humanly projects.
  *
  * Features:
  * - JWT authentication for WebSocket connections

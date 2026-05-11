@@ -28,8 +28,9 @@ humanly/
 │   └── tracker/         # JavaScript tracking library for external forms
 ├── docker/              # Docker configurations
 ├── docker-compose.yml   # Local development environment
-├── package.json         # Root workspace configuration
-├── pnpm-workspace.yaml  # PNPM workspace configuration
+├── package.json         # Root scripts and package manager configuration
+├── pnpm-lock.yaml       # pnpm lockfile
+├── pnpm-workspace.yaml  # pnpm workspace configuration
 └── Documentation:
     ├── HTTPS_SETUP.md              # HTTPS configuration for production
     ├── QUALTRICS_INTEGRATION.md    # Qualtrics integration guide
@@ -44,8 +45,15 @@ humanly/
 
 ### Prerequisites
 
-- **Node.js** 20.19+ and npm 9+
+- **Node.js** 20.19+ and pnpm 9+
 - **Docker** and Docker Compose
+
+This repository uses pnpm workspaces. Enable pnpm through Corepack if it is not already available:
+
+```bash
+corepack enable
+corepack prepare pnpm@9.0.0 --activate
+```
 
 ### Installation
 
@@ -59,7 +67,7 @@ humanly/
 2. **Install dependencies**
 
    ```bash
-   npm install
+   pnpm install
    ```
 
 3. **Set up environment variables**
@@ -72,27 +80,27 @@ humanly/
 4. **Start Docker services** (PostgreSQL + Redis)
 
    ```bash
-   npm run docker:up
+   pnpm docker:up
    ```
 
 5. **Build shared packages** (required before running frontend)
 
    ```bash
-   npm run build --workspace=@humory/shared
-   npm run build --workspace=@humory/editor
+   pnpm build:shared
+   pnpm build:editor
    ```
 
 6. **Start the backend** (runs DB migrations automatically on startup)
 
    ```bash
-   npm run dev:backend
+   pnpm dev:backend
    ```
 
 7. **Start the frontends** (each in a new terminal)
 
    ```bash
-   npm run dev:frontend       # Admin dashboard
-   npm run dev:frontend-user  # User portal
+   pnpm dev:frontend       # Admin dashboard
+   pnpm dev:frontend-user  # User portal
    ```
 
 8. **Access the application**
@@ -108,26 +116,32 @@ humanly/
 
 ```bash
 # Backend only
-npm run dev:backend
+pnpm dev:backend
 
-# Frontend only
-npm run dev:frontend
+# Admin frontend only
+pnpm dev:frontend
+
+# User frontend only
+pnpm dev:frontend-user
 
 # Tracker library (watch mode)
-npm run dev:tracker
+pnpm dev:tracker
 
-# All services
-npm run dev:backend & npm run dev:frontend
+# Backend and admin frontend
+pnpm dev:backend & pnpm dev:frontend
 ```
 
 ### Building for Production
 
 ```bash
 # Build individually
-npm run build:backend
-npm run build:frontend
-npm run build::frontend-user
-npm run build:tracker
+pnpm build:backend
+pnpm build:frontend
+pnpm build:frontend-user
+pnpm build:tracker
+
+# Build everything
+pnpm build:all
 ```
 
 ### Docker Development
@@ -316,13 +330,13 @@ For complete documentation, see `packages/tracker/README.md`.
 
 ```bash
 # Backend tests
-npm test --workspace=@humory/backend
+pnpm test:backend
 
 # Frontend-user tests
-npm test --workspace=@humory/frontend-user
+pnpm test:frontend-user
 
 # All tests
-npm test
+pnpm test
 ```
 
 ## 📊 Database Schema
@@ -402,14 +416,14 @@ For complete schema, see `packages/backend/src/db/migrations/` directory.
 ```bash
 NODE_ENV=development
 PORT=3001
-DATABASE_URL=postgresql://humory_user:humory_password@localhost:5432/humory_dev
+DATABASE_URL=postgresql://humanly_user:humanly_password@localhost:5432/humanly_dev
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=your-secret-key-here
 JWT_ACCESS_EXPIRES=15m
 JWT_REFRESH_EXPIRES=7d
 CORS_ORIGIN=http://localhost:3000,http://localhost:3002
 EMAIL_SERVICE=console
-EMAIL_FROM=noreply@humory.dev
+EMAIL_FROM=noreply@humanly.dev
 ```
 
 ### Frontend-User (`packages/frontend-user/.env`)
@@ -430,7 +444,7 @@ docker-compose ps postgres
 docker-compose logs postgres
 
 # Test connection
-docker-compose exec postgres psql -U humory_user -d humory_dev -c "SELECT 1;"
+docker-compose exec postgres psql -U humanly_user -d humanly_dev -c "SELECT 1;"
 ```
 
 ### Redis Connection Issues

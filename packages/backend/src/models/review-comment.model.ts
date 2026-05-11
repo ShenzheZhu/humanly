@@ -4,7 +4,7 @@ import {
   InsertReviewComment,
   UpdateReviewComment,
   ReviewCommentFilter
-} from '@humory/shared'
+} from '@humanly/shared'
 import { AppError } from '../middleware/error-handler'
 
 export class ReviewCommentModel {

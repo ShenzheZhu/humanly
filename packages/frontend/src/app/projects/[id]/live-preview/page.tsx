@@ -16,7 +16,7 @@ import {
   Check,
   Info,
 } from 'lucide-react';
-import { EventType } from '@humory/shared';
+import { EventType } from '@humanly/shared';
 import { initializeSocket, disconnectSocket, getSocket } from '@/lib/socket-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

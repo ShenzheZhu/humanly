@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
-import { BRAND } from '@humory/shared';
+import { BRAND } from '@humanly/shared';
 import { logger } from '../utils/logger';
 
 export class TrackerController {
@@ -22,12 +22,12 @@ export class TrackerController {
         'humanly-tracker.js.map',
         'humanly-tracker.esm.js.map',
         // Legacy support
-        'humory-tracker.min.js',
-        'humory-tracker.js',
-        'humory-tracker.esm.js',
-        'humory-tracker.min.js.map',
-        'humory-tracker.js.map',
-        'humory-tracker.esm.js.map',
+        'humanly-tracker.min.js',
+        'humanly-tracker.js',
+        'humanly-tracker.esm.js',
+        'humanly-tracker.min.js.map',
+        'humanly-tracker.js.map',
+        'humanly-tracker.esm.js.map',
         // Test files
         'test-tracker-debug.html',
         'test-tracker.html',

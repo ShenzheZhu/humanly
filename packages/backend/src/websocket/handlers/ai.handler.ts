@@ -4,7 +4,7 @@ import { AIService } from '../../services/ai.service';
 import { AIModel } from '../../models/ai.model';
 import { DocumentModel } from '../../models/document.model';
 import { DocumentEventModel } from '../../models/document-event.model';
-import { AIChatRequest, DocumentEventInsertData } from '@humory/shared';
+import { AIChatRequest, DocumentEventInsertData } from '@humanly/shared';
 import { logger } from '../../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 

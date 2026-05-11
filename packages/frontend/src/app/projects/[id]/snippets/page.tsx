@@ -3,8 +3,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api-client';
-import { ProjectSnippetsResponse } from '@humory/shared/types/api.types';
-import { EventType, getBrandText } from '@humory/shared';
+import { ProjectSnippetsResponse } from '@humanly/shared/types/api.types';
+import { EventType, getBrandText } from '@humanly/shared';
 import { initializeSocket, disconnectSocket, getSocket } from '@/lib/socket-client';
 import {
   Card,

@@ -1,5 +1,5 @@
 import nodemailer, { Transporter } from 'nodemailer';
-import { getBrandText } from '@humory/shared';
+import { getBrandText } from '@humanly/shared';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 

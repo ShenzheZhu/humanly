@@ -6,7 +6,7 @@ The Live Preview page provides real-time monitoring of user sessions and events 
 
 ## File Location
 
-`/home/ubuntu/humory/packages/frontend/src/app/(dashboard)/projects/[id]/live-preview/page.tsx`
+`/home/ubuntu/humanly/packages/frontend/src/app/(dashboard)/projects/[id]/live-preview/page.tsx`
 
 ## Features
 

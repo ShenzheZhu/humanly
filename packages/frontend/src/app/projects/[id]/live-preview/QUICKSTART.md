@@ -7,7 +7,7 @@ The live preview page has been successfully created and is ready to use.
 ## What Was Built
 
 ### Main Page
-**Location**: `/home/ubuntu/humory/packages/frontend/src/app/(dashboard)/projects/[id]/live-preview/page.tsx`
+**Location**: `/home/ubuntu/humanly/packages/frontend/src/app/(dashboard)/projects/[id]/live-preview/page.tsx`
 
 A fully-featured real-time event monitoring page with:
 - WebSocket connection via Socket.IO
@@ -18,8 +18,8 @@ A fully-featured real-time event monitoring page with:
 - Responsive design
 
 ### New UI Components
-1. **Badge Component**: `/home/ubuntu/humory/packages/frontend/src/components/ui/badge.tsx`
-2. **ScrollArea Component**: `/home/ubuntu/humory/packages/frontend/src/components/ui/scroll-area.tsx`
+1. **Badge Component**: `/home/ubuntu/humanly/packages/frontend/src/components/ui/badge.tsx`
+2. **ScrollArea Component**: `/home/ubuntu/humanly/packages/frontend/src/components/ui/scroll-area.tsx`
 
 ### Dependencies Added
 ```json
@@ -30,7 +30,7 @@ A fully-featured real-time event monitoring page with:
 
 ### 1. Install Dependencies
 ```bash
-cd /home/ubuntu/humory/packages/frontend
+cd /home/ubuntu/humanly/packages/frontend
 npm install
 # or
 pnpm install

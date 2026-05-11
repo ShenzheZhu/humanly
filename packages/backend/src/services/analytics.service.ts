@@ -18,9 +18,11 @@ export interface SummaryStats {
   totalEvents: number;
   totalSessions: number;
   uniqueUsers: number;
+  totalUsers: number;
   avgEventsPerSession: number;
   avgSessionDuration: number; // in seconds
   completionRate: number; // percentage
+  activeUsers24h: number;
 }
 
 export interface TimelineDataPoint {
@@ -39,6 +41,7 @@ export interface UserActivity {
   sessionCount: number;
   eventCount: number;
   lastActive: Date;
+  avgDuration: number;
 }
 
 export interface UserActivityResult {
@@ -85,42 +88,6 @@ export class AnalyticsService {
   }
 
   /**
-   * Build WHERE clause for filters
-   */
-  private static buildWhereClause(filters: AnalyticsFilters, paramOffset: number = 1): {
-    clause: string;
-    params: any[];
-    nextIndex: number;
-  } {
-    const conditions: string[] = [];
-    const params: any[] = [];
-    let paramIndex = paramOffset;
-
-    if (filters.startDate) {
-      conditions.push(`timestamp >= $${paramIndex++}`);
-      params.push(filters.startDate);
-    }
-
-    if (filters.endDate) {
-      conditions.push(`timestamp <= $${paramIndex++}`);
-      params.push(filters.endDate);
-    }
-
-    if (filters.externalUserId) {
-      conditions.push(`external_user_id = $${paramIndex++}`);
-      params.push(filters.externalUserId);
-    }
-
-    if (filters.eventType) {
-      conditions.push(`event_type = $${paramIndex++}`);
-      params.push(filters.eventType);
-    }
-
-    const clause = conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '';
-    return { clause, params, nextIndex: paramIndex };
-  }
-
-  /**
    * Validate date range in filters
    */
   private static validateFilters(filters: AnalyticsFilters): void {
@@ -159,55 +126,113 @@ export class AnalyticsService {
 
       logger.debug('Cache miss for summary stats', { projectId, cacheKey });
 
-      const whereClause = this.buildWhereClause(filters, 2);
-
-      // Query using views and continuous aggregates for better performance
       const sql = `
-        WITH session_stats AS (
+        WITH tracker_sessions AS (
           SELECT
-            COUNT(DISTINCT s.id) as total_sessions,
-            COUNT(DISTINCT s.external_user_id) as unique_users,
-            COUNT(DISTINCT CASE WHEN s.submitted THEN s.id END) as submitted_sessions,
-            AVG(EXTRACT(EPOCH FROM (COALESCE(s.session_end, NOW()) - s.session_start))) as avg_duration
+            s.id::text as session_id,
+            s.external_user_id,
+            s.session_start,
+            EXTRACT(EPOCH FROM (COALESCE(s.session_end, NOW()) - s.session_start)) as duration_seconds,
+            s.submitted
           FROM sessions s
           WHERE s.project_id = $1
-            ${filters.startDate ? `AND s.session_start >= $${whereClause.params.length > 0 ? 2 : 2}` : ''}
-            ${filters.endDate ? `AND s.session_start <= $${whereClause.params.length > 1 ? 3 : (whereClause.params.length > 0 ? 3 : 2)}` : ''}
-            ${filters.externalUserId ? `AND s.external_user_id = $${whereClause.nextIndex - 1}` : ''}
+            AND ($2::timestamptz IS NULL OR s.session_start >= $2::timestamptz)
+            AND ($3::timestamptz IS NULL OR s.session_start <= $3::timestamptz)
+            AND ($4::text IS NULL OR s.external_user_id = $4::text)
         ),
-        event_stats AS (
+        document_event_rows AS (
+          SELECT
+            de.document_id,
+            u.email as external_user_id,
+            de.timestamp,
+            de.event_type
+          FROM project_enrollments pe
+          JOIN document_events de ON de.document_id = pe.submission_document_id
+          JOIN users u ON u.id = de.user_id
+          WHERE pe.project_id = $1
+            AND ($2::timestamptz IS NULL OR de.timestamp >= $2::timestamptz)
+            AND ($3::timestamptz IS NULL OR de.timestamp <= $3::timestamptz)
+            AND ($4::text IS NULL OR u.email = $4::text)
+            AND ($5::text IS NULL OR de.event_type = $5::text)
+        ),
+        document_sessions AS (
+          SELECT
+            document_id::text as session_id,
+            external_user_id,
+            MIN(timestamp) as session_start,
+            EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))) as duration_seconds,
+            FALSE as submitted
+          FROM document_event_rows
+          GROUP BY document_id, external_user_id
+        ),
+        all_sessions AS (
+          SELECT * FROM tracker_sessions
+          UNION ALL
+          SELECT * FROM document_sessions
+        ),
+        tracker_event_stats AS (
           SELECT
             COUNT(*) as total_events
           FROM events e
-          WHERE e.project_id = $1 ${whereClause.clause}
+          JOIN sessions s ON s.id = e.session_id
+          WHERE e.project_id = $1
+            AND ($2::timestamptz IS NULL OR e.timestamp >= $2::timestamptz)
+            AND ($3::timestamptz IS NULL OR e.timestamp <= $3::timestamptz)
+            AND ($4::text IS NULL OR s.external_user_id = $4::text)
+            AND ($5::text IS NULL OR e.event_type = $5::text)
+        ),
+        document_event_stats AS (
+          SELECT COUNT(*) as total_events FROM document_event_rows
+        ),
+        session_stats AS (
+          SELECT
+            COUNT(*) as total_sessions,
+            COUNT(DISTINCT external_user_id) as unique_users,
+            COUNT(CASE WHEN submitted THEN 1 END) as submitted_sessions,
+            AVG(duration_seconds) as avg_duration,
+            COUNT(DISTINCT CASE
+              WHEN session_start >= NOW() - INTERVAL '24 hours' THEN external_user_id
+            END) as active_users_24h
+          FROM all_sessions
         )
         SELECT
-          COALESCE(e.total_events, 0) as "totalEvents",
+          COALESCE(te.total_events, 0) + COALESCE(de.total_events, 0) as "totalEvents",
           COALESCE(s.total_sessions, 0) as "totalSessions",
           COALESCE(s.unique_users, 0) as "uniqueUsers",
+          COALESCE(s.unique_users, 0) as "totalUsers",
           CASE
-            WHEN s.total_sessions > 0 THEN ROUND(e.total_events::numeric / s.total_sessions::numeric, 2)
+            WHEN s.total_sessions > 0 THEN ROUND(((COALESCE(te.total_events, 0) + COALESCE(de.total_events, 0))::numeric / s.total_sessions::numeric), 2)
             ELSE 0
           END as "avgEventsPerSession",
           COALESCE(ROUND(s.avg_duration::numeric, 2), 0) as "avgSessionDuration",
           CASE
             WHEN s.total_sessions > 0 THEN ROUND((s.submitted_sessions::numeric / s.total_sessions::numeric) * 100, 2)
             ELSE 0
-          END as "completionRate"
+          END as "completionRate",
+          COALESCE(s.active_users_24h, 0) as "activeUsers24h"
         FROM session_stats s
-        CROSS JOIN event_stats e
+        CROSS JOIN tracker_event_stats te
+        CROSS JOIN document_event_stats de
       `;
 
-      const params = [projectId, ...whereClause.params];
+      const params = [
+        projectId,
+        filters.startDate || null,
+        filters.endDate || null,
+        filters.externalUserId || null,
+        filters.eventType || null,
+      ];
       const result = await queryOne<SummaryStats>(sql, params);
 
       const stats: SummaryStats = {
         totalEvents: parseInt(String(result?.totalEvents || 0)),
         totalSessions: parseInt(String(result?.totalSessions || 0)),
         uniqueUsers: parseInt(String(result?.uniqueUsers || 0)),
+        totalUsers: parseInt(String(result?.totalUsers || result?.uniqueUsers || 0)),
         avgEventsPerSession: parseFloat(String(result?.avgEventsPerSession || 0)),
         avgSessionDuration: parseFloat(String(result?.avgSessionDuration || 0)),
         completionRate: parseFloat(String(result?.completionRate || 0)),
+        activeUsers24h: parseInt(String(result?.activeUsers24h || 0), 10),
       };
 
       // Cache the result
@@ -254,43 +279,48 @@ export class AnalyticsService {
 
       logger.debug('Cache miss for events timeline', { projectId, groupBy, cacheKey });
 
-      const whereClause = this.buildWhereClause(filters, 2);
+      const bucketInterval = groupBy === 'hour' ? '1 hour' : groupBy === 'day' ? '1 day' : '1 week';
+      const dateFormat =
+        groupBy === 'hour' ? 'YYYY-MM-DD HH24:00:00' :
+        groupBy === 'day' ? 'YYYY-MM-DD' :
+        'IYYY-IW';
 
-      // Use TimescaleDB continuous aggregate for hourly data when possible
-      let sql: string;
-      if (groupBy === 'hour' && !filters.eventType && !filters.externalUserId) {
-        // Use the events_hourly continuous aggregate for better performance
-        sql = `
-          SELECT
-            TO_CHAR(hour, 'YYYY-MM-DD HH24:00:00') as date,
-            SUM(event_count)::integer as "eventCount"
-          FROM events_hourly
-          WHERE project_id = $1
-            ${filters.startDate ? `AND hour >= $2` : ''}
-            ${filters.endDate ? `AND hour <= $${filters.startDate ? 3 : 2}` : ''}
-          GROUP BY hour
-          ORDER BY hour ASC
-        `;
-      } else {
-        // Fallback to direct query on events table
-        const bucketInterval = groupBy === 'hour' ? '1 hour' : groupBy === 'day' ? '1 day' : '1 week';
-        const dateFormat =
-          groupBy === 'hour' ? 'YYYY-MM-DD HH24:00:00' :
-          groupBy === 'day' ? 'YYYY-MM-DD' :
-          'IYYY-IW'; // ISO year and week
+      const sql = `
+        WITH all_events AS (
+          SELECT e.timestamp
+          FROM events e
+          JOIN sessions s ON s.id = e.session_id
+          WHERE e.project_id = $1
+            AND ($2::timestamptz IS NULL OR e.timestamp >= $2::timestamptz)
+            AND ($3::timestamptz IS NULL OR e.timestamp <= $3::timestamptz)
+            AND ($4::text IS NULL OR s.external_user_id = $4::text)
+            AND ($5::text IS NULL OR e.event_type = $5::text)
+          UNION ALL
+          SELECT de.timestamp
+          FROM project_enrollments pe
+          JOIN document_events de ON de.document_id = pe.submission_document_id
+          JOIN users u ON u.id = de.user_id
+          WHERE pe.project_id = $1
+            AND ($2::timestamptz IS NULL OR de.timestamp >= $2::timestamptz)
+            AND ($3::timestamptz IS NULL OR de.timestamp <= $3::timestamptz)
+            AND ($4::text IS NULL OR u.email = $4::text)
+            AND ($5::text IS NULL OR de.event_type = $5::text)
+        )
+        SELECT
+          TO_CHAR(time_bucket('${bucketInterval}', timestamp), '${dateFormat}') as date,
+          COUNT(*)::integer as "eventCount"
+        FROM all_events
+        GROUP BY time_bucket('${bucketInterval}', timestamp)
+        ORDER BY time_bucket('${bucketInterval}', timestamp) ASC
+      `;
 
-        sql = `
-          SELECT
-            TO_CHAR(time_bucket('${bucketInterval}', timestamp), '${dateFormat}') as date,
-            COUNT(*)::integer as "eventCount"
-          FROM events
-          WHERE project_id = $1 ${whereClause.clause}
-          GROUP BY time_bucket('${bucketInterval}', timestamp)
-          ORDER BY time_bucket('${bucketInterval}', timestamp) ASC
-        `;
-      }
-
-      const params = [projectId, ...whereClause.params];
+      const params = [
+        projectId,
+        filters.startDate || null,
+        filters.endDate || null,
+        filters.externalUserId || null,
+        filters.eventType || null,
+      ];
       const timeline = await query<TimelineDataPoint>(sql, params);
 
       // Cache the result
@@ -343,15 +373,32 @@ export class AnalyticsService {
 
       logger.debug('Cache miss for event type distribution', { projectId, cacheKey });
 
-      const whereClause = this.buildWhereClause(filters, 2);
-
       const sql = `
-        WITH event_counts AS (
+        WITH all_events AS (
+          SELECT e.event_type
+          FROM events e
+          JOIN sessions s ON s.id = e.session_id
+          WHERE e.project_id = $1
+            AND ($2::timestamptz IS NULL OR e.timestamp >= $2::timestamptz)
+            AND ($3::timestamptz IS NULL OR e.timestamp <= $3::timestamptz)
+            AND ($4::text IS NULL OR s.external_user_id = $4::text)
+            AND ($5::text IS NULL OR e.event_type = $5::text)
+          UNION ALL
+          SELECT de.event_type
+          FROM project_enrollments pe
+          JOIN document_events de ON de.document_id = pe.submission_document_id
+          JOIN users u ON u.id = de.user_id
+          WHERE pe.project_id = $1
+            AND ($2::timestamptz IS NULL OR de.timestamp >= $2::timestamptz)
+            AND ($3::timestamptz IS NULL OR de.timestamp <= $3::timestamptz)
+            AND ($4::text IS NULL OR u.email = $4::text)
+            AND ($5::text IS NULL OR de.event_type = $5::text)
+        ),
+        event_counts AS (
           SELECT
             event_type as "eventType",
             COUNT(*)::integer as count
-          FROM events
-          WHERE project_id = $1 ${whereClause.clause}
+          FROM all_events
           GROUP BY event_type
         ),
         total_events AS (
@@ -366,7 +413,13 @@ export class AnalyticsService {
         ORDER BY ec.count DESC
       `;
 
-      const params = [projectId, ...whereClause.params];
+      const params = [
+        projectId,
+        filters.startDate || null,
+        filters.endDate || null,
+        filters.externalUserId || null,
+        filters.eventType || null,
+      ];
       const distribution = await query<EventTypeDistribution>(sql, params);
 
       // Ensure percentage is a number
@@ -430,55 +483,102 @@ export class AnalyticsService {
 
       logger.debug('Cache miss for user activity', { projectId, page, limit, cacheKey });
 
-      // Build date filter for sessions
-      const dateFilters: string[] = [];
-      const dateParams: any[] = [];
-      let dateParamIndex = 2;
-
-      if (filters.startDate) {
-        dateFilters.push(`s.session_start >= $${dateParamIndex++}`);
-        dateParams.push(filters.startDate);
-      }
-      if (filters.endDate) {
-        dateFilters.push(`s.session_start <= $${dateParamIndex++}`);
-        dateParams.push(filters.endDate);
-      }
-
-      const dateClause = dateFilters.length > 0 ? `AND ${dateFilters.join(' AND ')}` : '';
-
       // Query user activity
       const sql = `
-        WITH user_stats AS (
+        WITH tracker_session_stats AS (
           SELECT
             s.external_user_id as "externalUserId",
             COUNT(DISTINCT s.id) as "sessionCount",
             COUNT(e.id) as "eventCount",
-            MAX(s.session_start) as "lastActive"
+            MAX(s.session_start) as "lastActive",
+            COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(s.session_end, NOW()) - s.session_start)))::numeric, 2), 0) as "avgDuration"
           FROM sessions s
           LEFT JOIN events e ON e.session_id = s.id
-          WHERE s.project_id = $1 ${dateClause}
+          WHERE s.project_id = $1
+            AND ($2::timestamptz IS NULL OR s.session_start >= $2::timestamptz)
+            AND ($3::timestamptz IS NULL OR s.session_start <= $3::timestamptz)
           GROUP BY s.external_user_id
+        ),
+        document_sessions AS (
+          SELECT
+            u.email as "externalUserId",
+            de.document_id,
+            COUNT(de.id)::integer as event_count,
+            MIN(de.timestamp) as first_event,
+            MAX(de.timestamp) as last_event,
+            EXTRACT(EPOCH FROM (MAX(de.timestamp) - MIN(de.timestamp))) as duration_seconds
+          FROM project_enrollments pe
+          JOIN document_events de ON de.document_id = pe.submission_document_id
+          JOIN users u ON u.id = de.user_id
+          WHERE pe.project_id = $1
+            AND ($2::timestamptz IS NULL OR de.timestamp >= $2::timestamptz)
+            AND ($3::timestamptz IS NULL OR de.timestamp <= $3::timestamptz)
+          GROUP BY u.email, de.document_id
+        ),
+        document_user_stats AS (
+          SELECT
+            "externalUserId",
+            COUNT(document_id)::integer as "sessionCount",
+            SUM(event_count)::integer as "eventCount",
+            MAX(last_event) as "lastActive",
+            COALESCE(ROUND(AVG(duration_seconds)::numeric, 2), 0) as "avgDuration"
+          FROM document_sessions
+          GROUP BY "externalUserId"
+        ),
+        combined_stats AS (
+          SELECT * FROM tracker_session_stats
+          UNION ALL
+          SELECT * FROM document_user_stats
+        ),
+        user_stats AS (
+          SELECT
+            "externalUserId",
+            SUM("sessionCount")::integer as "sessionCount",
+            SUM("eventCount")::integer as "eventCount",
+            MAX("lastActive") as "lastActive",
+            COALESCE(ROUND(AVG("avgDuration")::numeric, 2), 0) as "avgDuration"
+          FROM combined_stats
+          GROUP BY "externalUserId"
         )
         SELECT
           "externalUserId",
           "sessionCount"::integer,
           "eventCount"::integer,
-          "lastActive"
+          "lastActive",
+          "avgDuration"::float
         FROM user_stats
         ORDER BY "lastActive" DESC
-        LIMIT $${dateParamIndex} OFFSET $${dateParamIndex + 1}
+        LIMIT $4 OFFSET $5
       `;
 
-      const params = [projectId, ...dateParams, limit, offset];
+      const params = [projectId, filters.startDate || null, filters.endDate || null, limit, offset];
       const users = await query<UserActivity>(sql, params);
 
       // Get total count
       const countSql = `
+        WITH active_users AS (
+          SELECT s.external_user_id
+          FROM sessions s
+          WHERE s.project_id = $1
+            AND ($2::timestamptz IS NULL OR s.session_start >= $2::timestamptz)
+            AND ($3::timestamptz IS NULL OR s.session_start <= $3::timestamptz)
+          UNION
+          SELECT u.email as external_user_id
+          FROM project_enrollments pe
+          JOIN document_events de ON de.document_id = pe.submission_document_id
+          JOIN users u ON u.id = de.user_id
+          WHERE pe.project_id = $1
+            AND ($2::timestamptz IS NULL OR de.timestamp >= $2::timestamptz)
+            AND ($3::timestamptz IS NULL OR de.timestamp <= $3::timestamptz)
+        )
         SELECT COUNT(DISTINCT external_user_id)::integer as count
-        FROM sessions
-        WHERE project_id = $1 ${dateClause}
+        FROM active_users
       `;
-      const countResult = await queryOne<{ count: number }>(countSql, [projectId, ...dateParams]);
+      const countResult = await queryOne<{ count: number }>(countSql, [
+        projectId,
+        filters.startDate || null,
+        filters.endDate || null,
+      ]);
       const total = countResult?.count || 0;
 
       const result: UserActivityResult = {

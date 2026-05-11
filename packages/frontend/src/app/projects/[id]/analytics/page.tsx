@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import {
   Activity,
@@ -28,7 +28,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { AnalyticsSummary, EventTypeDistribution, EventsTimelineDataPoint, PaginatedResponse } from '@humory/shared';
+import { AnalyticsSummary, EventTypeDistribution, EventsTimelineDataPoint } from '@humanly/shared';
 import api, { ApiError } from '@/lib/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -52,6 +52,7 @@ import {
 // Extended Analytics Summary with active users
 interface ExtendedAnalyticsSummary extends AnalyticsSummary {
   activeUsers24h?: number;
+  uniqueUsers?: number;
 }
 
 // User Activity for table
@@ -61,6 +62,14 @@ interface UserActivity {
   eventCount: number;
   lastActive: string | Date;
   avgDuration: number;
+}
+
+interface UserActivityResponse {
+  users: UserActivity[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
 // Date range presets
@@ -99,7 +108,7 @@ export default function AnalyticsPage() {
   const [usersError, setUsersError] = useState<string | null>(null);
 
   // Calculate date range
-  const getDateRange = () => {
+  const getDateRange = useCallback(() => {
     const endDate = new Date();
     const startDate = new Date();
 
@@ -121,17 +130,23 @@ export default function AnalyticsPage() {
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
     };
-  };
+  }, [dateRange]);
 
   // Fetch summary statistics
-  const fetchSummary = async () => {
+  const fetchSummary = useCallback(async () => {
     try {
       setIsLoadingSummary(true);
       setSummaryError(null);
+      const { startDate, endDate } = getDateRange();
       const response = await api.get<{
         success: boolean;
         data: ExtendedAnalyticsSummary;
-      }>(`/api/v1/projects/${projectId}/analytics/summary`);
+      }>(`/api/v1/projects/${projectId}/analytics/summary`, {
+        params: {
+          startDate,
+          endDate,
+        },
+      });
       setSummary(response.data);
     } catch (err) {
       const apiError = err as ApiError;
@@ -139,6 +154,7 @@ export default function AnalyticsPage() {
       setSummary({
         totalEvents: 0,
         totalSessions: 0,
+        uniqueUsers: 0,
         totalUsers: 0,
         avgEventsPerSession: 0,
         avgSessionDuration: 0,
@@ -148,10 +164,10 @@ export default function AnalyticsPage() {
     } finally {
       setIsLoadingSummary(false);
     }
-  };
+  }, [getDateRange, projectId]);
 
   // Fetch events timeline
-  const fetchEventsTimeline = async () => {
+  const fetchEventsTimeline = useCallback(async () => {
     try {
       setIsLoadingTimeline(true);
       setTimelineError(null);
@@ -177,10 +193,10 @@ export default function AnalyticsPage() {
     } finally {
       setIsLoadingTimeline(false);
     }
-  };
+  }, [getDateRange, groupBy, projectId]);
 
   // Fetch event type distribution
-  const fetchEventTypeDistribution = async () => {
+  const fetchEventTypeDistribution = useCallback(async () => {
     try {
       setIsLoadingDistribution(true);
       setDistributionError(null);
@@ -205,23 +221,26 @@ export default function AnalyticsPage() {
     } finally {
       setIsLoadingDistribution(false);
     }
-  };
+  }, [getDateRange, projectId]);
 
   // Fetch user activity
-  const fetchUserActivity = async () => {
+  const fetchUserActivity = useCallback(async () => {
     try {
       setIsLoadingUsers(true);
       setUsersError(null);
+      const { startDate, endDate } = getDateRange();
       const response = await api.get<{
         success: boolean;
-        data: PaginatedResponse<UserActivity>;
+        data: UserActivityResponse;
       }>(`/api/v1/projects/${projectId}/analytics/users`, {
         params: {
           page: currentPage,
           limit: usersPerPage,
+          startDate,
+          endDate,
         },
       });
-      setUserActivity(response.data.data || []);
+      setUserActivity(response.data.users || []);
       setTotalUsers(response.data.total || 0);
     } catch (err) {
       const apiError = err as ApiError;
@@ -231,14 +250,14 @@ export default function AnalyticsPage() {
     } finally {
       setIsLoadingUsers(false);
     }
-  };
+  }, [currentPage, getDateRange, projectId]);
 
   // Initial load
   useEffect(() => {
     if (projectId) {
       fetchSummary();
     }
-  }, [projectId]);
+  }, [fetchSummary, projectId]);
 
   // Load data when filters change
   useEffect(() => {
@@ -246,18 +265,18 @@ export default function AnalyticsPage() {
       fetchEventsTimeline();
       fetchEventTypeDistribution();
     }
-  }, [projectId, dateRange, groupBy]);
+  }, [fetchEventsTimeline, fetchEventTypeDistribution, projectId]);
 
   // Load users when page changes
   useEffect(() => {
     if (projectId) {
       fetchUserActivity();
     }
-  }, [projectId, currentPage]);
+  }, [fetchUserActivity, projectId]);
 
   // Format duration
-  const formatDuration = (ms: number) => {
-    const seconds = Math.floor(ms / 1000);
+  const formatDuration = (secondsValue: number) => {
+    const seconds = Math.floor(secondsValue || 0);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
 
@@ -329,10 +348,10 @@ export default function AnalyticsPage() {
     },
     {
       title: 'Total Users',
-      value: summary?.totalUsers || 0,
+      value: summary?.totalUsers ?? summary?.uniqueUsers ?? 0,
       subtitle: `${
-        summary?.totalSessions && summary?.totalUsers
-          ? (summary.totalSessions / summary.totalUsers).toFixed(1)
+        summary?.totalSessions && (summary?.totalUsers ?? summary?.uniqueUsers)
+          ? (summary.totalSessions / (summary.totalUsers ?? summary.uniqueUsers ?? 1)).toFixed(1)
           : 0
       } sessions/user`,
       icon: Users,
@@ -478,7 +497,7 @@ export default function AnalyticsPage() {
                 />
                 <Area
                   type="monotone"
-                  dataKey="count"
+                  dataKey="eventCount"
                   stroke={chartColors.primary}
                   strokeWidth={2}
                   fill="url(#colorEvents)"

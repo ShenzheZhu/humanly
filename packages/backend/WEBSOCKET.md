@@ -1,6 +1,6 @@
 # WebSocket Implementation for Live Preview
 
-This document describes the enhanced WebSocket implementation for real-time event tracking preview in Humory.
+This document describes the enhanced WebSocket implementation for real-time event tracking preview in humanly.
 
 ## Architecture
 

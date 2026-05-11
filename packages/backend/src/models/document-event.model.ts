@@ -3,7 +3,7 @@ import {
   DocumentEvent,
   DocumentEventInsertData,
   DocumentEventQueryFilters,
-} from '@humory/shared';
+} from '@humanly/shared';
 
 export interface EventMetrics {
   totalEvents: number;

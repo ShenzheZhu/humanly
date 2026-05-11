@@ -201,7 +201,7 @@ SELECT add_continuous_aggregate_policy('session_daily_stats',
 -- You can add test users and projects here for development
 -- Example:
 -- INSERT INTO users (email, password_hash, email_verified)
--- VALUES ('test@humory.dev', '$2b$12$...', TRUE);
+-- VALUES ('test@humanly.dev', '$2b$12$...', TRUE);
 
 -- ============================================================================
 -- Views for common queries
@@ -245,11 +245,11 @@ GROUP BY p.id, p.name, p.user_id;
 -- ============================================================================
 
 -- In production, you should create specific roles with limited permissions
--- For development, the humory_user will have full access
+-- For development, the humanly_user will have full access
 
 -- Example for production:
--- CREATE ROLE humory_app_role;
--- GRANT CONNECT ON DATABASE humory_prod TO humory_app_role;
--- GRANT USAGE ON SCHEMA public TO humory_app_role;
--- GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO humory_app_role;
--- GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO humory_app_role;
+-- CREATE ROLE humanly_app_role;
+-- GRANT CONNECT ON DATABASE humanly_prod TO humanly_app_role;
+-- GRANT USAGE ON SCHEMA public TO humanly_app_role;
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO humanly_app_role;
+-- GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO humanly_app_role;

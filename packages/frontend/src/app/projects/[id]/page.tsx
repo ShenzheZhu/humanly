@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -14,9 +14,12 @@ import {
   Calendar,
   AlertCircle,
   Loader2,
-  List
+  List,
+  Copy,
+  FileText,
+  BrainCircuit
 } from 'lucide-react';
-import { Project, AnalyticsSummary } from '@humory/shared';
+import { Project, AnalyticsSummary } from '@humanly/shared';
 import api, { ApiError } from '@/lib/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,59 +41,61 @@ export default function ProjectOverviewPage() {
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchProject = async () => {
-      try {
-        setIsLoadingProject(true);
-        setError(null);
-        const response = await api.get<{
-          success: boolean;
-          data: Project;
-        }>(`/api/v1/projects/${projectId}`);
-        setProject(response.data);
-      } catch (err) {
-        const apiError = err as ApiError;
-        if (apiError.statusCode === 404) {
-          setError('Project not found. It may have been deleted or you may not have permission to view it.');
-        } else if (apiError.statusCode === 403) {
-          setError('You do not have permission to view this project.');
-        } else {
-          setError(apiError.message || 'Failed to load project details.');
-        }
-      } finally {
-        setIsLoadingProject(false);
+  const fetchProject = useCallback(async (showLoading = true) => {
+    try {
+      if (showLoading) setIsLoadingProject(true);
+      setError(null);
+      const response = await api.get<{
+        success: boolean;
+        data: Project;
+      }>(`/api/v1/projects/${projectId}`);
+      setProject(response.data);
+    } catch (err) {
+      const apiError = err as ApiError;
+      if (apiError.statusCode === 404) {
+        setError('Project not found. It may have been deleted or you may not have permission to view it.');
+      } else if (apiError.statusCode === 403) {
+        setError('You do not have permission to view this project.');
+      } else {
+        setError(apiError.message || 'Failed to load project details.');
       }
-    };
+    } finally {
+      if (showLoading) setIsLoadingProject(false);
+    }
+  }, [projectId]);
 
-    const fetchStats = async () => {
-      try {
-        setIsLoadingStats(true);
-        const response = await api.get<{
-          success: boolean;
-          data: AnalyticsSummary;
-        }>(`/api/v1/projects/${projectId}/analytics/summary`);
-        setStats(response.data);
-      } catch (err) {
-        // Stats are optional, don't show error if they fail
-        console.error('Failed to load project stats:', err);
-        setStats({
+  const fetchStats = useCallback(async (showLoading = true) => {
+    try {
+      if (showLoading) setIsLoadingStats(true);
+      const response = await api.get<{
+        success: boolean;
+        data: AnalyticsSummary;
+      }>(`/api/v1/projects/${projectId}/analytics/summary`);
+      setStats(response.data);
+    } catch (err) {
+      // Stats are optional, don't show error if they fail
+      console.error('Failed to load project stats:', err);
+      setStats({
           totalEvents: 0,
           totalSessions: 0,
+          uniqueUsers: 0,
           totalUsers: 0,
           avgEventsPerSession: 0,
           avgSessionDuration: 0,
           completionRate: 0,
+          activeUsers24h: 0,
         });
-      } finally {
-        setIsLoadingStats(false);
-      }
-    };
+    } finally {
+      if (showLoading) setIsLoadingStats(false);
+    }
+  }, [projectId]);
 
+  useEffect(() => {
     if (projectId) {
       fetchProject();
       fetchStats();
     }
-  }, [projectId]);
+  }, [fetchProject, fetchStats, projectId]);
 
   const formatDate = (date: Date | string) => {
     return new Date(date).toLocaleDateString('en-US', {
@@ -100,18 +105,8 @@ export default function ProjectOverviewPage() {
     });
   };
 
-  const formatDateTime = (date: Date | string) => {
-    return new Date(date).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const formatDuration = (ms: number) => {
-    const seconds = Math.floor(ms / 1000);
+  const formatDuration = (secondsValue: number) => {
+    const seconds = Math.floor(secondsValue);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
 
@@ -132,6 +127,19 @@ export default function ProjectOverviewPage() {
       other: 'Other',
     };
     return labels[type] || type;
+  };
+
+  const inviteCode = project?.projectToken?.slice(0, 6).toUpperCase() || 'PENDING';
+  const enrolledUserCount = project?.enrolledUserCount ?? 0;
+  const totalEvents = stats?.totalEvents ?? 0;
+  const totalSessions = stats?.totalSessions ?? 0;
+  const avgEventsPerSession = stats?.avgEventsPerSession ?? 0;
+  const avgSessionDuration = stats?.avgSessionDuration ?? 0;
+  const sessionsPerEnrolledUser =
+    enrolledUserCount > 0 ? (totalSessions / enrolledUserCount).toFixed(1) : '0';
+
+  const copyInviteCode = async () => {
+    await navigator.clipboard.writeText(inviteCode);
   };
 
   if (isLoadingProject) {
@@ -167,37 +175,37 @@ export default function ProjectOverviewPage() {
       icon: BarChart3,
       label: 'View Analytics',
       href: `/projects/${projectId}/analytics`,
-      description: 'View detailed analytics and insights',
+      description: 'Inspect AI usage, activity, and writing telemetry',
     },
     {
       icon: List,
-      label: 'View Sessions',
+      label: 'Enrolled Users',
       href: `/projects/${projectId}/sessions`,
-      description: 'Browse and analyze individual sessions',
+      description: 'Review enrolled users and their activity sessions',
     },
     {
       icon: Eye,
-      label: 'Live Preview',
+      label: 'Live Monitoring',
       href: `/projects/${projectId}/live-preview`,
-      description: 'Monitor user sessions in real-time',
+      description: 'Monitor writing activity in real time',
     },
     {
       icon: Code,
-      label: 'Tracking Code',
+      label: 'Instruction Files',
       href: `/projects/${projectId}/snippets`,
-      description: 'Get integration code snippets',
+      description: 'Manage shared PDFs and project instructions',
     },
     {
       icon: Download,
-      label: 'Export Data',
+      label: 'User Documents',
       href: `/projects/${projectId}/export`,
-      description: 'Export sessions and events data',
+      description: 'Export or review project submissions',
     },
     {
       icon: Settings,
-      label: 'Settings',
+      label: 'AI Settings',
       href: `/projects/${projectId}/settings`,
-      description: 'Configure project settings',
+      description: 'Configure model permissions and usage limits',
     },
   ];
 
@@ -208,7 +216,7 @@ export default function ProjectOverviewPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{project.name}</h1>
           {project.description && (
-            <p className="text-muted-foreground mt-2">{project.description}</p>
+            <p className="text-muted-foreground mt-2 whitespace-pre-line">{project.description}</p>
           )}
         </div>
         <Button
@@ -222,8 +230,8 @@ export default function ProjectOverviewPage() {
       {/* Project Details Card */}
       <Card>
         <CardHeader>
-          <CardTitle>Project Information</CardTitle>
-          <CardDescription>Basic details about your project</CardDescription>
+          <CardTitle>Project Overview</CardTitle>
+          <CardDescription>Admin metadata, invite code, and writing-project settings</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -239,12 +247,22 @@ export default function ProjectOverviewPage() {
               </dd>
             </div>
             <div>
-              <dt className="text-sm font-medium text-muted-foreground">External Service</dt>
-              <dd className="text-sm mt-1">{getServiceTypeLabel(project.externalServiceType)}</dd>
+              <dt className="text-sm font-medium text-muted-foreground">Invite Code</dt>
+              <dd className="mt-1 flex items-center gap-2">
+                <span className="rounded-md border bg-muted/40 px-2 py-1 font-mono text-sm font-semibold tracking-wider">
+                  {inviteCode}
+                </span>
+                <Button variant="ghost" size="icon" onClick={copyInviteCode} title="Copy invite code">
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </dd>
             </div>
             <div>
-              <dt className="text-sm font-medium text-muted-foreground">User ID Key</dt>
-              <dd className="text-sm font-mono mt-1">{project.userIdKey || 'userId'}</dd>
+              <dt className="text-sm font-medium text-muted-foreground">Instruction Files</dt>
+              <dd className="mt-1 flex items-center gap-2 text-sm">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                Ready for project files API
+              </dd>
             </div>
             <div>
               <dt className="text-sm font-medium text-muted-foreground">Status</dt>
@@ -261,8 +279,15 @@ export default function ProjectOverviewPage() {
               </dd>
             </div>
             <div>
-              <dt className="text-sm font-medium text-muted-foreground">Project Token</dt>
-              <dd className="text-sm font-mono mt-1 truncate">{project.projectToken}</dd>
+              <dt className="text-sm font-medium text-muted-foreground">Allowed AI Models</dt>
+              <dd className="mt-1 flex items-center gap-2 text-sm">
+                <BrainCircuit className="h-4 w-4 text-muted-foreground" />
+                Stored with project settings
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm font-medium text-muted-foreground">External Service</dt>
+              <dd className="text-sm mt-1">{getServiceTypeLabel(project.externalServiceType)}</dd>
             </div>
           </div>
         </CardContent>
@@ -280,9 +305,9 @@ export default function ProjectOverviewPage() {
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             ) : (
               <>
-                <div className="text-2xl font-bold">{(stats?.totalEvents ?? 0).toLocaleString()}</div>
+                <div className="text-2xl font-bold">{totalEvents.toLocaleString()}</div>
                 <p className="text-xs text-muted-foreground">
-                  {(stats?.avgEventsPerSession ?? 0).toFixed(1)} avg per session
+                  {avgEventsPerSession.toFixed(1)} avg per session
                 </p>
               </>
             )}
@@ -299,9 +324,9 @@ export default function ProjectOverviewPage() {
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             ) : (
               <>
-                <div className="text-2xl font-bold">{(stats?.totalSessions ?? 0).toLocaleString()}</div>
+                <div className="text-2xl font-bold">{totalSessions.toLocaleString()}</div>
                 <p className="text-xs text-muted-foreground">
-                  {stats?.avgSessionDuration ? formatDuration(stats.avgSessionDuration) : '0s'} avg duration
+                  {avgSessionDuration ? formatDuration(avgSessionDuration) : '0s'} avg duration
                 </p>
               </>
             )}
@@ -314,16 +339,13 @@ export default function ProjectOverviewPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {isLoadingStats ? (
+            {isLoadingProject || isLoadingStats ? (
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
             ) : (
               <>
-                <div className="text-2xl font-bold">{(stats?.totalUsers ?? 0).toLocaleString()}</div>
+                <div className="text-2xl font-bold">{enrolledUserCount.toLocaleString()}</div>
                 <p className="text-xs text-muted-foreground">
-                  {stats?.totalSessions && stats?.totalUsers
-                    ? (stats.totalSessions / stats.totalUsers).toFixed(1)
-                    : 0}{' '}
-                  sessions per user
+                  {sessionsPerEnrolledUser} sessions per enrolled user
                 </p>
               </>
             )}

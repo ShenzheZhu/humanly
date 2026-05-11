@@ -7,7 +7,7 @@ The data export page is located at `/app/(dashboard)/projects/[id]/export/page.t
 ## Location
 
 ```
-/home/ubuntu/humory/packages/frontend/src/app/(dashboard)/projects/[id]/export/page.tsx
+/home/ubuntu/humanly/packages/frontend/src/app/(dashboard)/projects/[id]/export/page.tsx
 ```
 
 ## Features Implemented
@@ -299,7 +299,7 @@ To implement this, you would need:
 ## File Structure
 
 ```
-/home/ubuntu/humory/packages/frontend/src/
+/home/ubuntu/humanly/packages/frontend/src/
 ├── app/(dashboard)/projects/[id]/export/
 │   └── page.tsx (1025 lines)
 ├── components/ui/

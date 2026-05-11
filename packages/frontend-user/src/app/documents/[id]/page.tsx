@@ -5,7 +5,7 @@ import { ArrowLeft, FileText, Clock, Award, PanelLeftClose, PanelLeft, Upload, L
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { LexicalEditor, type SelectionReplacementResult } from '@humory/editor';
+import { LexicalEditor, type SelectionReplacementResult } from '@humanly/editor';
 import { useDocument } from '@/hooks/use-document';
 import { useCertificates } from '@/hooks/use-certificates';
 import { useAuthStore } from '@/stores/auth-store';
@@ -18,9 +18,10 @@ import {
 import { AIAssistantButton, AIAssistantPanel, AISelectionMenu, type ActionType } from '@/components/ai';
 import { useAI } from '@/hooks/use-ai';
 import { useAIStore } from '@/stores/ai-store';
-import type { TrackedEvent } from '@humory/editor';
+import type { TrackedEvent } from '@humanly/editor';
 import { useState, useEffect, useCallback, useRef, type ChangeEvent } from 'react';
 import dynamic from 'next/dynamic';
+import { apiClient } from '@/lib/api-client';
 
 // ✅ Overleaf-style: resizable panels
 import {
@@ -38,6 +39,33 @@ const PDFViewer = dynamic(() => import('@/components/review/SimplePDFViewer'), {
     </div>
   ),
 });
+
+interface ProjectEnrollment {
+  id: string;
+  name: string;
+  inviteCode: string;
+  documentId: string;
+  joinedAt: string;
+  description?: string;
+}
+
+interface ProjectInstructionPaper {
+  id: string;
+  title: string;
+  pdfStoragePath?: string;
+}
+
+const PROJECT_ENROLLMENTS_KEY = 'humanly.projectEnrollments';
+
+const readProjectEnrollmentForDocument = (documentId: string): ProjectEnrollment | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const enrollments = JSON.parse(localStorage.getItem(PROJECT_ENROLLMENTS_KEY) || '[]') as ProjectEnrollment[];
+    return enrollments.find((project) => project.documentId === documentId) || null;
+  } catch {
+    return null;
+  }
+};
 
 export default function DocumentEditorPage() {
   const params = useParams();
@@ -63,6 +91,7 @@ export default function DocumentEditorPage() {
   const [isGeneratingCertificate, setIsGeneratingCertificate] = useState(false);
   const [showCertificateDialog, setShowCertificateDialog] = useState(false);
   const [isUploadingPdf, setIsUploadingPdf] = useState(false);
+  const [projectInstructionPaper, setProjectInstructionPaper] = useState<ProjectInstructionPaper | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // AI Assistant
@@ -105,6 +134,37 @@ export default function DocumentEditorPage() {
       setShowPdfPanel(true);
     }
   }, [linkedPaper]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchProjectInstructionPaper = async () => {
+      const enrollment = readProjectEnrollmentForDocument(documentId);
+      if (!enrollment) {
+        setProjectInstructionPaper(null);
+        return;
+      }
+
+      try {
+        await apiClient.put(`/projects/enrollments/${enrollment.id}/submission-document`, {
+          documentId,
+        });
+        const response = await apiClient.get(`/projects/enrollments/${enrollment.id}/instruction-paper`);
+        if (cancelled) return;
+        const paper = response.data.data?.paper || null;
+        setProjectInstructionPaper(paper);
+        if (paper) setShowPdfPanel(true);
+      } catch {
+        if (!cancelled) setProjectInstructionPaper(null);
+      }
+    };
+
+    fetchProjectInstructionPaper();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [documentId]);
 
   const handleTitleSave = async () => {
     if (!document) return;
@@ -247,6 +307,7 @@ export default function DocumentEditorPage() {
   // ✅ Overleaf-style canvas: nearly full-width with minimal padding
   // px-2 gives a tiny gutter on edges for a more spacious panel layout
   const CANVAS = 'mx-auto w-full max-w-[2400px] px-3';
+  const displayPaper = projectInstructionPaper || linkedPaper;
 
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
@@ -292,7 +353,7 @@ export default function DocumentEditorPage() {
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-              {!linkedPaper && (
+              {!displayPaper && (
                 <>
                   <input
                     ref={fileInputRef}
@@ -318,7 +379,7 @@ export default function DocumentEditorPage() {
                 </>
               )}
 
-              {linkedPaper && (
+              {displayPaper && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -380,24 +441,24 @@ export default function DocumentEditorPage() {
           {/* ✅ Resizable like Overleaf */}
           <ResizablePanelGroup direction="horizontal" className="h-full w-full rounded-md border bg-background">
             {/* PDF */}
-            {linkedPaper && showPdfPanel ? (
+            {displayPaper && showPdfPanel ? (
               <ResizablePanel defaultSize={38} minSize={22}>
                 <div className="h-full border-r bg-background overflow-hidden">
-                  <PDFViewer paperId={linkedPaper.id} documentId={documentId} onCommentAdd={() => {}} comments={[]} />
+                  <PDFViewer paperId={displayPaper.id} documentId={documentId} onCommentAdd={() => {}} comments={[]} />
                 </div>
               </ResizablePanel>
             ) : null}
 
-            {linkedPaper && showPdfPanel ? <ResizableHandle withHandle /> : null}
+            {displayPaper && showPdfPanel ? <ResizableHandle withHandle /> : null}
 
             {/* Editor */}
             <ResizablePanel
-              defaultSize={linkedPaper && showPdfPanel ? (isAIPanelOpen ? 37 : 62) : (isAIPanelOpen ? 70 : 100)}
+              defaultSize={displayPaper && showPdfPanel ? (isAIPanelOpen ? 37 : 62) : (isAIPanelOpen ? 70 : 100)}
               minSize={30}
             >
               <div className="h-full overflow-auto">
-                <div className={`${linkedPaper || isAIPanelOpen ? 'px-4 py-4' : 'px-6 py-6'} h-full`}>
-                  {!linkedPaper && (
+                <div className={`${displayPaper || isAIPanelOpen ? 'px-4 py-4' : 'px-6 py-6'} h-full`}>
+                  {!displayPaper && (
                     <div className="mb-4 rounded-lg border border-dashed border-border bg-muted/30 p-4">
                       <div>
                         <div>
@@ -413,7 +474,7 @@ export default function DocumentEditorPage() {
                     documentId={documentId}
                     userId={user?.id}
                     initialContent={document.content}
-                    placeholder={linkedPaper ? 'Write your review here...' : 'Start typing your document...'}
+                    placeholder={displayPaper ? 'Write your review here...' : 'Start typing your document...'}
                     trackingEnabled={true}
                     autoSaveEnabled={true}
                     autoSaveInterval={30000}

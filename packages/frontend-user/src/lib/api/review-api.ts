@@ -9,7 +9,7 @@ import type {
   ReviewComment,
   PaperReviewer,
   AnonymousReview
-} from '@humory/shared'
+} from '@humanly/shared'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1'
 

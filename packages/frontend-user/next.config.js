@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  transpilePackages: ['@humory/shared', '@humory/editor'],
+  transpilePackages: ['@humanly/shared', '@humanly/editor'],
   eslint: {
     // Disable ESLint during build for now
     ignoreDuringBuilds: true,

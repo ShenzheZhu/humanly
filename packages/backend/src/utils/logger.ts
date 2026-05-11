@@ -23,7 +23,7 @@ const consoleFormat = winston.format.combine(
 export const logger = winston.createLogger({
   level: env.logLevel,
   format: logFormat,
-  defaultMeta: { service: 'humory-backend' },
+  defaultMeta: { service: 'humanly-backend' },
   transports: [
     // Console transport for development
     new winston.transports.Console({

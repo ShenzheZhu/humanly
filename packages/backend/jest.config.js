@@ -6,7 +6,7 @@ module.exports = {
   testMatch: ['**/__tests__/**/*.test.ts'],
   setupFiles: ['../__tests__/jest.setup.ts'],
   moduleNameMapper: {
-    '^@humory/shared$': '<rootDir>/../../shared/src/index.ts',
+    '^@humanly/shared$': '<rootDir>/../../shared/src/index.ts',
     '^uuid$': '<rootDir>/../__mocks__/uuid.js',
   },
   transform: {

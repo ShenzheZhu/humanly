@@ -1,6 +1,6 @@
-# Humory Analytics Backend
+# humanly Analytics Backend
 
-This document provides comprehensive information about the analytics backend implementation for Humory.
+This document provides comprehensive information about the analytics backend implementation for humanly.
 
 ## Overview
 

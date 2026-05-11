@@ -1,9 +1,10 @@
 import { query, queryOne } from '../config/database';
-import { User, UserWithPassword } from '@humory/shared';
+import { User, UserRole, UserWithPassword } from '@humanly/shared';
 
 export interface CreateUserData {
   email: string;
   passwordHash: string;
+  role?: UserRole;
   emailVerificationToken: string;
   emailVerificationExpires: Date;
 }
@@ -14,13 +15,14 @@ export class UserModel {
    */
   static async create(data: CreateUserData): Promise<User> {
     const sql = `
-      INSERT INTO users (email, password_hash, email_verification_token, email_verification_expires)
-      VALUES ($1, $2, $3, $4)
-      RETURNING id, email, email_verified, created_at, updated_at
+      INSERT INTO users (email, password_hash, role, email_verification_token, email_verification_expires)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id, email, role, email_verified as "emailVerified", created_at as "createdAt", updated_at as "updatedAt"
     `;
     const user = await queryOne<User>(sql, [
       data.email,
       data.passwordHash,
+      data.role || 'user',
       data.emailVerificationToken,
       data.emailVerificationExpires,
     ]);
@@ -33,7 +35,7 @@ export class UserModel {
    */
   static async findByEmail(email: string): Promise<UserWithPassword | null> {
     const sql = `
-      SELECT id, email, password_hash, email_verified,
+      SELECT id, email, role, password_hash, email_verified,
              email_verification_token, email_verification_expires,
              password_reset_token, password_reset_expires,
              created_at, updated_at
@@ -46,6 +48,7 @@ export class UserModel {
     return {
       id: user.id,
       email: user.email,
+      role: user.role,
       passwordHash: user.password_hash,
       emailVerified: user.email_verified,
       emailVerificationToken: user.email_verification_token,
@@ -62,7 +65,7 @@ export class UserModel {
    */
   static async findById(id: string): Promise<User | null> {
     const sql = `
-      SELECT id, email, email_verified, created_at, updated_at
+      SELECT id, email, role, email_verified as "emailVerified", created_at as "createdAt", updated_at as "updatedAt"
       FROM users
       WHERE id = $1
     `;
@@ -74,7 +77,7 @@ export class UserModel {
    */
   static async findByVerificationToken(token: string): Promise<UserWithPassword | null> {
     const sql = `
-      SELECT id, email, password_hash, email_verified,
+      SELECT id, email, role, password_hash, email_verified,
              email_verification_token, email_verification_expires,
              created_at, updated_at
       FROM users
@@ -87,6 +90,7 @@ export class UserModel {
     return {
       id: user.id,
       email: user.email,
+      role: user.role,
       passwordHash: user.password_hash,
       emailVerified: user.email_verified,
       emailVerificationToken: user.email_verification_token,
@@ -101,7 +105,7 @@ export class UserModel {
    */
   static async findByResetToken(token: string): Promise<UserWithPassword | null> {
     const sql = `
-      SELECT id, email, password_hash, email_verified,
+      SELECT id, email, role, password_hash, email_verified,
              password_reset_token, password_reset_expires,
              created_at, updated_at
       FROM users
@@ -114,6 +118,7 @@ export class UserModel {
     return {
       id: user.id,
       email: user.email,
+      role: user.role,
       passwordHash: user.password_hash,
       emailVerified: user.email_verified,
       passwordResetToken: user.password_reset_token,

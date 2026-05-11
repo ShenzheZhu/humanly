@@ -18,11 +18,13 @@ export const passwordSchema = z
 export const registerSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
+  role: z.enum(['admin', 'user']).default('user'),
 });
 
 export const loginSchema = z.object({
   email: emailSchema,
   password: z.string().min(1, 'Password is required'),
+  role: z.enum(['admin', 'user']).optional(),
 });
 
 export const verifyEmailSchema = z.object({

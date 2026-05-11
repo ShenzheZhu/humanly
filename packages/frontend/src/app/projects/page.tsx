@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Project } from '@humory/shared';
+import { Project } from '@humanly/shared';
 import api, { ApiError } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,10 @@ import {
   Activity,
   Users,
   AlertCircle,
-  Folder
+  Folder,
+  Copy,
+  BrainCircuit,
+  FileText
 } from 'lucide-react';
 
 /**
@@ -28,6 +31,11 @@ import {
 interface ProjectWithStats extends Project {
   eventCount?: number;
   sessionCount?: number;
+  enrolledUserCount?: number;
+  documentCount?: number;
+  aiUsageLimit?: number;
+  allowedAiModels?: string[];
+  inviteCode?: string;
 }
 
 /**
@@ -140,6 +148,19 @@ export default function ProjectsPage() {
     });
   };
 
+  const getInviteCode = (project: ProjectWithStats) => (
+    project.inviteCode || project.projectToken?.slice(0, 6).toUpperCase() || 'PENDING'
+  );
+
+  const getAllowedModels = (project: ProjectWithStats) => (
+    project.allowedAiModels?.length ? project.allowedAiModels : ['GPT-4.1', 'GPT-4o mini']
+  );
+
+  const copyInviteCode = async (project: ProjectWithStats) => {
+    const inviteCode = getInviteCode(project);
+    await navigator.clipboard.writeText(inviteCode);
+  };
+
   /**
    * Load projects on mount
    */
@@ -162,8 +183,8 @@ export default function ProjectsPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">My Projects</h1>
-            <p className="text-muted-foreground">Loading your projects...</p>
+            <h1 className="text-3xl font-bold tracking-tight">Admin Projects</h1>
+            <p className="text-muted-foreground">Loading project dashboard...</p>
           </div>
         </div>
 
@@ -198,13 +219,13 @@ export default function ProjectsPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">My Projects</h1>
-            <p className="text-muted-foreground">Manage your research projects</p>
+            <h1 className="text-3xl font-bold tracking-tight">Admin Projects</h1>
+            <p className="text-muted-foreground">Manage invite-code writing projects</p>
           </div>
           <Button asChild>
             <Link href="/projects/new">
               <Plus className="mr-2 h-4 w-4" />
-              Create New Project
+              Create Project
             </Link>
           </Button>
         </div>
@@ -236,8 +257,8 @@ export default function ProjectsPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">My Projects</h1>
-            <p className="text-muted-foreground">Manage your research projects</p>
+            <h1 className="text-3xl font-bold tracking-tight">Admin Projects</h1>
+            <p className="text-muted-foreground">Create a writing project and share its invite code with users</p>
           </div>
         </div>
 
@@ -246,16 +267,16 @@ export default function ProjectsPage() {
             <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-muted flex items-center justify-center">
               <Folder className="h-6 w-6 text-muted-foreground" />
             </div>
-            <CardTitle>No projects yet</CardTitle>
+            <CardTitle>No admin projects yet</CardTitle>
             <CardDescription>
-              Get started by creating your first research project
+              Create your first writing project, configure AI access, and invite users with a code.
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center pb-6">
             <Button asChild size="lg">
               <Link href="/projects/new">
                 <Plus className="mr-2 h-4 w-4" />
-                Create New Project
+                Create Project
               </Link>
             </Button>
           </CardContent>
@@ -272,7 +293,7 @@ export default function ProjectsPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">My Projects</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Admin Projects</h1>
             <p className="text-muted-foreground">
               {projects.length} {projects.length === 1 ? 'project' : 'projects'} total
             </p>
@@ -280,7 +301,7 @@ export default function ProjectsPage() {
           <Button asChild>
             <Link href="/projects/new">
               <Plus className="mr-2 h-4 w-4" />
-              Create New Project
+              Create Project
             </Link>
           </Button>
         </div>
@@ -305,7 +326,7 @@ export default function ProjectsPage() {
             </div>
             <CardTitle>No projects found</CardTitle>
             <CardDescription>
-              No projects match your search query "{searchQuery}"
+              No projects match your search query {searchQuery}
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center pb-6">
@@ -329,7 +350,7 @@ export default function ProjectsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">My Projects</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Admin Projects</h1>
           <p className="text-muted-foreground">
             {filteredProjects.length} {filteredProjects.length === 1 ? 'project' : 'projects'}
             {searchQuery && ' found'}
@@ -338,7 +359,7 @@ export default function ProjectsPage() {
         <Button asChild>
           <Link href="/projects/new">
             <Plus className="mr-2 h-4 w-4" />
-            Create New Project
+            Create Project
           </Link>
         </Button>
       </div>
@@ -349,7 +370,7 @@ export default function ProjectsPage() {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search projects..."
+            placeholder="Search projects or invite codes..."
             className="pl-10"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -387,15 +408,41 @@ export default function ProjectsPage() {
                 <span>Created {formatDate(project.createdAt)}</span>
               </div>
 
-              <div className="flex items-center gap-4 text-sm">
-                <div className="flex items-center gap-1.5 text-muted-foreground">
-                  <Activity className="h-4 w-4" />
-                  <span>{project.eventCount ?? 0} events</span>
-                </div>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between rounded-md border bg-muted/30 px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
+                onClick={() => copyInviteCode(project)}
+                title="Copy invite code"
+              >
+                <span className="font-mono font-semibold tracking-wider">{getInviteCode(project)}</span>
+                <Copy className="h-4 w-4 text-muted-foreground" />
+              </button>
+
+              <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="flex items-center gap-1.5 text-muted-foreground">
                   <Users className="h-4 w-4" />
-                  <span>{project.sessionCount ?? 0} sessions</span>
+                  <span>{project.enrolledUserCount ?? project.sessionCount ?? 0} users</span>
                 </div>
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <FileText className="h-4 w-4" />
+                  <span>{project.documentCount ?? 0} docs</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <Activity className="h-4 w-4" />
+                  <span>{project.eventCount ?? 0} logs</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <BrainCircuit className="h-4 w-4" />
+                  <span>{project.aiUsageLimit ?? 100} AI limit</span>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                {getAllowedModels(project).map((model) => (
+                  <span key={model} className="rounded-md bg-secondary px-2 py-1 text-xs text-secondary-foreground">
+                    {model}
+                  </span>
+                ))}
               </div>
 
               {project.externalServiceType && (

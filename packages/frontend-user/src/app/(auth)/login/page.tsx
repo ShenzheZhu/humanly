@@ -51,7 +51,7 @@ export default function LoginPage() {
       setResendSuccess(false);
       setUserEmail(data.email);
       
-      await login(data.email, data.password);
+      await login(data.email, data.password, 'user');
 
       // Redirect to documents on success
       router.push('/documents');
@@ -227,7 +227,7 @@ export default function LoginPage() {
 
       <CardFooter className="flex flex-col items-center gap-3">
         <p className="text-sm text-muted-foreground">
-          Don't have an account?{' '}
+          Do not have an account?{' '}
           <Link
             href="/register"
             className="text-primary hover:underline font-medium"

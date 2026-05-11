@@ -1,5 +1,13 @@
 const path = require('path');
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+if (!API_URL.startsWith('http://') && !API_URL.startsWith('https://')) {
+  throw new Error(
+    `NEXT_PUBLIC_API_URL must start with http:// or https://. Received: ${API_URL}`
+  );
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -12,9 +20,9 @@ const nextConfig = {
   // In production the admin dashboard is served at /admin via nginx.
   // Set NEXT_PUBLIC_BASE_PATH=/admin as a Docker build arg before building.
   basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
-  transpilePackages: ['@humory/shared'],
+  transpilePackages: ['@humanly/shared'],
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+    NEXT_PUBLIC_API_URL: API_URL,
     NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL,
     NEXT_PUBLIC_TRACKER_URL: process.env.NEXT_PUBLIC_TRACKER_URL,
   },
@@ -25,7 +33,7 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL}/:path*`,
+        destination: `${API_URL}/:path*`,
       },
     ];
   },
@@ -33,10 +41,10 @@ const nextConfig = {
     domains: ['localhost', 'yourdomain.com'],
   },
   webpack: (config) => {
-    // Exact match: import from '@humory/shared'
-    config.resolve.alias['@humory/shared$'] = path.resolve(__dirname, '../shared/src/index.ts');
-    // Subpath match: import from '@humory/shared/types/...'
-    config.resolve.alias['@humory/shared'] = path.resolve(__dirname, '../shared/src');
+    // Exact match: import from '@humanly/shared'
+    config.resolve.alias['@humanly/shared$'] = path.resolve(__dirname, '../shared/src/index.ts');
+    // Subpath match: import from '@humanly/shared/types/...'
+    config.resolve.alias['@humanly/shared'] = path.resolve(__dirname, '../shared/src');
     // Ensure root node_modules is searchable (for zod and other deps)
     config.resolve.modules = [
       path.resolve(__dirname, '../../node_modules'),

@@ -1,4 +1,4 @@
-import { EventType } from '@humory/shared';
+import { EventType } from '@humanly/shared';
 
 /**
  * Configuration for the editor tracker

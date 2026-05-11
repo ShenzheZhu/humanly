@@ -76,7 +76,7 @@ function parseArgs(argv: string[]): Options {
 
 function printHelp() {
   console.log(`Usage:
-  DEFAULT_AI_API_KEY=sk-... npm --workspace=@humory/backend exec tsx ../../scripts/set-default-ai-settings.ts [options]
+  DEFAULT_AI_API_KEY=sk-... npm --workspace=@humanly/backend exec tsx ../../scripts/set-default-ai-settings.ts [options]
 
 Options:
   --days <n>        Target users created in the last n days. Default: 14

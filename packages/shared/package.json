@@ -1,7 +1,7 @@
 {
-  "name": "@humory/shared",
+  "name": "@humanly/shared",
   "version": "1.0.0",
-  "description": "Shared types and utilities for Humory",
+  "description": "Shared types and utilities for humanly",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {

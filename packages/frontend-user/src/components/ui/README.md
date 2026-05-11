@@ -1,6 +1,6 @@
 # shadcn/ui Components
 
-This directory contains production-ready UI components based on shadcn/ui patterns, manually created for the Humory frontend.
+This directory contains production-ready UI components based on shadcn/ui patterns, manually created for the humanly frontend.
 
 ## Installation
 

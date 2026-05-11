@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { uploadPdfForDocument } from '@/lib/document-pdf';
-import type { Document, DocumentEvent } from '@humory/shared';
+import type { Document, DocumentEvent } from '@humanly/shared';
 
 export interface LinkedPaper {
   id: string;

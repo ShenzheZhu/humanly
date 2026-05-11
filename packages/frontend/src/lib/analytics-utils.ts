@@ -1,4 +1,4 @@
-import { EventType } from '@humory/shared';
+import { EventType } from '@humanly/shared';
 
 // Real-time event interface
 export interface RealtimeEvent {

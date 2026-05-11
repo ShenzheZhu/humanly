@@ -1,10 +1,10 @@
 # shadcn/ui Components Setup Guide
 
-This guide will help you complete the setup of shadcn/ui components for the Humory frontend.
+This guide will help you complete the setup of shadcn/ui components for the humanly frontend.
 
 ## Components Installed
 
-All shadcn/ui components have been manually created in `/home/ubuntu/humory/packages/frontend/src/components/ui/`:
+All shadcn/ui components have been manually created in `/home/ubuntu/humanly/packages/frontend/src/components/ui/`:
 
 1. **button.tsx** - Button component with variants (default, destructive, outline, secondary, ghost, link)
 2. **input.tsx** - Input component for forms
@@ -24,14 +24,14 @@ All shadcn/ui components have been manually created in `/home/ubuntu/humory/pack
 The `@radix-ui/react-toast` dependency has been added to package.json. Install it by running:
 
 ```bash
-cd /home/ubuntu/humory/packages/frontend
+cd /home/ubuntu/humanly/packages/frontend
 pnpm install
 ```
 
 Or from the root:
 
 ```bash
-cd /home/ubuntu/humory
+cd /home/ubuntu/humanly
 pnpm install
 ```
 
@@ -40,7 +40,7 @@ pnpm install
 Update your root layout to include the Toaster component:
 
 ```tsx
-// /home/ubuntu/humory/packages/frontend/src/app/layout.tsx
+// /home/ubuntu/humanly/packages/frontend/src/app/layout.tsx
 import { Toaster } from '@/components/ui/toaster';
 
 export default function RootLayout({
@@ -99,7 +99,7 @@ The following dependencies are already in package.json:
 ## Example Usage
 
 A complete authentication example has been created at:
-`/home/ubuntu/humory/packages/frontend/src/components/examples/auth-example.tsx`
+`/home/ubuntu/humanly/packages/frontend/src/components/examples/auth-example.tsx`
 
 This example demonstrates:
 - Login and registration forms
@@ -160,7 +160,7 @@ export function LoginForm() {
 ## Documentation
 
 For detailed documentation on each component, see:
-- `/home/ubuntu/humory/packages/frontend/src/components/ui/README.md`
+- `/home/ubuntu/humanly/packages/frontend/src/components/ui/README.md`
 
 For component examples and patterns:
 - [shadcn/ui Documentation](https://ui.shadcn.com)
@@ -227,7 +227,7 @@ pnpm dev
 ## File Structure
 
 ```
-/home/ubuntu/humory/packages/frontend/
+/home/ubuntu/humanly/packages/frontend/
 ├── src/
 │   ├── components/
 │   │   ├── ui/
