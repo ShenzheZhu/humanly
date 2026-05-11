@@ -31,6 +31,48 @@ psql_scalar() {
   psql_exec -At "$@"
 }
 
+migration_presence() {
+  local filename="$1"
+
+  case "$filename" in
+    006-paper-document-link.sql)
+      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'papers' AND column_name = 'document_id');"
+      ;;
+    007_ai_authorship_statistics.sql)
+      psql_scalar -c "SELECT to_regclass('public.ai_selection_actions') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'ai_interaction_logs' AND column_name = 'question_category');"
+      ;;
+    008_user_ai_settings.sql)
+      psql_scalar -c "SELECT to_regclass('public.user_ai_settings') IS NOT NULL;"
+      ;;
+    010_paper_text_retrieval.sql)
+      psql_scalar -c "SELECT to_regclass('public.paper_pages') IS NOT NULL AND to_regclass('public.paper_sections') IS NOT NULL AND to_regclass('public.paper_text_chunks') IS NOT NULL;"
+      ;;
+    011_user_roles.sql)
+      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'role');"
+      ;;
+    012_project_enrollments.sql)
+      psql_scalar -c "SELECT to_regclass('public.project_enrollments') IS NOT NULL;"
+      ;;
+    013_project_enrollment_submission_document.sql)
+      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'project_enrollments' AND column_name = 'submission_document_id');"
+      ;;
+    014_document_events_session_id.sql)
+      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'document_events' AND column_name = 'session_id');"
+      ;;
+    *)
+      echo "unknown"
+      ;;
+  esac
+}
+
+delete_migration_record() {
+  local filename="$1"
+  psql_exec -v filename="$filename" <<'SQL'
+DELETE FROM schema_migrations
+WHERE filename = :'filename';
+SQL
+}
+
 echo "==> Preparing schema_migrations table"
 psql_exec <<'SQL'
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -54,11 +96,18 @@ users_table_exists="$(psql_scalar -c "SELECT to_regclass('public.users') IS NOT 
 
 if [[ "$applied_count" == "0" && "$BASELINE_EXISTING_DB" == "true" && "$users_table_exists" == "t" ]]; then
   echo "==> Existing database detected with no migration history"
-  echo "==> Baselining current migration files without re-running old SQL"
+  echo "==> Baselining migration files that are already present in the schema"
 
   for file in "${migration_files[@]}"; do
     filename="$(basename "$file")"
     checksum="$(checksum_file "$file")"
+    presence="$(migration_presence "$filename")"
+
+    if [[ "$presence" == "f" ]]; then
+      echo "    will apply missing migration $filename"
+      continue
+    fi
+
     psql_exec -v filename="$filename" -v checksum="$checksum" <<'SQL'
 INSERT INTO schema_migrations (filename, checksum, execution_seconds, baseline)
 VALUES (:'filename', :'checksum', 0, TRUE)
@@ -67,9 +116,23 @@ SQL
     echo "    baselined $filename"
   done
 
-  echo "==> Baseline complete; future migration files will run automatically"
-  exit 0
+  echo "==> Baseline complete; pending missing migrations will run now"
 fi
+
+echo "==> Checking recorded migrations against live schema"
+for file in "${migration_files[@]}"; do
+  filename="$(basename "$file")"
+  recorded="$(psql_scalar -c "SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE filename = '$filename');")"
+  if [[ "$recorded" != "t" ]]; then
+    continue
+  fi
+
+  presence="$(migration_presence "$filename")"
+  if [[ "$presence" == "f" ]]; then
+    echo "    repair history for missing migration $filename"
+    delete_migration_record "$filename"
+  fi
+done
 
 echo "==> Running pending migrations"
 pending_count=0
