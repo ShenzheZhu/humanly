@@ -36,6 +36,21 @@ interface SearchMatch {
   text: string
 }
 
+function getTextItemHighlightRect(item: any, matchStart: number, matchLength: number, viewport: any) {
+  const transform = window.pdfjsLib.Util.transform(viewport.transform, item.transform)
+  const textLength = Math.max(item.str.length, 1)
+  const itemWidth = Math.max((item.width || 0) * viewport.scale, 1)
+  const itemHeight = Math.max(Math.hypot(transform[2], transform[3]), (item.height || 12) * viewport.scale)
+  const charWidth = itemWidth / textLength
+
+  return {
+    left: transform[4] + charWidth * matchStart,
+    top: transform[5] - itemHeight,
+    width: charWidth * matchLength,
+    height: itemHeight,
+  }
+}
+
 export default function SimplePDFViewer({ paperId, documentId, onCommentAdd, comments }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number>(0)
   const [currentPage, setCurrentPage] = useState<number>(1)
@@ -281,12 +296,9 @@ export default function SimplePDFViewer({ paperId, documentId, onCommentAdd, com
         const itemLower = item.str.toLowerCase()
         for (let i = 0; i < item.str.length; i++) {
           if (itemLower.substring(i, i + lowerQuery.length) === lowerQuery) {
-            const x = item.transform[4]
-            const y = item.transform[5]
-            const height = item.height || 12
-            const width = (item.width || item.str.length * 8) * (lowerQuery.length / item.str.length)
+            const rect = getTextItemHighlightRect(item, i, lowerQuery.length, viewport)
             const div = document.createElement('div')
-            div.style.cssText = `position:absolute;left:${x * currentScale / viewport.scale}px;top:${(viewport.height - y - height) * currentScale / viewport.scale}px;width:${width * currentScale / viewport.scale}px;height:${height * currentScale / viewport.scale}px;background:rgba(255,255,0,0.4);pointer-events:none;`
+            div.style.cssText = `position:absolute;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;background:rgba(255,255,0,0.4);pointer-events:none;`
             hl.appendChild(div)
           }
         }

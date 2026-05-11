@@ -283,10 +283,11 @@ const editorStyles = {
   },
   editorWrapper: {
     position: 'relative' as const,
-    minHeight: '200px',
+    minHeight: 0,
     flex: 1,
     display: 'flex',
     flexDirection: 'column' as const,
+    overflowY: 'auto' as const,
   },
   contentEditable: {
     minHeight: '200px',
@@ -296,7 +297,7 @@ const editorStyles = {
     lineHeight: '1.6',
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-    flex: 1,
+    flex: '1 0 auto',
   },
   placeholder: {
     position: 'absolute' as const,
