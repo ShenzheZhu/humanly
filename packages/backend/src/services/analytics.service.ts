@@ -143,6 +143,7 @@ export class AnalyticsService {
         document_event_rows AS (
           SELECT
             de.document_id,
+            de.session_id,
             u.email as external_user_id,
             de.timestamp,
             de.event_type
@@ -155,7 +156,7 @@ export class AnalyticsService {
             AND ($4::text IS NULL OR u.email = $4::text)
             AND ($5::text IS NULL OR de.event_type = $5::text)
         ),
-        document_sessions AS (
+        legacy_document_sessions AS (
           SELECT
             document_id::text as session_id,
             external_user_id,
@@ -163,12 +164,13 @@ export class AnalyticsService {
             EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))) as duration_seconds,
             FALSE as submitted
           FROM document_event_rows
+          WHERE session_id IS NULL
           GROUP BY document_id, external_user_id
         ),
         all_sessions AS (
           SELECT * FROM tracker_sessions
           UNION ALL
-          SELECT * FROM document_sessions
+          SELECT * FROM legacy_document_sessions
         ),
         tracker_event_stats AS (
           SELECT
@@ -499,7 +501,23 @@ export class AnalyticsService {
             AND ($3::timestamptz IS NULL OR s.session_start <= $3::timestamptz)
           GROUP BY s.external_user_id
         ),
-        document_sessions AS (
+        document_event_stats AS (
+          SELECT
+            u.email as "externalUserId",
+            0::integer as "sessionCount",
+            COUNT(de.id)::integer as "eventCount",
+            MAX(de.timestamp) as "lastActive",
+            NULL::numeric as "avgDuration"
+          FROM project_enrollments pe
+          JOIN document_events de ON de.document_id = pe.submission_document_id
+          JOIN users u ON u.id = de.user_id
+          WHERE pe.project_id = $1
+            AND de.session_id IS NOT NULL
+            AND ($2::timestamptz IS NULL OR de.timestamp >= $2::timestamptz)
+            AND ($3::timestamptz IS NULL OR de.timestamp <= $3::timestamptz)
+          GROUP BY u.email
+        ),
+        legacy_document_sessions AS (
           SELECT
             u.email as "externalUserId",
             de.document_id,
@@ -511,24 +529,27 @@ export class AnalyticsService {
           JOIN document_events de ON de.document_id = pe.submission_document_id
           JOIN users u ON u.id = de.user_id
           WHERE pe.project_id = $1
+            AND de.session_id IS NULL
             AND ($2::timestamptz IS NULL OR de.timestamp >= $2::timestamptz)
             AND ($3::timestamptz IS NULL OR de.timestamp <= $3::timestamptz)
           GROUP BY u.email, de.document_id
         ),
-        document_user_stats AS (
+        legacy_document_user_stats AS (
           SELECT
             "externalUserId",
             COUNT(document_id)::integer as "sessionCount",
             SUM(event_count)::integer as "eventCount",
             MAX(last_event) as "lastActive",
             COALESCE(ROUND(AVG(duration_seconds)::numeric, 2), 0) as "avgDuration"
-          FROM document_sessions
+          FROM legacy_document_sessions
           GROUP BY "externalUserId"
         ),
         combined_stats AS (
           SELECT * FROM tracker_session_stats
           UNION ALL
-          SELECT * FROM document_user_stats
+          SELECT * FROM document_event_stats
+          UNION ALL
+          SELECT * FROM legacy_document_user_stats
         ),
         user_stats AS (
           SELECT
@@ -536,7 +557,7 @@ export class AnalyticsService {
             SUM("sessionCount")::integer as "sessionCount",
             SUM("eventCount")::integer as "eventCount",
             MAX("lastActive") as "lastActive",
-            COALESCE(ROUND(AVG("avgDuration")::numeric, 2), 0) as "avgDuration"
+            COALESCE(ROUND(AVG("avgDuration") FILTER (WHERE "avgDuration" IS NOT NULL)::numeric, 2), 0) as "avgDuration"
           FROM combined_stats
           GROUP BY "externalUserId"
         )
@@ -646,21 +667,53 @@ export class AnalyticsService {
 
       // Get events for the session
       const eventsSql = `
+        WITH session_events AS (
+          SELECT
+            id::text,
+            event_type as "eventType",
+            timestamp,
+            target_element as "targetElement",
+            key_code as "keyCode",
+            key_char as "keyChar",
+            text_before as "textBefore",
+            text_after as "textAfter",
+            cursor_position as "cursorPosition",
+            selection_start as "selectionStart",
+            selection_end as "selectionEnd",
+            metadata
+          FROM events
+          WHERE session_id = $1
+          UNION ALL
+          SELECT
+            id::text,
+            event_type as "eventType",
+            timestamp,
+            NULL::text as "targetElement",
+            key_code as "keyCode",
+            key_char as "keyChar",
+            text_before as "textBefore",
+            text_after as "textAfter",
+            cursor_position as "cursorPosition",
+            selection_start as "selectionStart",
+            selection_end as "selectionEnd",
+            metadata
+          FROM document_events
+          WHERE session_id = $1
+        )
         SELECT
           id,
-          event_type as "eventType",
+          "eventType",
           timestamp,
-          target_element as "targetElement",
-          key_code as "keyCode",
-          key_char as "keyChar",
-          text_before as "textBefore",
-          text_after as "textAfter",
-          cursor_position as "cursorPosition",
-          selection_start as "selectionStart",
-          selection_end as "selectionEnd",
+          "targetElement",
+          "keyCode",
+          "keyChar",
+          "textBefore",
+          "textAfter",
+          "cursorPosition",
+          "selectionStart",
+          "selectionEnd",
           metadata
-        FROM events
-        WHERE session_id = $1
+        FROM session_events
         ORDER BY timestamp ASC
       `;
 

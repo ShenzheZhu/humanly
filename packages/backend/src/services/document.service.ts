@@ -1,6 +1,7 @@
 import { DocumentModel } from '../models/document.model';
 import { DocumentEventModel } from '../models/document-event.model';
-import { query } from '../config/database';
+import { SessionModel } from '../models/session.model';
+import { query, queryOne } from '../config/database';
 import { cacheDelPattern } from '../config/redis';
 import {
   Document,
@@ -163,6 +164,8 @@ export class DocumentService {
         throw new AppError(404, 'Document not found or unauthorized');
       }
 
+      await this.verifyEventSessions(documentId, userId, events);
+
       // Ensure all events have correct documentId and userId
       const validatedEvents = events.map((event) => ({
         ...event,
@@ -186,6 +189,41 @@ export class DocumentService {
         userId,
       });
       throw error;
+    }
+  }
+
+  private static async verifyEventSessions(
+    documentId: string,
+    userId: string,
+    events: DocumentEventInsertData[]
+  ): Promise<void> {
+    const sessionIds = Array.from(
+      new Set(events.map((event) => event.sessionId).filter(Boolean))
+    ) as string[];
+
+    for (const sessionId of sessionIds) {
+      const session = await SessionModel.findById(sessionId);
+      if (!session) {
+        throw new AppError(404, 'Session not found');
+      }
+
+      const enrollment = await queryOne<{ id: string }>(
+        `
+          SELECT pe.id
+          FROM project_enrollments pe
+          JOIN users u ON u.id = pe.user_id
+          WHERE pe.project_id = $1
+            AND pe.user_id = $2
+            AND pe.submission_document_id = $3
+            AND u.email = $4
+          LIMIT 1
+        `,
+        [session.projectId, userId, documentId, session.externalUserId]
+      );
+
+      if (!enrollment) {
+        throw new AppError(403, 'Session does not belong to this document enrollment');
+      }
     }
   }
 

@@ -166,6 +166,70 @@ export async function linkSubmissionDocument(req: Request, res: Response): Promi
 }
 
 /**
+ * Start a real analytics session for the current user's project submission document
+ */
+export async function startSubmissionSession(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.userId;
+  const userEmail = req.user!.email;
+  const projectId = req.params.projectId;
+  const { documentId } = req.body;
+
+  if (!projectId) {
+    throw new AppError(400, 'Project ID is required');
+  }
+
+  if (!documentId || typeof documentId !== 'string') {
+    throw new AppError(400, 'Document ID is required');
+  }
+
+  const ipAddress =
+    (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+    req.socket.remoteAddress ||
+    undefined;
+  const userAgent = req.headers['user-agent'] || undefined;
+
+  const session = await ProjectService.startSubmissionSession(
+    projectId,
+    userId,
+    userEmail,
+    documentId,
+    ipAddress,
+    userAgent
+  );
+
+  res.status(201).json({
+    success: true,
+    data: session,
+    message: 'Submission session started successfully',
+  });
+}
+
+/**
+ * End a real analytics session for the current user's project submission document
+ */
+export async function endSubmissionSession(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.userId;
+  const userEmail = req.user!.email;
+  const projectId = req.params.projectId;
+  const sessionId = req.params.sessionId;
+
+  if (!projectId) {
+    throw new AppError(400, 'Project ID is required');
+  }
+
+  if (!sessionId) {
+    throw new AppError(400, 'Session ID is required');
+  }
+
+  await ProjectService.endSubmissionSession(projectId, userId, userEmail, sessionId);
+
+  res.json({
+    success: true,
+    message: 'Submission session ended successfully',
+  });
+}
+
+/**
  * Update project
  */
 export async function updateProject(req: Request, res: Response): Promise<void> {

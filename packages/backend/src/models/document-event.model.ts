@@ -56,6 +56,9 @@ export class DocumentEventModel {
       valueGroup.push(`$${++paramCount}`); // user_id
       params.push(event.userId);
 
+      valueGroup.push(`$${++paramCount}`); // session_id
+      params.push(event.sessionId || null);
+
       valueGroup.push(`$${++paramCount}`); // event_type
       params.push(event.eventType);
 
@@ -97,7 +100,7 @@ export class DocumentEventModel {
 
     const sql = `
       INSERT INTO document_events (
-        document_id, user_id, event_type, timestamp,
+        document_id, user_id, session_id, event_type, timestamp,
         key_code, key_char, text_before, text_after,
         cursor_position, selection_start, selection_end,
         editor_state_before, editor_state_after, metadata
@@ -161,6 +164,7 @@ export class DocumentEventModel {
         id,
         document_id as "documentId",
         user_id as "userId",
+        session_id as "sessionId",
         event_type as "eventType",
         timestamp,
         key_code as "keyCode",

@@ -131,10 +131,11 @@ export class SessionModel {
         s.ip_address as "ipAddress",
         s.user_agent as "userAgent",
         s.created_at as "createdAt",
-        COUNT(e.id) as "eventCount",
+        (COUNT(DISTINCT e.id) + COUNT(DISTINCT de.id)) as "eventCount",
         EXTRACT(EPOCH FROM (COALESCE(s.session_end, NOW()) - s.session_start)) * 1000 as duration
       FROM sessions s
       LEFT JOIN events e ON s.id = e.session_id
+      LEFT JOIN document_events de ON s.id = de.session_id
       WHERE ${whereClause}
       GROUP BY s.id
       ORDER BY s.session_start DESC

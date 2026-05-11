@@ -9,6 +9,8 @@ import {
   leaveProject,
   getInstructionPaper,
   linkSubmissionDocument,
+  startSubmissionSession,
+  endSubmissionSession,
   updateProject,
   deleteProject,
   regenerateToken,
@@ -60,6 +62,18 @@ router.get('/enrollments/:projectId/instruction-paper', asyncHandler(getInstruct
  * Link the current user's enrollment to a submission document.
  */
 router.put('/enrollments/:projectId/submission-document', asyncHandler(linkSubmissionDocument));
+
+/**
+ * POST /api/v1/projects/enrollments/:projectId/submission-sessions
+ * Start a real analytics session for the current user's submission document.
+ */
+router.post('/enrollments/:projectId/submission-sessions', asyncHandler(startSubmissionSession));
+
+/**
+ * PUT /api/v1/projects/enrollments/:projectId/submission-sessions/:sessionId/end
+ * End a real analytics session for the current user's submission document.
+ */
+router.put('/enrollments/:projectId/submission-sessions/:sessionId/end', asyncHandler(endSubmissionSession));
 
 /**
  * GET /api/v1/projects/:id

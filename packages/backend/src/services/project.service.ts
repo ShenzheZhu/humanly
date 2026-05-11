@@ -7,6 +7,7 @@ import {
 } from '../models/project.model';
 import { PaperModel } from '../models/paper.model';
 import { DocumentModel } from '../models/document.model';
+import { SessionModel } from '../models/session.model';
 import { Project, ProjectWithSnippets, BRAND, getTrackerComment, getIframeComment } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
@@ -198,6 +199,83 @@ export class ProjectService {
       throw new AppError(404, 'Project enrollment not found');
     }
 
+    await this.invalidateAnalytics(project.id);
+  }
+
+  /**
+   * Start a real analytics session for a user portal submission document.
+   */
+  static async startSubmissionSession(
+    projectIdOrInviteCode: string,
+    userId: string,
+    userEmail: string,
+    documentId: string,
+    ipAddress?: string,
+    userAgent?: string
+  ): Promise<{ sessionId: string; projectId: string }> {
+    const normalizedIdentifier = projectIdOrInviteCode.trim();
+    const project = /^[A-Z0-9]{6}$/i.test(normalizedIdentifier)
+      ? await ProjectModel.findByInviteCode(normalizedIdentifier.toUpperCase())
+      : await ProjectModel.findById(normalizedIdentifier);
+
+    if (!project) {
+      throw new AppError(404, 'Project not found');
+    }
+
+    const isOwner = await DocumentModel.isOwner(documentId, userId);
+    if (!isOwner) {
+      throw new AppError(404, 'Document not found or unauthorized');
+    }
+
+    const linked = await ProjectModel.linkSubmissionDocument(project.id, userId, documentId);
+    if (!linked) {
+      throw new AppError(404, 'Project enrollment not found');
+    }
+
+    const session = await SessionModel.create({
+      projectId: project.id,
+      externalUserId: userEmail,
+      ipAddress,
+      userAgent,
+    });
+
+    await this.invalidateAnalytics(project.id);
+
+    return {
+      sessionId: session.id,
+      projectId: project.id,
+    };
+  }
+
+  /**
+   * End a real analytics session for a user portal submission document.
+   */
+  static async endSubmissionSession(
+    projectIdOrInviteCode: string,
+    userId: string,
+    userEmail: string,
+    sessionId: string
+  ): Promise<void> {
+    const normalizedIdentifier = projectIdOrInviteCode.trim();
+    const project = /^[A-Z0-9]{6}$/i.test(normalizedIdentifier)
+      ? await ProjectModel.findByInviteCode(normalizedIdentifier.toUpperCase())
+      : await ProjectModel.findById(normalizedIdentifier);
+
+    if (!project) {
+      throw new AppError(404, 'Project not found');
+    }
+
+    const session = await SessionModel.findById(sessionId);
+    if (!session || session.projectId !== project.id || session.externalUserId !== userEmail) {
+      throw new AppError(404, 'Session not found');
+    }
+
+    const hasEnrollment = await ProjectModel.hasEnrollment(project.id, userId);
+    if (!hasEnrollment) {
+      throw new AppError(403, 'Access denied to this project');
+    }
+
+    await SessionModel.endSession(sessionId);
     await this.invalidateAnalytics(project.id);
   }
 

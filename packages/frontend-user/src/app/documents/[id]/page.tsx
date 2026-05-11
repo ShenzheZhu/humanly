@@ -21,7 +21,7 @@ import { useAIStore } from '@/stores/ai-store';
 import type { TrackedEvent } from '@humanly/editor';
 import { useState, useEffect, useCallback, useRef, type ChangeEvent } from 'react';
 import dynamic from 'next/dynamic';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, TokenManager } from '@/lib/api-client';
 
 // ✅ Overleaf-style: resizable panels
 import {
@@ -56,6 +56,7 @@ interface ProjectInstructionPaper {
 }
 
 const PROJECT_ENROLLMENTS_KEY = 'humanly.projectEnrollments';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
 const readProjectEnrollmentForDocument = (documentId: string): ProjectEnrollment | null => {
   if (typeof window === 'undefined') return null;
@@ -92,7 +93,9 @@ export default function DocumentEditorPage() {
   const [showCertificateDialog, setShowCertificateDialog] = useState(false);
   const [isUploadingPdf, setIsUploadingPdf] = useState(false);
   const [projectInstructionPaper, setProjectInstructionPaper] = useState<ProjectInstructionPaper | null>(null);
+  const [submissionSessionId, setSubmissionSessionId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const submissionSessionRef = useRef<{ projectId: string; sessionId: string } | null>(null);
 
   // AI Assistant
   const {
@@ -166,6 +169,86 @@ export default function DocumentEditorPage() {
     };
   }, [documentId]);
 
+  useEffect(() => {
+    const enrollment = readProjectEnrollmentForDocument(documentId);
+    if (!enrollment) {
+      setSubmissionSessionId(null);
+      submissionSessionRef.current = null;
+      return;
+    }
+
+    let cancelled = false;
+
+    const endSubmissionSession = () => {
+      const activeSession = submissionSessionRef.current;
+      if (!activeSession) return;
+
+      submissionSessionRef.current = null;
+      setSubmissionSessionId(null);
+
+      const token = TokenManager.getAccessToken();
+      void fetch(
+        `${API_URL}/projects/enrollments/${activeSession.projectId}/submission-sessions/${activeSession.sessionId}/end`,
+        {
+          method: 'PUT',
+          keepalive: true,
+          credentials: 'include',
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
+      ).catch(() => {});
+    };
+
+    const startSubmissionSession = async () => {
+      try {
+        const response = await apiClient.post(`/projects/enrollments/${enrollment.id}/submission-sessions`, {
+          documentId,
+        });
+
+        if (cancelled) {
+          const sessionId = response.data.data?.sessionId;
+          if (sessionId) {
+            const token = TokenManager.getAccessToken();
+            await fetch(`${API_URL}/projects/enrollments/${enrollment.id}/submission-sessions/${sessionId}/end`, {
+              method: 'PUT',
+              keepalive: true,
+              credentials: 'include',
+              headers: {
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+            }).catch(() => {});
+          }
+          return;
+        }
+
+        const sessionId = response.data.data?.sessionId;
+        if (!sessionId) return;
+
+        submissionSessionRef.current = {
+          projectId: enrollment.id,
+          sessionId,
+        };
+        setSubmissionSessionId(sessionId);
+      } catch (err) {
+        console.error('Failed to start submission session:', err);
+        setSubmissionSessionId(null);
+        submissionSessionRef.current = null;
+      }
+    };
+
+    startSubmissionSession();
+    window.addEventListener('pagehide', endSubmissionSession);
+    window.addEventListener('beforeunload', endSubmissionSession);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener('pagehide', endSubmissionSession);
+      window.removeEventListener('beforeunload', endSubmissionSession);
+      endSubmissionSession();
+    };
+  }, [documentId]);
+
   const handleTitleSave = async () => {
     if (!document) return;
     try {
@@ -204,7 +287,7 @@ export default function DocumentEditorPage() {
       editorStateAfter: event.editorStateAfter,
       metadata: event.metadata,
     }));
-    await trackEvents(mappedEvents);
+    await trackEvents(mappedEvents, submissionSessionRef.current?.sessionId || submissionSessionId);
   };
 
   const openPanelWithQuote = useAIStore((state) => state.openPanelWithQuote);
@@ -229,9 +312,9 @@ export default function DocumentEditorPage() {
         editorStateAfter: replacementResult?.editorStateAfter,
         metadata: { actionType, originalText, newText },
       };
-      await trackEvents([event as any]);
+      await trackEvents([event as any], submissionSessionRef.current?.sessionId || submissionSessionId);
     },
-    [trackEvents]
+    [submissionSessionId, trackEvents]
   );
 
   const handleGenerateCertificate = async (options: CertificateGenerationOptions) => {

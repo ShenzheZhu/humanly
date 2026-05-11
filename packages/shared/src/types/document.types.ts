@@ -69,6 +69,7 @@ export interface DocumentEvent {
   id: string;
   documentId: string;
   userId: string;
+  sessionId?: string;
   eventType: EventType;
   timestamp: Date;
   keyCode?: string;
@@ -87,6 +88,7 @@ export interface DocumentEvent {
 export interface DocumentEventInsertData {
   documentId: string;
   userId: string;
+  sessionId?: string;
   eventType: EventType;
   timestamp: Date;
   keyCode?: string;

@@ -68,9 +68,12 @@ export function useDocument(documentId: string) {
     }
   }, [documentId]);
 
-  const trackEvents = useCallback(async (events: Partial<DocumentEvent>[]) => {
+  const trackEvents = useCallback(async (events: Partial<DocumentEvent>[], sessionId?: string | null) => {
     try {
-      await apiClient.post(`/documents/${documentId}/events`, { events });
+      await apiClient.post(`/documents/${documentId}/events`, {
+        events,
+        ...(sessionId ? { sessionId } : {}),
+      });
     } catch (err: any) {
       console.error('Error tracking events:', err);
     }

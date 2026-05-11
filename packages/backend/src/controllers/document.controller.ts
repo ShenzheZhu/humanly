@@ -128,7 +128,7 @@ export async function deleteDocument(req: Request, res: Response): Promise<void>
 export async function trackDocumentEvents(req: Request, res: Response): Promise<void> {
   const userId = req.user!.userId;
   const documentId = req.params.id;
-  const { events } = req.body;
+  const { events, sessionId } = req.body;
 
   if (!documentId) {
     throw new AppError(400, 'Document ID is required');
@@ -142,6 +142,7 @@ export async function trackDocumentEvents(req: Request, res: Response): Promise<
   const validatedEvents: DocumentEventInsertData[] = events.map((event: any) => ({
     documentId,
     userId,
+    sessionId: event.sessionId || sessionId,
     eventType: event.eventType || 'unknown',
     timestamp: event.timestamp ? new Date(event.timestamp) : new Date(),
     keyCode: event.keyCode,

@@ -72,6 +72,7 @@ Tables:
 
 - `project_enrollments`
 - `documents`
+- `sessions`
 - `document_events`
 - `users`
 
@@ -82,6 +83,7 @@ Relationship:
 - `project_enrollments.submission_document_id = documents.id`
 - `document_events.document_id = project_enrollments.submission_document_id`
 - `document_events.user_id = users.id`
+- `document_events.session_id = sessions.id`
 
 User identity:
 
@@ -89,23 +91,33 @@ User identity:
 
 Document session definition:
 
-Analytics treats one linked project submission document as one analytics
-session per user. This is not a row in the `sessions` table. It is derived from
-`document_events`.
+When an enrolled user opens a project submission document, the user portal
+creates one real row in `sessions`. Events captured while that editor session is
+open are still written to `document_events`, but they also carry the current
+`session_id`.
 
-Document session start:
+For legacy rows that do not have `document_events.session_id`, analytics keeps
+the older derived-session fallback.
 
-```text
-MIN(document_events.timestamp)
-```
-
-Document session end:
+Current submission session start:
 
 ```text
-MAX(document_events.timestamp)
+sessions.session_start
 ```
 
-Document session duration:
+Current submission session end:
+
+```text
+sessions.session_end
+```
+
+Current submission session duration:
+
+```text
+COALESCE(sessions.session_end, NOW()) - sessions.session_start
+```
+
+Legacy document session duration:
 
 ```text
 MAX(document_events.timestamp) - MIN(document_events.timestamp)
@@ -117,8 +129,8 @@ Document submission status:
 submitted = false
 ```
 
-The user portal submission path currently does not mark the derived document
-session as submitted.
+The user portal submission path currently ends the session when the editor page
+is closed or navigated away from, but it does not mark it as submitted.
 
 ## Shared Filters
 
@@ -247,16 +259,25 @@ COUNT(sessions.id)
 WHERE sessions.project_id = projectId
 ```
 
-Document session count:
+Current user portal submission session count:
+
+```text
+COUNT(sessions.id)
+WHERE sessions.project_id = projectId
+```
+
+Legacy document session count:
 
 ```text
 COUNT(DISTINCT document_events.document_id)
 WHERE project_enrollments.project_id = projectId
 AND document_events.document_id = project_enrollments.submission_document_id
+AND document_events.session_id IS NULL
 ```
 
-Important: a linked project submission document only counts as a document
-session after it has at least one `document_events` row.
+Important: current submission editor opens count immediately because they create
+a real `sessions` row. Legacy linked project submission documents only count as
+a derived document session after they have at least one `document_events` row.
 
 ### uniqueUsers
 
@@ -359,14 +380,20 @@ Submitted tracker sessions:
 sessions.submitted = true
 ```
 
-Derived document sessions:
+Current user portal submission sessions:
+
+```text
+sessions.submitted = false
+```
+
+Legacy derived document sessions:
 
 ```text
 submitted = false
 ```
 
-Because document sessions are currently always `submitted = false`, user portal
-submission activity can increase `totalSessions` without increasing
+Because user portal submission sessions are currently always `submitted = false`,
+user portal submission activity can increase `totalSessions` without increasing
 `submittedSessionCount`.
 
 If `totalSessions = 0`, the value is `0`.
@@ -383,7 +410,13 @@ Tracker session start:
 sessions.session_start
 ```
 
-Document session start:
+Current user portal submission session start:
+
+```text
+sessions.session_start
+```
+
+Legacy document session start:
 
 ```text
 MIN(document_events.timestamp)
@@ -554,10 +587,13 @@ Tracker session count:
 COUNT(DISTINCT sessions.id)
 ```
 
-Document session count:
+Current user portal submission session count comes from `sessions`.
+
+Legacy document session count:
 
 ```text
 COUNT(DISTINCT document_events.document_id)
+WHERE document_events.session_id IS NULL
 ```
 
 Combined formula:
@@ -618,7 +654,9 @@ Tracker average duration:
 AVG(COALESCE(session_end, NOW()) - session_start)
 ```
 
-Document average duration:
+Current user portal submission average duration comes from `sessions`.
+
+Legacy document average duration:
 
 ```text
 AVG(MAX(document_events.timestamp) - MIN(document_events.timestamp))
@@ -675,11 +713,12 @@ Endpoint:
 GET /api/v1/projects/:projectId/analytics/sessions
 ```
 
-This endpoint currently reads only tracker sessions from the `sessions` table
-through `SessionModel.findByProjectId`.
+This endpoint reads real sessions from the `sessions` table through
+`SessionModel.findByProjectId`. Current user portal submission sessions are
+included because they are now real `sessions` rows.
 
-It does not include derived document sessions from user portal submission
-documents.
+Legacy derived document sessions are not included because they do not have rows
+in `sessions`.
 
 Supported filters:
 
@@ -701,11 +740,11 @@ Endpoint:
 GET /api/v1/projects/:projectId/analytics/sessions/:sessionId
 ```
 
-This endpoint currently reads only real tracker sessions from the `sessions`
-table.
+This endpoint reads real sessions from the `sessions` table. Current user portal
+submission sessions are supported because they are real `sessions` rows.
 
-It does not support derived document sessions because those do not have rows in
-the `sessions` table.
+Legacy derived document sessions are not supported because those do not have
+rows in the `sessions` table.
 
 Returned session duration:
 
@@ -722,7 +761,10 @@ NOW() - session_start
 Returned events:
 
 ```text
-SELECT * FROM events WHERE session_id = sessionId ORDER BY timestamp ASC
+SELECT * FROM events WHERE session_id = sessionId
+UNION ALL
+SELECT * FROM document_events WHERE session_id = sessionId
+ORDER BY timestamp ASC
 ```
 
 ## Caching
@@ -801,17 +843,18 @@ Enrollment count and analytics `totalUsers` are different:
 A user who enrolled but never opened or edited the submission document may count
 in enrollment count but not in analytics `totalUsers`.
 
-### Document Sessions Are Derived
+### Legacy Document Sessions Are Derived
 
-User portal submission sessions are derived from document events. They are not
-stored in the `sessions` table.
+Current user portal submission sessions are real rows in the `sessions` table.
+Older document events that do not have `session_id` still use the legacy derived
+session fallback.
 
 Consequences:
 
-- They are included in summary, timeline, event type distribution, and user
-  activity.
-- They are not included in `/analytics/sessions`.
-- They cannot be opened through `/analytics/sessions/:sessionId`.
+- Current submission sessions are included in `/analytics/sessions`.
+- Current submission sessions can be opened through
+  `/analytics/sessions/:sessionId`.
+- Legacy derived document sessions are not included in `/analytics/sessions`.
 
 ### User Activity avgDuration Is Not Weighted
 
@@ -824,8 +867,7 @@ duration. It is not weighted by session count.
 For tracker data in user activity, `lastActive` is based on
 `MAX(sessions.session_start)`, not the latest tracker event timestamp.
 
-### Document Completion Is Always False
+### User Portal Submission Completion Is Always False
 
-Derived document sessions currently have `submitted = false`, so they do not
-increase `completionRate`.
-
+User portal submission sessions currently have `submitted = false`, so they do
+not increase `completionRate`.

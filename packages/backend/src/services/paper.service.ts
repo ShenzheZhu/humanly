@@ -1,5 +1,6 @@
 import { PaperModel } from '../models/paper.model'
 import { PaperReviewerModel } from '../models/paper-reviewer.model'
+import { ProjectModel } from '../models/project.model'
 import { PaperStorageService } from './paper-storage.service'
 import { AIRetrievalService } from './ai-retrieval.service'
 import { pool } from '../config/database'
@@ -96,6 +97,15 @@ export class PaperService {
       return paper
     }
 
+    const paper = await PaperModel.findById(paperId)
+    if (!paper) {
+      throw new AppError(404, 'Paper not found')
+    }
+
+    if (await this.canAccessInstructionPaper(paper, userId)) {
+      return paper
+    }
+
     // Check if user is assigned reviewer
     const isReviewer = await PaperReviewerModel.hasAccess(paperId, userId)
     if (!isReviewer) {
@@ -103,12 +113,12 @@ export class PaperService {
     }
 
     // Return blind version (no authors)
-    const paper = await PaperModel.findByIdForReviewer(paperId)
-    if (!paper) {
+    const reviewerPaper = await PaperModel.findByIdForReviewer(paperId)
+    if (!reviewerPaper) {
       throw new AppError(404, 'Paper not found')
     }
 
-    return paper
+    return reviewerPaper
   }
 
   // List papers for a project (admin only)
@@ -141,22 +151,23 @@ export class PaperService {
     paperId: string,
     userId: string
   ): Promise<NodeJS.ReadableStream> {
-    // Verify access (reviewer or admin)
-    const hasAccess = await PaperReviewerModel.hasAccess(paperId, userId)
-    const isAdmin = await this.isAdmin(paperId, userId)
-
-    if (!hasAccess && !isAdmin) {
-      throw new AppError(403, 'Access denied')
-    }
-
     // Get paper
     const paper = await PaperModel.findById(paperId)
     if (!paper) {
       throw new AppError(404, 'Paper not found')
     }
 
-    // Log access (only for reviewers, not admins)
-    if (!isAdmin) {
+    // Verify access (reviewer, admin, or enrolled user for instruction PDF)
+    const hasAccess = await PaperReviewerModel.hasAccess(paperId, userId)
+    const isAdmin = await this.isAdmin(paperId, userId)
+    const canAccessInstruction = await this.canAccessInstructionPaper(paper, userId)
+
+    if (!hasAccess && !isAdmin && !canAccessInstruction) {
+      throw new AppError(403, 'Access denied')
+    }
+
+    // Log access only for assigned reviewers.
+    if (hasAccess && !isAdmin) {
       await this.logAccess({
         paperId,
         reviewerId: userId,
@@ -238,6 +249,13 @@ export class PaperService {
 
     const hasProjectAccess = await PaperModel.hasProjectAccess(paperId, userId)
     return hasProjectAccess
+  }
+
+  private static async canAccessInstructionPaper(paper: Paper, userId: string): Promise<boolean> {
+    const isProjectInstruction = paper.keywords?.includes('instructions') ?? false
+    if (!isProjectInstruction) return false
+
+    return ProjectModel.hasEnrollment(paper.projectId, userId)
   }
 
   // Extract page count from PDF (would use pdf-parse in production)

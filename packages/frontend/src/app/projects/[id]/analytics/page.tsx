@@ -28,7 +28,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { AnalyticsSummary, EventTypeDistribution, EventsTimelineDataPoint } from '@humanly/shared';
+import { AnalyticsSummary, EventTypeDistribution, EventsTimelineDataPoint, Project } from '@humanly/shared';
 import api, { ApiError } from '@/lib/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -88,6 +88,7 @@ export default function AnalyticsPage() {
   const [eventTypeDistribution, setEventTypeDistribution] = useState<EventTypeDistribution[]>([]);
   const [userActivity, setUserActivity] = useState<UserActivity[]>([]);
   const [totalUsers, setTotalUsers] = useState(0);
+  const [enrolledUserCount, setEnrolledUserCount] = useState(0);
 
   // State for filters
   const [dateRange, setDateRange] = useState<DateRangePreset>('30days');
@@ -131,6 +132,19 @@ export default function AnalyticsPage() {
       endDate: endDate.toISOString(),
     };
   }, [dateRange]);
+
+  const fetchProject = useCallback(async () => {
+    try {
+      const response = await api.get<{
+        success: boolean;
+        data: Project;
+      }>(`/api/v1/projects/${projectId}`);
+      setEnrolledUserCount(response.data.enrolledUserCount ?? 0);
+    } catch (err) {
+      console.error('Failed to load project enrollment count:', err);
+      setEnrolledUserCount(0);
+    }
+  }, [projectId]);
 
   // Fetch summary statistics
   const fetchSummary = useCallback(async () => {
@@ -255,9 +269,10 @@ export default function AnalyticsPage() {
   // Initial load
   useEffect(() => {
     if (projectId) {
+      fetchProject();
       fetchSummary();
     }
-  }, [fetchSummary, projectId]);
+  }, [fetchProject, fetchSummary, projectId]);
 
   // Load data when filters change
   useEffect(() => {
@@ -348,10 +363,10 @@ export default function AnalyticsPage() {
     },
     {
       title: 'Total Users',
-      value: summary?.totalUsers ?? summary?.uniqueUsers ?? 0,
+      value: enrolledUserCount,
       subtitle: `${
-        summary?.totalSessions && (summary?.totalUsers ?? summary?.uniqueUsers)
-          ? (summary.totalSessions / (summary.totalUsers ?? summary.uniqueUsers ?? 1)).toFixed(1)
+        summary?.totalSessions && enrolledUserCount
+          ? (summary.totalSessions / enrolledUserCount).toFixed(1)
           : 0
       } sessions/user`,
       icon: Users,
