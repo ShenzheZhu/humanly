@@ -18,6 +18,7 @@ push to main
   -> VM syncs the deploy files from main
   -> VM runs scripts/deploy.sh with exact image tags
   -> docker compose pull backend frontend-user
+  -> VM runs pending SQL migrations
   -> docker compose up -d backend frontend-user nginx
 ```
 
@@ -189,6 +190,39 @@ Add these repository secrets:
 
 The VM still uses its production `.env` file for backend runtime configuration,
 including database, Redis, JWT, email, CORS, and other server-side values.
+
+## Database Migrations
+
+Production deploys run `scripts/run-migrations.sh` before restarting the
+application services. The script:
+
+- creates a `schema_migrations` table if it does not exist;
+- records every applied SQL file by filename and checksum;
+- applies only new files from `packages/backend/src/db/migrations/*.sql`;
+- fails the deploy if an already-applied file has changed.
+
+For the existing VM database, the first run detects that application tables
+already exist but `schema_migrations` is empty. It baselines the current SQL
+files without re-running old migrations, then exits. Future migration files are
+applied automatically.
+
+When writing migrations for existing production data:
+
+- add new columns as nullable or with a real default;
+- backfill old rows explicitly when the new field needs a value;
+- add `NOT NULL` constraints only after old rows have been backfilled;
+- do not edit a migration file after it has reached production; add a new file
+  instead.
+
+Manual migration status check:
+
+```bash
+cd /home/humanly/humanly
+
+docker compose -f docker-compose.prod.yml exec -e PAGER=cat postgres \
+  psql -U humanly_user -d humanly_prod \
+  -c "SELECT filename, applied_at, baseline FROM schema_migrations ORDER BY filename;"
+```
 
 ## Manual Deploy
 
