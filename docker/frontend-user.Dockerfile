@@ -54,4 +54,4 @@ ENV PORT=3002
 ENV HOSTNAME=0.0.0.0
 
 WORKDIR /app/packages/frontend-user
-CMD ["../../node_modules/.bin/next", "start", "-p", "3002"]
+CMD ["./node_modules/.bin/next", "start", "-p", "3002"]
