@@ -808,6 +808,30 @@ Current scoped documentId: ${documentId}
 Answer concisely. Mention when available evidence is incomplete or a tool returns no relevant data.`;
 }
 
+/**
+ * System prompt for the four selection-menu quick actions (fix grammar /
+ * improve writing / simplify / make formal). Differs from the chat system
+ * prompt: the model returns only the rewritten text, no commentary, and
+ * matches the author's voice using the surrounding-context window.
+ */
+function buildQuickActionSystemPrompt(context?: AIChatRequest['context']): string {
+  const base = 'You are a helpful writing assistant. Follow the user instructions precisely and only return the requested text without any explanation or surrounding quotation marks.';
+  const sc = context?.surroundingContext;
+  if (!sc) return base;
+
+  const parts: string[] = [base];
+  if (sc.documentTitle) {
+    parts.push(`The user is writing a document titled: "${sc.documentTitle}".`);
+  }
+  if (sc.before || sc.after) {
+    parts.push("Preserve the author's voice, register, and style. Below is the surrounding text the user is NOT asking you to change — match this voice when you rewrite the selection.");
+    if (sc.before) parts.push(`[BEFORE THE SELECTION]\n${sc.before}`);
+    if (sc.after) parts.push(`[AFTER THE SELECTION]\n${sc.after}`);
+    parts.push('Only rewrite the selection itself. Do not echo any of the before/after text in your response.');
+  }
+  return parts.join('\n\n');
+}
+
 export class AIService {
   /**
    * Get AI provider for a specific user (loads their settings from DB)
@@ -842,7 +866,7 @@ export class AIService {
 
     // Build simple messages without conversation history
     const messages: { role: string; content: string }[] = [
-      { role: 'system', content: 'You are a helpful writing assistant. Follow the user instructions precisely and only return the requested text without any explanation.' },
+      { role: 'system', content: buildQuickActionSystemPrompt(request.context) },
       { role: 'user', content: request.message },
     ];
 
@@ -864,6 +888,54 @@ export class AIService {
         content: response.content,
       },
     };
+  }
+
+  /**
+   * Streaming silent chat - same idea as silentChat but pushes the response
+   * back chunk-by-chunk over the supplied callbacks. The WebSocket handler
+   * wraps this with the `sessionId: 'silent'` sentinel so the chat panel
+   * does not adopt the frames as a real conversation turn.
+   */
+  static async silentStreamChat(
+    userId: string,
+    request: AIChatRequest,
+    onChunk: (chunk: string) => void,
+    onComplete: (content: string) => void,
+    onError: (error: Error) => void,
+  ): Promise<void> {
+    try {
+      const isOwner = await DocumentModel.isOwner(request.documentId, userId);
+      if (!isOwner) {
+        throw new AppError(404, 'Document not found');
+      }
+
+      const provider = await this.getProviderForUser(userId);
+
+      const messages: { role: string; content: string }[] = [
+        { role: 'system', content: buildQuickActionSystemPrompt(request.context) },
+        { role: 'user', content: request.message },
+      ];
+
+      const response = await provider.agentStreamChat(messages, onChunk, {
+        userId,
+        documentId: request.documentId,
+      });
+
+      logger.info('AI silent stream chat completed', {
+        userId,
+        documentId: request.documentId,
+        bytes: response.content.length,
+      });
+
+      onComplete(response.content);
+    } catch (error) {
+      logger.error('AI silent stream chat failed', {
+        userId,
+        documentId: request.documentId,
+        error,
+      });
+      onError(error instanceof Error ? error : new Error('Unknown error'));
+    }
   }
 
   /**

@@ -1,12 +1,19 @@
 import { Server as SocketIOServer } from 'socket.io';
 import { TypedSocket } from '../socket-server';
 import { AgentRunner } from '../../services/agent-runner.service';
+import { AIService } from '../../services/ai.service';
 import { AIModel } from '../../models/ai.model';
 import { DocumentModel } from '../../models/document.model';
 import { DocumentEventModel } from '../../models/document-event.model';
 import { AIChatRequest, AgentEvent, DocumentEventInsertData } from '@humanly/shared';
 import { logger } from '../../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
+
+/**
+ * Sentinel session id used by quick-action streams so the chat-panel
+ * listeners can tell them apart from a real conversation turn.
+ */
+const SILENT_SESSION_ID = 'silent';
 
 /**
  * Track AI event to document events table
@@ -197,6 +204,56 @@ export async function handleAIMessage(
         message: 'Message is required',
         code: 'MISSING_MESSAGE',
       });
+      return;
+    }
+
+    // Quick action / silent path: stream the rewrite back over a sentinel
+    // sessionId without touching ai_chat_sessions or interaction-log rows.
+    // The chat-panel listeners filter frames with this sessionId so they
+    // never adopt the result as a conversation turn.
+    if (data.silent) {
+      socket.emit('ai:response-start', {
+        sessionId: SILENT_SESSION_ID,
+        messageId,
+      });
+
+      logger.info('AI silent stream started', {
+        socketId: socket.id,
+        userId,
+        documentId,
+        messageId,
+      });
+
+      await AIService.silentStreamChat(
+        userId,
+        data,
+        (chunk: string) => {
+          socket.emit('ai:response-chunk', {
+            sessionId: SILENT_SESSION_ID,
+            messageId,
+            chunk,
+          });
+        },
+        (content: string) => {
+          socket.emit('ai:response-complete', {
+            sessionId: SILENT_SESSION_ID,
+            message: {
+              id: messageId,
+              role: 'assistant',
+              content,
+              timestamp: new Date(),
+            },
+            logId: '',
+          });
+        },
+        (error: Error) => {
+          socket.emit('ai:error', {
+            sessionId: SILENT_SESSION_ID,
+            message: error.message || 'Silent AI request failed',
+            code: 'SILENT_AI_ERROR',
+          });
+        },
+      );
       return;
     }
 

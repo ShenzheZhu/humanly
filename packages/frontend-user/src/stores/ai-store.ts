@@ -16,6 +16,14 @@ import api from '@/lib/api-client';
 import { getSocket, initializeSocket, emitEvent, onEvent, offEvent } from '@/lib/socket-client';
 
 /**
+ * Sentinel sessionId used by the backend handler for selection-menu quick
+ * actions. The chat-panel listeners skip frames carrying this id so the
+ * silent stream never adopts a real conversation turn; the streamSilent
+ * action registers its own ephemeral listeners scoped to this sentinel.
+ */
+const SILENT_SESSION_ID = 'silent';
+
+/**
  * Tool-call entry in the per-message agentic timeline.
  *
  * `status` flips from `pending` to `done` when the matching `ai:tool-result`
@@ -85,6 +93,17 @@ interface AIState {
   // Chat actions
   sendMessage: (documentId: string, message: string, context?: AIChatRequest['context']) => Promise<void>;
   sendMessageViaSocket: (documentId: string, message: string, context?: AIChatRequest['context']) => void;
+  // One-shot streaming for selection-menu quick actions. Resolves with the
+  // final text once the silent stream completes. Does NOT touch session
+  // state or the messages array; emits frames over the SILENT_SESSION_ID
+  // sentinel filtered out by the chat-panel listeners.
+  streamSilent: (
+    documentId: string,
+    message: string,
+    context: AIChatRequest['context'] | undefined,
+    onChunk: (chunk: string) => void,
+  ) => Promise<string>;
+  cancelSilentStream: () => void;
   cancelStream: () => void;
   clearMessages: () => Promise<void>;
   startNewChat: () => Promise<void>;
@@ -233,6 +252,68 @@ export const useAIStore = create<AIState>()(
           emitEvent('ai:cancel', { sessionId: currentSession.id });
         }
         set({ isStreaming: false, streamingContent: '' });
+      },
+
+      streamSilent: (documentId, message, context, onChunk) =>
+        new Promise<string>((resolve, reject) => {
+          let messageId: string | null = null;
+          let finalContent = '';
+
+          // Ephemeral listeners scoped to the silent sentinel. They piggy-back
+          // on the same ai:response-* channel as chat but are matched on the
+          // SILENT_SESSION_ID guard and on messageId once response-start
+          // assigns one.
+          const onStart = (data: { sessionId: string; messageId: string }) => {
+            if (data.sessionId !== SILENT_SESSION_ID) return;
+            if (messageId !== null) return; // already locked onto an earlier silent stream
+            messageId = data.messageId;
+          };
+          const onChunkEvent = (data: { sessionId: string; messageId: string; chunk: string }) => {
+            if (data.sessionId !== SILENT_SESSION_ID) return;
+            if (messageId === null || data.messageId !== messageId) return;
+            onChunk(data.chunk);
+          };
+          const onComplete = (response: AIChatResponse) => {
+            if (response.sessionId !== SILENT_SESSION_ID) return;
+            if (messageId === null || response.message.id !== messageId) return;
+            finalContent = response.message.content;
+            cleanup();
+            resolve(finalContent);
+          };
+          const onError = (data: { sessionId: string; message: string }) => {
+            if (data.sessionId !== SILENT_SESSION_ID) return;
+            cleanup();
+            reject(new Error(data.message || 'Silent AI request failed'));
+          };
+          const cleanup = () => {
+            offEvent('ai:response-start', onStart);
+            offEvent('ai:response-chunk', onChunkEvent);
+            offEvent('ai:response-complete', onComplete);
+            offEvent('ai:error', onError);
+          };
+
+          onEvent('ai:response-start', onStart);
+          onEvent('ai:response-chunk', onChunkEvent);
+          onEvent('ai:response-complete', onComplete);
+          onEvent('ai:error', onError);
+
+          const socket = getSocket();
+          if (!socket || !socket.connected) {
+            cleanup();
+            reject(new Error('Not connected to server. Please refresh and try again.'));
+            return;
+          }
+
+          emitEvent('ai:message', {
+            documentId,
+            message,
+            silent: true,
+            context,
+          } as AIChatRequest);
+        }),
+
+      cancelSilentStream: () => {
+        emitEvent('ai:cancel', { sessionId: SILENT_SESSION_ID });
       },
 
       clearMessages: async () => {
@@ -505,12 +586,14 @@ export const useAIStore = create<AIState>()(
         listenersSetup = true;
 
         // Response start
-        onEvent('ai:response-start', ({ messageId }) => {
+        onEvent('ai:response-start', ({ sessionId, messageId }) => {
+          if (sessionId === SILENT_SESSION_ID) return; // quick-action stream, handled by streamSilent
           set({ isStreaming: true, streamingContent: '', streamingMessageId: messageId });
         });
 
         // Response chunk (streaming)
-        onEvent('ai:response-chunk', ({ chunk }) => {
+        onEvent('ai:response-chunk', ({ sessionId, chunk }) => {
+          if (sessionId === SILENT_SESSION_ID) return;
           set((state) => ({
             streamingContent: state.streamingContent + chunk,
           }));
@@ -518,6 +601,7 @@ export const useAIStore = create<AIState>()(
 
         // Response complete
         onEvent('ai:response-complete', (response: AIChatResponse) => {
+          if (response.sessionId === SILENT_SESSION_ID) return;
           set((state) => {
             // Don't add if it's the system connection message
             if (response.message.role === 'system' && response.logId === '') {
@@ -594,7 +678,8 @@ export const useAIStore = create<AIState>()(
         });
 
         // Error
-        onEvent('ai:error', ({ message }) => {
+        onEvent('ai:error', ({ sessionId, message }) => {
+          if (sessionId === SILENT_SESSION_ID) return;
           set({
             isStreaming: false,
             streamingContent: '',
