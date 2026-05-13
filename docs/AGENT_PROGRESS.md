@@ -1,6 +1,6 @@
 # Agent Progress Tracker
 
-Last updated: 2026-05-13 (PR #25 opened for #23)
+Last updated: 2026-05-13 (#23 merged, Epic #4 active sub-issues complete)
 
 This document is the shared handoff surface for agents working on `humanly-code`.
 GitHub issues and pull requests remain the source of truth for canonical history;
@@ -28,6 +28,7 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 - Epic: #4, "Epic: Agentic AI chat upgrade"
 - Scope: read-only agentic AI chat, visible tool-call timeline, chat-to-editor handoff, and quick-action upgrades.
 - Explicitly out of scope for this epic: autonomous AI editing of the document.
+- Status: **all active sub-issues shipped**. Integration can merge back into `main` once the deferred backlog items below are either started or explicitly punted.
 
 ## Current State
 
@@ -39,46 +40,41 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 | #8 | `useAI` consumes agent events | #18 | Merged & closed |
 | #9 | ToolCallCard + AI panel integration | #19 | Merged & closed |
 | #10 | Insert assistant text at cursor | #20 | Merged & closed |
-| #23 | Quick action UX overhaul (streaming + context + diff + shortcuts) | **#25** | **Open, awaiting manual merge** |
+| #23 | Quick action UX overhaul (streaming + context + diff + shortcuts) | #25 | Merged & closed |
+| — | LOCAL_DEV mock infra (`pnpm dev:mock`, bypass-login, docs) | #27 | Merged |
 
-### Restructured / superseded
+### Deferred backlog (Epic #4 checklist; reopen as standalone issues when ready)
 
-`#11`, `#12`, `#13`, `#14` closed and folded into the single consolidated issue #23 — Quick action UX overhaul. Rationale: they all touch `ai-selection-menu.tsx` and the silent-chat path; shipping them as one PR avoids four CI runs over a tightly-coupled slice.
+- Formatting AI tools (bold / heading / list)
+- Abort / cancel in-flight agent runs
+- Persist tool calls to `document_events` for provenance trail
 
-`#15`, `#16`, `#17` (backlog: formatting tools / abort handling / provenance log) closed and folded into Epic #4 deferred backlog. Reopen as standalone issues when work is actually ready to start.
+### Restructured / superseded (historical)
+
+`#11`, `#12`, `#13`, `#14` were closed and folded into the single consolidated issue #23 — Quick action UX overhaul. They all touched `ai-selection-menu.tsx` and the silent-chat path; shipping them as one PR avoided four CI runs over a tightly-coupled slice.
+
+`#15`, `#16`, `#17` (backlog: formatting tools / abort handling / provenance log) were closed and folded into the Epic #4 deferred backlog. Reopen as standalone issues when work is actually ready to start.
 
 ## Open PRs
 
-### #25: Quick Action UX Overhaul (#23)
-
-- Branch: `feat/agentic-chat-23-quick-action-overhaul`
-- Base: `feat/agentic-chat`
-- 11 commits split per Task section (shared types → backend prompt + silentStreamChat + WS branch → frontend filter + streamSilent → plumb data → handleAction switch → diff component → keyboard shortcuts → tests).
-- Local tests: 7/7 frontend (QuickActionDiff + AISelectionMenu), 7/7 frontend (ToolCallCard + AIAssistantPanelInsert regression), 40/40 backend (ai.service.test.ts). Typecheck shows zero new errors.
-- 🟠 Manual browser smoke still pending — the visible verification flow in issue #23 (streaming, voice-matched rewrite, diff render, Cmd+Shift+1..4) should be exercised before merge.
-- User action needed: review CI on PR #25 and manually merge.
-- Agent cleanup after merge:
-  - Close issue #23 with a comment naming PR #25.
-  - Mark #23 checked in Epic #4 (Phase 4 row).
-  - Delete local and remote branch `feat/agentic-chat-23-quick-action-overhaul`.
-  - Update this file.
+None. Integration `feat/agentic-chat` is at HEAD with all Epic #4 active sub-issues merged.
 
 ## Verification Notes
 
-Local checks for #23 (Quick Action UX Overhaul):
+Visual smoke verification for #23 (Quick Action UX Overhaul) ran against the mock track on 2026-05-13. Confirmed:
 
-- `pnpm build:shared` — clean.
-- `pnpm --filter @humanly/backend test -- --testPathPattern='ai.service'` — 40 passed.
-- `pnpm --filter @humanly/frontend-user test -- --testPathPattern='QuickActionDiff|AISelectionMenu'` — 7 passed.
-- `pnpm --filter @humanly/frontend-user test -- --testPathPattern='ToolCallCard|AIAssistantPanelInsert'` — 7 passed (no regression on prior #9 / #10 tests).
-- `pnpm --filter @humanly/frontend-user type-check` — zero new errors. Pre-existing review/PDF/radio-group/ResizablePanelGroup errors unchanged.
-- Manual browser smoke for the four visible behaviors (streaming, voice, diff, shortcuts) NOT yet exercised; this is the gating item before merge.
+- Streaming typewriter effect on quick-action review card.
+- Voice preservation via `surroundingContext` carrying `documentTitle` + ±200 char windows (mock signal: `[voice-aware: title="..."]` suffix appended).
+- Word-level inline diff renders `They are` as red strike-through + `It is` as green underlined when grammar mock rewrites trigger.
+- Cancel/Discard button label switches on `isStreaming`; mid-stream Cancel emits `ai:cancel` with the `silent` sentinel.
+- Chat regression: a `search for motivation` prompt still produces a `searchDocument` tool card (no leakage between silent and chat sessions).
+- Cmd+Shift+1..4 shortcuts shipped but skipped from explicit user smoke — kept in code per user direction.
 
-Known pre-existing local blockers:
+Known pre-existing local blockers (unchanged):
 
 - `frontend-user` full typecheck still reports unrelated review/PDF/radio-group/ResizablePanelGroup errors.
 - backend full build still reports unrelated repo-wide TypeScript errors.
-- On this macOS machine, local Jest is blocked by a broken optional `canvas` native binding. CI is authoritative; locally, removing the broken optional canvas package lets jsdom fall back to no-canvas mode.
+- On macOS, local Jest is blocked by a broken optional `canvas` native binding. CI is authoritative; locally, remove `node_modules/.pnpm/canvas@*` and `node_modules/canvas` so jsdom falls back to no-canvas mode.
 
 ## Maintenance Rules
 
