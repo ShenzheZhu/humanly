@@ -12,6 +12,7 @@ import {
   AIQueryType,
   AISuggestion,
   AIContentModification,
+  AgentEvent,
 } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
@@ -19,14 +20,39 @@ import { env } from '../config/env';
 import { UserAISettingsModel } from '../models/user-ai-settings.model';
 
 /**
+ * Optional callback that observes every step of the tool-calling loop.
+ * The WebSocket layer wraps this to push `ai:turn-start` / `ai:tool-call`
+ * / `ai:tool-result` / `ai:turn-end` frames out to the chat UI.
+ *
+ * Errors thrown by the sink are swallowed; observability must never break
+ * the agent loop.
+ */
+export type AgentEventSink = (event: AgentEvent) => void;
+
+function emitAgentEvent(sink: AgentEventSink | undefined, event: AgentEvent): void {
+  if (!sink) return;
+  try {
+    sink(event);
+  } catch (error) {
+    logger.warn('AgentEventSink threw; ignoring', { error, eventType: event.type });
+  }
+}
+
+interface AgentChatOptions {
+  userId: string;
+  documentId: string;
+  maxTokens?: number;
+  onAgentEvent?: AgentEventSink;
+}
+
+/**
  * AI Provider interface for different AI backends
  */
 interface AIProvider {
-  agentChat(messages: { role: string; content: string }[], options: {
-    userId: string;
-    documentId: string;
-    maxTokens?: number;
-  }): Promise<{
+  agentChat(
+    messages: { role: string; content: string }[],
+    options: AgentChatOptions
+  ): Promise<{
     content: string;
     tokensUsed?: { input: number; output: number };
   }>;
@@ -34,11 +60,7 @@ interface AIProvider {
   agentStreamChat(
     messages: { role: string; content: string }[],
     onChunk: (chunk: string) => void,
-    options: {
-      userId: string;
-      documentId: string;
-      maxTokens?: number;
-    }
+    options: AgentChatOptions
   ): Promise<{
     content: string;
     tokensUsed?: { input: number; output: number };
@@ -70,7 +92,7 @@ class OpenAIProvider implements AIProvider {
 
   async agentChat(
     messages: { role: string; content: string }[],
-    options: { userId: string; documentId: string; maxTokens?: number }
+    options: AgentChatOptions
   ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
     if (!this.apiKey) {
       throw new AppError(500, 'AI service not configured');
@@ -87,6 +109,7 @@ class OpenAIProvider implements AIProvider {
 
     let response: any;
     for (let i = 0; i < 6; i++) {
+      emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex: i });
       try {
         response = await this.client.responses.create({
           model: this.model,
@@ -107,6 +130,7 @@ class OpenAIProvider implements AIProvider {
           documentId: options.documentId,
           iteration: i + 1,
         });
+        emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: i });
         return {
           content: response.output_text || '',
           tokensUsed: response.usage ? {
@@ -125,9 +149,23 @@ class OpenAIProvider implements AIProvider {
 
       input.push(...response.output);
       for (const toolCall of toolCalls) {
-        let output: string;
+        let args: Record<string, any> = {};
         try {
-          const args = JSON.parse(toolCall.arguments || '{}');
+          args = JSON.parse(toolCall.arguments || '{}');
+        } catch {
+          args = { _raw: toolCall.arguments };
+        }
+        emitAgentEvent(options.onAgentEvent, {
+          type: 'tool-call',
+          toolCallId: toolCall.call_id,
+          toolName: toolCall.name,
+          args,
+        });
+
+        const toolStartedAt = Date.now();
+        let output: string;
+        let isError = false;
+        try {
           output = await AIRetrievalService.executeTool(
             options.userId,
             options.documentId,
@@ -135,6 +173,7 @@ class OpenAIProvider implements AIProvider {
             args
           );
         } catch (error) {
+          isError = true;
           output = JSON.stringify({
             error: error instanceof Error ? error.message : 'Tool execution failed',
           });
@@ -147,12 +186,21 @@ class OpenAIProvider implements AIProvider {
           outputBytes: output.length,
         });
 
+        emitAgentEvent(options.onAgentEvent, {
+          type: 'tool-result',
+          toolCallId: toolCall.call_id,
+          result: output,
+          isError,
+          durationMs: Date.now() - toolStartedAt,
+        });
+
         input.push({
           type: 'function_call_output',
           call_id: toolCall.call_id,
           output,
         });
       }
+      emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: i });
     }
 
     return {
@@ -167,7 +215,7 @@ class OpenAIProvider implements AIProvider {
   async agentStreamChat(
     messages: { role: string; content: string }[],
     onChunk: (chunk: string) => void,
-    options: { userId: string; documentId: string; maxTokens?: number }
+    options: AgentChatOptions
   ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
     if (!this.apiKey) {
       throw new AppError(500, 'AI service not configured');
@@ -227,7 +275,7 @@ class OpenAIProvider implements AIProvider {
 
   private async agentChatCompletions(
     messages: { role: string; content: string }[],
-    options: { userId: string; documentId: string; maxTokens?: number }
+    options: AgentChatOptions
   ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
     const chatTools = this.buildChatCompletionTools();
     const chatMessages = this.buildChatCompletionMessages(messages, options.documentId);
@@ -235,6 +283,7 @@ class OpenAIProvider implements AIProvider {
     let lastUsage: { input: number; output: number } | undefined;
 
     for (let i = 0; i < 6; i++) {
+      emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex: i });
       let completion: any;
       try {
         completion = await this.client.chat.completions.create({
@@ -262,6 +311,7 @@ class OpenAIProvider implements AIProvider {
           iteration: i + 1,
           transport: 'chat_completions',
         });
+        emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: i });
         return {
           content: assistantMessage.content || '',
           tokensUsed: lastUsage,
@@ -279,9 +329,23 @@ class OpenAIProvider implements AIProvider {
       chatMessages.push(assistantMessage);
       for (const toolCall of toolCalls) {
         const toolName = toolCall.function?.name;
-        let output: string;
+        let args: Record<string, any> = {};
         try {
-          const args = JSON.parse(toolCall.function?.arguments || '{}');
+          args = JSON.parse(toolCall.function?.arguments || '{}');
+        } catch {
+          args = { _raw: toolCall.function?.arguments };
+        }
+        emitAgentEvent(options.onAgentEvent, {
+          type: 'tool-call',
+          toolCallId: toolCall.id,
+          toolName,
+          args,
+        });
+
+        const toolStartedAt = Date.now();
+        let output: string;
+        let isError = false;
+        try {
           output = await AIRetrievalService.executeTool(
             options.userId,
             options.documentId,
@@ -289,6 +353,7 @@ class OpenAIProvider implements AIProvider {
             args
           );
         } catch (error) {
+          isError = true;
           output = JSON.stringify({
             error: error instanceof Error ? error.message : 'Tool execution failed',
           });
@@ -302,12 +367,21 @@ class OpenAIProvider implements AIProvider {
           outputBytes: output.length,
         });
 
+        emitAgentEvent(options.onAgentEvent, {
+          type: 'tool-result',
+          toolCallId: toolCall.id,
+          result: output,
+          isError,
+          durationMs: Date.now() - toolStartedAt,
+        });
+
         chatMessages.push({
           role: 'tool',
           tool_call_id: toolCall.id,
           content: output,
         });
       }
+      emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: i });
     }
 
     return {
@@ -319,13 +393,14 @@ class OpenAIProvider implements AIProvider {
   private async agentStreamChatCompletions(
     messages: { role: string; content: string }[],
     onChunk: (chunk: string) => void,
-    options: { userId: string; documentId: string; maxTokens?: number }
+    options: AgentChatOptions
   ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
     const chatTools = this.buildChatCompletionTools();
     const chatMessages = this.buildChatCompletionMessages(messages, options.documentId);
     let lastUsage: { input: number; output: number } | undefined;
 
     for (let i = 0; i < 6; i++) {
+      emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex: i });
       let completion: any;
       try {
         completion = await this.client.chat.completions.create({
@@ -353,8 +428,10 @@ class OpenAIProvider implements AIProvider {
           iteration: i + 1,
           transport: 'chat_completions',
         });
+        const finalContent = await this.streamFinalChatCompletion(chatMessages, onChunk, options);
+        emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: i });
         return {
-          content: await this.streamFinalChatCompletion(chatMessages, onChunk, options),
+          content: finalContent,
           tokensUsed: lastUsage,
         };
       }
@@ -370,9 +447,23 @@ class OpenAIProvider implements AIProvider {
       chatMessages.push(assistantMessage);
       for (const toolCall of toolCalls) {
         const toolName = toolCall.function?.name;
-        let output: string;
+        let args: Record<string, any> = {};
         try {
-          const args = JSON.parse(toolCall.function?.arguments || '{}');
+          args = JSON.parse(toolCall.function?.arguments || '{}');
+        } catch {
+          args = { _raw: toolCall.function?.arguments };
+        }
+        emitAgentEvent(options.onAgentEvent, {
+          type: 'tool-call',
+          toolCallId: toolCall.id,
+          toolName,
+          args,
+        });
+
+        const toolStartedAt = Date.now();
+        let output: string;
+        let isError = false;
+        try {
           output = await AIRetrievalService.executeTool(
             options.userId,
             options.documentId,
@@ -380,6 +471,7 @@ class OpenAIProvider implements AIProvider {
             args
           );
         } catch (error) {
+          isError = true;
           output = JSON.stringify({
             error: error instanceof Error ? error.message : 'Tool execution failed',
           });
@@ -393,12 +485,21 @@ class OpenAIProvider implements AIProvider {
           outputBytes: output.length,
         });
 
+        emitAgentEvent(options.onAgentEvent, {
+          type: 'tool-result',
+          toolCallId: toolCall.id,
+          result: output,
+          isError,
+          durationMs: Date.now() - toolStartedAt,
+        });
+
         chatMessages.push({
           role: 'tool',
           tool_call_id: toolCall.id,
           content: output,
         });
       }
+      emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: i });
     }
 
     const fallback = 'I could not complete retrieval within the tool-call limit.';
@@ -462,15 +563,20 @@ class OpenAIProvider implements AIProvider {
  * Mock provider for development/testing
  */
 class MockAIProvider implements AIProvider {
-  async agentChat(messages: { role: string; content: string }[]): Promise<{
+  async agentChat(
+    messages: { role: string; content: string }[],
+    options: AgentChatOptions
+  ): Promise<{
     content: string;
     tokensUsed?: { input: number; output: number };
   }> {
     const lastMessage = messages[messages.length - 1];
     const mockResponse = this.generateMockResponse(lastMessage?.content || '');
 
+    emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex: 0 });
     // Simulate delay
     await new Promise(resolve => setTimeout(resolve, 500));
+    emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: 0 });
 
     return {
       content: mockResponse,
@@ -480,19 +586,22 @@ class MockAIProvider implements AIProvider {
 
   async agentStreamChat(
     messages: { role: string; content: string }[],
-    onChunk: (chunk: string) => void
+    onChunk: (chunk: string) => void,
+    options: AgentChatOptions
   ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
     const lastMessage = messages[messages.length - 1];
     const mockResponse = this.generateMockResponse(lastMessage?.content || '');
     const words = mockResponse.split(' ');
     let fullContent = '';
 
+    emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex: 0 });
     for (const word of words) {
       await new Promise(resolve => setTimeout(resolve, 50));
       const chunk = (fullContent ? ' ' : '') + word;
       fullContent += chunk;
       onChunk(chunk);
     }
+    emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: 0 });
 
     return {
       content: fullContent,
@@ -878,13 +987,19 @@ export class AIService {
 
   /**
    * Stream a chat response
+   *
+   * `onAgentEvent` (optional) receives every tool-call lifecycle event from the
+   * underlying agent loop. The WebSocket handler wraps this to push the
+   * `ai:turn-start` / `ai:tool-call` / `ai:tool-result` / `ai:turn-end` frames
+   * out to the chat UI for the agentic timeline render.
    */
   static async streamChat(
     userId: string,
     request: AIChatRequest,
     onChunk: (chunk: string) => void,
     onComplete: (response: AIChatResponse) => void,
-    onError: (error: Error) => void
+    onError: (error: Error) => void,
+    onAgentEvent?: AgentEventSink
   ): Promise<void> {
     const startTime = Date.now();
 
@@ -944,6 +1059,7 @@ export class AIService {
       const response = await provider.agentStreamChat(messages, onChunk, {
         userId,
         documentId: request.documentId,
+        onAgentEvent,
       });
 
       const responseTimeMs = Date.now() - startTime;
