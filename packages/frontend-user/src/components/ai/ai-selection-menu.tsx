@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api-client';
 import { useAIStore } from '@/stores/ai-store';
+import { QuickActionDiff } from './quick-action-diff';
 
 interface SelectionInfo {
   text: string;
@@ -298,7 +299,14 @@ export function AISelectionMenu({
           ) : null}
         </div>
         <div className="max-h-40 overflow-y-auto rounded-md bg-muted/40 p-2 text-xs whitespace-pre-wrap text-foreground">
-          {reviewState.suggestedText || 'Waiting for AI response...'}
+          {reviewState.isStreaming
+            ? reviewState.suggestedText || 'Waiting for AI response...'
+            : (
+              <QuickActionDiff
+                before={reviewState.originalText}
+                after={reviewState.suggestedText}
+              />
+            )}
         </div>
         <div className="mt-3 flex items-center gap-2">
           <Button
