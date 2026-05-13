@@ -151,6 +151,11 @@ export interface AIChatRequest {
   documentId: string;
   sessionId?: string;
   message: string;
+  // When true, the backend skips session creation and interaction-log
+  // persistence and streams the result over a `sessionId: 'silent'`
+  // sentinel channel. Used by selection-menu quick actions where the user
+  // wants a one-shot rewrite, not a chat turn.
+  silent?: boolean;
   context?: {
     fullContent?: string;
     selection?: {
@@ -161,6 +166,14 @@ export interface AIChatRequest {
     cursorPosition?: number;
     pdfContext?: string; // PDF document text for answering questions about papers
     selectedText?: string; // Quoted text from editor selection
+    // Pre/post text around a selection and the document title, supplied so
+    // quick-action prompts can instruct the model to preserve the author's
+    // voice instead of treating the selection as isolated.
+    surroundingContext?: {
+      before: string;
+      after: string;
+      documentTitle: string;
+    };
   };
 }
 
