@@ -52,7 +52,7 @@ interface AIState {
 
   // Agentic tool-call timelines, keyed by assistant messageId. Populated by
   // the ai:tool-call / ai:tool-result WebSocket frames during a streaming
-  // turn; rendered by the ToolCallCard component (#05). Initially keyed by
+  // turn; rendered by the ToolCallCard component (#9). Initially keyed by
   // the in-flight WebSocket messageId, then re-keyed to the persisted
   // AIChatMessage.id on ai:response-complete.
   toolCallTimelines: Record<string, ToolCallEntry[]>;
@@ -504,12 +504,12 @@ export const useAIStore = create<AIState>()(
         listenersSetup = true;
 
         // Response start
-        onEvent('ai:response-start', ({ sessionId, messageId }) => {
+        onEvent('ai:response-start', ({ messageId }) => {
           set({ isStreaming: true, streamingContent: '', streamingMessageId: messageId });
         });
 
         // Response chunk (streaming)
-        onEvent('ai:response-chunk', ({ sessionId, messageId, chunk }) => {
+        onEvent('ai:response-chunk', ({ chunk }) => {
           set((state) => ({
             streamingContent: state.streamingContent + chunk,
           }));
@@ -588,12 +588,12 @@ export const useAIStore = create<AIState>()(
         });
 
         // Suggestions
-        onEvent('ai:suggestion', ({ sessionId, suggestions }) => {
+        onEvent('ai:suggestion', ({ suggestions }) => {
           set({ activeSuggestions: suggestions });
         });
 
         // Error
-        onEvent('ai:error', ({ sessionId, message, code }) => {
+        onEvent('ai:error', ({ message }) => {
           set({
             isStreaming: false,
             streamingContent: '',
