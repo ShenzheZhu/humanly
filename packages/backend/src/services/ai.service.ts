@@ -866,7 +866,7 @@ export class AIService {
 
     // Build simple messages without conversation history
     const messages: { role: string; content: string }[] = [
-      { role: 'system', content: 'You are a helpful writing assistant. Follow the user instructions precisely and only return the requested text without any explanation.' },
+      { role: 'system', content: buildQuickActionSystemPrompt(request.context) },
       { role: 'user', content: request.message },
     ];
 
@@ -888,6 +888,54 @@ export class AIService {
         content: response.content,
       },
     };
+  }
+
+  /**
+   * Streaming silent chat - same idea as silentChat but pushes the response
+   * back chunk-by-chunk over the supplied callbacks. The WebSocket handler
+   * wraps this with the `sessionId: 'silent'` sentinel so the chat panel
+   * does not adopt the frames as a real conversation turn.
+   */
+  static async silentStreamChat(
+    userId: string,
+    request: AIChatRequest,
+    onChunk: (chunk: string) => void,
+    onComplete: (content: string) => void,
+    onError: (error: Error) => void,
+  ): Promise<void> {
+    try {
+      const isOwner = await DocumentModel.isOwner(request.documentId, userId);
+      if (!isOwner) {
+        throw new AppError(404, 'Document not found');
+      }
+
+      const provider = await this.getProviderForUser(userId);
+
+      const messages: { role: string; content: string }[] = [
+        { role: 'system', content: buildQuickActionSystemPrompt(request.context) },
+        { role: 'user', content: request.message },
+      ];
+
+      const response = await provider.agentStreamChat(messages, onChunk, {
+        userId,
+        documentId: request.documentId,
+      });
+
+      logger.info('AI silent stream chat completed', {
+        userId,
+        documentId: request.documentId,
+        bytes: response.content.length,
+      });
+
+      onComplete(response.content);
+    } catch (error) {
+      logger.error('AI silent stream chat failed', {
+        userId,
+        documentId: request.documentId,
+        error,
+      });
+      onError(error instanceof Error ? error : new Error('Unknown error'));
+    }
   }
 
   /**
