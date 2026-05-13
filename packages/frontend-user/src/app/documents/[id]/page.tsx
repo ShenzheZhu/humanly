@@ -640,6 +640,8 @@ export default function DocumentEditorPage() {
                           onClose();
                           handleAskAI(text);
                         }}
+                        getDocumentPlainText={() => document?.plainText || ''}
+                        documentTitle={document?.title || ''}
                       />
                     )}
                     renderAIBridge={({ insertAtCursor }) => (

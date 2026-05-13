@@ -28,6 +28,26 @@ interface AISelectionMenuProps {
     replacementResult?: SelectionReplacementResult
   ) => void;
   onAskAI?: (selectedText: string) => void;
+  // Lazy accessor for the document's current plain text. Used to compute
+  // a ±200 char window around the selection so the backend system prompt
+  // can instruct the model to preserve author voice.
+  getDocumentPlainText?: () => string;
+  documentTitle?: string;
+}
+
+const SURROUNDING_PRE_MAX = 200;
+const SURROUNDING_POST_MAX = 200;
+
+/**
+ * Slice `before` / `after` windows around the selection offsets, capped at
+ * SURROUNDING_PRE_MAX / SURROUNDING_POST_MAX characters. Char-window v1;
+ * sentence/paragraph-aware clipping is deliberately out of scope here.
+ */
+function computeSurrounding(plainText: string, start: number, end: number) {
+  return {
+    before: plainText.slice(Math.max(0, start - SURROUNDING_PRE_MAX), start),
+    after: plainText.slice(end, end + SURROUNDING_POST_MAX),
+  };
 }
 
 export type ActionType = 'grammar' | 'improve' | 'simplify' | 'formal';
@@ -78,6 +98,8 @@ export function AISelectionMenu({
   undoLastAction,
   onActionApplied,
   onAskAI,
+  getDocumentPlainText,
+  documentTitle,
 }: AISelectionMenuProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingAction, setLoadingAction] = useState<ActionType | null>(null);
