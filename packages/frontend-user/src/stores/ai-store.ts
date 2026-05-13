@@ -384,6 +384,7 @@ export const useAIStore = create<AIState>()(
               role: 'assistant',
               content: log.response,
               timestamp: log.timestamp,
+              metadata: { logId: log.id },
             });
           }
         });

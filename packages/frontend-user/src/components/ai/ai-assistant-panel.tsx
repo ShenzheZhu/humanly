@@ -6,6 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { getWhitelist } from '@/lib/ai-models';
 import { useAI, useAILogs } from '@/hooks/use-ai';
@@ -29,6 +35,7 @@ interface AIAssistantPanelProps {
   onClose: () => void;
   onApplySuggestion?: (suggestion: AISuggestion, text: string) => void;
   getSelection?: () => { text: string; start: number; end: number } | null;
+  insertAtCursor?: ((text: string, source: { messageId: string; logId?: string }) => void | Promise<void>) | null;
 }
 
 const QUICK_ACTION_PROMPT_PREFIXES = [
@@ -64,6 +71,7 @@ export function AIAssistantPanel({
   onClose,
   onApplySuggestion,
   getSelection,
+  insertAtCursor,
 }: AIAssistantPanelProps) {
   const [input, setInput] = useState('');
   const [historyPopoverOpen, setHistoryPopoverOpen] = useState(false);
@@ -368,7 +376,8 @@ export function AIAssistantPanel({
             <MessageBubble
               key={message.id}
               message={message}
-              toolCalls={toolCallTimelines[message.id]}
+              toolCalls={toolCallTimelines?.[message.id]}
+              insertAtCursor={insertAtCursor}
             />
           ))}
 
@@ -383,6 +392,7 @@ export function AIAssistantPanel({
               }}
               isStreaming
               toolCalls={streamingToolCalls}
+              insertAtCursor={insertAtCursor}
             />
           )}
 
@@ -573,10 +583,12 @@ interface MessageBubbleProps {
   message: AIChatMessage;
   isStreaming?: boolean;
   toolCalls?: ToolCallEntry[];
+  insertAtCursor?: ((text: string, source: { messageId: string; logId?: string }) => void | Promise<void>) | null;
 }
 
-function MessageBubble({ message, isStreaming, toolCalls }: MessageBubbleProps) {
+function MessageBubble({ message, isStreaming, toolCalls, insertAtCursor }: MessageBubbleProps) {
   const isUser = message.role === 'user';
+  const canInsert = !isUser && !isStreaming && message.content.trim().length > 0;
 
   return (
     <div className={cn('flex min-w-0 w-full', isUser ? 'justify-end' : 'justify-start')}>
@@ -601,10 +613,51 @@ function MessageBubble({ message, isStreaming, toolCalls }: MessageBubbleProps) 
                 <span className="inline-block w-1.5 h-4 ml-0.5 bg-current animate-pulse rounded-sm" />
               )}
             </div>
+            {canInsert && (
+              <InsertAtCursorButton
+                disabled={!insertAtCursor}
+                onInsert={() => insertAtCursor?.(message.content, {
+                  messageId: message.id,
+                  logId: message.metadata?.logId,
+                })}
+              />
+            )}
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+interface InsertAtCursorButtonProps {
+  disabled: boolean;
+  onInsert: () => void | Promise<void>;
+}
+
+function InsertAtCursorButton({ disabled, onInsert }: InsertAtCursorButtonProps) {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="mt-2 inline-flex">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={disabled}
+              className="h-7 gap-1.5 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+              onClick={onInsert}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Insert at cursor
+            </Button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          <p>{disabled ? 'Open this document in the editor to insert' : 'Insert this response at the editor cursor'}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
