@@ -6,6 +6,7 @@ import { Sparkles, Check, Wand2, BookOpen, Loader2, MessageSquare, AlertCircle, 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api-client';
+import { useAIStore } from '@/stores/ai-store';
 
 interface SelectionInfo {
   text: string;
@@ -143,25 +144,42 @@ export function AISelectionMenu({
       isStreaming: true,
     });
 
-    try {
-      const result = await api.post<{
-        success: boolean;
-        data: {
-          message: { id: string; role: string; content: string };
-        };
-      }>('/ai/chat', {
-        documentId,
-        message: `${action.prompt}\n\n"${selection.text}"`,
-        silent: true,
-        context: {
-          selectedText: selection.text,
-        },
-      }, {
-        timeout: 120000,
-      });
+    // Build the surrounding-context window if the host wired it in. Falls
+    // back to no context, in which case the backend prompt builder emits
+    // the base instruction without voice-preservation guidance.
+    const plainText = getDocumentPlainText?.();
+    const surroundingContext = plainText
+      ? {
+          ...computeSurrounding(plainText, selection.start, selection.end),
+          documentTitle: documentTitle ?? '',
+        }
+      : undefined;
 
-      const improvedText = (result.data?.message?.content || '').trim();
-      if (!improvedText) {
+    try {
+      const streamSilent = useAIStore.getState().streamSilent;
+      let buffer = '';
+      const finalText = await streamSilent(
+        documentId,
+        `${action.prompt}\n\n"${selection.text}"`,
+        {
+          selectedText: selection.text,
+          surroundingContext,
+        },
+        (chunk) => {
+          buffer += chunk;
+          setReviewState((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  suggestedText: buffer,
+                }
+              : prev,
+          );
+        },
+      );
+
+      const trimmed = (finalText || '').trim().replace(/^["']|["']$/g, '');
+      if (!trimmed) {
         throw new Error('AI response was empty');
       }
 
@@ -169,7 +187,7 @@ export function AISelectionMenu({
         actionType: action.type,
         actionLabel: action.label,
         originalText: selection.text,
-        suggestedText: improvedText.replace(/^["']|["']$/g, ''),
+        suggestedText: trimmed,
         logId: undefined,
         isStreaming: false,
       });
@@ -228,21 +246,33 @@ export function AISelectionMenu({
   const handleUndo = async () => {
     if (!reviewState) return;
 
-    // Track rejection in the backend
-    try {
-      await api.post('/ai/selection-action', {
-        documentId,
-        logId: reviewState.logId,
-        actionType: reviewState.actionType,
-        originalText: reviewState.originalText,
-        suggestedText: reviewState.suggestedText,
-        decision: 'rejected',
-      });
-    } catch (error) {
-      // Don't block the user flow if tracking fails
+    const wasStreaming = !!reviewState.isStreaming;
+
+    if (wasStreaming) {
+      // Stop the in-flight silent stream on the server. cancelSilentStream
+      // emits ai:cancel against the SILENT_SESSION_ID sentinel; the backend
+      // handler stops generation. We skip the /ai/selection-action POST
+      // because no completed suggestion existed to accept or reject.
+      useAIStore.getState().cancelSilentStream();
+    } else {
+      // Track rejection of a completed suggestion in the backend
+      try {
+        await api.post('/ai/selection-action', {
+          documentId,
+          logId: reviewState.logId,
+          actionType: reviewState.actionType,
+          originalText: reviewState.originalText,
+          suggestedText: reviewState.suggestedText,
+          decision: 'rejected',
+        });
+      } catch (error) {
+        // Don't block the user flow if tracking fails
+      }
     }
 
     setReviewState(null);
+    setIsLoading(false);
+    setLoadingAction(null);
     cancelAIAction();
     onClose();
   };
