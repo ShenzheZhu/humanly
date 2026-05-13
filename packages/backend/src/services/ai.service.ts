@@ -808,6 +808,30 @@ Current scoped documentId: ${documentId}
 Answer concisely. Mention when available evidence is incomplete or a tool returns no relevant data.`;
 }
 
+/**
+ * System prompt for the four selection-menu quick actions (fix grammar /
+ * improve writing / simplify / make formal). Differs from the chat system
+ * prompt: the model returns only the rewritten text, no commentary, and
+ * matches the author's voice using the surrounding-context window.
+ */
+function buildQuickActionSystemPrompt(context?: AIChatRequest['context']): string {
+  const base = 'You are a helpful writing assistant. Follow the user instructions precisely and only return the requested text without any explanation or surrounding quotation marks.';
+  const sc = context?.surroundingContext;
+  if (!sc) return base;
+
+  const parts: string[] = [base];
+  if (sc.documentTitle) {
+    parts.push(`The user is writing a document titled: "${sc.documentTitle}".`);
+  }
+  if (sc.before || sc.after) {
+    parts.push("Preserve the author's voice, register, and style. Below is the surrounding text the user is NOT asking you to change — match this voice when you rewrite the selection.");
+    if (sc.before) parts.push(`[BEFORE THE SELECTION]\n${sc.before}`);
+    if (sc.after) parts.push(`[AFTER THE SELECTION]\n${sc.after}`);
+    parts.push('Only rewrite the selection itself. Do not echo any of the before/after text in your response.');
+  }
+  return parts.join('\n\n');
+}
+
 export class AIService {
   /**
    * Get AI provider for a specific user (loads their settings from DB)
