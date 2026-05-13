@@ -5,7 +5,7 @@ import { ArrowLeft, FileText, Clock, Award, PanelLeftClose, PanelLeft, Upload, L
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { LexicalEditor, type SelectionReplacementResult } from '@humanly/editor';
+import { LexicalEditor, type EditorAIBridgeAPI, type SelectionReplacementResult } from '@humanly/editor';
 import { useDocument } from '@/hooks/use-document';
 import { useCertificates } from '@/hooks/use-certificates';
 import { useAuthStore } from '@/stores/auth-store';
@@ -58,6 +58,23 @@ interface ProjectInstructionPaper {
 const PROJECT_ENROLLMENTS_KEY = 'humanly.projectEnrollments';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
+interface EditorAIBridgeCaptureProps {
+  insertAtCursor: EditorAIBridgeAPI['insertAtCursor'];
+  onInsertAtCursorChange: (insertAtCursor: EditorAIBridgeAPI['insertAtCursor'] | null) => void;
+}
+
+function EditorAIBridgeCapture({
+  insertAtCursor,
+  onInsertAtCursorChange,
+}: EditorAIBridgeCaptureProps): null {
+  useEffect(() => {
+    onInsertAtCursorChange(insertAtCursor);
+    return () => onInsertAtCursorChange(null);
+  }, [insertAtCursor, onInsertAtCursorChange]);
+
+  return null;
+}
+
 const readProjectEnrollmentForDocument = (documentId: string): ProjectEnrollment | null => {
   if (typeof window === 'undefined') return null;
   try {
@@ -94,6 +111,7 @@ export default function DocumentEditorPage() {
   const [isUploadingPdf, setIsUploadingPdf] = useState(false);
   const [projectInstructionPaper, setProjectInstructionPaper] = useState<ProjectInstructionPaper | null>(null);
   const [submissionSessionId, setSubmissionSessionId] = useState<string | null>(null);
+  const [editorInsertAtCursor, setEditorInsertAtCursor] = useState<EditorAIBridgeAPI['insertAtCursor'] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const submissionSessionRef = useRef<{ projectId: string; sessionId: string } | null>(null);
 
@@ -292,6 +310,50 @@ export default function DocumentEditorPage() {
 
   const openPanelWithQuote = useAIStore((state) => state.openPanelWithQuote);
   const handleAskAI = useCallback((selectedText: string) => openPanelWithQuote(selectedText), [openPanelWithQuote]);
+
+  const handleEditorInsertAtCursorChange = useCallback(
+    (insertAtCursor: EditorAIBridgeAPI['insertAtCursor'] | null) => {
+      setEditorInsertAtCursor(() => insertAtCursor);
+    },
+    []
+  );
+
+  const handleInsertAssistantMessage = useCallback(
+    async (
+      text: string,
+      source: { messageId: string; logId?: string }
+    ) => {
+      if (!editorInsertAtCursor) {
+        toast({
+          title: 'Editor unavailable',
+          description: 'Open this document in the editor to insert AI text.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const insertion = editorInsertAtCursor(text);
+      const event = {
+        eventType: 'ai_insert_from_chat',
+        timestamp: new Date(),
+        textAfter: text,
+        cursorPosition: insertion.cursorPosition,
+        selectionStart: insertion.selectionStart,
+        selectionEnd: insertion.selectionEnd,
+        editorStateBefore: insertion.editorStateBefore,
+        editorStateAfter: insertion.editorStateAfter,
+        metadata: {
+          messageId: source.messageId,
+          logId: source.logId,
+          insertedTextLength: text.length,
+        },
+      };
+
+      await trackEvents([event as any], submissionSessionRef.current?.sessionId || submissionSessionId);
+      toast({ title: 'Inserted into document' });
+    },
+    [editorInsertAtCursor, submissionSessionId, toast, trackEvents]
+  );
 
   const handleAISelectionAction = useCallback(
     async (
@@ -580,6 +642,12 @@ export default function DocumentEditorPage() {
                         }}
                       />
                     )}
+                    renderAIBridge={({ insertAtCursor }) => (
+                      <EditorAIBridgeCapture
+                        insertAtCursor={insertAtCursor}
+                        onInsertAtCursorChange={handleEditorInsertAtCursorChange}
+                      />
+                    )}
                   />
                 </div>
               </div>
@@ -591,7 +659,11 @@ export default function DocumentEditorPage() {
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={25} minSize={18}>
                   <div className="h-full border-l bg-background overflow-hidden">
-                    <AIAssistantPanel documentId={documentId} onClose={closeAIPanel} />
+                    <AIAssistantPanel
+                      documentId={documentId}
+                      onClose={closeAIPanel}
+                      insertAtCursor={editorInsertAtCursor ? handleInsertAssistantMessage : null}
+                    />
                   </div>
                 </ResizablePanel>
               </>

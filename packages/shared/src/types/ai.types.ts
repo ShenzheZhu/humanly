@@ -27,6 +27,7 @@ export interface AIChatMessage {
   content: string;
   timestamp: Date | string;
   metadata?: {
+    logId?: string;
     suggestions?: AISuggestion[];
     attachments?: {
       type: 'selection' | 'document';

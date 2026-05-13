@@ -938,7 +938,8 @@ export class AIService {
       const assistantMessage = await AIModel.addMessage(
         session.id,
         'assistant',
-        response.content
+        response.content,
+        { logId: log.id }
       );
 
       // Get user's model for logging
@@ -1067,7 +1068,8 @@ export class AIService {
       const assistantMessage = await AIModel.addMessage(
         session.id,
         'assistant',
-        response.content
+        response.content,
+        { logId: log.id }
       );
 
       // Get user's model for logging

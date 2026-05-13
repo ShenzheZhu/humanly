@@ -80,6 +80,18 @@ export interface SelectionReplacementResult {
   editorStateAfter?: Record<string, any>;
 }
 
+export interface EditorInsertResult {
+  selectionStart: number;
+  selectionEnd: number;
+  cursorPosition: number;
+  editorStateBefore?: Record<string, any>;
+  editorStateAfter?: Record<string, any>;
+}
+
+export interface EditorAIBridgeAPI {
+  insertAtCursor: (text: string) => EditorInsertResult;
+}
+
 /**
  * Props for the Lexical editor component
  */
@@ -105,6 +117,8 @@ export interface LexicalEditorProps {
     cancelAIAction: () => void;
     undoLastAction: () => void;
   }) => React.ReactNode;
+  /** Expose editor actions to adjacent AI UI rendered outside the editor tree */
+  renderAIBridge?: (api: EditorAIBridgeAPI) => React.ReactNode;
 }
 
 /**
