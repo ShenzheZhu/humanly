@@ -42,7 +42,11 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 
-const require = createRequire(import.meta.url);
+// pnpm does not hoist socket.io to the workspace root, so resolve it via
+// @humanly/backend's dependency tree (it is the canonical owner).
+const require = createRequire(
+  fileURLToPath(new URL('../packages/backend/package.json', import.meta.url)),
+);
 const { Server: SocketIOServer } = require('socket.io');
 
 const __filename = fileURLToPath(import.meta.url);
@@ -186,10 +190,18 @@ const server = createServer(async (req, res) => {
     return ok(res, { baseUrl: 'mock://local', model: 'mock-llm', hasApiKey: true, maskedApiKey: 'mock-****' });
   }
 
-  // Documents — frontend useDocument expects response.data.data.document /
-  // response.data.data.paper / response.data.data.documents.
+  // Documents.
+  // - GET /documents             expects response.data.data to be an ARRAY (see use-documents.ts)
+  // - GET /documents/:id         expects response.data.data.document
+  // - GET /documents/:id/paper   expects response.data.data.paper
+  // - POST /documents            expects response.data.data.document
+  // - PUT  /documents/:id        expects response.data.data.document
   if (p === '/api/v1/documents' && method === 'GET') {
-    return ok(res, { documents: [MOCK_DOC], total: 1 });
+    return ok(res, [MOCK_DOC]);
+  }
+  if (p === '/api/v1/documents' && method === 'POST') {
+    await readBody(req);
+    return ok(res, { document: MOCK_DOC });
   }
   if (p.match(/^\/api\/v1\/documents\/[^/]+\/paper$/) && method === 'GET') {
     return ok(res, { paper: null });
