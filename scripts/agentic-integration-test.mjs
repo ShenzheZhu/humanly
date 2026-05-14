@@ -16,7 +16,7 @@
  * Usage:
  *   TOGETHER_API_KEY=tgp_v1_... \
  *   AGENT_TEST_PDF=/path/to/file.pdf \
- *   AGENT_TEST_MODEL='Qwen/Qwen2.5-72B-Instruct-Turbo' \
+ *   AGENT_TEST_MODEL='Qwen/Qwen3.5-397B-A17B' \
  *     node scripts/agentic-integration-test.mjs
  */
 
@@ -42,7 +42,7 @@ if (!API_KEY) {
   process.exit(1);
 }
 const BASE_URL = process.env.AGENT_TEST_BASE_URL || 'https://api.together.xyz/v1';
-const MODEL = process.env.AGENT_TEST_MODEL || 'Qwen/Qwen2.5-72B-Instruct-Turbo';
+const MODEL = process.env.AGENT_TEST_MODEL || 'Qwen/Qwen3.5-397B-A17B';
 const PDF_PATH = process.env.AGENT_TEST_PDF
   || path.join(process.env.HOME || '', 'Desktop', 'ENV100-2026F-Summer-Syllabus.pdf');
 const MAX_TURNS = Number(process.env.AGENT_TEST_MAX_TURNS || 8);
@@ -476,6 +476,33 @@ function summarizeTrace(prompt, trace) {
   return lines.join('\n');
 }
 
+function hasPseudoToolMarkup(text) {
+  return /<function=|<\/tool_call>|<parameter=|<\/function>/i.test(text || '');
+}
+
+function validateTrace(promptNumber, prompt, trace) {
+  const failures = [];
+  const errors = trace.filter((event) => event.type === 'error');
+  const finals = trace.filter((event) => event.type === 'final');
+  const finalText = finals.map((event) => event.text || '').join('\n').trim();
+  const visibleText = trace
+    .filter((event) => event.type === 'text-delta' || event.type === 'final')
+    .map((event) => event.text || '')
+    .join('');
+
+  if (errors.length > 0) {
+    failures.push(`Prompt ${promptNumber}: ${errors.map((event) => event.message).join('; ')}`);
+  }
+  if (!finalText) {
+    failures.push(`Prompt ${promptNumber}: missing non-empty final answer for "${prompt}"`);
+  }
+  if (hasPseudoToolMarkup(visibleText)) {
+    failures.push(`Prompt ${promptNumber}: model leaked pseudo tool-call markup into visible text`);
+  }
+
+  return failures;
+}
+
 // ── Run all prompts ───────────────────────────────────────────────────────
 
 const runStamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -488,6 +515,7 @@ const masterSummary = [
   `- PDF: \`${PDF_PATH}\` (${pages.length} pages)`,
   ``,
 ];
+const validationFailures = [];
 
 for (let i = 0; i < PROMPTS.length; i++) {
   const prompt = PROMPTS[i];
@@ -505,9 +533,18 @@ for (let i = 0; i < PROMPTS.length; i++) {
   masterSummary.push(`## Prompt ${i + 1}`);
   masterSummary.push(summarizeTrace(prompt, trace));
   masterSummary.push('');
+  validationFailures.push(...validateTrace(i + 1, prompt, trace));
 }
 
 const summaryFile = path.join(OUT_DIR, `run-${runStamp}-summary.md`);
 fs.writeFileSync(summaryFile, masterSummary.join('\n'));
 console.log(`\n[done] summary written to ${summaryFile}`);
 console.log(`[done] per-prompt traces in ${OUT_DIR}/run-${runStamp}-prompt*.json`);
+
+if (validationFailures.length > 0) {
+  console.error('\n[failed] agent smoke validation failed:');
+  for (const failure of validationFailures) {
+    console.error(`- ${failure}`);
+  }
+  process.exit(1);
+}
