@@ -1,8 +1,12 @@
 const path = require('path');
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
-if (!API_URL.startsWith('http://') && !API_URL.startsWith('https://')) {
+if (
+  API_URL &&
+  !API_URL.startsWith('http://') &&
+  !API_URL.startsWith('https://')
+) {
   throw new Error(
     `NEXT_PUBLIC_API_URL must start with http:// or https://. Received: ${API_URL}`
   );
@@ -30,6 +34,7 @@ const nextConfig = {
     // Only proxy /api/* in local dev. In production, nginx routes /api/ directly
     // to the backend and NEXT_PUBLIC_API_URL is an absolute https:// URL.
     if (process.env.NODE_ENV === 'production') return [];
+    if (!API_URL) return [];
     return [
       {
         source: '/api/:path*',
