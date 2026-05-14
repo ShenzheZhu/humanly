@@ -9,6 +9,7 @@ import {
   AIChatResponse,
   AgentToolCallPayload,
   AgentToolResultPayload,
+  AgentThinkingDeltaPayload,
   AgentTurnStartPayload,
   AgentTurnEndPayload,
 } from '@humanly/shared';
@@ -64,6 +65,11 @@ interface AIState {
   // the in-flight WebSocket messageId, then re-keyed to the persisted
   // AIChatMessage.id on ai:response-complete.
   toolCallTimelines: Record<string, ToolCallEntry[]>;
+
+  // Provider-exposed reasoning text, keyed by assistant messageId. This is
+  // intentionally separate from streamingContent so reasoning never bleeds
+  // into the visible assistant markdown body.
+  thinkingByMessageId: Record<string, string>;
 
   // The WebSocket-side messageId for the response currently being streamed,
   // used to bridge tool-call timelines onto the final persisted message id.
@@ -140,6 +146,7 @@ const initialState = {
   streamingContent: '',
   activeSuggestions: [],
   toolCallTimelines: {} as Record<string, ToolCallEntry[]>,
+  thinkingByMessageId: {} as Record<string, string>,
   streamingMessageId: null,
   logs: [],
   logsTotal: 0,
@@ -339,6 +346,7 @@ export const useAIStore = create<AIState>()(
           activeSuggestions: [],
           quotedText: null,
           toolCallTimelines: {},
+          thinkingByMessageId: {},
           streamingMessageId: null,
           logs: deletedSessionId
             ? get().logs.filter((log) => log.sessionId !== deletedSessionId)
@@ -370,6 +378,7 @@ export const useAIStore = create<AIState>()(
           quotedText: null,
           error: null,
           toolCallTimelines: {},
+          thinkingByMessageId: {},
           streamingMessageId: null,
           logs: deletedSessionId
             ? get().logs.filter((log) => log.sessionId !== deletedSessionId)
@@ -645,6 +654,12 @@ export const useAIStore = create<AIState>()(
               toolCallTimelines = { ...rest, [response.message.id]: timeline };
             }
 
+            let thinkingByMessageId = state.thinkingByMessageId;
+            if (state.streamingMessageId && thinkingByMessageId[state.streamingMessageId]) {
+              const { [state.streamingMessageId]: thinking, ...rest } = thinkingByMessageId;
+              thinkingByMessageId = { ...rest, [response.message.id]: thinking };
+            }
+
             // If we were streaming, the content was already shown via streamingContent
             // Just convert it to a proper message, don't duplicate
             if (state.isStreaming && state.streamingContent) {
@@ -656,6 +671,7 @@ export const useAIStore = create<AIState>()(
                 streamingContent: '', // Clear streaming content since message is now in messages array
                 streamingMessageId: null,
                 toolCallTimelines,
+                thinkingByMessageId,
               };
             }
 
@@ -668,6 +684,7 @@ export const useAIStore = create<AIState>()(
               streamingContent: '',
               streamingMessageId: null,
               toolCallTimelines,
+              thinkingByMessageId,
             };
           });
         });
@@ -743,6 +760,20 @@ export const useAIStore = create<AIState>()(
           });
         });
 
+        onEvent('ai:thinking-delta', (payload: AgentThinkingDeltaPayload) => {
+          if (payload.sessionId === SILENT_SESSION_ID) return;
+          console.log('[agent] thinking-delta', {
+            ...payload,
+            text: `${payload.text.length} chars`,
+          });
+          set((state) => ({
+            thinkingByMessageId: {
+              ...state.thinkingByMessageId,
+              [payload.messageId]: (state.thinkingByMessageId[payload.messageId] || '') + payload.text,
+            },
+          }));
+        });
+
         onEvent('ai:turn-end', (payload: AgentTurnEndPayload) => {
           console.log('[agent] turn-end', payload);
         });
@@ -757,6 +788,7 @@ export const useAIStore = create<AIState>()(
         offEvent('ai:turn-start');
         offEvent('ai:tool-call');
         offEvent('ai:tool-result');
+        offEvent('ai:thinking-delta');
         offEvent('ai:turn-end');
         listenersSetup = false;
       },
