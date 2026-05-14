@@ -48,17 +48,125 @@ import { getWhitelist } from '@/lib/ai-models';
 const DEFAULT_AI_BASE_URL = 'https://api.together.xyz/v1';
 const CUSTOM_MODEL_VALUE = '__custom_model__';
 const USE_EXISTING_AI_KEY = '__use_existing__';
+const IMPORT_ENVIRONMENT_VALUE = 'import_environment';
 
 type AiConnectionResult = {
   success: boolean;
   message: string;
 };
 
+type EnvironmentSelection = WritingEnvironmentPreset | typeof IMPORT_ENVIRONMENT_VALUE;
+
+function SectionHeading({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div>
+      <h3 className="font-semibold">{title}</h3>
+      <p className="text-sm text-muted-foreground">{description}</p>
+    </div>
+  );
+}
+
 const getPresetConfig = (preset: WritingEnvironmentPreset): WritingEnvironmentConfig => ({
   ...WRITING_ENVIRONMENT_PRESETS[preset],
   taskType: 'personal',
   copyPastePolicy: normalizeCopyPastePolicy(WRITING_ENVIRONMENT_PRESETS[preset].copyPastePolicy),
 });
+
+const isRecord = (value: unknown): value is Record<string, unknown> => (
+  !!value && typeof value === 'object' && !Array.isArray(value)
+);
+
+const normalizeAiAccessForForm = (value: unknown, fallback: WritingAiAccess): WritingAiAccess => (
+  value === 'off' ? 'off' : value === 'full' || value === 'readonly' ? 'full' : fallback
+);
+
+const isPositiveNumber = (value: unknown): value is number => (
+  typeof value === 'number' && Number.isFinite(value) && value > 0
+);
+
+const normalizeStringArray = (value: unknown, fallback: string[] = []) => (
+  Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    : fallback
+);
+
+const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentConfig => {
+  if (!isRecord(value)) {
+    throw new Error('Environment configuration must be a JSON object.');
+  }
+
+  const base = getPresetConfig('default_writing');
+  const imported = value;
+  const instructions = isRecord(imported.instructions) ? imported.instructions : {};
+  const aiUsageLimit = isRecord(imported.aiUsageLimit) ? imported.aiUsageLimit : {};
+  const time = isRecord(imported.time) ? imported.time : {};
+  const submission = isRecord(imported.submission) ? imported.submission : {};
+  const traceability = isRecord(imported.traceability) ? imported.traceability : {};
+  const aiAccess = normalizeAiAccessForForm(imported.aiAccess, base.aiAccess);
+  const usageMode = aiUsageLimit.mode === 'time_restricted' ? 'time_restricted' : 'unlimited';
+  const copyPastePolicy = normalizeCopyPastePolicy(
+    typeof imported.copyPastePolicy === 'string'
+      ? imported.copyPastePolicy
+      : base.copyPastePolicy
+  );
+
+  return {
+    ...base,
+    description: typeof imported.description === 'string' ? imported.description : base.description,
+    preset: 'custom',
+    taskType: 'personal',
+    aiAccess,
+    allowedModels: aiAccess === 'off' ? [] : normalizeStringArray(imported.allowedModels, base.allowedModels),
+    customModels: aiAccess === 'off' ? [] : normalizeStringArray(imported.customModels, base.customModels),
+    instructions: {
+      ...base.instructions,
+      hasInstructionPdf: typeof instructions.hasInstructionPdf === 'boolean'
+        ? instructions.hasInstructionPdf
+        : base.instructions.hasInstructionPdf,
+      editableAfterSubmission: typeof instructions.editableAfterSubmission === 'boolean'
+        ? instructions.editableAfterSubmission
+        : base.instructions.editableAfterSubmission,
+    },
+    aiUsageLimit: {
+      ...base.aiUsageLimit,
+      mode: usageMode,
+    },
+    time: {
+      ...base.time,
+      timeLimitSeconds: usageMode === 'time_restricted'
+        ? isPositiveNumber(time.timeLimitSeconds)
+          ? time.timeLimitSeconds
+          : base.time.timeLimitSeconds || 3600
+        : undefined,
+    },
+    submission: {
+      ...base.submission,
+      mode: submission.mode === 'single' || submission.mode === 'multiple'
+        ? submission.mode
+        : base.submission.mode,
+    },
+    traceability: {
+      ...base.traceability,
+      trackAiUsage: typeof traceability.trackAiUsage === 'boolean'
+        ? traceability.trackAiUsage
+        : aiAccess !== 'off',
+      trackTyping: typeof traceability.trackTyping === 'boolean'
+        ? traceability.trackTyping
+        : base.traceability.trackTyping,
+      trackCopyPaste: copyPastePolicy === 'allowed',
+      trackFocusBlur: typeof traceability.trackFocusBlur === 'boolean'
+        ? traceability.trackFocusBlur
+        : base.traceability.trackFocusBlur,
+    },
+    copyPastePolicy,
+  };
+};
 
 export default function NewDocumentPage() {
   const router = useRouter();
@@ -70,7 +178,7 @@ export default function NewDocumentPage() {
   const [description, setDescription] = useState('');
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [environmentPreset, setEnvironmentPreset] = useState<WritingEnvironmentPreset>('default_writing');
+  const [environmentSelection, setEnvironmentSelection] = useState<EnvironmentSelection>('default_writing');
   const [environmentConfig, setEnvironmentConfig] = useState<WritingEnvironmentConfig>(getPresetConfig('default_writing'));
   const [aiBaseUrl, setAiBaseUrl] = useState(DEFAULT_AI_BASE_URL);
   const [aiApiKey, setAiApiKey] = useState('');
@@ -136,16 +244,79 @@ export default function NewDocumentPage() {
   const selectedAiModel = aiModel === CUSTOM_MODEL_VALUE ? customAiModel.trim() : aiModel.trim();
 
   const markCustom = (updater: (current: WritingEnvironmentConfig) => WritingEnvironmentConfig) => {
-    setEnvironmentPreset('custom');
+    setEnvironmentSelection('custom');
     setEnvironmentConfig((current) => ({
       ...updater(current),
       preset: 'custom',
     }));
   };
 
+  const syncAiModelFromEnvironment = (config: WritingEnvironmentConfig) => {
+    if (config.aiAccess === 'off') {
+      setAiModel('');
+      setCustomAiModel('');
+      return;
+    }
+
+    const customModel = config.customModels?.[0] || '';
+    const firstAllowedModel = config.allowedModels[0] || '';
+    setAiModel(firstAllowedModel || (customModel ? CUSTOM_MODEL_VALUE : ''));
+    setCustomAiModel(customModel);
+  };
+
   const applyEnvironmentPreset = (preset: WritingEnvironmentPreset) => {
-    setEnvironmentPreset(preset);
-    setEnvironmentConfig(getPresetConfig(preset));
+    const config = getPresetConfig(preset);
+    setEnvironmentSelection(preset);
+    setEnvironmentConfig(config);
+    syncAiModelFromEnvironment(config);
+    setAiConnectionResult(null);
+    setTestedAiModels([]);
+  };
+
+  const handleEnvironmentSelectionChange = (value: EnvironmentSelection) => {
+    if (value === IMPORT_ENVIRONMENT_VALUE) {
+      setEnvironmentSelection(value);
+      return;
+    }
+
+    applyEnvironmentPreset(value);
+  };
+
+  const handleEnvironmentImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.json')) {
+      toast({
+        title: 'Invalid environment file',
+        description: 'Import Environment currently supports JSON files only.',
+        variant: 'destructive',
+      });
+      event.target.value = '';
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(await file.text());
+      const config = normalizeImportedEnvironmentConfig(parsed);
+      setEnvironmentSelection(IMPORT_ENVIRONMENT_VALUE);
+      setEnvironmentConfig(config);
+      syncAiModelFromEnvironment(config);
+      setAiConnectionResult(null);
+      setTestedAiModels([]);
+      toast({
+        title: 'Environment imported',
+        description: 'The JSON configuration was applied to this document.',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Import failed',
+        description: err.message || 'Unable to import the environment JSON file.',
+        variant: 'destructive',
+      });
+    } finally {
+      event.target.value = '';
+    }
   };
 
   const setEnvironmentAiModel = (model: string, isCustomModel = false) => {
@@ -347,7 +518,7 @@ export default function NewDocumentPage() {
   const timeMode = environmentConfig.aiUsageLimit.mode === 'time_restricted' ? 'time_restricted' : 'unlimited';
 
   return (
-    <div className="container mx-auto max-w-4xl px-4 py-8">
+    <div className="container mx-auto max-w-2xl px-4 py-8">
       <div className="mb-6">
         <Button variant="ghost" className="mb-4" onClick={() => router.push('/documents')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -363,97 +534,127 @@ export default function NewDocumentPage() {
         <CardHeader>
           <CardTitle>Document Configuration</CardTitle>
           <CardDescription>
-            A document includes both the content and the environment where it is written.
+            Set up the document details, AI access, and writing controls before you start.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid gap-2">
-            <Label htmlFor="document-title">Document Name</Label>
-            <Input
-              id="document-title"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="My Writing Document"
-              disabled={isCreating}
+          <section className="space-y-4">
+            <SectionHeading
+              title="Basic Information"
+              description="Name the document and attach an optional source PDF for side-by-side writing."
             />
-          </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="document-description">Description</Label>
-            <Textarea
-              id="document-description"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="Optional context for this document..."
-              disabled={isCreating}
-            />
-          </div>
-
-          <div className="rounded-md border border-dashed p-4">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Upload className="h-4 w-4 text-muted-foreground" />
-              PDF
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Optional PDF source file for side-by-side writing.
-            </p>
-            <Input
-              ref={fileInputRef}
-              type="file"
-              accept="application/pdf"
-              className="mt-3"
-              onChange={handlePdfSelect}
-              disabled={isCreating}
-            />
-            {pdfFile && (
-              <div className="mt-3 flex items-center gap-3 rounded-md border bg-muted/40 p-3">
-                <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium" title={pdfFile.name}>
-                    {pdfFile.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {(pdfFile.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
-                    setPdfFile(null);
-                    if (fileInputRef.current) fileInputRef.current.value = '';
-                  }}
-                  disabled={isCreating}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-4 rounded-md border p-4">
-            <div>
-              <h3 className="font-semibold">Writing Environment</h3>
-              <p className="text-sm text-muted-foreground">
-                Defaults are visible below. Changing any setting switches the environment to Custom.
-              </p>
+            <div className="grid gap-2">
+              <Label htmlFor="document-title">Document Name</Label>
+              <Input
+                id="document-title"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="My Writing Document"
+                disabled={isCreating}
+              />
             </div>
 
             <div className="grid gap-2">
-              <Label>Preset</Label>
-              <Select value={environmentPreset} onValueChange={(value) => applyEnvironmentPreset(value as WritingEnvironmentPreset)}>
+              <Label htmlFor="document-description">Description</Label>
+              <Textarea
+                id="document-description"
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                placeholder="Optional context for this document..."
+                disabled={isCreating}
+              />
+            </div>
+
+            <div className="rounded-md border border-dashed p-4">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Upload className="h-4 w-4 text-muted-foreground" />
+                PDF
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Optional PDF source file for side-by-side writing.
+              </p>
+              <Input
+                ref={fileInputRef}
+                type="file"
+                accept="application/pdf"
+                className="mt-3"
+                onChange={handlePdfSelect}
+                disabled={isCreating}
+              />
+              {pdfFile && (
+                <div className="mt-3 flex items-center gap-3 rounded-md border bg-muted/40 p-3">
+                  <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium" title={pdfFile.name}>
+                      {pdfFile.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {(pdfFile.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setPdfFile(null);
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    }}
+                    disabled={isCreating}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <div className="space-y-5 rounded-md border p-4">
+            <SectionHeading
+              title="Environment"
+              description="Choose a default, customize the modules below, or import a JSON configuration."
+            />
+
+            <div className="grid gap-2">
+              <Label>Environment</Label>
+              <Select value={environmentSelection} onValueChange={(value) => handleEnvironmentSelectionChange(value as EnvironmentSelection)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select preset" />
+                  <SelectValue placeholder="Select environment" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="default_writing">Default Writing</SelectItem>
+                  <SelectItem value="default_writing">Default Environment</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
+                  <SelectItem value={IMPORT_ENVIRONMENT_VALUE}>Import Environment</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
+            {environmentSelection === IMPORT_ENVIRONMENT_VALUE && (
+              <div className="rounded-md border border-dashed p-4">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Upload className="h-4 w-4 text-muted-foreground" />
+                  Import JSON Configuration
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Upload a JSON file that matches the writing environment configuration shape.
+                </p>
+                <Input
+                  type="file"
+                  accept="application/json,.json"
+                  className="mt-3"
+                  onChange={handleEnvironmentImport}
+                  disabled={isCreating}
+                />
+              </div>
+            )}
+
+            <div className="space-y-4 rounded-md border p-4">
+              <SectionHeading
+                title="AI"
+                description="Control whether this document can use assistant support."
+              />
+
               <div className="grid gap-2">
                 <Label>AI</Label>
                 <Select value={environmentConfig.aiAccess} onValueChange={(value) => setAiAccess(value as WritingAiAccess)}>
@@ -461,11 +662,161 @@ export default function NewDocumentPage() {
                     <SelectValue placeholder="AI access" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="off">Off</SelectItem>
-                    <SelectItem value="full">On</SelectItem>
+                    <SelectItem value="off">AI Off</SelectItem>
+                    <SelectItem value="full">AI On</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
+              {environmentConfig.aiAccess !== 'off' && (
+                <div className="grid gap-4 rounded-md border bg-muted/30 p-3">
+                  <div className="grid gap-2">
+                    <Label htmlFor="ai-api-key">AI API Key</Label>
+                    <Input
+                      id="ai-api-key"
+                      type="password"
+                      value={aiApiKey}
+                      onChange={(event) => {
+                        setAiApiKey(event.target.value);
+                        setAiConnectionResult(null);
+                        setTestedAiModels([]);
+                      }}
+                      placeholder={hasExistingAiKey ? `Current: ${maskedAiKey || 'saved key'}` : 'Enter API key'}
+                      disabled={isCreating}
+                    />
+                    {hasExistingAiKey && !aiApiKey && (
+                      <p className="text-xs text-muted-foreground">
+                        Leave empty to use the saved key.
+                      </p>
+                    )}
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleTestAiConnection}
+                    disabled={isCreating || isTestingAiConnection || (!aiApiKey.trim() && !hasExistingAiKey)}
+                  >
+                    {isTestingAiConnection ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Testing...
+                      </>
+                    ) : (
+                      'Test Connection'
+                    )}
+                  </Button>
+
+                  {aiConnectionResult && (
+                    <div className="flex items-start gap-2 text-xs">
+                      {aiConnectionResult.success ? (
+                        <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                      ) : (
+                        <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                      )}
+                      <p className={aiConnectionResult.success ? 'text-emerald-700' : 'text-destructive'}>
+                        {aiConnectionResult.message}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-2">
+                      <Label>Model</Label>
+                      <Select
+                        value={aiModel}
+                        onValueChange={(value) => {
+                          setAiModel(value);
+                          if (value !== CUSTOM_MODEL_VALUE) {
+                            setCustomAiModel('');
+                            setEnvironmentAiModel(value);
+                          } else {
+                            setEnvironmentAiModel(customAiModel.trim(), true);
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select model" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {aiModelOptions.map((model) => (
+                            <SelectItem key={model} value={model}>
+                              {model}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value={CUSTOM_MODEL_VALUE}>Custom model</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="ai-base-url">Base URL</Label>
+                      <Input
+                        id="ai-base-url"
+                        value={aiBaseUrl}
+                        onChange={(event) => {
+                          setAiBaseUrl(event.target.value);
+                          setAiConnectionResult(null);
+                          setTestedAiModels([]);
+                        }}
+                        placeholder={DEFAULT_AI_BASE_URL}
+                        disabled={isCreating}
+                      />
+                    </div>
+                  </div>
+
+                  {aiModel === CUSTOM_MODEL_VALUE && (
+                    <div className="grid gap-2">
+                      <Label htmlFor="custom-ai-model">Custom Model</Label>
+                      <Input
+                        id="custom-ai-model"
+                        value={customAiModel}
+                        onChange={(event) => {
+                          setCustomAiModel(event.target.value);
+                          setEnvironmentAiModel(event.target.value.trim(), true);
+                        }}
+                        placeholder="provider/model-name"
+                        disabled={isCreating}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4 rounded-md border p-4">
+              <SectionHeading
+                title="Writing Control"
+                description="Set rules for editing behavior during writing."
+              />
+
+              <div className="grid gap-2">
+                <Label>Copy & Paste</Label>
+                <Select
+                  value={normalizeCopyPastePolicy(environmentConfig.copyPastePolicy)}
+                  onValueChange={(value) => {
+                    markCustom((current) => ({
+                      ...current,
+                      copyPastePolicy: normalizeCopyPastePolicy(value),
+                    }));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Copy-paste policy" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="allowed">Allowed</SelectItem>
+                    <SelectItem value="blocked">Blocked</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-4 rounded-md border p-4">
+              <SectionHeading
+                title="Time Limitation"
+                description="Set whether the writing session should have a time limit."
+              />
 
               <div className="grid gap-2">
                 <Label>Time</Label>
@@ -497,164 +848,28 @@ export default function NewDocumentPage() {
                 </Select>
               </div>
 
-              <div className="grid gap-2">
-                <Label>Copy & Paste</Label>
-                <Select
-                  value={normalizeCopyPastePolicy(environmentConfig.copyPastePolicy)}
-                  onValueChange={(value) => {
-                    markCustom((current) => ({
-                      ...current,
-                      copyPastePolicy: normalizeCopyPastePolicy(value),
-                    }));
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Copy-paste policy" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="allowed">Allowed</SelectItem>
-                    <SelectItem value="blocked">Blocked</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {environmentConfig.aiAccess !== 'off' && (
-              <div className="grid gap-4 rounded-md border bg-muted/30 p-4">
+              {timeMode === 'time_restricted' && (
                 <div className="grid gap-2">
-                  <Label htmlFor="ai-api-key">AI API Key</Label>
+                  <Label>Time Limit (minutes)</Label>
                   <Input
-                    id="ai-api-key"
-                    type="password"
-                    value={aiApiKey}
-                    onChange={(event) => {
-                      setAiApiKey(event.target.value);
-                      setAiConnectionResult(null);
-                      setTestedAiModels([]);
-                    }}
-                    placeholder={hasExistingAiKey ? `Current: ${maskedAiKey || 'saved key'}` : 'Enter API key'}
+                    type="number"
+                    min={1}
+                    value={Math.round((environmentConfig.time.timeLimitSeconds || 3600) / 60)}
                     disabled={isCreating}
+                    onChange={(event) => {
+                      const minutes = Number(event.target.value) || 1;
+                      markCustom((current) => ({
+                        ...current,
+                        time: {
+                          ...current.time,
+                          timeLimitSeconds: minutes * 60,
+                        },
+                      }));
+                    }}
                   />
-                  {hasExistingAiKey && !aiApiKey && (
-                    <p className="text-xs text-muted-foreground">
-                      Leave empty to use the saved key.
-                    </p>
-                  )}
                 </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleTestAiConnection}
-                  disabled={isCreating || isTestingAiConnection || (!aiApiKey.trim() && !hasExistingAiKey)}
-                >
-                  {isTestingAiConnection ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Testing...
-                    </>
-                  ) : (
-                    'Test Connection'
-                  )}
-                </Button>
-
-                {aiConnectionResult && (
-                  <div className="flex items-start gap-2 text-xs">
-                    {aiConnectionResult.success ? (
-                      <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                    ) : (
-                      <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                    )}
-                    <p className={aiConnectionResult.success ? 'text-emerald-700' : 'text-destructive'}>
-                      {aiConnectionResult.message}
-                    </p>
-                  </div>
-                )}
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label>Model</Label>
-                    <Select
-                      value={aiModel}
-                      onValueChange={(value) => {
-                        setAiModel(value);
-                        if (value !== CUSTOM_MODEL_VALUE) {
-                          setCustomAiModel('');
-                          setEnvironmentAiModel(value);
-                        } else {
-                          setEnvironmentAiModel(customAiModel.trim(), true);
-                        }
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select model" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {aiModelOptions.map((model) => (
-                          <SelectItem key={model} value={model}>
-                            {model}
-                          </SelectItem>
-                        ))}
-                        <SelectItem value={CUSTOM_MODEL_VALUE}>Custom model</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="ai-base-url">Base URL</Label>
-                    <Input
-                      id="ai-base-url"
-                      value={aiBaseUrl}
-                      onChange={(event) => {
-                        setAiBaseUrl(event.target.value);
-                        setAiConnectionResult(null);
-                        setTestedAiModels([]);
-                      }}
-                      placeholder={DEFAULT_AI_BASE_URL}
-                      disabled={isCreating}
-                    />
-                  </div>
-                </div>
-
-                {aiModel === CUSTOM_MODEL_VALUE && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="custom-ai-model">Custom Model</Label>
-                    <Input
-                      id="custom-ai-model"
-                      value={customAiModel}
-                      onChange={(event) => {
-                        setCustomAiModel(event.target.value);
-                        setEnvironmentAiModel(event.target.value.trim(), true);
-                      }}
-                      placeholder="provider/model-name"
-                      disabled={isCreating}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-
-            {timeMode === 'time_restricted' && (
-              <div className="grid gap-2">
-                <Label>Time Limit (minutes)</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={Math.round((environmentConfig.time.timeLimitSeconds || 3600) / 60)}
-                  disabled={isCreating}
-                  onChange={(event) => {
-                    const minutes = Number(event.target.value) || 1;
-                    markCustom((current) => ({
-                      ...current,
-                      time: {
-                        ...current.time,
-                        timeLimitSeconds: minutes * 60,
-                      },
-                    }));
-                  }}
-                />
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </CardContent>
         <CardFooter className="flex justify-between">
