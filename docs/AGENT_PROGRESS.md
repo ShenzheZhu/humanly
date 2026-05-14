@@ -1,6 +1,6 @@
 # Agent Progress Tracker
 
-Last updated: 2026-05-14 (real-LLM smoke verified; PR #29 ready, follow-up #31 opened)
+Last updated: 2026-05-14 (real-LLM smoke verified; main merge paused; PR #30 retargeted)
 
 This document is the shared handoff surface for agents working on `humanly-code`.
 GitHub issues and pull requests remain the source of truth for canonical history;
@@ -28,7 +28,7 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 - Epic: #4, "Epic: Agentic AI chat upgrade"
 - Scope: read-only agentic AI chat, visible tool-call timeline, chat-to-editor handoff, and quick-action upgrades.
 - Explicitly out of scope for this epic: autonomous AI editing of the document.
-- Status: **all active sub-issues shipped**. Integration can merge back into `main` once the deferred backlog items below are either started or explicitly punted.
+- Status: **all active sub-issues shipped**. Main integration is intentionally paused for now; PR #29 is left open as the eventual merge vehicle and its conflict with `main` is not a current blocker.
 
 ## Current State
 
@@ -57,8 +57,8 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 
 ## Open PRs
 
-- **#29** `feat/agentic-chat` → `main` — final integration merge for Epic #4. **Verified safe** (real-LLM smoke on 2026-05-14). User merges via UI.
-- **#30** `chore/agentic-integration-test` → `main` — permanent test script (`scripts/agentic-integration-test.mjs`) that produced the smoke. Independent dev infra. User merges via UI.
+- **#29** `feat/agentic-chat` → `main` — final integration merge for Epic #4. **Paused** because we are not merging to `main` yet; GitHub currently reports conflicts with `main`, which are expected to be handled only when main integration resumes.
+- **#30** `chore/agentic-integration-test` → `feat/agentic-chat` — permanent test script (`scripts/agentic-integration-test.mjs`) that produced the smoke. Retargeted away from `main` so the diff stays clean (`.gitignore` + script only). User merges via UI if we want this script on the integration branch before main integration.
 
 ## Open follow-up issues (post-Epic)
 
