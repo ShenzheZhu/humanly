@@ -61,7 +61,7 @@ COMPOSE_FILE="$COMPOSE_FILE" bash scripts/run-migrations.sh
 
 echo "==> [8/8] Restart application services"
 docker compose -f "$COMPOSE_FILE" up -d --no-deps --wait backend frontend-user frontend
-docker compose -f "$COMPOSE_FILE" up -d --no-deps nginx
+docker compose -f "$COMPOSE_FILE" up -d --no-deps --force-recreate nginx
 
 echo "==> Current service status"
 docker compose -f "$COMPOSE_FILE" ps
