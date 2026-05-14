@@ -38,6 +38,136 @@ function emitAgentEvent(sink: AgentEventSink | undefined, event: AgentEvent): vo
   }
 }
 
+const THINK_OPEN_TAG = '<think>';
+const THINK_CLOSE_TAG = '</think>';
+const IMPLICIT_THINKING_MAX_CHARS = 4096;
+const IMPLICIT_THINKING_MAX_CHUNKS = 24;
+
+export interface ThinkingSplit {
+  visible: string;
+  thinking: string;
+}
+
+/**
+ * Splits provider-exposed reasoning bytes away from visible answer text.
+ *
+ * Providers are not consistent here:
+ * - OpenAI-compatible reasoning models may stream `delta.reasoning_content`.
+ * - Qwen-style streams may put explicit `<think>...</think>` in content.
+ * - DeepSeek-R1 on Together can omit the opening tag and later close with
+ *   `</think>`. We hold a small likely-reasoning prefix until the close tag
+ *   arrives, then emit it as thinking instead of leaking it into chat text.
+ */
+export class ThinkingContentSplitter {
+  private inExplicitThinking = false;
+  private implicitBuffer = '';
+  private implicitChunks = 0;
+  private canStartImplicit = true;
+
+  push(content: string): ThinkingSplit {
+    if (!content) return { visible: '', thinking: '' };
+    return this.processContent(content);
+  }
+
+  pushReasoning(reasoning: string): ThinkingSplit {
+    return { visible: '', thinking: reasoning || '' };
+  }
+
+  flush(): ThinkingSplit {
+    if (!this.implicitBuffer) return { visible: '', thinking: '' };
+    const visible = this.implicitBuffer;
+    this.implicitBuffer = '';
+    this.canStartImplicit = false;
+    return { visible, thinking: '' };
+  }
+
+  private processContent(content: string): ThinkingSplit {
+    let source = this.implicitBuffer + content;
+    let visible = '';
+    let thinking = '';
+    this.implicitBuffer = '';
+
+    while (source.length > 0) {
+      if (this.inExplicitThinking) {
+        const closeIndex = source.indexOf(THINK_CLOSE_TAG);
+        if (closeIndex === -1) {
+          thinking += source;
+          source = '';
+        } else {
+          thinking += source.slice(0, closeIndex);
+          source = source.slice(closeIndex + THINK_CLOSE_TAG.length);
+          this.inExplicitThinking = false;
+          this.canStartImplicit = false;
+        }
+        continue;
+      }
+
+      const openIndex = source.indexOf(THINK_OPEN_TAG);
+      const closeIndex = source.indexOf(THINK_CLOSE_TAG);
+
+      if (closeIndex !== -1 && (openIndex === -1 || closeIndex < openIndex)) {
+        if (this.canStartImplicit) {
+          thinking += source.slice(0, closeIndex);
+          source = source.slice(closeIndex + THINK_CLOSE_TAG.length);
+          this.canStartImplicit = false;
+        } else {
+          visible += source.slice(0, closeIndex);
+          source = source.slice(closeIndex + THINK_CLOSE_TAG.length);
+        }
+        continue;
+      }
+
+      if (openIndex !== -1) {
+        visible += source.slice(0, openIndex);
+        source = source.slice(openIndex + THINK_OPEN_TAG.length);
+        this.inExplicitThinking = true;
+        continue;
+      }
+
+      if (this.shouldHoldForImplicitThinking(source)) {
+        this.implicitBuffer = source;
+        this.implicitChunks += 1;
+        if (
+          this.implicitBuffer.length > IMPLICIT_THINKING_MAX_CHARS ||
+          this.implicitChunks > IMPLICIT_THINKING_MAX_CHUNKS
+        ) {
+          visible += this.implicitBuffer;
+          this.implicitBuffer = '';
+          this.canStartImplicit = false;
+        }
+      } else {
+        visible += source;
+        this.canStartImplicit = false;
+      }
+      source = '';
+    }
+
+    return { visible, thinking };
+  }
+
+  private shouldHoldForImplicitThinking(source: string): boolean {
+    if (!this.canStartImplicit || this.implicitBuffer) return Boolean(this.implicitBuffer);
+    const trimmed = source.trimStart().toLowerCase();
+    if (!trimmed) return false;
+    return /^(we need|we should|i need|i should|okay|ok,|alright|let's|the user|need to|first,|hmm|let me|i'll|i will)/.test(trimmed);
+  }
+}
+
+function emitThinkingDelta(sink: AgentEventSink | undefined, text: string): void {
+  if (!text) return;
+  emitAgentEvent(sink, { type: 'thinking-delta', text });
+}
+
+function splitStaticThinking(content: string | null | undefined): ThinkingSplit {
+  const splitter = new ThinkingContentSplitter();
+  const first = splitter.push(content || '');
+  const flushed = splitter.flush();
+  return {
+    visible: first.visible + flushed.visible,
+    thinking: first.thinking + flushed.thinking,
+  };
+}
+
 interface AgentChatOptions {
   userId: string;
   documentId: string;
@@ -130,9 +260,11 @@ class OpenAIProvider implements AIProvider {
           documentId: options.documentId,
           iteration: i + 1,
         });
+        const split = splitStaticThinking(response.output_text || '');
+        emitThinkingDelta(options.onAgentEvent, split.thinking);
         emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: i });
         return {
-          content: response.output_text || '',
+          content: split.visible,
           tokensUsed: response.usage ? {
             input: response.usage.input_tokens,
             output: response.usage.output_tokens,
@@ -303,6 +435,7 @@ class OpenAIProvider implements AIProvider {
       } : lastUsage;
 
       const assistantMessage = completion.choices?.[0]?.message || {};
+      emitThinkingDelta(options.onAgentEvent, assistantMessage.reasoning_content || assistantMessage.reasoning || '');
       const toolCalls = assistantMessage.tool_calls || [];
       if (toolCalls.length === 0) {
         logger.info('AI agent completed without additional tool calls', {
@@ -311,9 +444,11 @@ class OpenAIProvider implements AIProvider {
           iteration: i + 1,
           transport: 'chat_completions',
         });
+        const split = splitStaticThinking(assistantMessage.content || '');
+        emitThinkingDelta(options.onAgentEvent, split.thinking);
         emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: i });
         return {
-          content: assistantMessage.content || '',
+          content: split.visible,
           tokensUsed: lastUsage,
         };
       }
@@ -326,7 +461,16 @@ class OpenAIProvider implements AIProvider {
         tools: toolCalls.map((toolCall: any) => toolCall.function?.name),
       });
 
-      chatMessages.push(assistantMessage);
+      if (assistantMessage.content) {
+        const split = splitStaticThinking(assistantMessage.content);
+        emitThinkingDelta(options.onAgentEvent, split.thinking);
+        chatMessages.push({
+          ...assistantMessage,
+          content: split.visible || null,
+        });
+      } else {
+        chatMessages.push(assistantMessage);
+      }
       for (const toolCall of toolCalls) {
         const toolName = toolCall.function?.name;
         let args: Record<string, any> = {};
@@ -420,6 +564,7 @@ class OpenAIProvider implements AIProvider {
       } : lastUsage;
 
       const assistantMessage = completion.choices?.[0]?.message || {};
+      emitThinkingDelta(options.onAgentEvent, assistantMessage.reasoning_content || assistantMessage.reasoning || '');
       const toolCalls = assistantMessage.tool_calls || [];
       if (toolCalls.length === 0) {
         logger.info('AI agent final response streaming started', {
@@ -444,7 +589,16 @@ class OpenAIProvider implements AIProvider {
         tools: toolCalls.map((toolCall: any) => toolCall.function?.name),
       });
 
-      chatMessages.push(assistantMessage);
+      if (assistantMessage.content) {
+        const split = splitStaticThinking(assistantMessage.content);
+        emitThinkingDelta(options.onAgentEvent, split.thinking);
+        chatMessages.push({
+          ...assistantMessage,
+          content: split.visible || null,
+        });
+      } else {
+        chatMessages.push(assistantMessage);
+      }
       for (const toolCall of toolCalls) {
         const toolName = toolCall.function?.name;
         let args: Record<string, any> = {};
@@ -513,7 +667,7 @@ class OpenAIProvider implements AIProvider {
   private async streamFinalChatCompletion(
     chatMessages: any[],
     onChunk: (chunk: string) => void,
-    options: { maxTokens?: number }
+    options: AgentChatOptions
   ): Promise<string> {
     let stream: any;
     try {
@@ -528,12 +682,28 @@ class OpenAIProvider implements AIProvider {
     }
 
     let fullContent = '';
+    const thinkingSplitter = new ThinkingContentSplitter();
     for await (const chunk of stream) {
-      const content = chunk.choices?.[0]?.delta?.content || '';
+      const delta = chunk.choices?.[0]?.delta || {};
+      const reasoning = delta.reasoning_content || delta.reasoning || '';
+      emitThinkingDelta(options.onAgentEvent, reasoning);
+
+      const content = delta.content || '';
       if (content) {
-        fullContent += content;
-        onChunk(content);
+        const split = thinkingSplitter.push(content);
+        emitThinkingDelta(options.onAgentEvent, split.thinking);
+        if (split.visible) {
+          fullContent += split.visible;
+          onChunk(split.visible);
+        }
       }
+    }
+
+    const flushed = thinkingSplitter.flush();
+    emitThinkingDelta(options.onAgentEvent, flushed.thinking);
+    if (flushed.visible) {
+      fullContent += flushed.visible;
+      onChunk(flushed.visible);
     }
 
     return fullContent;

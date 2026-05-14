@@ -272,6 +272,7 @@ export interface AIServerToClientEvents {
   'ai:turn-start': (data: AgentTurnStartPayload) => void;
   'ai:tool-call': (data: AgentToolCallPayload) => void;
   'ai:tool-result': (data: AgentToolResultPayload) => void;
+  'ai:thinking-delta': (data: AgentThinkingDeltaPayload) => void;
   'ai:turn-end': (data: AgentTurnEndPayload) => void;
 }
 
@@ -285,6 +286,7 @@ export interface AIServerToClientEvents {
 export type AgentEvent =
   | { type: 'turn-start'; turnIndex: number }
   | { type: 'text-delta'; text: string }
+  | { type: 'thinking-delta'; text: string }
   | { type: 'tool-call'; toolCallId: string; toolName: string; args: Record<string, any> }
   | {
       type: 'tool-result';
@@ -332,6 +334,12 @@ export interface AgentToolResultPayload {
   result: string;
   isError: boolean;
   durationMs?: number;
+}
+
+export interface AgentThinkingDeltaPayload {
+  sessionId: string;
+  messageId: string;
+  text: string;
 }
 
 export interface AgentTurnEndPayload {

@@ -335,6 +335,13 @@ export async function handleAIMessage(
             durationMs: event.durationMs,
           });
           break;
+        case 'thinking-delta':
+          socket.emit('ai:thinking-delta', {
+            sessionId: session.id,
+            messageId,
+            text: event.text,
+          });
+          break;
         case 'turn-end':
           socket.emit('ai:turn-end', {
             sessionId: session.id,

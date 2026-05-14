@@ -18,7 +18,7 @@ global.fetch = mockFetch;
 
 // ── Imports ───────────────────────────────────────────────────────────────────
 
-import { AIService, classifyQuestionCategory } from '../../services/ai.service';
+import { AIService, ThinkingContentSplitter, classifyQuestionCategory } from '../../services/ai.service';
 import { AIModel } from '../../models/ai.model';
 import { DocumentModel } from '../../models/document.model';
 import { UserAISettingsModel } from '../../models/user-ai-settings.model';
@@ -26,6 +26,46 @@ import { UserAISettingsModel } from '../../models/user-ai-settings.model';
 const MockAIModel = AIModel as jest.Mocked<typeof AIModel>;
 const MockDocumentModel = DocumentModel as jest.Mocked<typeof DocumentModel>;
 const MockUserAISettings = UserAISettingsModel as jest.Mocked<typeof UserAISettingsModel>;
+
+// ── ThinkingContentSplitter ───────────────────────────────────────────────────
+
+describe('ThinkingContentSplitter', () => {
+  it('separates explicit think tags from visible content', () => {
+    const splitter = new ThinkingContentSplitter();
+
+    const first = splitter.push('<think>inspect tools</think>Final answer.');
+    const flushed = splitter.flush();
+
+    expect(first.thinking).toBe('inspect tools');
+    expect(first.visible).toBe('Final answer.');
+    expect(flushed.visible).toBe('');
+  });
+
+  it('handles DeepSeek-style implicit-open thinking before a close tag', () => {
+    const splitter = new ThinkingContentSplitter();
+
+    const first = splitter.push('We need find policy.');
+    const second = splitter.push(' Search syllabus.</think>Visible answer.');
+    const flushed = splitter.flush();
+
+    expect(first.visible).toBe('');
+    expect(first.thinking).toBe('');
+    expect(second.thinking).toBe('We need find policy. Search syllabus.');
+    expect(second.visible).toBe('Visible answer.');
+    expect(flushed.visible).toBe('');
+  });
+
+  it('keeps normal answer text visible', () => {
+    const splitter = new ThinkingContentSplitter();
+
+    const first = splitter.push('According to page 1, office hours are Monday.');
+    const flushed = splitter.flush();
+
+    expect(first.thinking).toBe('');
+    expect(first.visible).toBe('According to page 1, office hours are Monday.');
+    expect(flushed.visible).toBe('');
+  });
+});
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
