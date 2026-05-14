@@ -52,30 +52,17 @@ type SortOption = 'lastEdited' | 'title' | 'wordCount';
 
 interface TaskEnrollment {
   id: string;
+  taskId?: string;
+  enrollmentId?: string;
   name: string;
   inviteCode: string;
-  documentId: string;
+  documentId: string | null;
   joinedAt: string;
   description?: string;
   startDate?: string;
   endDate?: string;
   environmentConfig?: WritingEnvironmentConfig | null;
 }
-
-const TASK_ENROLLMENTS_KEY = 'humanly.taskEnrollments';
-const readTaskEnrollments = (): TaskEnrollment[] => {
-  if (typeof window === 'undefined') return [];
-  try {
-    return JSON.parse(localStorage.getItem(TASK_ENROLLMENTS_KEY) || '[]');
-  } catch {
-    return [];
-  }
-};
-
-const writeTaskEnrollments = (enrollments: TaskEnrollment[]) => {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(TASK_ENROLLMENTS_KEY, JSON.stringify(enrollments));
-};
 
 const getDisplayTaskName = (task: TaskEnrollment) => {
   const name = task.name?.trim();
@@ -93,76 +80,26 @@ export default function DocumentsPage() {
   const [inviteCode, setInviteCode] = useState('');
   const [isJoiningTask, setIsJoiningTask] = useState(false);
   const [taskEnrollments, setTaskEnrollments] = useState<TaskEnrollment[]>([]);
+  const [isLoadingTaskEnrollments, setIsLoadingTaskEnrollments] = useState(true);
+  const [taskEnrollmentsError, setTaskEnrollmentsError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setTaskEnrollments(readTaskEnrollments());
+  const fetchTaskEnrollments = useCallback(async () => {
+    try {
+      setIsLoadingTaskEnrollments(true);
+      setTaskEnrollmentsError(null);
+      const response = await apiClient.get('/tasks/my-enrollments');
+      setTaskEnrollments(response.data.data?.enrollments || []);
+    } catch (err: any) {
+      setTaskEnrollments([]);
+      setTaskEnrollmentsError(err.message || 'Failed to fetch task enrollments');
+    } finally {
+      setIsLoadingTaskEnrollments(false);
+    }
   }, []);
 
   useEffect(() => {
-    if (taskEnrollments.length === 0) return;
-
-    let cancelled = false;
-
-    const refreshTaskNames = async () => {
-      const refreshed = await Promise.all(
-        taskEnrollments.map(async (task) => {
-          try {
-            const response = await apiClient.post('/tasks/join', { inviteCode: task.inviteCode });
-            const taskFromApi = response.data?.data?.task || response.data?.data || null;
-
-            if (!taskFromApi?.name) return task;
-
-            return {
-              ...task,
-              id: taskFromApi.id || task.id,
-              name: taskFromApi.name,
-              description: taskFromApi.description || task.description,
-              startDate: taskFromApi.startDate || task.startDate,
-              endDate: taskFromApi.endDate || task.endDate,
-              environmentConfig: taskFromApi.environmentConfig || task.environmentConfig,
-            };
-          } catch {
-            return task;
-          }
-        })
-      );
-
-      if (cancelled) return;
-
-      const changed = refreshed.some((task, index) => (
-        task.name !== taskEnrollments[index].name ||
-        task.description !== taskEnrollments[index].description ||
-        task.startDate !== taskEnrollments[index].startDate ||
-        task.endDate !== taskEnrollments[index].endDate ||
-        JSON.stringify(task.environmentConfig || null) !== JSON.stringify(taskEnrollments[index].environmentConfig || null) ||
-        task.id !== taskEnrollments[index].id
-      ));
-
-      if (changed) {
-        setTaskEnrollments(refreshed);
-        writeTaskEnrollments(refreshed);
-      }
-    };
-
-    refreshTaskNames();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [taskEnrollments]);
-
-  useEffect(() => {
-    if (isLoading || !documents) return;
-    const existingDocumentIds = new Set(documents.map((document) => document.id));
-    const nextEnrollments = taskEnrollments.filter((task) => (
-      existingDocumentIds.has(task.documentId)
-    ));
-
-    if (nextEnrollments.length !== taskEnrollments.length) {
-      setTaskEnrollments(nextEnrollments);
-      writeTaskEnrollments(nextEnrollments);
-    }
-  }, [documents, isLoading, taskEnrollments]);
+    fetchTaskEnrollments();
+  }, [fetchTaskEnrollments]);
 
   const handleDeleteDocument = async (documentId: string) => {
     try {
@@ -180,21 +117,14 @@ export default function DocumentsPage() {
     }
   };
 
-  const removeTaskEnrollment = (task: TaskEnrollment) => {
-    const nextEnrollments = taskEnrollments.filter(
-      (enrollment) => enrollment.documentId !== task.documentId
-    );
-    setTaskEnrollments(nextEnrollments);
-    writeTaskEnrollments(nextEnrollments);
-  };
-
   const handleDeleteTaskEnrollment = async () => {
     if (!taskToDelete) return;
+    if (!taskToDelete.documentId) return;
 
     try {
       await apiClient.delete(`/tasks/enrollments/${taskToDelete.id}`);
       await deleteDocument(taskToDelete.documentId);
-      removeTaskEnrollment(taskToDelete);
+      await fetchTaskEnrollments();
       toast({
         title: 'Task removed',
         description: 'The task submission was deleted from your dashboard',
@@ -221,7 +151,11 @@ export default function DocumentsPage() {
       return;
     }
 
-    if (taskEnrollments.some((task) => task.inviteCode === normalizedCode)) {
+    if (taskEnrollments.some((task) => (
+      task.inviteCode === normalizedCode &&
+      task.documentId &&
+      (documents || []).some((document) => document.id === task.documentId)
+    ))) {
       toast({
         title: 'Already joined',
         description: 'This task is already on your dashboard',
@@ -263,9 +197,7 @@ export default function DocumentsPage() {
         documentId: document.id,
       });
 
-      const nextEnrollments = [...taskEnrollments, enrollment];
-      setTaskEnrollments(nextEnrollments);
-      writeTaskEnrollments(nextEnrollments);
+      await fetchTaskEnrollments();
       setShowJoinDialog(false);
       setInviteCode('');
 
@@ -282,11 +214,11 @@ export default function DocumentsPage() {
     } finally {
       setIsJoiningTask(false);
     }
-  }, [createDocument, inviteCode, taskEnrollments, toast]);
+  }, [createDocument, documents, fetchTaskEnrollments, inviteCode, taskEnrollments, toast]);
 
   const documentIds = new Set((documents || []).map((document) => document.id));
   const validTaskEnrollments = taskEnrollments.filter((task) => (
-    documentIds.has(task.documentId)
+    task.documentId && documentIds.has(task.documentId)
   ));
   const taskDocumentIds = new Set(validTaskEnrollments.map((task) => task.documentId));
   const personalDocuments = (documents || [])
@@ -304,7 +236,7 @@ export default function DocumentsPage() {
   // Container classes for centered content with max-width
   const containerClass = "mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8";
 
-  if (isLoading) {
+  if (isLoading || isLoadingTaskEnrollments) {
     return (
       <main className={containerClass}>
         <div className="mb-8">
@@ -332,12 +264,12 @@ export default function DocumentsPage() {
     );
   }
 
-  if (error) {
+  if (error || taskEnrollmentsError) {
     return (
       <main className={containerClass}>
         <div className="flex min-h-[400px] items-center justify-center">
           <div className="text-center">
-            <p className="text-destructive">{error}</p>
+            <p className="text-destructive">{error || taskEnrollmentsError}</p>
             <Button onClick={() => window.location.reload()} className="mt-4">
               Retry
             </Button>

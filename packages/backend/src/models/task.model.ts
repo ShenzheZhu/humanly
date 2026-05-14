@@ -56,6 +56,21 @@ export interface TaskEnrollmentSummary {
   lastActivity: Date | null;
 }
 
+export interface CurrentUserTaskEnrollment {
+  id: string;
+  taskId: string;
+  enrollmentId: string;
+  name: string;
+  description?: string | null;
+  inviteCode: string;
+  documentId: string | null;
+  joinedAt: Date;
+  startDate: Date;
+  endDate: Date;
+  environmentConfig?: WritingEnvironmentConfig | null;
+  isActive: boolean;
+}
+
 export class TaskModel {
   private static readonly taskSelect = `
     p.id, p.user_id as "userId", p.name, p.description, p.task_token as "taskToken",
@@ -281,6 +296,33 @@ export class TaskModel {
     `;
     const result = await queryOne<{ id: string }>(sql, [taskId, userId, documentId]);
     return !!result;
+  }
+
+  /**
+   * List task enrollments for the current user portal account.
+   */
+  static async listCurrentUserEnrollments(userId: string): Promise<CurrentUserTaskEnrollment[]> {
+    const sql = `
+      SELECT
+        t.id,
+        t.id as "taskId",
+        te.id as "enrollmentId",
+        t.name,
+        t.description,
+        UPPER(SUBSTRING(t.task_token FROM 1 FOR 6)) as "inviteCode",
+        te.submission_document_id as "documentId",
+        te.joined_at as "joinedAt",
+        t.start_date as "startDate",
+        t.end_date as "endDate",
+        t.environment_config as "environmentConfig",
+        t.is_active as "isActive"
+      FROM task_enrollments te
+      JOIN tasks t ON t.id = te.task_id
+      WHERE te.user_id = $1
+      ORDER BY te.joined_at DESC
+    `;
+
+    return query<CurrentUserTaskEnrollment>(sql, [userId]);
   }
 
   /**

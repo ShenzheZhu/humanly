@@ -133,6 +133,13 @@ export class TaskService {
   }
 
   /**
+   * List task enrollments for the current user portal account.
+   */
+  static async listCurrentUserTaskEnrollments(userId: string) {
+    return TaskModel.listCurrentUserEnrollments(userId);
+  }
+
+  /**
    * Join task lookup for user portal invite-code enrollment.
    */
   static async joinTaskByInviteCode(inviteCode: string, userId: string): Promise<Task> {

@@ -96,6 +96,21 @@ export async function listTaskEnrollments(req: Request, res: Response): Promise<
 }
 
 /**
+ * List task enrollments for the current user portal account.
+ */
+export async function listMyTaskEnrollments(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.userId;
+  const enrollments = await TaskService.listCurrentUserTaskEnrollments(userId);
+
+  res.json({
+    success: true,
+    data: {
+      enrollments,
+    },
+  });
+}
+
+/**
  * Look up a task by invite code for user enrollment
  */
 export async function joinTask(req: Request, res: Response): Promise<void> {

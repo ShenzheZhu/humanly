@@ -6,6 +6,7 @@ import {
   getTask,
   listTasks,
   listTaskEnrollments,
+  listMyTaskEnrollments,
   joinTask,
   leaveTask,
   getInstructionPaper,
@@ -48,6 +49,12 @@ router.post('/', asyncHandler(createTask));
  * Look up an active task by 6-character invite code.
  */
 router.post('/join', asyncHandler(joinTask));
+
+/**
+ * GET /api/v1/tasks/my-enrollments
+ * List the current user's task enrollments for the user portal.
+ */
+router.get('/my-enrollments', asyncHandler(listMyTaskEnrollments));
 
 /**
  * DELETE /api/v1/tasks/enrollments/:taskId

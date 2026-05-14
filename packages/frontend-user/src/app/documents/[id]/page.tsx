@@ -48,9 +48,11 @@ const PDFViewer = dynamic(() => import('@/components/review/SimplePDFViewer'), {
 
 interface TaskEnrollment {
   id: string;
+  taskId?: string;
+  enrollmentId?: string;
   name: string;
   inviteCode: string;
-  documentId: string;
+  documentId: string | null;
   joinedAt: string;
   description?: string;
   startDate?: string;
@@ -64,21 +66,10 @@ interface TaskInstructionPaper {
   pdfStoragePath?: string;
 }
 
-const TASK_ENROLLMENTS_KEY = 'humanly.taskEnrollments';
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   (process.env.NODE_ENV === 'production' ? '/api/v1' : 'http://localhost:3001/api/v1');
 const SUBMISSION_SESSION_START_DELAY_MS = 250;
-
-const readTaskEnrollmentForDocument = (documentId: string): TaskEnrollment | null => {
-  if (typeof window === 'undefined') return null;
-  try {
-    const enrollments = JSON.parse(localStorage.getItem(TASK_ENROLLMENTS_KEY) || '[]') as TaskEnrollment[];
-    return enrollments.find((task) => task.documentId === documentId) || null;
-  } catch {
-    return null;
-  }
-};
 
 export default function DocumentEditorPage() {
   const params = useParams();
@@ -109,6 +100,8 @@ export default function DocumentEditorPage() {
   const [taskInstructionPapers, setTaskInstructionPapers] = useState<TaskInstructionPaper[]>([]);
   const [selectedInstructionPaperId, setSelectedInstructionPaperId] = useState<string | null>(null);
   const [submissionSessionId, setSubmissionSessionId] = useState<string | null>(null);
+  const [taskEnrollment, setTaskEnrollment] = useState<TaskEnrollment | null>(null);
+  const [isTaskEnrollmentLoading, setIsTaskEnrollmentLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const submissionSessionRef = useRef<{ taskId: string; sessionId: string } | null>(null);
   const lastSubmissionSessionRef = useRef<{ taskId: string; sessionId: string } | null>(null);
@@ -157,8 +150,38 @@ export default function DocumentEditorPage() {
   useEffect(() => {
     let cancelled = false;
 
+    const fetchTaskEnrollment = async () => {
+      try {
+        setIsTaskEnrollmentLoading(true);
+        const response = await apiClient.get('/tasks/my-enrollments');
+        if (cancelled) return;
+
+        const enrollments = response.data.data?.enrollments || [];
+        const enrollment = enrollments.find((task: TaskEnrollment) => task.documentId === documentId) || null;
+        setTaskEnrollment(enrollment);
+      } catch {
+        if (!cancelled) {
+          setTaskEnrollment(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsTaskEnrollmentLoading(false);
+        }
+      }
+    };
+
+    fetchTaskEnrollment();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [documentId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
     const fetchTaskInstructionPaper = async () => {
-      const enrollment = readTaskEnrollmentForDocument(documentId);
+      const enrollment = taskEnrollment;
       if (!enrollment) {
         setTaskInstructionPaper(null);
         setTaskInstructionPapers([]);
@@ -197,10 +220,10 @@ export default function DocumentEditorPage() {
     return () => {
       cancelled = true;
     };
-  }, [documentId]);
+  }, [documentId, taskEnrollment]);
 
   useEffect(() => {
-    const enrollment = readTaskEnrollmentForDocument(documentId);
+    const enrollment = taskEnrollment;
     if (!enrollment) {
       setSubmissionSessionId(null);
       submissionSessionRef.current = null;
@@ -287,7 +310,7 @@ export default function DocumentEditorPage() {
       window.removeEventListener('beforeunload', endSubmissionSession);
       endSubmissionSession();
     };
-  }, [documentId]);
+  }, [documentId, taskEnrollment]);
 
   const handleTitleSave = async () => {
     if (!document) return;
@@ -386,12 +409,11 @@ export default function DocumentEditorPage() {
   };
 
   const handleSubmitTask = async () => {
-    const enrollment = readTaskEnrollmentForDocument(documentId);
-    if (!enrollment) return;
+    if (!taskEnrollment) return;
 
     try {
       setIsSubmittingTask(true);
-      const response = await apiClient.post(`/tasks/enrollments/${enrollment.id}/submissions`, {
+      const response = await apiClient.post(`/tasks/enrollments/${taskEnrollment.id}/submissions`, {
         documentId,
       });
       const certificate = response.data.data?.certificate;
@@ -434,7 +456,7 @@ export default function DocumentEditorPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isTaskEnrollmentLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
@@ -465,7 +487,6 @@ export default function DocumentEditorPage() {
     taskInstructionPapers.find((paper) => paper.id === selectedInstructionPaperId) ||
     taskInstructionPaper;
   const displayPaper = selectedInstructionPaper || linkedPaper;
-  const taskEnrollment = readTaskEnrollmentForDocument(documentId);
   const currentEnvironmentConfig = {
     ...DEFAULT_WRITING_ENVIRONMENT_CONFIG,
     ...(taskEnrollment?.environmentConfig || {}),
