@@ -23,9 +23,9 @@
  *     GET  /api/v1/ai/logs
  *   Socket.IO
  *     ai:join-session     -> ai:response-complete (system handshake)
- *     ai:message (chat)   -> ai:response-start / turn-start / tool-call /
- *                            tool-result / turn-end / response-chunk* /
- *                            response-complete
+ *     ai:message (chat)   -> ai:response-start / turn-start /
+ *                            thinking-delta / tool-call / tool-result /
+ *                            turn-end / response-chunk* / response-complete
  *     ai:message (silent) -> ai:response-start / response-chunk* /
  *                            response-complete (sessionId="silent")
  *     ai:cancel           -> aborts any in-flight emit loop
@@ -312,6 +312,11 @@ io.on('connection', (socket) => {
         const wantsTool = /search|find|where|motivation|grammar|paper/i.test(data?.message || '');
         if (wantsTool) {
           socket.emit('ai:turn-start', { sessionId, messageId, turnIndex: 0 });
+          socket.emit('ai:thinking-delta', {
+            sessionId,
+            messageId,
+            text: 'I should inspect the document before answering, then use the tool result to ground the reply.',
+          });
           const toolCallId = uuid();
           socket.emit('ai:tool-call', {
             sessionId, messageId, toolCallId,
