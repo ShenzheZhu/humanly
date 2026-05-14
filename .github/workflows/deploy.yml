@@ -29,8 +29,6 @@ jobs:
       VM_DEPLOY_PATH: ${{ secrets.VM_DEPLOY_PATH }}
       NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
       NEXT_PUBLIC_WS_URL: ${{ secrets.NEXT_PUBLIC_WS_URL }}
-      ADMIN_NEXT_PUBLIC_API_URL: ${{ secrets.ADMIN_NEXT_PUBLIC_API_URL }}
-      ADMIN_NEXT_PUBLIC_WS_URL: ${{ secrets.ADMIN_NEXT_PUBLIC_WS_URL }}
       BACKEND_IMAGE_NAME: humanly-backend
       FRONTEND_USER_IMAGE_NAME: humanly-frontend-user
       FRONTEND_IMAGE_NAME: humanly-frontend
@@ -112,8 +110,8 @@ jobs:
 
       - name: Build and push frontend image
         run: |
-          admin_api_url="${ADMIN_NEXT_PUBLIC_API_URL:-https://admin.writehumanly.net}"
-          admin_ws_url="${ADMIN_NEXT_PUBLIC_WS_URL:-wss://admin.writehumanly.net}"
+          admin_api_url="https://admin.writehumanly.net"
+          admin_ws_url="wss://admin.writehumanly.net"
 
           docker build \
             -f docker/frontend.Dockerfile \
