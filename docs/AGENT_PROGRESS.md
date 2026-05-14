@@ -1,6 +1,6 @@
 # Agent Progress Tracker
 
-Last updated: 2026-05-14 (real-LLM smoke verified; main merge paused; PR #30 retargeted)
+Last updated: 2026-05-14 (#31 reasoning-delta PR opened; #33 table-render bug filed)
 
 This document is the shared handoff surface for agents working on `humanly-code`.
 GitHub issues and pull requests remain the source of truth for canonical history;
@@ -59,10 +59,12 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 
 - **#29** `feat/agentic-chat` → `main` — final integration merge for Epic #4. **Paused** because we are not merging to `main` yet; GitHub currently reports conflicts with `main`, which are expected to be handled only when main integration resumes.
 - **#30** `chore/agentic-integration-test` → `feat/agentic-chat` — permanent test script (`scripts/agentic-integration-test.mjs`) that produced the smoke. Retargeted away from `main` so the diff stays clean (`.gitignore` + script only). User merges via UI if we want this script on the integration branch before main integration.
+- **#34** `fix/31-thinking-delta` → `feat/agentic-chat` — captures provider reasoning as `ai:thinking-delta`, accumulates it in the frontend, and renders a collapsed Reasoning block. Awaiting user review/merge.
 
 ## Open follow-up issues (post-Epic)
 
-- **#31** Capture reasoning content as `AgentEvent.thinking-delta` for reasoning models. Discovered during the real-LLM smoke: DeepSeek-R1 emits ~2KB of reasoning per turn that the current AgentRunner drops on the floor. Llama-3.3 (current default) is unaffected.
+- **#31** Capture reasoning content as `AgentEvent.thinking-delta` for reasoning models. PR #34 is open.
+- **#33** Render assistant Markdown tables with GitHub-flavored Markdown. Filed after the real localhost UI smoke showed Kimi's grading table rendering as plain paragraph text.
 
 ## Verification Notes
 
