@@ -39,6 +39,12 @@ describe('MODEL_WHITELIST', () => {
       expect(unique.size).toBe(models.length);
     });
   });
+
+  it('defaults Together choices to the verified Qwen3.5 agent model', () => {
+    const togetherModels = MODEL_WHITELIST['api.together.xyz'];
+    expect(togetherModels).toContain('Qwen/Qwen3.5-397B-A17B');
+    expect(togetherModels).not.toContain('Qwen/Qwen3.5-9B');
+  });
 });
 
 // ── getWhitelist ─────────────────────────────────────────────────────────────

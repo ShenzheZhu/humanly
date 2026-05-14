@@ -32,7 +32,7 @@ export const MODEL_WHITELIST: Record<string, string[]> = {
     'mistralai/mistral-large',
   ],
   'api.together.xyz': [
-    'Qwen/Qwen3.5-9B',
+    'Qwen/Qwen3.5-397B-A17B',
     'moonshotai/Kimi-K2.5',
     'deepseek-ai/DeepSeek-V4-Pro',
     'deepseek-ai/DeepSeek-V3',
