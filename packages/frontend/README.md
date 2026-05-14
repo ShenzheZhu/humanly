@@ -119,15 +119,6 @@ Components will be added to `src/components/ui/`
 
 ## Deployment
 
-### Vercel (Recommended)
-
-1. Push code to GitHub
-2. Import project in Vercel
-3. Configure environment variables
-4. Deploy
-
-### Manual Build
-
 ```bash
 pnpm build
 pnpm start

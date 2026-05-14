@@ -1,3 +1,7 @@
+BEGIN;
+
+DROP VIEW IF EXISTS user_certificate_summary;
+
 DO $$
 BEGIN
   IF to_regclass('public.tasks') IS NOT NULL THEN
@@ -99,3 +103,16 @@ BEGIN
     END IF;
   END IF;
 END $$;
+
+CREATE OR REPLACE VIEW user_certificate_summary AS
+SELECT
+    u.id AS user_id,
+    u.email,
+    COUNT(c.id) AS total_certificates,
+    COUNT(DISTINCT c.document_id) AS certified_documents,
+    MAX(c.created_at) AS last_certificate_date
+FROM users u
+LEFT JOIN certificates c ON c.user_id = u.id
+GROUP BY u.id, u.email;
+
+COMMIT;

@@ -110,8 +110,6 @@ npx shadcn-ui@latest add toast
 - [ ] Write integration tests
 
 ### 9. Deployment
-- [ ] Configure Vercel project
-- [ ] Set up environment variables in Vercel
 - [ ] Configure CI/CD pipeline
 - [ ] Set up preview deployments
 
