@@ -402,6 +402,16 @@ function mockChatReplyFor(message) {
   const intro = /\?\s*$/.test(message)
     ? 'Based on the document, '
     : 'Here is what I found: ';
+  if (/grade|grading|percent|table/i.test(message)) {
+    return [
+      'Based on the document, here is the grading table:',
+      '',
+      '| Component | Percentage |',
+      '| --- | ---: |',
+      '| Attendance and Participation | 18% |',
+      '| Final Exam | 34% |',
+    ].join('\n');
+  }
   if (/motivation/i.test(message)) {
     return intro + 'the motivation appears in the second paragraph — provenance-first beats post-hoc detection.';
   }
