@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/dialog';
 import ReactMarkdown from 'react-markdown';
 import { AISettingsDialog } from './ai-settings-dialog';
-import { ToolCallTimeline } from './tool-call-card';
+import { ReasoningBlock, ToolCallTimeline } from './tool-call-card';
 import api from '@/lib/api-client';
 import type { ToolCallEntry } from '@/stores/ai-store';
 
@@ -149,6 +149,7 @@ export function AIAssistantPanel({
     streamingMessageId,
     suggestions,
     toolCallTimelines,
+    thinkingByMessageId,
     isLoading,
     error,
     sendMessage,
@@ -277,6 +278,8 @@ export function AIAssistantPanel({
 
   const streamingToolCalls = streamingMessageId ? toolCallTimelines[streamingMessageId] : undefined;
   const hasStreamingToolCalls = Boolean(streamingToolCalls?.length);
+  const streamingThinking = streamingMessageId ? thinkingByMessageId?.[streamingMessageId] : undefined;
+  const hasStreamingThinking = Boolean(streamingThinking?.trim());
 
   return (
     <div className="flex h-full w-full flex-col bg-background min-w-0 overflow-hidden">
@@ -377,12 +380,13 @@ export function AIAssistantPanel({
               key={message.id}
               message={message}
               toolCalls={toolCallTimelines?.[message.id]}
+              thinking={thinkingByMessageId?.[message.id]}
               insertAtCursor={insertAtCursor}
             />
           ))}
 
           {/* Streaming message */}
-          {isStreaming && (streamingContent || hasStreamingToolCalls) && streamingMessageId && (
+          {isStreaming && (streamingContent || hasStreamingToolCalls || hasStreamingThinking) && streamingMessageId && (
             <MessageBubble
               message={{
                 id: streamingMessageId,
@@ -392,12 +396,13 @@ export function AIAssistantPanel({
               }}
               isStreaming
               toolCalls={streamingToolCalls}
+              thinking={streamingThinking}
               insertAtCursor={insertAtCursor}
             />
           )}
 
           {/* Loading indicator */}
-          {isStreaming && !streamingContent && !hasStreamingToolCalls && (
+          {isStreaming && !streamingContent && !hasStreamingToolCalls && !hasStreamingThinking && (
             <div className="flex items-center gap-2 text-muted-foreground px-1">
               <div className="flex gap-1">
                 <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -583,10 +588,11 @@ interface MessageBubbleProps {
   message: AIChatMessage;
   isStreaming?: boolean;
   toolCalls?: ToolCallEntry[];
+  thinking?: string;
   insertAtCursor?: ((text: string, source: { messageId: string; logId?: string }) => void | Promise<void>) | null;
 }
 
-function MessageBubble({ message, isStreaming, toolCalls, insertAtCursor }: MessageBubbleProps) {
+function MessageBubble({ message, isStreaming, toolCalls, thinking, insertAtCursor }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const canInsert = !isUser && !isStreaming && message.content.trim().length > 0;
 
@@ -606,6 +612,7 @@ function MessageBubble({ message, isStreaming, toolCalls, insertAtCursor }: Mess
           </div>
         ) : (
           <div className="min-w-0">
+            <ReasoningBlock thinking={thinking} />
             <ToolCallTimeline entries={toolCalls} />
             <div className="prose prose-sm dark:prose-invert max-w-none break-words overflow-wrap-anywhere leading-relaxed min-w-0 [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1 [&>hr]:my-2 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 [&>*]:max-w-full [&>*]:min-w-0 [&>pre]:overflow-x-auto [&>pre]:max-w-full [&>pre]:whitespace-pre [&>code]:break-words [&>code]:whitespace-pre-wrap [&_a]:break-all [&_a]:overflow-wrap-anywhere">
               {message.content && <ReactMarkdown>{message.content}</ReactMarkdown>}

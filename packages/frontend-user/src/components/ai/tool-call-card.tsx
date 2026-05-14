@@ -18,12 +18,55 @@ export interface ToolCallTimelineProps {
   entries?: ToolCallEntry[];
 }
 
+export interface ReasoningBlockProps {
+  thinking?: string;
+}
+
 function tryPrettyJson(raw: string): string {
   try {
     return JSON.stringify(JSON.parse(raw), null, 2);
   } catch {
     return raw;
   }
+}
+
+export function ReasoningBlock({ thinking }: ReasoningBlockProps): JSX.Element | null {
+  const [open, setOpen] = useState(false);
+  const trimmed = thinking?.trim();
+  if (!trimmed) return null;
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <div className="mb-1.5 rounded-md border bg-background/60 px-2.5 py-1.5 text-xs shadow-sm">
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex w-full min-w-0 items-center gap-2 text-left"
+            aria-label="Reasoning"
+          >
+            <ChevronRight
+              className={cn(
+                'h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform',
+                open && 'rotate-90'
+              )}
+              aria-hidden="true"
+            />
+            <span className="min-w-0 flex-1 truncate font-mono text-[11px] font-medium">
+              Reasoning
+            </span>
+            <span className="shrink-0 tabular-nums text-muted-foreground">
+              {trimmed.length} chars
+            </span>
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <pre className="mt-1.5 max-h-64 max-w-full overflow-auto whitespace-pre-wrap rounded bg-muted/70 px-2 py-1.5 text-[11px] leading-relaxed">
+            <code>{trimmed}</code>
+          </pre>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
 }
 
 export function ToolCallCard({ entry }: ToolCallCardProps): JSX.Element {

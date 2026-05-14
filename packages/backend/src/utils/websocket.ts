@@ -7,6 +7,7 @@ import {
   AgentTurnStartPayload,
   AgentToolCallPayload,
   AgentToolResultPayload,
+  AgentThinkingDeltaPayload,
   AgentTurnEndPayload,
 } from '@humanly/shared';
 import { logger } from './logger';
@@ -40,6 +41,7 @@ export interface ServerToClientEvents {
   'ai:turn-start': (data: AgentTurnStartPayload) => void;
   'ai:tool-call': (data: AgentToolCallPayload) => void;
   'ai:tool-result': (data: AgentToolResultPayload) => void;
+  'ai:thinking-delta': (data: AgentThinkingDeltaPayload) => void;
   'ai:turn-end': (data: AgentTurnEndPayload) => void;
 }
 

@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ToolCallCard, ToolCallTimeline } from '@/components/ai/tool-call-card';
+import { ReasoningBlock, ToolCallCard, ToolCallTimeline } from '@/components/ai/tool-call-card';
 import type { ToolCallEntry } from '@/stores/ai-store';
 
 function makeEntry(overrides: Partial<ToolCallEntry> = {}): ToolCallEntry {
@@ -82,5 +82,26 @@ describe('ToolCallTimeline', () => {
 
     expect(screen.getByText('getDocumentText')).toBeInTheDocument();
     expect(screen.getByText('searchDocument')).toBeInTheDocument();
+  });
+});
+
+describe('ReasoningBlock', () => {
+  it('renders collapsed reasoning and expands on click', async () => {
+    const user = userEvent.setup();
+
+    render(<ReasoningBlock thinking="Inspect syllabus, then search for grading." />);
+
+    expect(screen.getByRole('button', { name: /reasoning/i })).toBeInTheDocument();
+    expect(screen.getByText(/chars/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /reasoning/i }));
+
+    expect(screen.getByText(/Inspect syllabus/)).toBeVisible();
+  });
+
+  it('renders nothing for empty thinking', () => {
+    const { container } = render(<ReasoningBlock thinking="  " />);
+
+    expect(container).toBeEmptyDOMElement();
   });
 });
