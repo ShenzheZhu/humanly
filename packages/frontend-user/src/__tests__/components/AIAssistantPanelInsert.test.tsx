@@ -79,6 +79,11 @@ jest.mock('react-markdown', () => ({
   default: ({ children }: any) => children,
 }));
 
+jest.mock('remark-gfm', () => ({
+  __esModule: true,
+  default: function mockRemarkGfm() {},
+}));
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockApiGet.mockResolvedValue({ data: { hasApiKey: true, baseUrl: '', model: '' } });

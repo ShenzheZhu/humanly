@@ -82,6 +82,7 @@ jest.mock('@/components/ai/ai-settings-dialog', () => ({
 }));
 
 jest.mock('react-markdown', () => ({ __esModule: true, default: ({ children }: any) => children }));
+jest.mock('remark-gfm', () => ({ __esModule: true, default: function mockRemarkGfm() {} }));
 
 // ── Imports ────────────────────────────────────────────────────────────────────
 
