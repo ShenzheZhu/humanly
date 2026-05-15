@@ -244,6 +244,15 @@ interface AIProvider {
     content: string;
     tokensUsed?: { input: number; output: number };
   }>;
+
+  directStreamChat(
+    messages: { role: string; content: string }[],
+    onChunk: (chunk: string) => void,
+    options: AgentChatOptions
+  ): Promise<{
+    content: string;
+    tokensUsed?: { input: number; output: number };
+  }>;
 }
 
 /**
@@ -436,6 +445,19 @@ class OpenAIProvider implements AIProvider {
       onChunk(response.content);
     }
     return response;
+  }
+
+  async directStreamChat(
+    messages: { role: string; content: string }[],
+    onChunk: (chunk: string) => void,
+    options: AgentChatOptions
+  ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
+    if (!this.apiKey) {
+      throw new AppError(500, 'AI service not configured');
+    }
+
+    const content = await this.streamFinalChatCompletion(messages, onChunk, options);
+    return { content };
   }
 
   private buildChatCompletionMessages(
@@ -1073,6 +1095,14 @@ class MockAIProvider implements AIProvider {
     };
   }
 
+  async directStreamChat(
+    messages: { role: string; content: string }[],
+    onChunk: (chunk: string) => void,
+    options: AgentChatOptions
+  ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
+    return this.agentStreamChat(messages, onChunk, options);
+  }
+
   private generateMockResponse(query: string): string {
     const lowerQuery = query.toLowerCase();
 
@@ -1386,9 +1416,10 @@ export class AIService {
         { role: 'user', content: request.message },
       ];
 
-      const response = await provider.agentStreamChat(messages, onChunk, {
+      const response = await provider.directStreamChat(messages, onChunk, {
         userId,
         documentId: request.documentId,
+        maxTokens: Math.min(env.aiMaxTokens, 768),
       });
 
       logger.info('AI silent stream chat completed', {
