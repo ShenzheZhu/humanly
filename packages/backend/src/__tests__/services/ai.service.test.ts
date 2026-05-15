@@ -24,7 +24,9 @@ import {
   buildFinalAnswerSynthesisPrompt,
   buildToolCallRepairPrompt,
   classifyQuestionCategory,
+  containsPseudoToolCall,
   shouldRepairEmptyToolCallResponse,
+  stripPseudoToolCallMarkup,
 } from '../../services/ai.service';
 import { AIModel } from '../../models/ai.model';
 import { DocumentModel } from '../../models/document.model';
@@ -115,6 +117,47 @@ describe('tool-call repair helpers', () => {
     expect(prompt).toContain('maximum of 20 tool calls');
     expect(prompt).toContain('tool results already available');
     expect(prompt).toContain('Never return an empty answer');
+  });
+});
+
+// ── Pseudo tool-call markup stripping (Bug C) ────────────────────────────────
+
+describe('pseudo tool-call markup helpers', () => {
+  it('detects <tool_call>...</tool_call> prose leak', () => {
+    expect(containsPseudoToolCall(
+      'Here you go:\n<tool_call> <function=getPaperContent> <parameter=paperId> abc </parameter> </function> </tool_call>'
+    )).toBe(true);
+  });
+
+  it('detects <tool_use> and <function=> shapes', () => {
+    expect(containsPseudoToolCall('<tool_use>{"name":"x"}</tool_use>')).toBe(true);
+    expect(containsPseudoToolCall('<function=listLinkedPapers>{}</function>')).toBe(true);
+  });
+
+  it('returns false on clean answers', () => {
+    expect(containsPseudoToolCall('The conclusion is on page 21.')).toBe(false);
+    expect(containsPseudoToolCall('')).toBe(false);
+    expect(containsPseudoToolCall(null)).toBe(false);
+    expect(containsPseudoToolCall(undefined)).toBe(false);
+  });
+
+  it('strips a single leaked block', () => {
+    const input = 'The answer:\n<tool_call><function=foo></function></tool_call>\nMore text.';
+    const cleaned = stripPseudoToolCallMarkup(input);
+    expect(cleaned).not.toContain('tool_call');
+    expect(cleaned).not.toContain('function=');
+    expect(cleaned).toContain('The answer:');
+    expect(cleaned).toContain('More text.');
+  });
+
+  it('strips multiple shapes in the same buffer', () => {
+    const input = 'A <tool_call>x</tool_call> B <function=foo>y</function> C <parameter=p>z</parameter> D';
+    expect(stripPseudoToolCallMarkup(input)).toBe('A  B  C  D');
+  });
+
+  it('collapses trailing whitespace introduced by stripping', () => {
+    const input = 'Answer\n\n\n<tool_call>x</tool_call>\n\n\nNext line';
+    expect(stripPseudoToolCallMarkup(input)).toBe('Answer\n\nNext line');
   });
 });
 
