@@ -50,65 +50,79 @@ const MAX_TURNS = Number(process.env.AGENT_TEST_MAX_TURNS || 8);
 const OUT_DIR = path.join(REPO_ROOT, 'tmp', 'agent-trace');
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
+// Prompts now exercise the #70 ls / grep / read primitives. Every prompt
+// expects at minimum an ls() call (always cheap, always first) plus one of
+// grep / read once the agent locates what it needs.
 const PROMPT_CASES = [
-  // 1. simple lookup — should fire listLinkedPapers then getPaperContent(mode=search)
+  // 1. simple lookup
   {
     prompt: 'Who is the instructor for ENV 100 and when are their office hours? Cite the page you found it on.',
     minToolCalls: 2,
-    requireTools: ['listLinkedPapers', 'getPaperContent'],
+    requireTools: ['ls'],
+    requireAnyOf: [['grep', 'read']],
   },
   // 2. multi-step grading-policy lookup
   {
     prompt: 'How is the final grade calculated? List every assessment and its percentage weight.',
     minToolCalls: 2,
-    requireTools: ['listLinkedPapers', 'getPaperContent'],
+    requireTools: ['ls'],
+    requireAnyOf: [['grep', 'read']],
     finalMustMatch: [/%|percent/i],
   },
-  // 3. fact buried in a section — should drive mode=section or mode=search
+  // 3. fact buried in a section
   {
     prompt: 'What are the learning outcomes of this course?',
     minToolCalls: 2,
-    requireTools: ['listLinkedPapers', 'getPaperContent'],
+    requireTools: ['ls'],
+    requireAnyOf: [['grep', 'read']],
   },
-  // 4. requires the model to chain at least two searches
+  // 4. should chain across two regions; expect at least one extra grep
   {
     prompt: 'Compare the late-submission policy and the academic-integrity policy. Quote the relevant lines.',
     minToolCalls: 3,
-    requireTools: ['listLinkedPapers', 'getPaperContent'],
+    requireTools: ['ls'],
+    requireAnyOf: [['grep', 'read']],
   },
-  // 5. negative test — answer not in document
+  // 5. negative test — answer not in document. Fallback ladder should kick in
+  // and the agent should refuse rather than fabricate.
   {
     prompt: 'What is the price of a campus parking permit per semester?',
     minToolCalls: 2,
-    requireTools: ['listLinkedPapers', 'getPaperContent'],
+    requireTools: ['ls'],
+    requireAnyOf: [['grep', 'read']],
     finalMustMatch: [/cannot find|not enough evidence|no evidence|not found|do(?:es)? not (?:state|mention|include|contain)|don['’]?t (?:have|see|contain)|outside the scope/i],
     finalMustNotMatch: [/\$\s*\d+/],
   },
-  // 6. route through both current document text and linked PDF
+  // 6. editor-content question — must REFUSE because the schema has no
+  // editor tool. Mentions of Quick Actions or "paste it" are acceptable.
   {
-    prompt: 'First check the current document notes, then use the linked syllabus PDF. In one sentence, what is ENV 100 about?',
-    minToolCalls: 3,
-    requireTools: ['getDocumentText', 'listLinkedPapers', 'getPaperContent'],
+    prompt: 'Summarize what I just wrote in the editor.',
+    minToolCalls: 0,
+    finalMustMatch: [/quick action|paste|cannot|don['’]?t (?:have|see)|only.*reference|uploaded/i],
+    finalMustNotMatch: [/getDocumentText|searchDocument/],
   },
-  // 7. structured-output edge case — tools should still be used before JSON
+  // 7. structured output — must still use tools before emitting JSON
   {
     prompt: 'Return a JSON object with exactly these keys: instructor, officeHours, assessments. Use only evidence from the PDF.',
     minToolCalls: 2,
-    requireTools: ['listLinkedPapers', 'getPaperContent'],
+    requireTools: ['ls'],
+    requireAnyOf: [['grep', 'read']],
     expectJsonObject: true,
   },
-  // 8. policy missing/ambiguity edge case
+  // 8. policy lookup
   {
     prompt: 'Does the syllabus explicitly say students may use ChatGPT or other generative AI tools? Answer with cited evidence; if there is no explicit evidence, say that.',
     minToolCalls: 2,
-    requireTools: ['listLinkedPapers', 'getPaperContent'],
+    requireTools: ['ls'],
+    requireAnyOf: [['grep', 'read']],
     finalMustMatch: [/prohibit|may not use|restriction|generative AI|artificial intelligence/i],
   },
   // 9. partial-evidence edge case — avoid inventing precise dates
   {
     prompt: 'Find exact calendar due dates for the major assignments. If exact dates are not listed, say exact dates not found and identify what is listed instead.',
     minToolCalls: 2,
-    requireTools: ['listLinkedPapers', 'getPaperContent'],
+    requireTools: ['ls'],
+    requireAnyOf: [['grep', 'read']],
   },
 ];
 
@@ -172,155 +186,166 @@ const MOCK_DOC_ID = 'doc-1';
 const MOCK_PAPER_ID = 'paper-syllabus';
 const MOCK_PAPER_TITLE = 'ENV 100 Summer 2026 Syllabus';
 
-// ── Tool registry — schema mirrors AIRetrievalService.tools ────────────────
+// Build the unified plain-text view of the syllabus PDF — same shape as
+// AIRetrievalService.loadFileText: every page joined with `[page N]`
+// markers as their own lines, 1-indexed across the file.
+const FILE_LINES = (() => {
+  const out = [];
+  for (const p of pages) {
+    out.push(`[page ${p.pageNumber}]`);
+    for (const line of (p.text || '').split('\n')) out.push(line);
+  }
+  return out;
+})();
+const TOTAL_LINES = FILE_LINES.length;
+const HAS_PAGES = pages.length > 0;
+
+function nearestPrecedingPage(targetLine /* 1-indexed */) {
+  let best = null;
+  let bestStart = -1;
+  let cursor = 0;
+  for (const p of pages) {
+    cursor += 1; // marker line
+    if (cursor <= targetLine && cursor > bestStart) {
+      best = p.pageNumber;
+      bestStart = cursor;
+    }
+    cursor += (p.text || '').split('\n').length;
+  }
+  return best;
+}
+
+// ── Tool registry — schema mirrors AIRetrievalService.tools (#70) ──────────
 
 const TOOLS = [
   {
     type: 'function',
     function: {
-      name: 'getDocumentText',
-      description: 'Retrieve the latest full plain text for the current editor document. Use this for the user\'s own writing, not for uploaded PDF references.',
+      name: 'ls',
+      description:
+        'List uploaded reference files attached to the current chat. Returns [{ id, filename }] in upload order. Call first when you need to know what is available; idempotent and cheap.',
       parameters: {
         type: 'object',
         additionalProperties: false,
-        properties: { documentId: { type: 'string' } },
-        required: ['documentId'],
+        properties: {},
+        required: [],
       },
     },
   },
   {
     type: 'function',
     function: {
-      name: 'searchDocument',
-      description: 'Keyword search over the current editor document only. Use this for targeted lookups in the user\'s own writing; it does not search linked PDFs. Returns relevant excerpts with character offsets.',
+      name: 'grep',
+      description:
+        'Case-insensitive literal substring search over one file. Returns up to 50 matches in document order with { line, page, text, contextLines? }. Use context_before / context_after to pull surrounding lines without an extra read. Pattern is plain text — no regex.',
       parameters: {
         type: 'object',
         additionalProperties: false,
         properties: {
-          documentId: { type: 'string' },
-          query: { type: 'string' },
-          limit: { type: 'integer' },
+          file: { type: 'string', description: 'File id from ls().' },
+          pattern: { type: 'string', description: 'Literal substring to match, case-insensitive. No regex.' },
+          context_before: { type: 'integer', description: 'Lines before each match. Default 0.' },
+          context_after: { type: 'integer', description: 'Lines after each match. Default 0.' },
         },
-        required: ['documentId', 'query', 'limit'],
+        required: ['file', 'pattern', 'context_before', 'context_after'],
       },
     },
   },
   {
     type: 'function',
     function: {
-      name: 'listLinkedPapers',
-      description: 'List uploaded PDF references linked to the current document. Always call this before getPaperContent so you can use an exact returned paperId.',
+      name: 'read',
+      description:
+        'Read a contiguous line range from one file. Returns { lines: [{ line, text }], totalLines, hasPages, pageRange?, truncated? }. offset is the 1-indexed first line; limit is the max number of lines to return (default 200, hard cap 800). Lines are returned in full — never character-truncated. PDF [page N] markers appear as their own lines; cite them when answering.',
       parameters: {
         type: 'object',
         additionalProperties: false,
-        properties: { documentId: { type: 'string' } },
-        required: ['documentId'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'getPaperContent',
-      description: 'Retrieve content from one linked PDF. You must first call listLinkedPapers and use one returned paperId. Use exactly one mode: search with query, page with pageNumber, or section with sectionTitle.',
-      parameters: {
-        type: 'object',
         properties: {
-          paperId: { type: 'string', description: 'Exact paper ID returned by listLinkedPapers. Do not invent this ID.' },
-          mode: {
-            type: 'string',
-            enum: ['search', 'page', 'section'],
-            description: 'search = keyword search and requires query; page = one 1-indexed PDF page and requires pageNumber; section = named section lookup and requires sectionTitle.',
-          },
-          query: { type: 'string', description: 'Use only when mode="search"; required for search; omit for page and section.' },
-          pageNumber: { type: 'integer', description: 'Use only when mode="page"; required for page; 1-indexed; omit for search and section.' },
-          sectionTitle: { type: 'string', description: 'Use only when mode="section"; required for section; partial title match is OK; omit for search and page.' },
-          limit: { type: 'integer', description: 'Use only with mode="search"; optional result cap.' },
+          file: { type: 'string', description: 'File id from ls().' },
+          offset: { type: 'integer', description: '1-indexed start line. Default 1.' },
+          limit: { type: 'integer', description: 'Max lines to return. Default 200.' },
         },
-        required: ['paperId', 'mode'],
+        required: ['file', 'offset', 'limit'],
       },
     },
   },
 ];
 
 // ── Tool dispatcher ───────────────────────────────────────────────────────
+//
+// (lsFiles / grepFile / readFile defined above next to FILE_LINES.)
 
-function scoreText(text, terms) {
-  const lower = text.toLowerCase();
-  return terms.reduce((s, t) => s + (lower.includes(t) ? 1 : 0), 0);
+function lsFiles() {
+  return { files: [{ id: MOCK_PAPER_ID, filename: MOCK_PAPER_TITLE }] };
 }
 
-function clampLimit(n, fallback = 10, max = 25) {
-  if (!n || Number.isNaN(n)) return fallback;
-  return Math.min(Math.max(Math.floor(n), 1), max);
-}
-
-function searchPaperPages(paperId, query, limit) {
-  if (paperId !== MOCK_PAPER_ID) return { paperId, results: [], error: 'unknown paperId' };
-  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+function grepFile(fileId, pattern, contextBefore, contextAfter) {
+  if (fileId !== MOCK_PAPER_ID) return { file: fileId, matches: [], error: 'unknown file' };
+  if (!pattern || typeof pattern !== 'string') return { file: fileId, matches: [], error: 'pattern required' };
+  const before = Math.max(0, Math.min(20, Math.floor(contextBefore ?? 0)));
+  const after = Math.max(0, Math.min(20, Math.floor(contextAfter ?? 0)));
+  const needle = pattern.toLowerCase();
+  const cap = 50;
+  const matches = [];
+  for (let i = 0; i < FILE_LINES.length && matches.length < cap; i++) {
+    if (!FILE_LINES[i].toLowerCase().includes(needle)) continue;
+    const line1 = i + 1;
+    const ctxStart = Math.max(0, i - before);
+    const ctxEnd = Math.min(FILE_LINES.length, i + after + 1);
+    const contextLines = (before > 0 || after > 0)
+      ? Array.from({ length: ctxEnd - ctxStart }, (_, k) => ({
+          line: ctxStart + k + 1,
+          text: FILE_LINES[ctxStart + k],
+          isMatch: ctxStart + k === i,
+        }))
+      : undefined;
+    matches.push({
+      line: line1,
+      page: nearestPrecedingPage(line1),
+      text: FILE_LINES[i],
+      ...(contextLines ? { contextLines } : {}),
+    });
+  }
   return {
-    paperId,
-    query,
-    results: pages
-      .map((p) => ({ pageNumber: p.pageNumber, text: p.text, score: scoreText(p.text, terms) }))
-      .filter((p) => p.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, clampLimit(limit))
-      .map(({ pageNumber, text }) => ({
-        source: 'paper',
-        pageNumber,
-        text: text.length > 2500 ? text.slice(0, 2500) + '\n[truncated]' : text,
-      })),
+    file: fileId,
+    pattern,
+    truncated: matches.length === cap,
+    matchCount: matches.length,
+    matches,
   };
 }
 
-function getPaperPage(paperId, pageNumber) {
-  if (paperId !== MOCK_PAPER_ID) return { error: 'unknown paperId' };
-  const p = pages.find((x) => x.pageNumber === pageNumber);
-  if (!p) return { error: `page ${pageNumber} not found` };
-  return { paperId, pageNumber, text: p.text };
-}
-
-function getPaperSection(paperId, sectionTitle) {
-  if (paperId !== MOCK_PAPER_ID) return { error: 'unknown paperId' };
-  const lower = sectionTitle.toLowerCase();
-  const hit = sections.find((s) => s.title.toLowerCase().includes(lower));
-  if (!hit) return { error: `section "${sectionTitle}" not detected` };
-  return { paperId, sectionTitle: hit.title, page: hit.page, text: hit.text };
-}
-
-function searchDocumentText(documentId, query, limit) {
-  if (documentId !== MOCK_DOC_ID) return { error: 'unknown documentId' };
-  const docText = 'This is the user document. The user is writing notes about the linked ENV 100 syllabus.';
-  return { documentId, query, results: docText.toLowerCase().includes(query.toLowerCase()) ? [{ source: 'document', text: docText }] : [] };
+function readFile(fileId, offset, limit) {
+  if (fileId !== MOCK_PAPER_ID) return { file: fileId, lines: [], error: 'unknown file' };
+  const offsetN = Math.max(1, Math.floor(offset ?? 1));
+  const limitN = Math.max(1, Math.min(800, Math.floor(limit ?? 200)));
+  const startIdx = offsetN - 1;
+  const endIdx = Math.min(FILE_LINES.length, startIdx + limitN);
+  const slice = FILE_LINES.slice(startIdx, endIdx);
+  const startPage = HAS_PAGES ? nearestPrecedingPage(offsetN) : null;
+  const endPage = HAS_PAGES && endIdx > 0 ? nearestPrecedingPage(endIdx) : null;
+  return {
+    file: fileId,
+    offset: offsetN,
+    limit: limitN,
+    totalLines: TOTAL_LINES,
+    hasPages: HAS_PAGES,
+    pageRange: HAS_PAGES ? { start: startPage, end: endPage } : null,
+    truncated: endIdx < FILE_LINES.length,
+    lines: slice.map((text, i) => ({ line: startIdx + i + 1, text })),
+  };
 }
 
 async function executeTool(name, args) {
   switch (name) {
-    case 'getDocumentText':
-      return {
-        documentId: args.documentId,
-        title: 'My ENV 100 notes (test doc)',
-        plainText: 'This is the user document. The user is writing notes about the linked ENV 100 syllabus.',
-        wordCount: 15,
-        characterCount: 90,
-      };
-    case 'searchDocument':
-      return searchDocumentText(args.documentId, args.query, args.limit);
-    case 'listLinkedPapers':
-      return {
-        documentId: args.documentId,
-        papers: [{ id: MOCK_PAPER_ID, title: MOCK_PAPER_TITLE, pdfPageCount: pages.length }],
-      };
-    case 'getPaperContent': {
-      const mode = args.mode;
-      if (mode === 'search') return searchPaperPages(args.paperId, args.query || '', args.limit);
-      if (mode === 'page') return getPaperPage(args.paperId, args.pageNumber);
-      if (mode === 'section') return getPaperSection(args.paperId, args.sectionTitle || '');
-      return { error: `unknown mode "${mode}"` };
-    }
+    case 'ls':
+      return lsFiles();
+    case 'grep':
+      return grepFile(args.file, args.pattern, args.context_before, args.context_after);
+    case 'read':
+      return readFile(args.file, args.offset, args.limit);
     default:
-      return { error: `unknown tool "${name}"` };
+      return { error: `unknown tool "${name}". Available tools: ls, grep, read.` };
   }
 }
 
@@ -328,22 +353,40 @@ async function executeTool(name, args) {
 
 const client = new OpenAI({ apiKey: API_KEY, baseURL: BASE_URL });
 
-const SYSTEM_PROMPT = `You are an AI writing assistant. The user is writing notes alongside an attached syllabus PDF.
+const SYSTEM_PROMPT = `You are an AI writing assistant. You answer questions about uploaded reference files using three primitives:
 
-Use the retrieval tools as your source of truth — never invent facts about the document or syllabus.
+  ls()                                              — list files: [{ id, filename }]
+  grep(file, pattern, context_before?, context_after?) — case-insensitive substring search
+                                                       returns up to 50 matches in document order, each
+                                                       { line, page (nearest preceding [page N], or null),
+                                                         text, contextLines? }
+  read(file, offset?, limit?)                       — read a contiguous line range
+                                                       returns { lines, totalLines, hasPages, pageRange?, truncated? }
+                                                       offset 1-indexed (default 1); limit default 200, hard cap 800
 
-Routing:
-- Current editor document: call getDocumentText for the full body or searchDocument for targeted keyword lookups. Use documentId="${MOCK_DOC_ID}".
-- Uploaded reference PDFs: always call listLinkedPapers with documentId="${MOCK_DOC_ID}" before getPaperContent. Use the exact paperId returned by listLinkedPapers; never invent a paperId.
-- getPaperContent modes:
-  - search: provide paperId, mode="search", query, and optionally limit.
-  - page: provide paperId, mode="page", and pageNumber only.
-  - section: provide paperId, mode="section", and sectionTitle only.
-- Chain multiple tool calls if the answer needs multiple sources.
-- If a tool returns an error or no relevant data, repair the tool call once with better arguments before answering that evidence is incomplete.
-- Tool calls must be real structured function calls. Do not write XML, pseudo-tags, or prose tool calls in visible text.
+PRIVACY BOUNDARY (hard rule):
+You can only see files in ls(). You CANNOT read the user's editor draft, their current writing, selected text, or anything not in ls(). The schema does not expose such a tool. If the user asks for editor content ("summarize my draft", "find a typo in what I wrote"), refuse honestly:
 
-When you don't have evidence, say so explicitly. Be concise.`;
+  "I can only read reference files you've uploaded. For your own writing, paste it into chat or use the selection-menu Quick Actions."
+
+STRATEGY HINTS — adapt to file size and question, no fixed workflow:
+- Always call ls() first if you have not yet seen what is attached.
+- Small file (≤200 lines): one read({ file, offset:1, limit:200 }) usually beats grep.
+- Medium file (200–1000 lines): grep first to locate, then read targeted range.
+- Large file (>1000 lines): always grep first, never read sequentially.
+- For PDFs the [page N] markers appear inline — cite them ("see page 21").
+- For late-document sections (conclusion / references / appendix on a long PDF), read at high offset is often faster than guessing keywords.
+
+FALLBACK LADDER — keep trying before answering "not found":
+1. grep returned []? Try a synonym, then a shorter substring, then a numbered-heading style ("Conclusion" → "5. Conclusion"), then read the likely region directly.
+2. read returned content that doesn't answer? grep with a better pattern or read an adjacent range.
+3. ls returned []? Tell the user no files are attached. Don't pretend.
+4. Tool errored? Retry once. If still failing, surface the error honestly.
+5. Only after 3-4 reasonable attempts: "I could not find X in <filename>. Could you point me at a specific page or term?" Never fabricate.
+
+OUTPUT:
+- Cite by [page N] when present, otherwise by line.
+- Tool calls must be REAL structured function calls. Never write XML / pseudo-tags / prose tool calls.`;
 
 function extractThinkingFromContent(content) {
   // Best-effort parse of inline reasoning blocks. Handles two patterns:
@@ -379,13 +422,11 @@ function buildToolCallRepairPrompt() {
   return `Internal tool-call repair instruction:
 The previous model response ended with finish_reason="tool_calls" but did not include a valid tool_calls payload. Do not answer from memory.
 
-Retry by emitting exactly one or more valid tool calls using JSON arguments.
-- Current documentId is "${MOCK_DOC_ID}".
-- For current document text: call getDocumentText with {"documentId":"${MOCK_DOC_ID}"} or searchDocument with {"documentId":"${MOCK_DOC_ID}","query":"...","limit":10}.
-- For linked PDFs: first call listLinkedPapers with {"documentId":"${MOCK_DOC_ID}"}. Then call getPaperContent with one valid mode:
-  - search: {"paperId":"${MOCK_PAPER_ID}","mode":"search","query":"...","limit":10}
-  - page: {"paperId":"${MOCK_PAPER_ID}","mode":"page","pageNumber":1}
-  - section: {"paperId":"${MOCK_PAPER_ID}","mode":"section","sectionTitle":"..."}
+Retry by emitting exactly one or more valid tool calls using JSON arguments. The available tools are:
+- ls() — pass {} as arguments.
+- grep — pass {"file":"<id from ls>","pattern":"...","context_before":0,"context_after":0}.
+- read — pass {"file":"<id from ls>","offset":1,"limit":200}.
+
 Do not write XML, pseudo-tags, or prose tool calls.`;
 }
 
@@ -632,6 +673,11 @@ function validateTrace(promptNumber, promptCase, trace) {
   for (const toolName of promptCase.requireTools || []) {
     if (!calledTools.has(toolName)) {
       failures.push(`Prompt ${promptNumber}: expected tool ${toolName} to be called`);
+    }
+  }
+  for (const group of promptCase.requireAnyOf || []) {
+    if (!group.some((t) => calledTools.has(t))) {
+      failures.push(`Prompt ${promptNumber}: expected at least one of [${group.join(', ')}] to be called`);
     }
   }
   for (const pattern of promptCase.finalMustMatch || []) {
