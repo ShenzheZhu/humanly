@@ -951,6 +951,31 @@ class OpenAIProvider implements AIProvider {
     }
 
     let fullContent = '';
+
+    // Bug A: quick-action / silent path must NOT run content through the
+    // thinking splitter. The splitter holds prefixes like "Let me / We need
+    // / I'll" for an implicit <think> close that never arrives on non-Qwen
+    // providers (Kimi / GLM / DeepSeek-V4), so the whole response was being
+    // held as "thinking" and visible streamed out as the empty-content
+    // fallback. disableThinking=true now means "stream raw text, do not
+    // capture reasoning, do not split". The provider kwarg above silences
+    // Qwen's own reasoning channel for free.
+    if (options.disableThinking) {
+      for await (const chunk of stream) {
+        const content = chunk.choices?.[0]?.delta?.content || '';
+        if (content) {
+          fullContent += content;
+          onChunk(content);
+        }
+      }
+      if (!fullContent.trim()) {
+        const fallback = 'I could not produce a final answer from the available context.';
+        fullContent = fallback;
+        onChunk(fallback);
+      }
+      return fullContent;
+    }
+
     const thinkingSplitter = new ThinkingContentSplitter();
     for await (const chunk of stream) {
       const delta = chunk.choices?.[0]?.delta || {};
