@@ -221,6 +221,7 @@ interface AgentChatOptions {
   userId: string;
   documentId: string;
   maxTokens?: number;
+  disableThinking?: boolean;
   onAgentEvent?: AgentEventSink;
 }
 
@@ -941,6 +942,9 @@ class OpenAIProvider implements AIProvider {
         messages: chatMessages,
         stream: true,
         max_tokens: options.maxTokens || 2048,
+        ...(options.disableThinking && this.supportsChatTemplateThinkingToggle()
+          ? { chat_template_kwargs: { enable_thinking: false } }
+          : {}),
       } as any);
     } catch (error) {
       this.handleSDKError(error);
@@ -978,6 +982,10 @@ class OpenAIProvider implements AIProvider {
     }
 
     return fullContent;
+  }
+
+  private supportsChatTemplateThinkingToggle(): boolean {
+    return this.baseUrl.includes('api.together.xyz') && this.model.startsWith('Qwen/');
   }
 
   private async finalizeChatCompletion(
@@ -1420,6 +1428,7 @@ export class AIService {
         userId,
         documentId: request.documentId,
         maxTokens: Math.min(env.aiMaxTokens, 768),
+        disableThinking: true,
       });
 
       logger.info('AI silent stream chat completed', {
