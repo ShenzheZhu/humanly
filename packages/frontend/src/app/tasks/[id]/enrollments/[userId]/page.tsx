@@ -115,6 +115,10 @@ export default function EnrollmentSubmissionsPage() {
 
   const latestSubmission = submissions[0] || null;
 
+  const buildCertificateUrl = (verificationToken: string) => (
+    `${FRONTEND_USER_URL}/verify/${encodeURIComponent(verificationToken)}`
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -212,17 +216,21 @@ export default function EnrollmentSubmissionsPage() {
                   <div className="flex items-center gap-2">
                     {latestSubmission.certificateVerificationToken ? (
                       <Button
+                        asChild
                         variant="outline"
                         size="sm"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          window.open(`${FRONTEND_USER_URL}/verify/${latestSubmission.certificateVerificationToken}`, '_blank', 'noopener,noreferrer');
-                        }}
                       >
-                        <Award className="h-4 w-4 mr-2" />
-                        Certificate
+                        <a
+                          href={buildCertificateUrl(latestSubmission.certificateVerificationToken)}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <Award className="h-4 w-4 mr-2" />
+                          Certificate
+                        </a>
                       </Button>
-                    ) : null}
+                    ) : (
+                      <Badge variant="secondary">No certificate</Badge>
+                    )}
                     <Button variant="default" size="sm">
                       <Eye className="h-4 w-4 mr-2" />
                       Events
@@ -292,15 +300,17 @@ export default function EnrollmentSubmissionsPage() {
                           <TableCell className="text-right">
                             {submission.certificateVerificationToken ? (
                               <Button
+                                asChild
                                 variant="ghost"
                                 size="sm"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  window.open(`${FRONTEND_USER_URL}/verify/${submission.certificateVerificationToken}`, '_blank', 'noopener,noreferrer');
-                                }}
                               >
-                                <Award className="h-4 w-4 mr-1" />
-                                View
+                                <a
+                                  href={buildCertificateUrl(submission.certificateVerificationToken)}
+                                  onClick={(event) => event.stopPropagation()}
+                                >
+                                  <Award className="h-4 w-4 mr-1" />
+                                  View
+                                </a>
                               </Button>
                             ) : (
                               <Badge variant="secondary">No certificate</Badge>
