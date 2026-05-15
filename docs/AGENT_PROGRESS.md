@@ -1,6 +1,6 @@
 # Agent Progress Tracker
 
-Last updated: 2026-05-14 (#43 Qwen3.5 smoke PR opened)
+Last updated: 2026-05-15 (#71 ls/grep/read redesign merged)
 
 This document is the shared handoff surface for agents working on `humanly-code`.
 GitHub issues and pull requests remain the source of truth for canonical history;
@@ -28,7 +28,7 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 - Epic: #4, "Epic: Agentic AI chat upgrade"
 - Scope: read-only agentic AI chat, visible tool-call timeline, chat-to-editor handoff, and quick-action upgrades.
 - Explicitly out of scope for this epic: autonomous AI editing of the document.
-- Status: **all active sub-issues shipped**. Main integration is intentionally paused for now; PR #29 is left open as the eventual merge vehicle and its conflict with `main` is not a current blocker.
+- Status: **all active sub-issues shipped for the current agentic-chat slice**. Main integration is intentionally paused for now; PR #29 is left open as the eventual merge vehicle and its conflict with `main` is not a current blocker.
 
 ## Current State
 
@@ -41,6 +41,9 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 | #9 | ToolCallCard + AI panel integration | #19 | Merged & closed |
 | #10 | Insert assistant text at cursor | #20 | Merged & closed |
 | #23 | Quick action UX overhaul (streaming + context + diff + shortcuts) | #25 | Merged & closed |
+| #59 | Configurable 20-tool budget + final-answer fallback | #61 | Merged & closed |
+| #65 | Streaming/model-swap hardening + PDF search fixes | #66 | Merged & closed |
+| #70 | Reference-only `ls` / `grep` / `read` tool redesign | #71 | Merged & closed |
 | — | LOCAL_DEV mock infra (`pnpm dev:mock`, bypass-login, docs) | #27 | Merged |
 
 ### Deferred backlog (Epic #4 checklist; reopen as standalone issues when ready)
@@ -61,7 +64,8 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 
 ## Open follow-up issues
 
-- **#42** Use Qwen3.5-397B for real agent smoke and fail on bad model outputs. PR #43 open.
+- **#63** Hide raw model reasoning and show realtime AI activity. Raw provider reasoning should not render as user-visible chain-of-thought; the UI should show status/activity like reading files, searching, and composing.
+- **#72** Store uploaded PDFs in Google Cloud Storage. Local Docker currently mounts `packages/backend/storage` into the backend container; production-grade storage still needs GCS.
 
 ## Open work outside Epic #4
 
@@ -73,6 +77,10 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 - **#31 / #34** Reasoning content now flows as `AgentEvent.thinking-delta` and renders in a collapsed Reasoning block.
 - **#33 / #35** Assistant Markdown now supports GitHub-flavored tables via `remark-gfm`, including a browser smoke against the local mock backend.
 - **#40 / #41** Local mock certificate endpoints now cover list, generate, detail, and AI-stats smoke paths; full localhost smoke ran with zero new console errors.
+- **#59 / #61** Agent tool budget is configurable via `AI_AGENT_MAX_TOOL_CALLS` (default 20); budget exhaustion now synthesizes a final answer instead of returning an empty response.
+- **#62 / #64 / #61** Quick-action silent streams are matched by `clientRequestId`; empty provider output now errors instead of inserting fallback text into the document.
+- **#65 / #66** Model-switch quick-action fallback, PDF search stuck-on-first-pages behavior, and pseudo tool-call leakage were hardened.
+- **#70 / #71** AI retrieval surface was redesigned from document/paper-specific tools to reference-only unix-style primitives: `ls`, `grep`, and `read`, with adaptive strategy hints and a fallback ladder.
 
 ### Recently merged outside Epic #4
 
@@ -80,7 +88,7 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 
 ## Verification Notes
 
-### Real-LLM agent smoke (2026-05-14)
+### Real-LLM agent smoke (2026-05-15)
 
 `scripts/agentic-integration-test.mjs` invoked the AgentRunner-equivalent loop against the real Together AI endpoint, with the user's ENV 100 syllabus PDF mounted as a linked paper. Models tested:
 
@@ -91,6 +99,7 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 - `meta-llama/Llama-3.3-70B-Instruct-Turbo` — kept out of the curated Together user list for now: it can complete the broader core run, but in the quick missing-evidence smoke it stopped after checking only the current document instead of continuing into the linked PDF.
 - `Qwen/Qwen3.5-9B` — rejected as the default target for now: it emitted structured tools sometimes, but also produced empty final answers and pseudo tool-call XML in visible text.
 - `deepseek-ai/DeepSeek-R1` — proves the parser handles inline reasoning. 1929 chars of reasoning captured per prompt (closes with `</think>` only; Together strips the opening tag). The model does not reliably emit structured `tool_calls` over Together's chat-completions API, which is a model limitation, not an AgentRunner bug. Tracked under follow-up #31 for first-class wiring.
+- `moonshotai/Kimi-K2.6` — after #70's `ls` / `grep` / `read` redesign, 9/9 real-LLM prompts against the ENV 100 syllabus completed. The model naturally used `ls -> grep -> read`, refused editor-content requests with zero tool calls, and avoided pseudo tool-call leakage. One negative-case validation was a regex false alarm, not a model failure.
 
 Traces live under `tmp/agent-trace/run-*` (gitignored). The script + how-to is in PR #30.
 
@@ -102,7 +111,7 @@ Mock track confirmed:
 - Voice preservation via `surroundingContext` carrying `documentTitle` + ±200 char windows (mock signal: `[voice-aware: title="..."]` suffix appended).
 - Word-level inline diff renders `They are` as red strike-through + `It is` as green underlined when grammar mock rewrites trigger.
 - Cancel/Discard button label switches on `isStreaming`; mid-stream Cancel emits `ai:cancel` with the `silent` sentinel.
-- Chat regression: a `search for motivation` prompt still produces a `searchDocument` tool card (no leakage between silent and chat sessions).
+- Chat regression: with the #70 tool redesign, search-like prompts now produce `ls` / `grep` / `read` tool cards (no leakage between silent and chat sessions).
 - Cmd+Shift+1..4 shortcuts shipped but skipped from explicit user smoke — kept in code per user direction.
 
 Known pre-existing local blockers (unchanged):
