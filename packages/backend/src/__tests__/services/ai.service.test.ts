@@ -18,7 +18,13 @@ global.fetch = mockFetch;
 
 // ── Imports ───────────────────────────────────────────────────────────────────
 
-import { AIService, ThinkingContentSplitter, classifyQuestionCategory } from '../../services/ai.service';
+import {
+  AIService,
+  ThinkingContentSplitter,
+  buildToolCallRepairPrompt,
+  classifyQuestionCategory,
+  shouldRepairEmptyToolCallResponse,
+} from '../../services/ai.service';
 import { AIModel } from '../../models/ai.model';
 import { DocumentModel } from '../../models/document.model';
 import { UserAISettingsModel } from '../../models/user-ai-settings.model';
@@ -64,6 +70,42 @@ describe('ThinkingContentSplitter', () => {
     expect(first.thinking).toBe('');
     expect(first.visible).toBe('According to page 1, office hours are Monday.');
     expect(flushed.visible).toBe('');
+  });
+});
+
+// ── Tool-call repair helpers ─────────────────────────────────────────────────
+
+describe('tool-call repair helpers', () => {
+  it('detects tool-call finish responses with no tool-call payload', () => {
+    expect(shouldRepairEmptyToolCallResponse({
+      choices: [{ finish_reason: 'tool_calls', message: { tool_calls: [] } }],
+    })).toBe(true);
+
+    expect(shouldRepairEmptyToolCallResponse({
+      choices: [{ finish_reason: 'tool_calls', message: {} }],
+    })).toBe(true);
+  });
+
+  it('does not repair normal final answers or valid tool calls', () => {
+    expect(shouldRepairEmptyToolCallResponse({
+      choices: [{ finish_reason: 'stop', message: { content: 'Done.' } }],
+    })).toBe(false);
+
+    expect(shouldRepairEmptyToolCallResponse({
+      choices: [{
+        finish_reason: 'tool_calls',
+        message: { tool_calls: [{ id: 'call-1', function: { name: 'listLinkedPapers', arguments: '{}' } }] },
+      }],
+    })).toBe(false);
+  });
+
+  it('builds a bounded repair prompt with the scoped document ID and structured tool examples', () => {
+    const prompt = buildToolCallRepairPrompt('doc-123');
+    expect(prompt).toContain('doc-123');
+    expect(prompt).toContain('finish_reason="tool_calls"');
+    expect(prompt).toContain('listLinkedPapers');
+    expect(prompt).toContain('getPaperContent');
+    expect(prompt).toContain('Do not write XML');
   });
 });
 
