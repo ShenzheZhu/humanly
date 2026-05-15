@@ -9,45 +9,12 @@ import { logger } from '../utils/logger';
 
 type Tool = OpenAI.Responses.FunctionTool;
 
-interface SearchResult {
-  source: string;
-  pageNumber?: number;
-  sectionTitle?: string;
-  startOffset?: number;
-  endOffset?: number;
-  text: string;
-}
-
 const MAX_TEXT = 12000;
 const CHUNK_SIZE = 1800;
 const CHUNK_OVERLAP = 200;
 
-function clampLimit(limit?: number, fallback = 10, max = 50): number {
-  if (!limit || Number.isNaN(limit)) return fallback;
-  return Math.min(Math.max(Math.floor(limit), 1), max);
-}
-
 function excerpt(text: string, maxLength = MAX_TEXT): string {
   return text.length > maxLength ? `${text.slice(0, maxLength)}\n[truncated]` : text;
-}
-
-/**
- * Return a window of `windowChars` characters centred on the first
- * case-insensitive occurrence of `needle` in `text`. Used by the grep-style
- * paper search so the agent gets the surrounding sentence rather than the
- * whole chunk. Falls back to the leading `windowChars` if the needle is not
- * found (rare — caller filtered by ILIKE).
- */
-function excerptAround(text: string, needle: string, windowChars = 600): string {
-  if (!text) return '';
-  const idx = text.toLowerCase().indexOf(needle.toLowerCase());
-  if (idx === -1) return excerpt(text, windowChars);
-  const half = Math.max(1, Math.floor(windowChars / 2));
-  const start = Math.max(0, idx - half);
-  const end = Math.min(text.length, idx + needle.length + half);
-  const prefix = start > 0 ? '…' : '';
-  const suffix = end < text.length ? '…' : '';
-  return `${prefix}${text.slice(start, end)}${suffix}`;
 }
 
 function makeChunks(text: string, size = CHUNK_SIZE, overlap = CHUNK_OVERLAP): string[] {
@@ -58,11 +25,6 @@ function makeChunks(text: string, size = CHUNK_SIZE, overlap = CHUNK_OVERLAP): s
     start += size - overlap;
   }
   return chunks;
-}
-
-function scoreText(text: string, terms: string[]): number {
-  const lower = text.toLowerCase();
-  return terms.reduce((score, term) => score + (lower.includes(term) ? 1 : 0), 0);
 }
 
 function detectSections(pages: Array<{ pageNumber: number; text: string }>): Array<{
@@ -142,76 +104,58 @@ async function extractPdfPages(buffer: Buffer): Promise<Array<{ pageNumber: numb
 }
 
 export class AIRetrievalService {
+  // Three unix-style primitives for reading uploaded reference files.
+  // The agent NEVER has tools that can reach the user's editor draft — that
+  // boundary is enforced by absence (no tool exists), not by prompt politeness.
+  // PDFs are surfaced as plain text with inline `[page N]` markers; the agent
+  // sees and cites these markers naturally without needing a page-aware mode.
   static readonly tools: Tool[] = [
     {
       type: 'function',
-      name: 'getDocumentText',
-      description: 'Retrieve the latest full plain text for the current editor document. Use this for the user\'s own writing, not for uploaded PDF references.',
-      strict: true,
-      parameters: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          documentId: { type: 'string' },
-        },
-        required: ['documentId'],
-      },
-    },
-    {
-      type: 'function',
-      name: 'searchDocument',
-      description: 'Keyword search over the current editor document only. Use this for targeted lookups in the user\'s own writing; it does not search linked PDFs. Returns relevant excerpts with character offsets.',
-      strict: true,
-      parameters: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          documentId: { type: 'string' },
-          query: { type: 'string' },
-          limit: { type: 'integer' },
-        },
-        required: ['documentId', 'query', 'limit'],
-      },
-    },
-    {
-      type: 'function',
-      name: 'listLinkedPapers',
-      description: 'List uploaded PDF references linked to the current document. Always call this before getPaperContent so you can use an exact returned paperId.',
-      strict: true,
-      parameters: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          documentId: { type: 'string' },
-        },
-        required: ['documentId'],
-      },
-    },
-    {
-      // Single discriminated paper-lookup tool replacing searchPaperText /
-      // getPaperPage / getPaperSection. strict:false because exactly one of
-      // query / pageNumber / sectionTitle is supplied per mode.
-      type: 'function',
-      name: 'getPaperContent',
+      name: 'ls',
       description:
-        "Retrieve content from one linked PDF. You must first call listLinkedPapers and use one returned paperId; listLinkedPapers also tells you pdfPageCount. Use exactly one mode: search (literal case-insensitive grep over the extracted text; returns matches in document order across ALL pages); page (read a specific pageNumber 1..pdfPageCount; use this for late sections such as conclusion / references / appendix when the relevant keyword may not appear verbatim); or section (look up a detected section heading like 'Methods' or 'Conclusion').",
-      strict: false,
+        'List uploaded reference files attached to the current chat. Returns [{ id, filename }] in upload order. Call first when you need to know what is available; idempotent and cheap.',
+      strict: true,
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {},
+        required: [],
+      },
+    },
+    {
+      type: 'function',
+      name: 'grep',
+      description:
+        'Case-insensitive literal substring search over one file. Returns up to 50 matches in document order: each is { line, page (nearest preceding [page N] marker, or null), text, contextLines? }. Use context_before / context_after to pull surrounding lines without an extra read. Pattern is plain text — do NOT use regex syntax. Best when you have a clear keyword; if it returns nothing try a synonym, a shorter substring, or just read the likely region directly.',
+      strict: true,
       parameters: {
         type: 'object',
         additionalProperties: false,
         properties: {
-          paperId: { type: 'string', description: 'Exact paper ID returned by listLinkedPapers. Do not invent this ID.' },
-          mode: {
-            type: 'string',
-            enum: ['search', 'page', 'section'],
-            description: 'search = keyword search and requires query; page = one 1-indexed PDF page and requires pageNumber; section = named section lookup and requires sectionTitle.',
-          },
-          query: { type: 'string', description: 'Use only when mode="search"; required for search; omit for page and section.' },
-          pageNumber: { type: 'integer', description: 'Use only when mode="page"; required for page; 1-indexed; omit for search and section.' },
-          sectionTitle: { type: 'string', description: 'Use only when mode="section"; required for section; partial title match is OK; omit for search and page.' },
-          limit: { type: 'integer', description: 'Use only with mode="search"; optional result cap (default 10, max 50).' },
+          file: { type: 'string', description: 'File id from ls().' },
+          pattern: { type: 'string', description: 'Literal substring to match, case-insensitive. No regex.' },
+          context_before: { type: 'integer', description: 'Lines to include before each match. Default 0.' },
+          context_after: { type: 'integer', description: 'Lines to include after each match. Default 0.' },
         },
-        required: ['paperId', 'mode'],
+        required: ['file', 'pattern', 'context_before', 'context_after'],
+      },
+    },
+    {
+      type: 'function',
+      name: 'read',
+      description:
+        'Read a contiguous line range from one file. Returns { lines: [{ line, text }], totalLines, hasPages, truncated? }. offset is the 1-indexed first line; limit is the max number of lines to return (default 200). The full content of each requested line is returned — lines are never character-truncated. For PDFs the [page N] markers appear as their own lines; cite them when you reference the source ("see page 21").',
+      strict: true,
+      parameters: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          file: { type: 'string', description: 'File id from ls().' },
+          offset: { type: 'integer', description: '1-indexed start line. Default 1.' },
+          limit: { type: 'integer', description: 'Max lines to return. Default 200.' },
+        },
+        required: ['file', 'offset', 'limit'],
       },
     },
   ];
@@ -223,51 +167,18 @@ export class AIRetrievalService {
     args: Record<string, any>
   ): Promise<string> {
     switch (name) {
-      case 'getDocumentText':
+      case 'ls':
+        return JSON.stringify(await this.ls(userId, scopedDocumentId));
+      case 'grep':
         return JSON.stringify(
-          await this.getDocumentText(userId, this.requireDocumentScope(scopedDocumentId, args.documentId))
+          await this.grep(userId, scopedDocumentId, args.file, args.pattern, args.context_before, args.context_after)
         );
-      case 'searchDocument':
+      case 'read':
         return JSON.stringify(
-          await this.searchDocument(
-            userId,
-            this.requireDocumentScope(scopedDocumentId, args.documentId),
-            args.query,
-            args.limit
-          )
+          await this.read(userId, scopedDocumentId, args.file, args.offset, args.limit)
         );
-      case 'listLinkedPapers':
-        return JSON.stringify(
-          await this.listLinkedPapers(userId, this.requireDocumentScope(scopedDocumentId, args.documentId))
-        );
-      case 'getPaperContent':
-        return JSON.stringify(await this.getPaperContent(userId, scopedDocumentId, args));
       default:
-        return JSON.stringify({ error: `Unknown tool: ${name}` });
-    }
-  }
-
-  private static async getPaperContent(
-    userId: string,
-    scopedDocumentId: string,
-    args: Record<string, any>
-  ) {
-    const { paperId, mode } = args;
-    if (!paperId || typeof paperId !== 'string') {
-      throw new AppError(400, 'getPaperContent: paperId is required');
-    }
-    switch (mode) {
-      case 'search':
-        if (!args.query) throw new AppError(400, 'getPaperContent: query is required when mode="search"');
-        return this.searchPaperText(userId, scopedDocumentId, paperId, args.query, args.limit);
-      case 'page':
-        if (!args.pageNumber) throw new AppError(400, 'getPaperContent: pageNumber is required when mode="page"');
-        return this.getPaperPage(userId, scopedDocumentId, paperId, args.pageNumber);
-      case 'section':
-        if (!args.sectionTitle) throw new AppError(400, 'getPaperContent: sectionTitle is required when mode="section"');
-        return this.getPaperSection(userId, scopedDocumentId, paperId, args.sectionTitle);
-      default:
-        throw new AppError(400, `getPaperContent: unknown mode "${mode}" (expected "search" | "page" | "section")`);
+        return JSON.stringify({ error: `Unknown tool: ${name}. Available tools: ls, grep, read.` });
     }
   }
 
@@ -332,13 +243,6 @@ export class AIRetrievalService {
     }
   }
 
-  private static requireDocumentScope(scopedDocumentId: string, requestedDocumentId: string): string {
-    if (requestedDocumentId !== scopedDocumentId) {
-      throw new AppError(403, 'Tool call document is outside the current chat scope');
-    }
-    return scopedDocumentId;
-  }
-
   private static async getOwnedDocument(userId: string, documentId: string) {
     const document = await DocumentModel.findByIdAndUserId(documentId, userId);
     if (!document) {
@@ -358,141 +262,167 @@ export class AIRetrievalService {
     }
   }
 
-  private static async getDocumentText(userId: string, documentId: string) {
-    const document = await this.getOwnedDocument(userId, documentId);
-    return {
-      documentId,
-      title: document.title,
-      plainText: excerpt(document.plainText),
-      wordCount: document.wordCount,
-      characterCount: document.characterCount,
-      updatedAt: document.updatedAt,
-    };
-  }
+  // ── ls / grep / read implementation ────────────────────────────────────
 
-  private static async searchDocument(userId: string, documentId: string, searchQuery: string, limit?: number) {
-    const document = await this.getOwnedDocument(userId, documentId);
-    const terms = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
-    const chunks = makeChunks(document.plainText);
-    const results: SearchResult[] = chunks
-      .map((text, index) => ({
-        source: 'document',
-        startOffset: index * (CHUNK_SIZE - CHUNK_OVERLAP),
-        endOffset: index * (CHUNK_SIZE - CHUNK_OVERLAP) + text.length,
-        text,
-        score: scoreText(text, terms),
-      }))
-      .filter(result => result.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, clampLimit(limit))
-      .map(({ score: _score, ...result }) => result);
-
-    return { documentId, query: searchQuery, results };
-  }
-
-  private static async listLinkedPapers(userId: string, documentId: string) {
+  /** List uploaded references attached to the current document. */
+  private static async ls(userId: string, documentId: string) {
     await this.getOwnedDocument(userId, documentId);
     const papers = await query<any>(
-      `SELECT id, title, abstract, keywords, pdf_page_count, status, created_at
+      `SELECT id, title
        FROM papers
        WHERE document_id = $1
-       ORDER BY created_at DESC`,
+       ORDER BY created_at ASC`,
       [documentId]
     );
     return {
-      documentId,
-      papers: papers.map(paper => ({
+      files: papers.map((paper) => ({
         id: paper.id,
-        title: paper.title,
-        abstract: paper.abstract,
-        keywords: paper.keywords,
-        pdfPageCount: paper.pdf_page_count,
-        status: paper.status,
-        createdAt: paper.created_at,
+        filename: paper.title || 'untitled',
       })),
     };
   }
 
-  private static async searchPaperText(
+  /**
+   * Build the unified plain-text view of a reference: every page, in order,
+   * separated by `[page N]` markers on their own lines. Lines are 1-indexed
+   * across the whole file (the marker counts as one line).
+   *
+   * For non-PDF formats added later (DOCX / PPTX / TXT), the upload-time
+   * extractor populates `paper_pages` the same way (one logical "page" per
+   * heading / slide / etc., or a single page row for plain text); this loader
+   * stays format-agnostic.
+   */
+  private static async loadFileText(
     userId: string,
     documentId: string,
-    paperId: string,
-    searchQuery: string,
-    limit?: number
-  ) {
-    await this.assertLinkedPaper(userId, documentId, paperId);
-    await this.indexPaper(paperId);
-
-    // Literal case-insensitive substring scan (grep-style), returned in
-    // document order so the agent gets coverage across the whole PDF — not
-    // a ts_rank-weighted clustering on the densest-keyword pages. The
-    // previous ranking starved late-paper sections (conclusion, refs,
-    // appendix) on any short-keyword query because intro/abstract always
-    // ranked higher.
-    const trimmed = (searchQuery || '').trim();
-    if (!trimmed) {
-      return { paperId, query: searchQuery, results: [], note: 'empty query' };
+    fileId: string
+  ): Promise<{ lines: string[]; pageStartLines: Map<number, number>; hasPages: boolean }> {
+    if (!fileId || typeof fileId !== 'string') {
+      throw new AppError(400, 'file is required');
     }
-    const cap = clampLimit(limit, 25, 50);
-    const rows = await query<any>(
-      `SELECT page_number, section_title, text
-       FROM paper_text_chunks
-       WHERE paper_id = $1
-         AND text ILIKE $2
-       ORDER BY page_number ASC, chunk_index ASC
-       LIMIT $3`,
-      [paperId, `%${trimmed}%`, cap]
+    await this.assertLinkedPaper(userId, documentId, fileId);
+    await this.indexPaper(fileId);
+
+    const rows = await query<{ page_number: number; text: string }>(
+      'SELECT page_number, text FROM paper_pages WHERE paper_id = $1 ORDER BY page_number ASC',
+      [fileId]
     );
+    const allLines: string[] = [];
+    const pageStartLines = new Map<number, number>();
+    const hasPages = rows.length > 0 && (rows.length > 1 || rows[0].page_number === 1);
+    for (const row of rows) {
+      // Marker line first, then the page's content lines. Even single-page
+      // files get a marker so [page 1] citations work uniformly.
+      const markerLine = `[page ${row.page_number}]`;
+      pageStartLines.set(row.page_number, allLines.length + 1); // 1-indexed
+      allLines.push(markerLine);
+      const pageLines = (row.text || '').split('\n');
+      for (const line of pageLines) {
+        allLines.push(line);
+      }
+    }
+    return { lines: allLines, pageStartLines, hasPages };
+  }
+
+  /** Find nearest preceding page marker line index (1-indexed) for a given line. */
+  private static nearestPrecedingPage(
+    pageStartLines: Map<number, number>,
+    targetLine: number
+  ): number | null {
+    let best: number | null = null;
+    for (const [pageNumber, startLine] of pageStartLines) {
+      if (startLine <= targetLine && (best === null || startLine > pageStartLines.get(best)!)) {
+        best = pageNumber;
+      }
+    }
+    return best;
+  }
+
+  private static async grep(
+    userId: string,
+    documentId: string,
+    fileId: string,
+    pattern: string,
+    contextBefore?: number,
+    contextAfter?: number
+  ) {
+    if (!pattern || typeof pattern !== 'string') {
+      throw new AppError(400, 'pattern is required');
+    }
+    const before = Math.max(0, Math.min(20, Math.floor(contextBefore ?? 0)));
+    const after = Math.max(0, Math.min(20, Math.floor(contextAfter ?? 0)));
+
+    const { lines, pageStartLines } = await this.loadFileText(userId, documentId, fileId);
+    const needle = pattern.toLowerCase();
+    const matchCap = 50;
+
+    const matches: Array<{
+      line: number;
+      page: number | null;
+      text: string;
+      contextLines?: Array<{ line: number; text: string; isMatch: boolean }>;
+    }> = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      if (matches.length >= matchCap) break;
+      if (!lines[i].toLowerCase().includes(needle)) continue;
+      const line1 = i + 1;
+      const ctxStart = Math.max(0, i - before);
+      const ctxEnd = Math.min(lines.length, i + after + 1);
+      const contextLines = (before > 0 || after > 0)
+        ? Array.from({ length: ctxEnd - ctxStart }, (_, k) => ({
+            line: ctxStart + k + 1,
+            text: lines[ctxStart + k],
+            isMatch: ctxStart + k === i,
+          }))
+        : undefined;
+      matches.push({
+        line: line1,
+        page: this.nearestPrecedingPage(pageStartLines, line1),
+        text: lines[i],
+        ...(contextLines ? { contextLines } : {}),
+      });
+    }
 
     return {
-      paperId,
-      query: searchQuery,
-      mode: 'grep',
-      truncated: rows.length === cap,
-      results: rows.map((row) => ({
-        source: 'paper',
-        pageNumber: row.page_number,
-        sectionTitle: row.section_title,
-        text: excerptAround(row.text, trimmed, 600),
-      })),
+      file: fileId,
+      pattern,
+      truncated: matches.length === matchCap,
+      matchCount: matches.length,
+      matches,
     };
   }
 
-  private static async getPaperPage(userId: string, documentId: string, paperId: string, pageNumber: number) {
-    await this.assertLinkedPaper(userId, documentId, paperId);
-    await this.indexPaper(paperId);
+  private static async read(
+    userId: string,
+    documentId: string,
+    fileId: string,
+    offset?: number,
+    limit?: number
+  ) {
+    const { lines, pageStartLines, hasPages } = await this.loadFileText(userId, documentId, fileId);
+    const offsetN = Math.max(1, Math.floor(offset ?? 1));
+    // Hard cap at 800 lines per call so a single read does not blow the
+    // model's context window; the agent can call again with a higher
+    // offset to continue.
+    const HARD_LIMIT = 800;
+    const limitN = Math.max(1, Math.min(HARD_LIMIT, Math.floor(limit ?? 200)));
 
-    const row = await queryOne<{ text: string }>(
-      'SELECT text FROM paper_pages WHERE paper_id = $1 AND page_number = $2',
-      [paperId, pageNumber]
-    );
-    if (!row) {
-      throw new AppError(404, 'Paper page not found');
-    }
-    return { paperId, pageNumber, text: excerpt(row.text) };
-  }
+    const startIdx = offsetN - 1;
+    const endIdx = Math.min(lines.length, startIdx + limitN);
+    const slice = lines.slice(startIdx, endIdx);
+    const startPage = hasPages ? this.nearestPrecedingPage(pageStartLines, offsetN) : null;
+    const endPage = hasPages && endIdx > 0 ? this.nearestPrecedingPage(pageStartLines, endIdx) : null;
 
-  private static async getPaperSection(userId: string, documentId: string, paperId: string, sectionTitle: string) {
-    await this.assertLinkedPaper(userId, documentId, paperId);
-    await this.indexPaper(paperId);
-
-    const row = await queryOne<any>(
-      `SELECT section_title, start_page, end_page, text
-       FROM paper_sections
-       WHERE paper_id = $1 AND lower(section_title) LIKE lower($2)
-       ORDER BY length(section_title) ASC
-       LIMIT 1`,
-      [paperId, `%${sectionTitle}%`]
-    );
-    if (!row) {
-      throw new AppError(404, 'Paper section not found');
-    }
     return {
-      paperId,
-      sectionTitle: row.section_title,
-      startPage: row.start_page,
-      endPage: row.end_page,
-      text: excerpt(row.text),
+      file: fileId,
+      offset: offsetN,
+      limit: limitN,
+      totalLines: lines.length,
+      hasPages,
+      pageRange: hasPages ? { start: startPage, end: endPage } : null,
+      truncated: endIdx < lines.length,
+      lines: slice.map((text, i) => ({ line: startIdx + i + 1, text })),
     };
   }
 }
