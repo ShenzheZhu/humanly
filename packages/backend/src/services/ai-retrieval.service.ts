@@ -31,6 +31,25 @@ function excerpt(text: string, maxLength = MAX_TEXT): string {
   return text.length > maxLength ? `${text.slice(0, maxLength)}\n[truncated]` : text;
 }
 
+/**
+ * Return a window of `windowChars` characters centred on the first
+ * case-insensitive occurrence of `needle` in `text`. Used by the grep-style
+ * paper search so the agent gets the surrounding sentence rather than the
+ * whole chunk. Falls back to the leading `windowChars` if the needle is not
+ * found (rare — caller filtered by ILIKE).
+ */
+function excerptAround(text: string, needle: string, windowChars = 600): string {
+  if (!text) return '';
+  const idx = text.toLowerCase().indexOf(needle.toLowerCase());
+  if (idx === -1) return excerpt(text, windowChars);
+  const half = Math.max(1, Math.floor(windowChars / 2));
+  const start = Math.max(0, idx - half);
+  const end = Math.min(text.length, idx + needle.length + half);
+  const prefix = start > 0 ? '…' : '';
+  const suffix = end < text.length ? '…' : '';
+  return `${prefix}${text.slice(start, end)}${suffix}`;
+}
+
 function makeChunks(text: string, size = CHUNK_SIZE, overlap = CHUNK_OVERLAP): string[] {
   const chunks: string[] = [];
   let start = 0;
@@ -175,7 +194,7 @@ export class AIRetrievalService {
       type: 'function',
       name: 'getPaperContent',
       description:
-        'Retrieve content from one linked PDF. You must first call listLinkedPapers and use one returned paperId. Use exactly one mode: search with query, page with pageNumber, or section with sectionTitle.',
+        "Retrieve content from one linked PDF. You must first call listLinkedPapers and use one returned paperId; listLinkedPapers also tells you pdfPageCount. Use exactly one mode: search (literal case-insensitive grep over the extracted text; returns matches in document order across ALL pages); page (read a specific pageNumber 1..pdfPageCount; use this for late sections such as conclusion / references / appendix when the relevant keyword may not appear verbatim); or section (look up a detected section heading like 'Methods' or 'Conclusion').",
       strict: false,
       parameters: {
         type: 'object',
@@ -404,25 +423,37 @@ export class AIRetrievalService {
     await this.assertLinkedPaper(userId, documentId, paperId);
     await this.indexPaper(paperId);
 
+    // Literal case-insensitive substring scan (grep-style), returned in
+    // document order so the agent gets coverage across the whole PDF — not
+    // a ts_rank-weighted clustering on the densest-keyword pages. The
+    // previous ranking starved late-paper sections (conclusion, refs,
+    // appendix) on any short-keyword query because intro/abstract always
+    // ranked higher.
+    const trimmed = (searchQuery || '').trim();
+    if (!trimmed) {
+      return { paperId, query: searchQuery, results: [], note: 'empty query' };
+    }
+    const cap = clampLimit(limit, 25, 50);
     const rows = await query<any>(
-      `SELECT page_number, section_title, text,
-              ts_rank(to_tsvector('english', text), plainto_tsquery('english', $2)) AS rank
+      `SELECT page_number, section_title, text
        FROM paper_text_chunks
        WHERE paper_id = $1
-         AND to_tsvector('english', text) @@ plainto_tsquery('english', $2)
-       ORDER BY rank DESC, chunk_index ASC
+         AND text ILIKE $2
+       ORDER BY page_number ASC, chunk_index ASC
        LIMIT $3`,
-      [paperId, searchQuery, clampLimit(limit)]
+      [paperId, `%${trimmed}%`, cap]
     );
 
     return {
       paperId,
       query: searchQuery,
-      results: rows.map(row => ({
+      mode: 'grep',
+      truncated: rows.length === cap,
+      results: rows.map((row) => ({
         source: 'paper',
         pageNumber: row.page_number,
         sectionTitle: row.section_title,
-        text: excerpt(row.text, 2500),
+        text: excerptAround(row.text, trimmed, 600),
       })),
     };
   }
