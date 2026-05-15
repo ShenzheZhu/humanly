@@ -1305,12 +1305,13 @@ Routing:
 - Current editor document: call getDocumentText for the full body or searchDocument for targeted keyword lookups. Use documentId="${documentId}".
 - Uploaded reference PDFs: always call listLinkedPapers with documentId="${documentId}" before getPaperContent. Use the exact paperId returned by listLinkedPapers; never invent a paperId.
 - getPaperContent modes:
-  - search: provide paperId, mode="search", query, and optionally limit.
-  - page: provide paperId, mode="page", and pageNumber only.
-  - section: provide paperId, mode="section", and sectionTitle only.
+  - search: provide paperId, mode="search", query, and optionally limit. This is a LITERAL case-insensitive grep over the extracted text returning matches in document order across ALL pages. It will NOT find synonyms or paraphrases.
+  - page: provide paperId, mode="page", and pageNumber only. Use this for late-document content that may not contain the obvious keyword — e.g. when the user asks for the conclusion, references, future work, or appendix, page DIRECTLY into the back of the PDF using pageNumber close to pdfPageCount (which listLinkedPapers gives you). Do not keep retrying mode="search" if grep returned nothing for a conceptual query.
+  - section: provide paperId, mode="section", and sectionTitle only. Try this first for well-known section names like "Methods", "Results", "Conclusion".
+- A 20+ page PDF typically has its conclusion / discussion / references in the LAST 5-10 pages. If a user question is about a back-of-paper section and grep search misses, jump to mode="page" with pageNumber = pdfPageCount, pdfPageCount-1, etc., not another search.
 - If the answer requires multiple sources, call multiple tools and synthesize them after reading the tool results.
 - If a tool returns an error or no relevant data, repair the tool call once with better arguments before answering that evidence is incomplete.
-- Tool calls must be real structured function calls. Do not write XML, pseudo-tags, or prose tool calls in visible text.
+- Tool calls must be REAL structured function calls. NEVER write XML, pseudo-tags, JSON-encoded function calls, or any prose like "<tool_call>..." in your visible text — visible text only contains the final user-facing answer.
 
 Current scoped documentId: ${documentId}
 Answer concisely. Mention when available evidence is incomplete or a tool returns no relevant data.`;
