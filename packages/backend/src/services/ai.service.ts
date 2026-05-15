@@ -254,7 +254,7 @@ function appendToolBudgetNotice(output: string, remainingToolCalls: number, maxT
 }
 
 function normalizeAgentMaxToolCalls(value: number | undefined): number {
-  if (!Number.isFinite(value) || !value) return 20;
+  if (!Number.isFinite(value) || !value) return 60;
   return Math.max(1, Math.min(Math.floor(value), 100));
 }
 
