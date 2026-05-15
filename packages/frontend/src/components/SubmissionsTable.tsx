@@ -16,6 +16,8 @@ import {
 } from '@/components/ui/table';
 import { formatDateTime } from '@/lib/utils';
 
+const FRONTEND_USER_URL = process.env.NEXT_PUBLIC_FRONTEND_USER_URL || 'http://localhost:3002';
+
 export interface AdminSubmission {
   id: string;
   userId: string;
@@ -42,6 +44,9 @@ export default function SubmissionsTable({
   onRefresh,
 }: SubmissionsTableProps) {
   const router = useRouter();
+  const buildCertificateUrl = (verificationToken: string) => (
+    `${FRONTEND_USER_URL}/verify/${encodeURIComponent(verificationToken)}`
+  );
 
   return (
     <Card>
@@ -123,11 +128,16 @@ export default function SubmissionsTable({
                     </TableCell>
                     <TableCell className="font-mono text-xs">{submission.id}</TableCell>
                     <TableCell className="text-right">
-                      {submission.certificateId ? (
-                        <Badge variant="outline" className="inline-flex gap-1">
-                          <Award className="h-3 w-3" />
-                          Issued
-                        </Badge>
+                      {submission.certificateVerificationToken ? (
+                        <Button asChild variant="outline" size="sm">
+                          <a
+                            href={buildCertificateUrl(submission.certificateVerificationToken)}
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <Award className="h-4 w-4 mr-1" />
+                            Issued
+                          </a>
+                        </Button>
                       ) : (
                         <Badge variant="secondary">Missing</Badge>
                       )}
