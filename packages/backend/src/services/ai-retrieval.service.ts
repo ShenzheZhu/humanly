@@ -127,7 +127,7 @@ export class AIRetrievalService {
     {
       type: 'function',
       name: 'getDocumentText',
-      description: 'Retrieve the latest plain text for the current document.',
+      description: 'Retrieve the latest full plain text for the current editor document. Use this for the user\'s own writing, not for uploaded PDF references.',
       strict: true,
       parameters: {
         type: 'object',
@@ -141,7 +141,7 @@ export class AIRetrievalService {
     {
       type: 'function',
       name: 'searchDocument',
-      description: 'Grep-style keyword search over the current document. Returns the most relevant excerpts with their character offsets.',
+      description: 'Keyword search over the current editor document only. Use this for targeted lookups in the user\'s own writing; it does not search linked PDFs. Returns relevant excerpts with character offsets.',
       strict: true,
       parameters: {
         type: 'object',
@@ -157,7 +157,7 @@ export class AIRetrievalService {
     {
       type: 'function',
       name: 'listLinkedPapers',
-      description: 'List PDF papers linked to the current document (use this before calling getPaperContent to discover paper IDs).',
+      description: 'List uploaded PDF references linked to the current document. Always call this before getPaperContent so you can use an exact returned paperId.',
       strict: true,
       parameters: {
         type: 'object',
@@ -175,18 +175,22 @@ export class AIRetrievalService {
       type: 'function',
       name: 'getPaperContent',
       description:
-        'Retrieve content from a linked PDF paper. Choose mode = "search" (keyword search; supply query), "page" (specific page; supply pageNumber), or "section" (named section like "Methods"; supply sectionTitle).',
+        'Retrieve content from one linked PDF. You must first call listLinkedPapers and use one returned paperId. Use exactly one mode: search with query, page with pageNumber, or section with sectionTitle.',
       strict: false,
       parameters: {
         type: 'object',
         additionalProperties: false,
         properties: {
-          paperId: { type: 'string', description: 'Paper ID returned by listLinkedPapers.' },
-          mode: { type: 'string', enum: ['search', 'page', 'section'] },
-          query: { type: 'string', description: 'Required when mode="search".' },
-          pageNumber: { type: 'integer', description: 'Required when mode="page" (1-indexed).' },
-          sectionTitle: { type: 'string', description: 'Required when mode="section" (partial match OK).' },
-          limit: { type: 'integer', description: 'Optional result cap for mode="search" (default 10, max 50).' },
+          paperId: { type: 'string', description: 'Exact paper ID returned by listLinkedPapers. Do not invent this ID.' },
+          mode: {
+            type: 'string',
+            enum: ['search', 'page', 'section'],
+            description: 'search = keyword search and requires query; page = one 1-indexed PDF page and requires pageNumber; section = named section lookup and requires sectionTitle.',
+          },
+          query: { type: 'string', description: 'Use only when mode="search"; required for search; omit for page and section.' },
+          pageNumber: { type: 'integer', description: 'Use only when mode="page"; required for page; 1-indexed; omit for search and section.' },
+          sectionTitle: { type: 'string', description: 'Use only when mode="section"; required for section; partial title match is OK; omit for search and page.' },
+          limit: { type: 'integer', description: 'Use only with mode="search"; optional result cap (default 10, max 50).' },
         },
         required: ['paperId', 'mode'],
       },

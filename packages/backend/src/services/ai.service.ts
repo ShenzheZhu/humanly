@@ -168,6 +168,28 @@ function splitStaticThinking(content: string | null | undefined): ThinkingSplit 
   };
 }
 
+export function shouldRepairEmptyToolCallResponse(completion: any): boolean {
+  const choice = completion?.choices?.[0];
+  const finishReason = choice?.finish_reason;
+  const toolCalls = choice?.message?.tool_calls;
+  return (finishReason === 'tool_calls' || finishReason === 'function_call')
+    && (!Array.isArray(toolCalls) || toolCalls.length === 0);
+}
+
+export function buildToolCallRepairPrompt(documentId: string): string {
+  return `Internal tool-call repair instruction:
+The previous model response ended with finish_reason="tool_calls" but did not include a valid tool_calls payload. Do not answer from memory.
+
+Retry by emitting exactly one or more valid tool calls using JSON arguments.
+- Current documentId is "${documentId}".
+- For current document text: call getDocumentText with {"documentId":"${documentId}"} or searchDocument with {"documentId":"${documentId}","query":"...","limit":10}.
+- For linked PDFs: first call listLinkedPapers with {"documentId":"${documentId}"}. Then call getPaperContent with one valid mode:
+  - search: {"paperId":"<id from listLinkedPapers>","mode":"search","query":"...","limit":10}
+  - page: {"paperId":"<id from listLinkedPapers>","mode":"page","pageNumber":1}
+  - section: {"paperId":"<id from listLinkedPapers>","mode":"section","sectionTitle":"..."}
+Do not write XML, pseudo-tags, or prose tool calls.`;
+}
+
 interface AgentChatOptions {
   userId: string;
   documentId: string;
@@ -413,6 +435,7 @@ class OpenAIProvider implements AIProvider {
     const chatMessages = this.buildChatCompletionMessages(messages, options.documentId);
 
     let lastUsage: { input: number; output: number } | undefined;
+    let emptyToolCallRepairAttempts = 0;
 
     for (let i = 0; i < 6; i++) {
       emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex: i });
@@ -438,6 +461,34 @@ class OpenAIProvider implements AIProvider {
       emitThinkingDelta(options.onAgentEvent, assistantMessage.reasoning_content || assistantMessage.reasoning || '');
       const toolCalls = assistantMessage.tool_calls || [];
       if (toolCalls.length === 0) {
+        if (shouldRepairEmptyToolCallResponse(completion)) {
+          if (emptyToolCallRepairAttempts < 1) {
+            emptyToolCallRepairAttempts += 1;
+            logger.warn('AI agent received empty tool-call finish; retrying with repair instruction', {
+              userId: options.userId,
+              documentId: options.documentId,
+              iteration: i + 1,
+              transport: 'chat_completions',
+            });
+            emitThinkingDelta(options.onAgentEvent, 'Retrying retrieval because the provider returned an empty tool-call response.');
+            chatMessages.push({ role: 'user', content: buildToolCallRepairPrompt(options.documentId) });
+            emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: i });
+            continue;
+          }
+
+          logger.warn('AI agent empty tool-call repair failed', {
+            userId: options.userId,
+            documentId: options.documentId,
+            iteration: i + 1,
+            transport: 'chat_completions',
+          });
+          emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: i });
+          return {
+            content: 'I could not complete retrieval because the AI provider returned an invalid empty tool-call response.',
+            tokensUsed: lastUsage,
+          };
+        }
+
         logger.info('AI agent completed without additional tool calls', {
           userId: options.userId,
           documentId: options.documentId,
@@ -542,6 +593,7 @@ class OpenAIProvider implements AIProvider {
     const chatTools = this.buildChatCompletionTools();
     const chatMessages = this.buildChatCompletionMessages(messages, options.documentId);
     let lastUsage: { input: number; output: number } | undefined;
+    let emptyToolCallRepairAttempts = 0;
 
     for (let i = 0; i < 6; i++) {
       emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex: i });
@@ -567,6 +619,36 @@ class OpenAIProvider implements AIProvider {
       emitThinkingDelta(options.onAgentEvent, assistantMessage.reasoning_content || assistantMessage.reasoning || '');
       const toolCalls = assistantMessage.tool_calls || [];
       if (toolCalls.length === 0) {
+        if (shouldRepairEmptyToolCallResponse(completion)) {
+          if (emptyToolCallRepairAttempts < 1) {
+            emptyToolCallRepairAttempts += 1;
+            logger.warn('AI agent received empty tool-call finish; retrying with repair instruction', {
+              userId: options.userId,
+              documentId: options.documentId,
+              iteration: i + 1,
+              transport: 'chat_completions',
+            });
+            emitThinkingDelta(options.onAgentEvent, 'Retrying retrieval because the provider returned an empty tool-call response.');
+            chatMessages.push({ role: 'user', content: buildToolCallRepairPrompt(options.documentId) });
+            emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: i });
+            continue;
+          }
+
+          logger.warn('AI agent empty tool-call repair failed', {
+            userId: options.userId,
+            documentId: options.documentId,
+            iteration: i + 1,
+            transport: 'chat_completions',
+          });
+          const fallback = 'I could not complete retrieval because the AI provider returned an invalid empty tool-call response.';
+          onChunk(fallback);
+          emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: i });
+          return {
+            content: fallback,
+            tokensUsed: lastUsage,
+          };
+        }
+
         logger.info('AI agent final response streaming started', {
           userId: options.userId,
           documentId: options.documentId,
@@ -970,9 +1052,15 @@ function buildRetrievalInstructions(documentId: string): string {
 Use the retrieval tools as your source of truth. Do not rely only on preloaded summaries, selected text, or prior chat context when the user asks about the document or a linked PDF.
 
 Routing:
-- For the current written document, call getDocumentText for the full body and searchDocument for targeted keyword lookups.
-- For uploaded reference PDFs, call listLinkedPapers first to discover paper IDs, then call getPaperContent with mode="search" (keyword), mode="page" (specific page), or mode="section" (named section like "Methods").
-- If the answer requires multiple sources, call multiple tools and synthesize them.
+- Current editor document: call getDocumentText for the full body or searchDocument for targeted keyword lookups. Use documentId="${documentId}".
+- Uploaded reference PDFs: always call listLinkedPapers with documentId="${documentId}" before getPaperContent. Use the exact paperId returned by listLinkedPapers; never invent a paperId.
+- getPaperContent modes:
+  - search: provide paperId, mode="search", query, and optionally limit.
+  - page: provide paperId, mode="page", and pageNumber only.
+  - section: provide paperId, mode="section", and sectionTitle only.
+- If the answer requires multiple sources, call multiple tools and synthesize them after reading the tool results.
+- If a tool returns an error or no relevant data, repair the tool call once with better arguments before answering that evidence is incomplete.
+- Tool calls must be real structured function calls. Do not write XML, pseudo-tags, or prose tool calls in visible text.
 
 Current scoped documentId: ${documentId}
 Answer concisely. Mention when available evidence is incomplete or a tool returns no relevant data.`;

@@ -179,7 +179,7 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'getDocumentText',
-      description: 'Retrieve the latest plain text for the current document.',
+      description: 'Retrieve the latest full plain text for the current editor document. Use this for the user\'s own writing, not for uploaded PDF references.',
       parameters: {
         type: 'object',
         additionalProperties: false,
@@ -192,7 +192,7 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'searchDocument',
-      description: 'Grep-style keyword search over the current document. Returns the most relevant excerpts with their character offsets.',
+      description: 'Keyword search over the current editor document only. Use this for targeted lookups in the user\'s own writing; it does not search linked PDFs. Returns relevant excerpts with character offsets.',
       parameters: {
         type: 'object',
         additionalProperties: false,
@@ -209,7 +209,7 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'listLinkedPapers',
-      description: 'List PDF papers linked to the current document (use this before calling getPaperContent to discover paper IDs).',
+      description: 'List uploaded PDF references linked to the current document. Always call this before getPaperContent so you can use an exact returned paperId.',
       parameters: {
         type: 'object',
         additionalProperties: false,
@@ -222,16 +222,20 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'getPaperContent',
-      description: 'Retrieve content from a linked PDF paper. Choose mode = "search" (keyword search; supply query), "page" (specific page; supply pageNumber), or "section" (named section like "Methods"; supply sectionTitle).',
+      description: 'Retrieve content from one linked PDF. You must first call listLinkedPapers and use one returned paperId. Use exactly one mode: search with query, page with pageNumber, or section with sectionTitle.',
       parameters: {
         type: 'object',
         properties: {
-          paperId: { type: 'string' },
-          mode: { type: 'string', enum: ['search', 'page', 'section'] },
-          query: { type: 'string' },
-          pageNumber: { type: 'integer' },
-          sectionTitle: { type: 'string' },
-          limit: { type: 'integer' },
+          paperId: { type: 'string', description: 'Exact paper ID returned by listLinkedPapers. Do not invent this ID.' },
+          mode: {
+            type: 'string',
+            enum: ['search', 'page', 'section'],
+            description: 'search = keyword search and requires query; page = one 1-indexed PDF page and requires pageNumber; section = named section lookup and requires sectionTitle.',
+          },
+          query: { type: 'string', description: 'Use only when mode="search"; required for search; omit for page and section.' },
+          pageNumber: { type: 'integer', description: 'Use only when mode="page"; required for page; 1-indexed; omit for search and section.' },
+          sectionTitle: { type: 'string', description: 'Use only when mode="section"; required for section; partial title match is OK; omit for search and page.' },
+          limit: { type: 'integer', description: 'Use only with mode="search"; optional result cap.' },
         },
         required: ['paperId', 'mode'],
       },
@@ -329,9 +333,15 @@ const SYSTEM_PROMPT = `You are an AI writing assistant. The user is writing note
 Use the retrieval tools as your source of truth — never invent facts about the document or syllabus.
 
 Routing:
-- For the user's current notes, call getDocumentText / searchDocument with documentId = "${MOCK_DOC_ID}".
-- For the linked syllabus PDF, call listLinkedPapers first to discover paper IDs, then call getPaperContent with mode="search" (keyword) / "page" (specific page) / "section" (named section).
+- Current editor document: call getDocumentText for the full body or searchDocument for targeted keyword lookups. Use documentId="${MOCK_DOC_ID}".
+- Uploaded reference PDFs: always call listLinkedPapers with documentId="${MOCK_DOC_ID}" before getPaperContent. Use the exact paperId returned by listLinkedPapers; never invent a paperId.
+- getPaperContent modes:
+  - search: provide paperId, mode="search", query, and optionally limit.
+  - page: provide paperId, mode="page", and pageNumber only.
+  - section: provide paperId, mode="section", and sectionTitle only.
 - Chain multiple tool calls if the answer needs multiple sources.
+- If a tool returns an error or no relevant data, repair the tool call once with better arguments before answering that evidence is incomplete.
+- Tool calls must be real structured function calls. Do not write XML, pseudo-tags, or prose tool calls in visible text.
 
 When you don't have evidence, say so explicitly. Be concise.`;
 
@@ -361,6 +371,24 @@ function extractThinkingFromContent(content) {
   return { thinking, visible };
 }
 
+function shouldRepairEmptyToolCallResponse(finishReason, toolCalls) {
+  return (finishReason === 'tool_calls' || finishReason === 'function_call') && toolCalls.length === 0;
+}
+
+function buildToolCallRepairPrompt() {
+  return `Internal tool-call repair instruction:
+The previous model response ended with finish_reason="tool_calls" but did not include a valid tool_calls payload. Do not answer from memory.
+
+Retry by emitting exactly one or more valid tool calls using JSON arguments.
+- Current documentId is "${MOCK_DOC_ID}".
+- For current document text: call getDocumentText with {"documentId":"${MOCK_DOC_ID}"} or searchDocument with {"documentId":"${MOCK_DOC_ID}","query":"...","limit":10}.
+- For linked PDFs: first call listLinkedPapers with {"documentId":"${MOCK_DOC_ID}"}. Then call getPaperContent with one valid mode:
+  - search: {"paperId":"${MOCK_PAPER_ID}","mode":"search","query":"...","limit":10}
+  - page: {"paperId":"${MOCK_PAPER_ID}","mode":"page","pageNumber":1}
+  - section: {"paperId":"${MOCK_PAPER_ID}","mode":"section","sectionTitle":"..."}
+Do not write XML, pseudo-tags, or prose tool calls.`;
+}
+
 async function runAgent(userPrompt, traceFile) {
   const trace = [];
   const emit = (event) => {
@@ -386,6 +414,7 @@ async function runAgent(userPrompt, traceFile) {
     { role: 'system', content: SYSTEM_PROMPT },
     { role: 'user', content: userPrompt },
   ];
+  let emptyToolCallRepairAttempts = 0;
 
   for (let turnIndex = 0; turnIndex < MAX_TURNS; turnIndex++) {
     emit({ type: 'turn-start', turnIndex });
@@ -457,6 +486,20 @@ async function runAgent(userPrompt, traceFile) {
     const toolCalls = Array.from(toolCallAccs.values());
 
     if (toolCalls.length === 0) {
+      if (shouldRepairEmptyToolCallResponse(finishReason, toolCalls)) {
+        if (emptyToolCallRepairAttempts < 1) {
+          emptyToolCallRepairAttempts += 1;
+          emit({ type: 'thinking-delta', text: 'Retrying retrieval because the provider returned an empty tool-call response.' });
+          messages.push({ role: 'user', content: buildToolCallRepairPrompt() });
+          emit({ type: 'turn-end', turnIndex, finishReason });
+          continue;
+        }
+
+        emit({ type: 'error', message: 'Provider returned finish_reason=tool_calls without a valid tool_calls payload after repair retry.' });
+        emit({ type: 'turn-end', turnIndex, finishReason });
+        break;
+      }
+
       // Final response — no more tools to call.
       emit({ type: 'final', text: visibleContent.trim(), thinking: reasoningSoFar.trim() });
       emit({ type: 'turn-end', turnIndex, finishReason });
