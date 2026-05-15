@@ -176,6 +176,47 @@ export function shouldRepairEmptyToolCallResponse(completion: any): boolean {
     && (!Array.isArray(toolCalls) || toolCalls.length === 0);
 }
 
+// Regexes for the common shapes of pseudo tool-call leaks observed in
+// production traces. Some models, when they fail to emit a structured
+// tool_calls payload, instead write the call as XML-ish prose in the
+// visible content. Detect any of:
+//   <tool_call> ... </tool_call>
+//   <function=name> ... </function>
+//   <parameter=foo>bar</parameter>
+//   <tool_use> ... </tool_use>
+// Anchors are loose on purpose so trailing whitespace / line breaks inside
+// the markup also match. The /s flag lets `.` cross newlines.
+const PSEUDO_TOOL_CALL_PATTERNS: RegExp[] = [
+  /<\s*tool_call\b[^>]*>[\s\S]*?<\s*\/\s*tool_call\s*>/gi,
+  /<\s*tool_use\b[^>]*>[\s\S]*?<\s*\/\s*tool_use\s*>/gi,
+  /<\s*function\s*=\s*[^>]*>[\s\S]*?<\s*\/\s*function\s*>/gi,
+  /<\s*parameter\s*=\s*[^>]*>[\s\S]*?<\s*\/\s*parameter\s*>/gi,
+];
+
+/** True if `text` contains any prose-encoded tool-call markup. */
+export function containsPseudoToolCall(text: string | null | undefined): boolean {
+  if (!text) return false;
+  return PSEUDO_TOOL_CALL_PATTERNS.some((re) => {
+    re.lastIndex = 0;
+    return re.test(text);
+  });
+}
+
+/**
+ * Strip prose-encoded tool-call markup from a visible-text buffer so the
+ * user never sees `<tool_call>...</tool_call>` in the chat. We always retry
+ * the call on the agent loop side so the dropped markup is replaced with a
+ * real structured call result, not silence.
+ */
+export function stripPseudoToolCallMarkup(text: string | null | undefined): string {
+  if (!text) return '';
+  let cleaned = text;
+  for (const re of PSEUDO_TOOL_CALL_PATTERNS) {
+    cleaned = cleaned.replace(re, '');
+  }
+  return cleaned.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 export function buildToolCallRepairPrompt(documentId: string): string {
   return `Internal tool-call repair instruction:
 The previous model response ended with finish_reason="tool_calls" but did not include a valid tool_calls payload. Do not answer from memory.
@@ -614,9 +655,31 @@ class OpenAIProvider implements AIProvider {
         });
         const split = splitStaticThinking(assistantMessage.content || '');
         emitThinkingDelta(options.onAgentEvent, split.thinking);
+        let visible = split.visible;
+        if (containsPseudoToolCall(visible)) {
+          // Bug C: model tried to fake a tool call in prose instead of via
+          // the structured tool_calls payload. Strip the markup, then
+          // trigger ONE repair retry on the same loop using the existing
+          // empty-tool-call repair prompt — it already tells the model to
+          // emit structured calls and never write pseudo-tags.
+          logger.warn('AI agent stripped pseudo tool-call markup from non-stream final', {
+            userId: options.userId,
+            documentId: options.documentId,
+            iteration: turnIndex + 1,
+            transport: 'chat_completions',
+          });
+          if (emptyToolCallRepairAttempts < 1) {
+            emptyToolCallRepairAttempts += 1;
+            chatMessages.push({ role: 'user', content: buildToolCallRepairPrompt(options.documentId) });
+            emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
+            turnIndex += 1;
+            continue;
+          }
+          visible = stripPseudoToolCallMarkup(visible);
+        }
         emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
         return {
-          content: split.visible.trim() || 'I could not produce a final answer from the available context.',
+          content: visible.trim() || 'I could not produce a final answer from the available context.',
           tokensUsed: lastUsage,
         };
       }
@@ -968,6 +1031,16 @@ class OpenAIProvider implements AIProvider {
           onChunk(content);
         }
       }
+      // Quick-action silent path: strip pseudo tool-call markup if the
+      // model emitted it. The selection-menu UI shows the result inside
+      // a small review card; we never want raw XML there.
+      if (containsPseudoToolCall(fullContent)) {
+        logger.warn('AI silent stream stripped pseudo tool-call markup from output', {
+          userId: options.userId,
+          documentId: options.documentId,
+        });
+        fullContent = stripPseudoToolCallMarkup(fullContent);
+      }
       if (!fullContent.trim()) {
         const fallback = 'I could not produce a final answer from the available context.';
         fullContent = fallback;
@@ -998,6 +1071,20 @@ class OpenAIProvider implements AIProvider {
     if (flushed.visible) {
       fullContent += flushed.visible;
       onChunk(flushed.visible);
+    }
+
+    // Strip prose-encoded tool-call leaks from the final visible buffer.
+    // The streamed onChunk side may have briefly shown the XML to the
+    // user, but the returned value (which the agent loop uses to decide
+    // whether to retry, and which we store on the message log) is clean.
+    // The caller of streamFinalChatCompletion can compare the original
+    // length vs the cleaned length to know whether to trigger a repair.
+    if (containsPseudoToolCall(fullContent)) {
+      logger.warn('AI stream stripped pseudo tool-call markup from final visible content', {
+        userId: options.userId,
+        documentId: options.documentId,
+      });
+      fullContent = stripPseudoToolCallMarkup(fullContent);
     }
 
     if (!fullContent.trim()) {
