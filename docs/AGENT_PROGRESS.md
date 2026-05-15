@@ -1,6 +1,6 @@
 # Agent Progress Tracker
 
-Last updated: 2026-05-15 (#71 ls/grep/read redesign merged)
+Last updated: 2026-05-15 (#74 two-PDF / four-model agent smoke opened)
 
 This document is the shared handoff surface for agents working on `humanly-code`.
 GitHub issues and pull requests remain the source of truth for canonical history;
@@ -44,6 +44,7 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 | #59 | Configurable 20-tool budget + final-answer fallback | #61 | Merged & closed |
 | #65 | Streaming/model-swap hardening + PDF search fixes | #66 | Merged & closed |
 | #70 | Reference-only `ls` / `grep` / `read` tool redesign | #71 | Merged & closed |
+| #73 | Two-PDF / four-model QA smoke + DeepSeek V4 Pro whitelist + 60 tool-call default | #74 | Open |
 | — | LOCAL_DEV mock infra (`pnpm dev:mock`, bypass-login, docs) | #27 | Merged |
 
 ### Deferred backlog (Epic #4 checklist; reopen as standalone issues when ready)
@@ -61,6 +62,7 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 ## Open PRs
 
 - **#29** `feat/agentic-chat` → `main` — final integration merge for Epic #4. **Paused** because we are not merging to `main` yet; GitHub currently reports conflicts with `main`, which are expected to be handled only when main integration resumes.
+- **#74** `feat/agentic-chat-73-deepseek-v4-qa-smoke` → `feat/agentic-chat` — adds DeepSeek V4 Pro to the Together whitelist, raises the default agent tool-call budget to 60, and records a fresh two-PDF / four-model manual QA smoke.
 
 ## Open follow-up issues
 
@@ -81,6 +83,7 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 - **#62 / #64 / #61** Quick-action silent streams are matched by `clientRequestId`; empty provider output now errors instead of inserting fallback text into the document.
 - **#65 / #66** Model-switch quick-action fallback, PDF search stuck-on-first-pages behavior, and pseudo tool-call leakage were hardened.
 - **#70 / #71** AI retrieval surface was redesigned from document/paper-specific tools to reference-only unix-style primitives: `ls`, `grep`, and `read`, with adaptive strategy hints and a fallback ladder.
+- **#73 / #74** Open PR: two-PDF / four-model real-LLM manual QA smoke completed. Product change adds `deepseek-ai/DeepSeek-V4-Pro` to the curated Together list and raises the default `AI_AGENT_MAX_TOOL_CALLS` fallback from 20 to 60 while preserving env override support.
 
 ### Recently merged outside Epic #4
 
@@ -100,6 +103,24 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 - `Qwen/Qwen3.5-9B` — rejected as the default target for now: it emitted structured tools sometimes, but also produced empty final answers and pseudo tool-call XML in visible text.
 - `deepseek-ai/DeepSeek-R1` — proves the parser handles inline reasoning. 1929 chars of reasoning captured per prompt (closes with `</think>` only; Together strips the opening tag). The model does not reliably emit structured `tool_calls` over Together's chat-completions API, which is a model limitation, not an AgentRunner bug. Tracked under follow-up #31 for first-class wiring.
 - `moonshotai/Kimi-K2.6` — after #70's `ls` / `grep` / `read` redesign, 9/9 real-LLM prompts against the ENV 100 syllabus completed. The model naturally used `ls -> grep -> read`, refused editor-content requests with zero tool calls, and avoided pseudo tool-call leakage. One negative-case validation was a regex false alarm, not a model failure.
+
+### Two-PDF / four-model manual QA smoke (2026-05-15)
+
+Issue #73 / PR #74 used two local PDFs and manually judged 10 questions per file:
+
+- `syllabus fsta02 2026.pdf`
+- `Suzuki, D. T., McConnell, A., & Mason, A. (2007). Made from the soil.pdf`
+
+Models tested through the Together-compatible tool-calling harness:
+
+| Model | Runs | Manual judgment | Notes |
+| --- | ---: | --- | --- |
+| `Qwen/Qwen3.5-397B-A17B` | 20/20 | 19 pass / 1 partial | Fast and concise; one long-paper biodiversity answer missed the teaspoon-level counts. |
+| `moonshotai/Kimi-K2.6` | 20/20 | 20 pass / 0 partial | Thorough and reliable, but generally more tool-heavy / slower. |
+| `deepseek-ai/DeepSeek-V4-Pro` | 20/20 | 20 pass / 0 partial | Strong factual coverage; added to curated Together options in #74. |
+| `zai-org/GLM-5` | 20/20 | 20 pass / 0 partial | Solid factual coverage; one or two runs were slower but completed cleanly. |
+
+Sanity checks across all 80 runs: no empty final answers, no "could not produce final answer" fallback text, no pseudo tool-call markup in visible output, and all runs ended with provider `finish_reason=stop`. The maximum observed tool count was 13, but #74 raises the configurable default from 20 to 60 to leave more room for longer PDFs.
 
 Traces live under `tmp/agent-trace/run-*` (gitignored). The script + how-to is in PR #30.
 
