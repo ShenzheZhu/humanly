@@ -345,7 +345,7 @@ describe('AIService.silentChat', () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(url).toContain('/responses');
     expect(body).toHaveProperty('tools');
-    expect(body.tools.map((tool: any) => tool.name)).toContain('getDocumentText');
+    expect(body.tools.map((tool: any) => tool.name)).toEqual(expect.arrayContaining(['ls', 'grep', 'read']));
   });
 });
 
