@@ -45,7 +45,7 @@ What the mock backend supports:
 - **Certificates**: `GET/POST /certificates`, `GET /certificates/:id`, and `GET /certificates/:id/ai-stats` for the list, generate, and detail-page smoke path.
 - **AI**: `GET /ai/settings` (returns `hasApiKey: true` so the selection menu activates), `GET /ai/sessions`, `POST /ai/chat`, `POST /ai/selection-action`, `GET /ai/logs`.
 - **Socket.IO `ai:message`**:
-  - Regular chat — emits a typed tool-call lifecycle (`ai:turn-start` / `ai:tool-call` / `ai:tool-result` / `ai:turn-end`) when the user message looks search-like (mentions search/find/where/motivation/grammar/paper), then streams a text reply.
+  - Regular chat — emits a typed tool-call lifecycle (`ai:turn-start` / `ai:tool-call` / `ai:tool-result` / `ai:turn-end`) when the user message looks search-like (mentions search / find / where / motivation / grammar / paper / summarize / conclusion). Mock chain matches the new `#70` 3-tool surface: `ls` → `grep` → `read`, so visual smoke verifies the full ToolCallCard timeline.
   - Silent mode (`data.silent === true`) — streams a quick-action rewrite over `sessionId: 'silent'`. The rewrite intent is sniffed from the prompt prefix (grammar / improve / simplify / formal). The voice-aware suffix `[voice-aware: title="..."]` is appended when `surroundingContext` is supplied, so #23-style surrounding-context wiring is visually verifiable.
 - **Cancel**: `ai:cancel` halts whichever in-flight emit loop matches the supplied `sessionId`.
 

@@ -390,33 +390,94 @@ io.on('connection', (socket) => {
           logId: '',
         });
       } else {
-        // Chat path: optionally emit tool-call cycle if the user message
-        // mentions search-like intent, then stream the textual reply.
-        const wantsTool = /search|find|where|motivation|grammar|paper/i.test(data?.message || '');
+        // Chat path: optionally emit a realistic ls → grep → read tool
+        // chain (matches the new 3-tool primitives from #70). Triggers
+        // on search-like intent so prompts like "find motivation" and
+        // "summarize this paper" both exercise the chain.
+        const wantsTool = /search|find|where|motivation|grammar|paper|summari[sz]e|conclusion/i.test(data?.message || '');
         if (wantsTool) {
           socket.emit('ai:turn-start', { sessionId, messageId, turnIndex: 0 });
           socket.emit('ai:thinking-delta', {
             sessionId,
             messageId,
-            text: 'I should inspect the document before answering, then use the tool result to ground the reply.',
+            text: 'I should list available files first, locate the relevant region with grep, then read it.',
           });
-          const toolCallId = uuid();
+          // ls
+          const lsCallId = uuid();
           socket.emit('ai:tool-call', {
-            sessionId, messageId, toolCallId,
-            toolName: 'searchDocument',
-            args: { documentId: MOCK_DOC_ID, query: extractQuery(data?.message || ''), limit: 10 },
+            sessionId, messageId, toolCallId: lsCallId,
+            toolName: 'ls',
+            args: {},
           });
-          await sleep(250);
+          await sleep(150);
           if (state.cancelled) return;
           socket.emit('ai:tool-result', {
-            sessionId, messageId, toolCallId,
+            sessionId, messageId, toolCallId: lsCallId,
             result: JSON.stringify({
-              documentId: MOCK_DOC_ID,
-              query: extractQuery(data?.message || ''),
-              results: [{ source: 'document', startOffset: 78, endOffset: 138, text: 'The motivation here is that traditional plagiarism detectors...' }],
+              files: [{ id: 'mock-ref-1', filename: 'mock-reference.pdf' }],
             }),
             isError: false,
-            durationMs: 250,
+            durationMs: 150,
+          });
+          // grep
+          const grepCallId = uuid();
+          const pattern = extractQuery(data?.message || '') || 'motivation';
+          socket.emit('ai:tool-call', {
+            sessionId, messageId, toolCallId: grepCallId,
+            toolName: 'grep',
+            args: { file: 'mock-ref-1', pattern, context_before: 1, context_after: 2 },
+          });
+          await sleep(200);
+          if (state.cancelled) return;
+          socket.emit('ai:tool-result', {
+            sessionId, messageId, toolCallId: grepCallId,
+            result: JSON.stringify({
+              file: 'mock-ref-1',
+              pattern,
+              matchCount: 1,
+              matches: [{
+                line: 14,
+                page: 1,
+                text: `The ${pattern} here is that traditional plagiarism detectors only`,
+                contextLines: [
+                  { line: 13, text: '', isMatch: false },
+                  { line: 14, text: `The ${pattern} here is that traditional plagiarism detectors only`, isMatch: true },
+                  { line: 15, text: 'look at the final text, but they miss how the text got there.', isMatch: false },
+                  { line: 16, text: 'They are bad grammar checkers honestly.', isMatch: false },
+                ],
+              }],
+            }),
+            isError: false,
+            durationMs: 200,
+          });
+          // read
+          const readCallId = uuid();
+          socket.emit('ai:tool-call', {
+            sessionId, messageId, toolCallId: readCallId,
+            toolName: 'read',
+            args: { file: 'mock-ref-1', offset: 12, limit: 20 },
+          });
+          await sleep(150);
+          if (state.cancelled) return;
+          socket.emit('ai:tool-result', {
+            sessionId, messageId, toolCallId: readCallId,
+            result: JSON.stringify({
+              file: 'mock-ref-1',
+              offset: 12,
+              limit: 20,
+              totalLines: 42,
+              hasPages: true,
+              pageRange: { start: 1, end: 1 },
+              truncated: false,
+              lines: [
+                { line: 12, text: '[page 1]' },
+                { line: 13, text: '' },
+                { line: 14, text: `The ${pattern} here is that traditional plagiarism detectors only` },
+                { line: 15, text: 'look at the final text, but they miss how the text got there.' },
+              ],
+            }),
+            isError: false,
+            durationMs: 150,
           });
           socket.emit('ai:turn-end', { sessionId, messageId, turnIndex: 0 });
         }
