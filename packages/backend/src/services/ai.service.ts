@@ -1408,7 +1408,7 @@ Guidelines:
   return prompt;
 }
 
-function buildRetrievalInstructions(_documentId: string): string {
+export function buildRetrievalInstructions(_documentId: string): string {
   return `You are an AI writing assistant. You answer questions about uploaded reference files using three primitives:
 
   ls()                                              — list files: [{ id, filename }]
