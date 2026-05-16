@@ -21,6 +21,7 @@ global.fetch = mockFetch;
 
 import {
   AIService,
+  AgentToolCallCollector,
   PseudoToolCallStreamFilter,
   ThinkingContentSplitter,
   buildFinalAnswerSynthesisPrompt,
@@ -216,6 +217,65 @@ describe('pseudo tool-call markup helpers', () => {
   it('collapses trailing whitespace introduced by stripping', () => {
     const input = 'Answer\n\n\n<tool_call>x</tool_call>\n\n\nNext line';
     expect(stripPseudoToolCallMarkup(input)).toBe('Answer\n\nNext line');
+  });
+});
+
+// ── AgentToolCallCollector (#94 persistence) ─────────────────────────────────
+
+describe('AgentToolCallCollector', () => {
+  it('pairs tool-call and tool-result events into AgentToolCallRecords', () => {
+    const c = new AgentToolCallCollector();
+    c.observe({ type: 'tool-call', toolCallId: 'tc-1', toolName: 'ls', args: { documentId: 'd1' } });
+    c.observe({
+      type: 'tool-result',
+      toolCallId: 'tc-1',
+      result: '[{"id":"file-1"}]',
+      isError: false,
+      durationMs: 42,
+    });
+    const records = c.finalize();
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      toolCallId: 'tc-1',
+      toolName: 'ls',
+      args: { documentId: 'd1' },
+      result: '[{"id":"file-1"}]',
+      isError: false,
+      durationMs: 42,
+    });
+    expect(typeof records[0].startedAt).toBe('string');
+    expect(typeof records[0].completedAt).toBe('string');
+  });
+
+  it('preserves order across multiple calls', () => {
+    const c = new AgentToolCallCollector();
+    c.observe({ type: 'tool-call', toolCallId: 'a', toolName: 'ls', args: {} });
+    c.observe({ type: 'tool-result', toolCallId: 'a', result: 'ok', isError: false });
+    c.observe({ type: 'tool-call', toolCallId: 'b', toolName: 'grep', args: {} });
+    c.observe({ type: 'tool-result', toolCallId: 'b', result: 'ok2', isError: false });
+    const records = c.finalize();
+    expect(records.map(r => r.toolCallId)).toEqual(['a', 'b']);
+  });
+
+  it('surfaces orphan tool-calls (no result) so aborted turns are not silent', () => {
+    const c = new AgentToolCallCollector();
+    c.observe({ type: 'tool-call', toolCallId: 'tc-1', toolName: 'ls', args: {} });
+    c.observe({ type: 'tool-call', toolCallId: 'tc-2', toolName: 'grep', args: {} });
+    c.observe({ type: 'tool-result', toolCallId: 'tc-1', result: 'ok', isError: false });
+    const records = c.finalize();
+    expect(records).toHaveLength(2);
+    const orphan = records.find(r => r.toolCallId === 'tc-2');
+    expect(orphan?.result).toBeUndefined();
+    expect(orphan?.completedAt).toBeUndefined();
+  });
+
+  it('ignores non tool-call events', () => {
+    const c = new AgentToolCallCollector();
+    c.observe({ type: 'turn-start', turnIndex: 0 });
+    c.observe({ type: 'text-delta', text: 'hi' });
+    c.observe({ type: 'thinking-delta', text: 'thinking' });
+    c.observe({ type: 'turn-end', turnIndex: 0 });
+    expect(c.finalize()).toEqual([]);
   });
 });
 
