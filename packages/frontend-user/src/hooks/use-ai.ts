@@ -57,20 +57,32 @@ export function useAI(documentId: string) {
     }
   }, [isPanelOpen, documentId, initSession]);
 
-  // Send a message (uses WebSocket streaming)
+  // Send a message (uses WebSocket streaming).
+  // Empty `message.trim()` is still allowed when attachments are present
+  // — an image-only turn is a legitimate vision query (#93).
   const send = useCallback(
-    (message: string, context?: AIChatRequest['context']) => {
-      if (!message.trim()) return;
-      sendMessageViaSocket(documentId, message, context);
+    (
+      message: string,
+      context?: AIChatRequest['context'],
+      attachments?: AIChatRequest['attachments'],
+    ) => {
+      const hasAttachments = !!attachments && attachments.length > 0;
+      if (!message.trim() && !hasAttachments) return;
+      sendMessageViaSocket(documentId, message, context, attachments);
     },
     [documentId, sendMessageViaSocket]
   );
 
   // Send a message via REST (non-streaming)
   const sendSync = useCallback(
-    async (message: string, context?: AIChatRequest['context']) => {
-      if (!message.trim()) return;
-      await sendMessage(documentId, message, context);
+    async (
+      message: string,
+      context?: AIChatRequest['context'],
+      attachments?: AIChatRequest['attachments'],
+    ) => {
+      const hasAttachments = !!attachments && attachments.length > 0;
+      if (!message.trim() && !hasAttachments) return;
+      await sendMessage(documentId, message, context, attachments);
     },
     [documentId, sendMessage]
   );

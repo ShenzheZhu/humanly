@@ -1,5 +1,7 @@
 import OpenAI from 'openai';
 import { AIModel, AIChatSessionMissingError } from '../models/ai.model';
+import { AIChatAttachmentModel } from '../models/ai-chat-attachment.model';
+import { resolveCapabilitiesOrSafeDefault } from './ai-model-capabilities';
 import { DocumentModel } from '../models/document.model';
 import { TaskModel } from '../models/task.model';
 import { AIRetrievalService } from './ai-retrieval.service';
@@ -14,12 +16,16 @@ import {
   AISuggestion,
   AIContentModification,
   AgentEvent,
+  AI_ERROR_CODES,
+  ChatAttachment,
+  ModelCapabilities,
   AgentToolCallRecord,
 } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { UserAISettingsModel } from '../models/user-ai-settings.model';
+import { FileStorageService } from './file-storage.service';
 
 /**
  * Optional callback that observes every step of the tool-calling loop.
@@ -440,6 +446,12 @@ interface AIProvider {
 interface AIExecutionSettings {
   provider: AIProvider;
   modelVersion: string;
+  /**
+   * Raw provider base URL. Used by capability gating (#93) to look up the
+   * resolved model's input modalities so the websocket layer can refuse
+   * IMAGE_NOT_SUPPORTED requests before dispatching to the provider.
+   */
+  baseUrl: string;
 }
 
 /**
@@ -1677,6 +1689,7 @@ export class AIService {
           model: settings.model,
         }),
         modelVersion: settings.model,
+        baseUrl: settings.baseUrl,
       };
     }
 
@@ -1707,6 +1720,7 @@ export class AIService {
         model,
       }),
       modelVersion: model,
+      baseUrl: ownerSettings.baseUrl,
     };
   }
 
@@ -1803,6 +1817,116 @@ export class AIService {
   }
 
   /**
+   * Rebuild a persisted AIChatMessage into a provider-ready content value.
+   * Plain text content stays a string; messages whose metadata carries
+   * image attachments are turned back into the OpenAI-style content-parts
+   * array so multi-turn vision conversations preserve the image across
+   * subsequent assistant turns (#93). Non-user roles never carry image
+   * attachments today, so the helper still returns the plain content for
+   * them.
+   */
+  private static rebuildHistoryContent(msg: AIChatMessage): string | Array<Record<string, unknown>> {
+    const imageAttachments = (msg.metadata?.attachments ?? []).filter(
+      (a): a is { type: 'image'; storageKey: string; mimeType: string; filename?: string } =>
+        (a as { type?: string }).type === 'image',
+    );
+    if (msg.role === 'user' && imageAttachments.length > 0) {
+      return this.buildUserContent(msg.content, imageAttachments);
+    }
+    return msg.content;
+  }
+
+  /**
+   * Walk the just-built messages array and replace any synchronous
+   * `humanly-storage:KEY` image placeholders with real `data:` URLs
+   * fetched from the file-storage adapter. Runs once per turn, after the
+   * messages array is assembled and before the provider call. Errors
+   * surface as a 502 so the upload pipeline can be diagnosed.
+   */
+  private static async inlineImageAttachments(
+    messages: Array<{ role: string; content: any }>,
+    userId: string,
+  ): Promise<void> {
+    for (const msg of messages) {
+      if (!Array.isArray(msg.content)) continue;
+      for (const part of msg.content) {
+        if (
+          part &&
+          typeof part === 'object' &&
+          (part as any).type === 'image_url' &&
+          typeof (part as any).image_url?.url === 'string' &&
+          (part as any).image_url.url.startsWith('humanly-storage:')
+        ) {
+          const storageKey = (part as any).image_url.url.slice('humanly-storage:'.length);
+          const mimeType = (part as any).image_url.mimeType || 'image/png';
+          // Ownership check (#93 security follow-up): refuse cross-user
+          // use of a storageKey before touching the storage adapter.
+          const owned = await AIChatAttachmentModel.isOwnedBy(storageKey, userId);
+          if (!owned) {
+            throw new AppError(
+              403,
+              'Image attachment does not belong to this user',
+            );
+          }
+          try {
+            const buffer = await FileStorageService.getBuffer(storageKey);
+            const base64 = buffer.toString('base64');
+            (part as any).image_url.url = `data:${mimeType};base64,${base64}`;
+            // Strip our internal placeholder fields before dispatch.
+            delete (part as any).image_url.mimeType;
+            delete (part as any).image_url.filename;
+          } catch (error) {
+            if (error instanceof AppError) throw error;
+            throw new AppError(
+              502,
+              'Failed to load chat image attachment from storage',
+            );
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Build the OpenAI-compatible message content for a user turn. With no
+   * attachments this stays a plain string (existing wire shape). With image
+   * attachments it becomes the structured `[ {type:'text'}, {type:'image_url'} ]`
+   * array OpenAI / Together / OpenRouter all accept. Image bytes are looked
+   * up from the file-storage adapter and inlined as `data:` URLs so the
+   * provider call is self-contained.
+   */
+  private static buildUserContent(
+    message: string,
+    attachments?: ChatAttachment[],
+  ): string | Array<Record<string, unknown>> {
+    if (!attachments || attachments.length === 0) {
+      return message;
+    }
+    const parts: Array<Record<string, unknown>> = [];
+    if (message && message.length > 0) {
+      parts.push({ type: 'text', text: message });
+    }
+    for (const attachment of attachments) {
+      if (attachment.type === 'image') {
+        // Fresh objects per call so `inlineImageAttachments` mutations
+        // never bleed back into the persisted `metadata.attachments`
+        // entries the user message row holds. The provider layer treats
+        // the placeholder URL as opaque; the data: URL swap happens just
+        // before dispatch.
+        parts.push({
+          type: 'image_url',
+          image_url: {
+            url: `humanly-storage:${attachment.storageKey}`,
+            mimeType: attachment.mimeType,
+            filename: attachment.filename ?? null,
+          },
+        });
+      }
+    }
+    return parts;
+  }
+
+  /**
    * Identity-tolerant check for the typed FK violation. Jest auto-mocks
    * replace the constructor identity in unit tests, so we also accept the
    * `.name` string as a fallback.
@@ -1824,10 +1948,15 @@ export class AIService {
    * found" error. This keeps chat usable across stale-session retries and
    * prevents the downstream `addMessage` insert from triggering the
    * `ai_chat_messages_session_id_fkey` FK violation that surfaced in issue #90.
+   *
+   * The optional `modelSnapshot` is persisted on the session row on first
+   * creation so capability gating (#93) can later detect a mid-session
+   * model switch that drops a modality already used in the conversation.
    */
   private static async resolveChatSession(
     userId: string,
     request: AIChatRequest,
+    modelSnapshot?: { modelVersion: string; capabilities: ModelCapabilities },
   ): Promise<AIChatSession> {
     if (request.sessionId) {
       const existing = await AIModel.findSessionById(request.sessionId);
@@ -1840,11 +1969,66 @@ export class AIService {
       });
     }
 
-    const created = await AIModel.getOrCreateSession(request.documentId, userId);
+    const created = await AIModel.getOrCreateSession(
+      request.documentId,
+      userId,
+      modelSnapshot,
+    );
     if (!created) {
       throw new AppError(500, 'Failed to create AI chat session');
     }
     return created;
+  }
+
+  /**
+   * Capability-gating helper (#93). Compares the resolved-for-this-turn
+   * model against:
+   *   1. The incoming request's `attachments` (rejects IMAGE_NOT_SUPPORTED
+   *      when the model is text-only).
+   *   2. The session's prior history (rejects MODEL_CAPABILITY_MISMATCH
+   *      when the new model drops a modality the user already used).
+   *
+   * Throws an AppError with a stable code on either failure so the
+   * websocket layer can route the precise message back to the chat UI.
+   */
+  private static enforceCapabilityGating(args: {
+    session: AIChatSession;
+    request: AIChatRequest;
+    baseUrl: string;
+    modelVersion: string;
+  }): void {
+    const { session, request, baseUrl, modelVersion } = args;
+    const capabilities = resolveCapabilitiesOrSafeDefault(baseUrl, modelVersion);
+    const supportsImage = capabilities.inputs.includes('image');
+    const requestHasImage = (request.attachments ?? []).some(
+      (a) => a.type === 'image',
+    );
+
+    if (requestHasImage && !supportsImage) {
+      const err = new AppError(
+        400,
+        `Model ${modelVersion} does not accept image input. Switch to a vision-capable model or remove the attachment.`,
+      );
+      (err as any).code = AI_ERROR_CODES.IMAGE_NOT_SUPPORTED;
+      throw err;
+    }
+
+    // History scan: if any prior assistant or user turn already carried an
+    // image attachment, we cannot route this turn to a text-only model
+    // without losing the conversational context.
+    if (!supportsImage) {
+      const historyHasImage = (session.messages ?? []).some((m) =>
+        (m.metadata?.attachments ?? []).some((a) => a.type === 'image'),
+      );
+      if (historyHasImage) {
+        const err = new AppError(
+          409,
+          'This conversation already includes image input. Start a new chat to switch to a text-only model.',
+        );
+        (err as any).code = AI_ERROR_CODES.MODEL_CAPABILITY_MISMATCH;
+        throw err;
+      }
+    }
   }
 
   /**
@@ -1862,8 +2046,30 @@ export class AIService {
       throw new AppError(404, 'Document not found');
     }
 
+    // Resolve provider + model first so the session can capture the
+    // capability snapshot at creation, and so capability gating runs
+    // before we touch the DB at all (#93).
+    const { provider: providerForChat, modelVersion: modelVersionForChat, baseUrl: baseUrlForChat } =
+      await this.getExecutionSettingsForDocument(userId, request.documentId);
+    const capabilitiesForChat = resolveCapabilitiesOrSafeDefault(
+      baseUrlForChat,
+      modelVersionForChat,
+    );
+
     // Get or create session (self-heals when the client sent a stale sessionId)
-    const session = await this.resolveChatSession(userId, request);
+    const session = await this.resolveChatSession(userId, request, {
+      modelVersion: modelVersionForChat,
+      capabilities: capabilitiesForChat,
+    });
+
+    // Capability gating: refuse IMAGE_NOT_SUPPORTED / MODEL_CAPABILITY_MISMATCH
+    // before any provider call.
+    this.enforceCapabilityGating({
+      session,
+      request,
+      baseUrl: baseUrlForChat,
+      modelVersion: modelVersionForChat,
+    });
 
     // Classify query type and category
     const queryType = classifyQueryType(request.message);
@@ -1881,9 +2087,15 @@ export class AIService {
     });
 
     try {
-      // Add user message to session
+      // Add user message to session, carrying attachment metadata when
+      // present so the conversation history scan in
+      // `enforceCapabilityGating` can detect prior images on later turns.
+      const userMetadata: Record<string, any> | undefined =
+        request.attachments && request.attachments.length > 0
+          ? { attachments: request.attachments }
+          : undefined;
       try {
-        await AIModel.addMessage(session.id, 'user', request.message);
+        await AIModel.addMessage(session.id, 'user', request.message, userMetadata);
       } catch (error) {
         if (AIService.isSessionMissingError(error)) {
           throw new AppError(
@@ -1894,25 +2106,40 @@ export class AIService {
         throw error;
       }
 
-      // Build conversation history
-      const messages: { role: string; content: string }[] = [
+      // Build conversation history. Content can be a plain string for
+      // text-only turns or an OpenAI-style content-parts array when the
+      // turn carries an image attachment (#93).
+      const messages: { role: string; content: any }[] = [
         { role: 'system', content: buildSystemPrompt(request.context) },
       ];
 
-      // Add previous messages (last 10 for context)
+      // Add previous messages (last 10 for context). User turns with image
+      // attachments stored on metadata.attachments must be rebuilt as
+      // multimodal content parts; otherwise turn-2+ silently drops the
+      // image the vision model already committed to in turn-1 (#93).
       const recentMessages = session.messages.slice(-10);
       for (const msg of recentMessages) {
-        messages.push({ role: msg.role, content: msg.content });
+        messages.push({
+          role: msg.role,
+          content: this.rebuildHistoryContent(msg),
+        });
       }
 
-      // Add current message
-      messages.push({ role: 'user', content: request.message });
+      // Add current message (multimodal payload built below if attachments)
+      messages.push({
+        role: 'user',
+        content: this.buildUserContent(request.message, request.attachments),
+      });
 
-      // Get provider for this document. Task documents use task owner settings.
-      const { provider, modelVersion } = await this.getExecutionSettingsForDocument(userId, request.documentId);
+      // Use the provider + model we already resolved before the gating check.
+      const provider = providerForChat;
+      const modelVersion = modelVersionForChat;
+
+      // Inline any image attachments as data: URLs just before dispatch.
+      await this.inlineImageAttachments(messages as any, userId);
 
       // Get AI response
-      const response = await provider.agentChat(messages, {
+      const response = await provider.agentChat(messages as any, {
         userId,
         documentId: request.documentId,
       });
@@ -2003,8 +2230,25 @@ export class AIService {
         throw new AppError(404, 'Document not found');
       }
 
+      // Resolve provider + model first so the session snapshot can be
+      // captured at creation and capability gating (#93) runs before any
+      // DB writes or provider calls.
+      const { provider, modelVersion, baseUrl } =
+        await this.getExecutionSettingsForDocument(userId, request.documentId);
+      const capabilities = resolveCapabilitiesOrSafeDefault(baseUrl, modelVersion);
+
       // Get or create session (self-heals when client sent a stale sessionId)
-      const session = await this.resolveChatSession(userId, request);
+      const session = await this.resolveChatSession(userId, request, {
+        modelVersion,
+        capabilities,
+      });
+
+      this.enforceCapabilityGating({
+        session,
+        request,
+        baseUrl,
+        modelVersion,
+      });
 
       // Classify query type and category
       const queryType = classifyQueryType(request.message);
@@ -2021,9 +2265,15 @@ export class AIService {
         contextSnapshot: request.context,
       });
 
-      // Add user message to session
+      // Add user message to session, carrying attachment metadata when
+      // present so the history scan in `enforceCapabilityGating` can detect
+      // prior image attachments on subsequent turns.
+      const userMetadata: Record<string, any> | undefined =
+        request.attachments && request.attachments.length > 0
+          ? { attachments: request.attachments }
+          : undefined;
       try {
-        await AIModel.addMessage(session.id, 'user', request.message);
+        await AIModel.addMessage(session.id, 'user', request.message, userMetadata);
       } catch (error) {
         if (AIService.isSessionMissingError(error)) {
           throw new AppError(
@@ -2035,21 +2285,29 @@ export class AIService {
       }
 
       // Build conversation history
-      const messages: { role: string; content: string }[] = [
+      const messages: { role: string; content: any }[] = [
         { role: 'system', content: buildSystemPrompt(request.context) },
       ];
 
-      // Add previous messages (last 10 for context)
+      // Add previous messages (last 10 for context). User turns with
+      // image attachments are rebuilt as multimodal content parts so
+      // turn-2+ does not silently drop the image (#93).
       const recentMessages = session.messages.slice(-10);
       for (const msg of recentMessages) {
-        messages.push({ role: msg.role, content: msg.content });
+        messages.push({
+          role: msg.role,
+          content: this.rebuildHistoryContent(msg),
+        });
       }
 
-      // Add current message
-      messages.push({ role: 'user', content: request.message });
+      // Add current message (multimodal payload built below if attachments)
+      messages.push({
+        role: 'user',
+        content: this.buildUserContent(request.message, request.attachments),
+      });
 
-      // Get provider for this document. Task documents use task owner settings.
-      const { provider, modelVersion } = await this.getExecutionSettingsForDocument(userId, request.documentId);
+      // Inline image attachments to data: URLs just before dispatch.
+      await this.inlineImageAttachments(messages, userId);
 
       // Collect tool-call lifecycle off the AgentEvent stream so we can
       // persist the timeline on the assistant message metadata for later
@@ -2063,7 +2321,7 @@ export class AIService {
 
       // Use the retrieval-capable agent and stream the final response once any
       // needed retrieval tool calls have completed.
-      const response = await provider.agentStreamChat(messages, onChunk, {
+      const response = await provider.agentStreamChat(messages as any, onChunk, {
         userId,
         documentId: request.documentId,
         onAgentEvent: wrappedAgentEvent,

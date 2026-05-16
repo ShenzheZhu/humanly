@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { X, Send, Sparkles, Loader2, StopCircle, Trash2, History, ChevronDown, ChevronRight, Plus, CheckCircle, Settings, ChevronsUpDown } from 'lucide-react';
+import { X, Send, Sparkles, Loader2, StopCircle, Trash2, History, ChevronDown, ChevronRight, Plus, CheckCircle, Settings, ChevronsUpDown, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -13,7 +13,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { getWhitelist } from '@/lib/ai-models';
+import { getWhitelist, modelSupportsImage } from '@/lib/ai-models';
+import { uploadChatImage, validateChatImage } from '@/lib/ai-chat-attachments';
+import type { ChatImageAttachment } from '@humanly/shared';
 import { useAI, useAILogs } from '@/hooks/use-ai';
 import { useAIStore } from '@/stores/ai-store';
 import { usePDFTextStore } from '@/stores/pdf-text-store';
@@ -79,6 +81,13 @@ export function AIAssistantPanel({
   insertAtCursor,
 }: AIAssistantPanelProps) {
   const [input, setInput] = useState('');
+  // Pending image attachments staged in the input bar. Uploaded as soon as
+  // the user picks them so the websocket frame only carries a storageKey
+  // (#93). Cleared on send / cancel.
+  const [pendingAttachments, setPendingAttachments] = useState<ChatImageAttachment[]>([]);
+  const [attachmentUploading, setAttachmentUploading] = useState(false);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [historyPopoverOpen, setHistoryPopoverOpen] = useState(false);
   const [hasAISettings, setHasAISettings] = useState<boolean | null>(null); // null = loading
   const [currentModel, setCurrentModel] = useState('');
@@ -139,6 +148,24 @@ export function AIAssistantPanel({
 
   const handleModelChange = async (newModel: string) => {
     if (!newModel || newModel === currentModel) return;
+
+    // #93 mid-session switch guard. If the conversation already contains
+    // an image attachment and the new model is text-only, refuse the
+    // switch and tell the user to start a new chat. The backend would
+    // also catch this with MODEL_CAPABILITY_MISMATCH on the next send,
+    // but blocking client-side gives a clearer message and avoids the
+    // confusing "old model is still selected" state.
+    const newSupportsImage = modelSupportsImage(currentBaseUrl, newModel);
+    if (historyHasImage && !newSupportsImage) {
+      const ok = window.confirm(
+        `"${newModel}" doesn't accept image input, but this conversation already contains image attachments.\n\n` +
+        `Switching would break the conversation. Click OK to start a new chat with "${newModel}", or Cancel to keep the current model.`,
+      );
+      if (!ok) return;
+      // Start fresh so the new model never sees the orphan image history.
+      await startNewChat();
+    }
+
     setModelSwitching(true);
     try {
       await api.put('/ai/settings', {
@@ -216,9 +243,70 @@ export function AIAssistantPanel({
     }
   }, [quotedText]);
 
+  // Capability gating mirrors the backend matrix (#93). Disables the
+  // image picker and switch-blocking modal for unknown providers (which we
+  // safe-default to text-only) and for whitelisted text-only models.
+  const currentSupportsImage = useMemo(
+    () => modelSupportsImage(currentBaseUrl, currentModel),
+    [currentBaseUrl, currentModel],
+  );
+  // Used to detect mid-session model switches that would drop a modality
+  // already used in the conversation history (vision → text-only with
+  // images already attached).
+  const historyHasImage = useMemo(
+    () =>
+      messages.some((m) =>
+        (m.metadata?.attachments ?? []).some((a) => a.type === 'image'),
+      ),
+    [messages],
+  );
+
+  const handlePickAttachment = () => {
+    setAttachmentError(null);
+    fileInputRef.current?.click();
+  };
+
+  const handleAttachmentChosen = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    // Reset the input so picking the same file twice still fires `change`.
+    e.target.value = '';
+    if (!file) return;
+    const validation = validateChatImage(file);
+    if (!validation.ok) {
+      setAttachmentError(validation.reason);
+      return;
+    }
+    setAttachmentUploading(true);
+    setAttachmentError(null);
+    try {
+      const descriptor = await uploadChatImage(file);
+      setPendingAttachments((prev) => [...prev, descriptor]);
+    } catch (err: any) {
+      setAttachmentError(err?.message || 'Failed to upload image');
+    } finally {
+      setAttachmentUploading(false);
+    }
+  };
+
+  const handleRemoveAttachment = (storageKey: string) => {
+    setPendingAttachments((prev) => prev.filter((a) => a.storageKey !== storageKey));
+  };
+
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!input.trim() || isStreaming) return;
+    const hasText = Boolean(input.trim());
+    const hasAttachments = pendingAttachments.length > 0;
+    if ((!hasText && !hasAttachments) || isStreaming) return;
+
+    // Hard refuse if a text-only model is selected with images staged.
+    if (hasAttachments && !currentSupportsImage) {
+      setAttachmentError(
+        `Model "${currentModel}" doesn't accept image input. Switch to a vision-capable model or remove the attachment.`,
+      );
+      return;
+    }
 
     // Build context. Full document/PDF retrieval now happens server-side through
     // Server-side tool calls handle full document and PDF retrieval.
@@ -243,8 +331,14 @@ export function AIAssistantPanel({
       messageToSend = `Regarding this text:\n"${quotedText}"\n\n${messageToSend}`;
     }
 
-    sendMessage(messageToSend, Object.keys(context).length > 0 ? context : undefined);
+    sendMessage(
+      messageToSend,
+      Object.keys(context).length > 0 ? context : undefined,
+      pendingAttachments.length > 0 ? pendingAttachments : undefined,
+    );
     setInput('');
+    setPendingAttachments([]);
+    setAttachmentError(null);
     clearQuotedText();
   };
 
@@ -532,7 +626,12 @@ export function AIAssistantPanel({
                 className="w-full h-7 pl-2 pr-6 text-[11px] text-muted-foreground bg-muted/50 border border-border/50 rounded-md appearance-none cursor-pointer hover:bg-muted hover:text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 truncate"
               >
                 {availableModels.map((m) => (
-                  <option key={m} value={m}>{m}</option>
+                  <option key={m} value={m}>
+                    {/* HTML <option> can't render JSX badges, so the
+                        capability flag is shown as a trailing text marker.
+                        Vision-capable models get a small 🖼 marker (#93). */}
+                    {modelSupportsImage(currentBaseUrl, m) ? `${m} 🖼` : m}
+                  </option>
                 ))}
                 {/* If current model not in list, add it */}
                 {!availableModels.includes(currentModel) && (
@@ -542,6 +641,41 @@ export function AIAssistantPanel({
               <ChevronsUpDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
             </div>
             {modelSwitching && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />}
+          </div>
+        )}
+        {/* Pending image attachment chips (#93). Each chip is removable
+            before sending; image bytes are already uploaded by the time
+            they appear here. */}
+        {(pendingAttachments.length > 0 || attachmentError || attachmentUploading) && (
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            {pendingAttachments.map((a) => (
+              <div
+                key={a.storageKey}
+                className="flex items-center gap-1.5 rounded-md border border-border bg-muted px-2 py-1"
+              >
+                <ImageIcon className="h-3 w-3 text-muted-foreground" />
+                <span className="max-w-[180px] truncate" title={a.filename}>
+                  {a.filename ?? 'image'}
+                </span>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground"
+                  onClick={() => handleRemoveAttachment(a.storageKey)}
+                  aria-label="Remove attachment"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+            {attachmentUploading && (
+              <span className="text-muted-foreground inline-flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Uploading…
+              </span>
+            )}
+            {attachmentError && (
+              <span className="text-destructive">{attachmentError}</span>
+            )}
           </div>
         )}
         <form onSubmit={handleSubmit} className="flex gap-2 min-w-0">
@@ -557,6 +691,32 @@ export function AIAssistantPanel({
             />
           </div>
           <div className="flex flex-col gap-1.5 shrink-0">
+            {/* Hidden file input, triggered by the image picker button */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+              className="hidden"
+              onChange={handleAttachmentChosen}
+            />
+            {/* Native title attribute (not Tooltip primitive) so this works
+                inside test renders that omit the TooltipProvider wrap. */}
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-9 w-9 p-0"
+              disabled={!currentSupportsImage || isStreaming || attachmentUploading}
+              onClick={handlePickAttachment}
+              aria-label="Attach image"
+              title={
+                currentSupportsImage
+                  ? 'Attach image (png/jpeg/webp/gif, ≤10 MB)'
+                  : `"${currentModel || 'Current model'}" doesn't accept image input`
+              }
+            >
+              <ImageIcon className="h-4 w-4" />
+            </Button>
             {isStreaming ? (
               <Button
                 type="button"
@@ -572,7 +732,7 @@ export function AIAssistantPanel({
                 type="submit"
                 size="sm"
                 className="h-9 w-9 p-0"
-                disabled={!input.trim() || isLoading}
+                disabled={(!input.trim() && pendingAttachments.length === 0) || isLoading || attachmentUploading}
               >
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />

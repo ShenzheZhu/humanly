@@ -198,10 +198,45 @@ export async function handleAIMessage(
       return;
     }
 
-    if (!message || message.trim().length === 0) {
+    // Validate the websocket-supplied attachments shape before letting it
+    // reach the dispatch layer. Keeps a malicious client from passing
+    // 10k entries or a path-traversal storageKey (#93 security follow-up).
+    const MAX_ATTACHMENTS = 5;
+    const STORAGE_KEY_RE = /^[A-Za-z0-9._\-/]{1,512}$/;
+    const rawAttachments = Array.isArray(data.attachments) ? data.attachments : [];
+    if (rawAttachments.length > MAX_ATTACHMENTS) {
       socket.emit('ai:error', {
         sessionId: sessionId || '',
-        message: 'Message is required',
+        message: `At most ${MAX_ATTACHMENTS} attachments per turn`,
+        code: 'TOO_MANY_ATTACHMENTS',
+      });
+      return;
+    }
+    for (const att of rawAttachments) {
+      if (
+        !att ||
+        typeof att !== 'object' ||
+        (att as any).type !== 'image' ||
+        typeof (att as any).storageKey !== 'string' ||
+        !STORAGE_KEY_RE.test((att as any).storageKey) ||
+        typeof (att as any).mimeType !== 'string'
+      ) {
+        socket.emit('ai:error', {
+          sessionId: sessionId || '',
+          message: 'Malformed attachment payload',
+          code: 'INVALID_ATTACHMENT',
+        });
+        return;
+      }
+    }
+    const hasAttachments = rawAttachments.length > 0;
+
+    // An image-only turn (no text, ≥1 attachment) is a legitimate vision
+    // query (#93). Refuse only when both text and attachments are absent.
+    if ((!message || message.trim().length === 0) && !hasAttachments) {
+      socket.emit('ai:error', {
+        sessionId: sessionId || '',
+        message: 'Message or image attachment is required',
         code: 'MISSING_MESSAGE',
       });
       return;
@@ -370,6 +405,10 @@ export async function handleAIMessage(
         sessionId: session.id,
         message: message.trim(),
         context,
+        // Pass through image attachments uploaded via
+        // `POST /api/v1/ai/chat/attachments` so capability gating and the
+        // provider-side image inlining in AIService see them (#93).
+        attachments: data.attachments,
       },
       onTextChunk: (chunk: string) => {
         if (!streamState.cancelled) {

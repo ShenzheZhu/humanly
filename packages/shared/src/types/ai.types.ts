@@ -19,6 +19,73 @@ export type AIQueryType =
 export type AIChatRole = 'user' | 'assistant' | 'system';
 
 /**
+ * Input modalities a chat model can accept. Models may support text-only or
+ * text + image. The frontend reads `ModelCapabilities.inputs` to gate the
+ * image picker; the backend reads the same to validate inbound attachments
+ * before dispatching to the provider, and to compare a session's locked
+ * capability snapshot against the model picked for the current turn.
+ */
+export type AIInputModality = 'text' | 'image';
+
+/**
+ * Static capability descriptor for a chat model. Stored alongside the model
+ * id in the frontend whitelist and replicated by the backend so the
+ * websocket layer can validate without round-tripping to the frontend.
+ */
+export interface ModelCapabilities {
+  /** Input modalities the model accepts. `text` is always present. */
+  inputs: AIInputModality[];
+}
+
+/**
+ * Whitelist entry describing one supported chat model. Replaces the prior
+ * `string[]` whitelist so the picker UI can render capability badges and
+ * the backend can refuse `IMAGE_NOT_SUPPORTED` requests before dispatching
+ * to the provider.
+ */
+export interface AIModelDescriptor {
+  /** Raw model id passed to the provider (e.g. `gpt-4o`, `moonshotai/Kimi-K2.6`). */
+  id: string;
+  capabilities: ModelCapabilities;
+}
+
+/**
+ * Persisted reference to an image (or other binary) attachment carried by a
+ * chat message. The frontend uploads the bytes to the backend's file
+ * storage adapter first and only references `storageKey`; the chat payload
+ * never carries base64-inline image bytes so that the websocket frame and
+ * the `ai_chat_messages` rows stay small.
+ */
+export interface ChatImageAttachment {
+  type: 'image';
+  /** Opaque storage adapter key; backend resolves to a signed URL or local path. */
+  storageKey: string;
+  /** MIME type as reported by the browser at upload time. */
+  mimeType: string;
+  /** Optional original filename for display in the chat bubble. */
+  filename?: string;
+}
+
+export type ChatAttachment = ChatImageAttachment;
+
+/**
+ * Error codes surfaced over the websocket `ai:error` channel and HTTP 4xx
+ * responses when capability gating rejects a request. The frontend matches
+ * on these to render a precise user-facing message instead of the raw
+ * provider error.
+ */
+export const AI_ERROR_CODES = {
+  /** Attachments present on a request whose model does not accept images. */
+  IMAGE_NOT_SUPPORTED: 'IMAGE_NOT_SUPPORTED',
+  /**
+   * A mid-session model switch dropped a modality the conversation history
+   * has already used. Frontend must prompt the user to start a new session.
+   */
+  MODEL_CAPABILITY_MISMATCH: 'MODEL_CAPABILITY_MISMATCH',
+} as const;
+export type AIErrorCode = typeof AI_ERROR_CODES[keyof typeof AI_ERROR_CODES];
+
+/**
  * AI Chat Message
  */
 export interface AIChatMessage {
@@ -29,10 +96,13 @@ export interface AIChatMessage {
   metadata?: {
     logId?: string;
     suggestions?: AISuggestion[];
-    attachments?: {
-      type: 'selection' | 'document';
-      content: string;
-    }[];
+    attachments?: (
+      | {
+          type: 'selection' | 'document';
+          content: string;
+        }
+      | ChatImageAttachment
+    )[];
     /**
      * Persisted record of the agent's tool-call timeline for this assistant
      * turn. Populated by the backend's AgentToolCallCollector so reopening
@@ -55,6 +125,19 @@ export interface AIChatSession {
   createdAt: Date | string;
   updatedAt: Date | string;
   status: 'active' | 'closed';
+  /**
+   * Provider model id (e.g. `gpt-4o`, `moonshotai/Kimi-K2.6`) captured at
+   * session creation. Used by capability gating (#93) to detect mid-session
+   * model switches that drop a modality already used in the conversation
+   * history.
+   */
+  modelVersion?: string;
+  /**
+   * Static capability descriptor captured at session creation, so the
+   * websocket layer can validate inbound requests without re-resolving
+   * the per-document execution settings each turn.
+   */
+  modelCapabilities?: ModelCapabilities;
 }
 
 /**
@@ -159,6 +242,14 @@ export interface AIChatRequest {
   documentId: string;
   sessionId?: string;
   message: string;
+  /**
+   * Image attachments uploaded out-of-band via the file-storage adapter.
+   * The backend validates each attachment against the resolved model's
+   * `ModelCapabilities.inputs` before dispatching to the provider; a
+   * mismatch returns `IMAGE_NOT_SUPPORTED`. Empty / undefined arrays leave
+   * the call as a pure text turn (legacy behaviour preserved).
+   */
+  attachments?: ChatAttachment[];
   // When true, the backend skips session creation and interaction-log
   // persistence and streams the result over a `sessionId: 'silent'`
   // sentinel channel. Used by selection-menu quick actions where the user
