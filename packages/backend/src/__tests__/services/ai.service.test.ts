@@ -9,6 +9,16 @@ jest.mock('../../models/ai.model');
 jest.mock('../../models/document.model');
 jest.mock('../../models/task.model');
 jest.mock('../../models/user-ai-settings.model');
+jest.mock('../../services/file-storage.service', () => ({
+  FileStorageService: {
+    getBuffer: jest.fn(async () => Buffer.from('fake-image-bytes')),
+    store: jest.fn(async (_buf: Buffer, fileId: string) => ({
+      storageKey: `mock/${fileId}`,
+      storageProvider: 'local',
+      checksum: 'sha256:mock',
+    })),
+  },
+}));
 jest.mock('../../utils/logger', () => ({
   logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
@@ -573,7 +583,16 @@ describe('AIService.chat', () => {
     } as any);
 
     expect(MockAIModel.findSessionById).toHaveBeenCalledWith('stale-uuid');
-    expect(MockAIModel.getOrCreateSession).toHaveBeenCalledWith('doc-1', 'user-1');
+    // After #93, session creation also receives the resolved model snapshot
+    // so capability gating has a stable reference for later turns.
+    expect(MockAIModel.getOrCreateSession).toHaveBeenCalledWith(
+      'doc-1',
+      'user-1',
+      expect.objectContaining({
+        modelVersion: expect.any(String),
+        capabilities: expect.objectContaining({ inputs: expect.any(Array) }),
+      }),
+    );
     expect(result.sessionId).toBe('session-1');
   });
 
@@ -607,8 +626,120 @@ describe('AIService.chat', () => {
     await AIService.chat('user-1', request as any);
 
     const calls = MockAIModel.addMessage.mock.calls;
-    expect(calls[0]).toEqual(['session-1', 'user', 'Improve writing']);
+    expect(calls[0][0]).toBe('session-1');
+    expect(calls[0][1]).toBe('user');
+    expect(calls[0][2]).toBe('Improve writing');
     expect(calls[1][1]).toBe('assistant');
+  });
+
+  // ── Capability gating (#93) ─────────────────────────────────────────────
+  describe('capability gating', () => {
+    it('passes capability snapshot when creating a fresh session', async () => {
+      // gpt-4o is vision-capable on api.openai.com per the backend matrix.
+      MockUserAISettings.getByUserId.mockResolvedValue(
+        makeSettings({ model: 'gpt-4o', baseUrl: 'https://api.openai.com/v1' }),
+      );
+      MockAIModel.findSessionById.mockResolvedValue(null);
+      await AIService.chat('user-1', { ...request, sessionId: 'stale' } as any);
+      expect(MockAIModel.getOrCreateSession).toHaveBeenCalledWith(
+        'doc-1',
+        'user-1',
+        expect.objectContaining({
+          modelVersion: 'gpt-4o',
+          capabilities: expect.objectContaining({
+            inputs: expect.arrayContaining(['text', 'image']),
+          }),
+        }),
+      );
+    });
+
+    it('rejects IMAGE_NOT_SUPPORTED when text-only model receives image attachment', async () => {
+      MockUserAISettings.getByUserId.mockResolvedValue(
+        makeSettings({
+          // deepseek-chat on api.deepseek.com is text-only per the matrix.
+          model: 'deepseek-chat',
+          baseUrl: 'https://api.deepseek.com/v1',
+        }),
+      );
+      MockAIModel.getOrCreateSession.mockResolvedValue(makeSession());
+      const requestWithImage = {
+        ...request,
+        attachments: [
+          { type: 'image', storageKey: 'k', mimeType: 'image/png' },
+        ],
+      };
+      await expect(
+        AIService.chat('user-1', requestWithImage as any),
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        message: expect.stringContaining('does not accept image input'),
+      });
+    });
+
+    it('rejects MODEL_CAPABILITY_MISMATCH when switching to text-only model with image history', async () => {
+      MockUserAISettings.getByUserId.mockResolvedValue(
+        makeSettings({
+          model: 'deepseek-chat',
+          baseUrl: 'https://api.deepseek.com/v1',
+        }),
+      );
+      // Existing session has an image attachment in user history.
+      MockAIModel.findSessionById.mockResolvedValue(
+        makeSession({
+          messages: [
+            {
+              id: 'm0',
+              role: 'user',
+              content: 'see this',
+              timestamp: new Date(),
+              metadata: {
+                attachments: [
+                  { type: 'image', storageKey: 'k', mimeType: 'image/png' },
+                ],
+              },
+            },
+          ],
+        }),
+      );
+      await expect(
+        AIService.chat('user-1', { ...request, sessionId: 'session-1' } as any),
+      ).rejects.toMatchObject({
+        statusCode: 409,
+        message: expect.stringContaining('Start a new chat'),
+      });
+    });
+
+    it('lets a text-only request through on a text-only model', async () => {
+      MockUserAISettings.getByUserId.mockResolvedValue(
+        makeSettings({
+          model: 'deepseek-chat',
+          baseUrl: 'https://api.deepseek.com/v1',
+        }),
+      );
+      MockAIModel.getOrCreateSession.mockResolvedValue(makeSession());
+      await expect(
+        AIService.chat('user-1', request as any),
+      ).resolves.toMatchObject({ sessionId: 'session-1' });
+    });
+
+    it('lets an image request through on a vision-capable model', async () => {
+      MockUserAISettings.getByUserId.mockResolvedValue(
+        makeSettings({ model: 'gpt-4o', baseUrl: 'https://api.openai.com/v1' }),
+      );
+      MockAIModel.getOrCreateSession.mockResolvedValue(makeSession());
+      // FileStorageService.getBuffer is mocked indirectly via module mock below.
+      const requestWithImage = {
+        ...request,
+        attachments: [
+          { type: 'image', storageKey: 'k', mimeType: 'image/png' },
+        ],
+      };
+      // Should not throw IMAGE_NOT_SUPPORTED; provider mock returns the
+      // canned response.
+      await expect(
+        AIService.chat('user-1', requestWithImage as any),
+      ).resolves.toMatchObject({ sessionId: 'session-1' });
+    });
   });
 });
 

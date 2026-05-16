@@ -117,6 +117,19 @@ export interface AIChatSession {
   createdAt: Date | string;
   updatedAt: Date | string;
   status: 'active' | 'closed';
+  /**
+   * Provider model id (e.g. `gpt-4o`, `moonshotai/Kimi-K2.6`) captured at
+   * session creation. Used by capability gating (#93) to detect mid-session
+   * model switches that drop a modality already used in the conversation
+   * history.
+   */
+  modelVersion?: string;
+  /**
+   * Static capability descriptor captured at session creation, so the
+   * websocket layer can validate inbound requests without re-resolving
+   * the per-document execution settings each turn.
+   */
+  modelCapabilities?: ModelCapabilities;
 }
 
 /**

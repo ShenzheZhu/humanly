@@ -4,7 +4,64 @@ import { AIChatRequest, AILogQueryFilters, AIContentModification } from '@humanl
 import { AppError } from '../middleware/error-handler';
 import { AISelectionActionModel, AIActionType, AIDecision } from '../models/ai-selection-action.model';
 import { AIModel } from '../models/ai.model';
+import { FileStorageService } from '../services/file-storage.service';
 import { logger } from '../utils/logger';
+import { v4 as uuidv4 } from 'uuid';
+
+/**
+ * Allow-list of image MIME types accepted as chat attachments (#93).
+ * Kept narrow on purpose — vision models on Together / OpenAI / Anthropic
+ * all support these formats, and refusing exotic types at the upload edge
+ * keeps the rest of the pipeline simple.
+ */
+const ALLOWED_CHAT_IMAGE_MIME_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/webp',
+  'image/gif',
+]);
+
+/**
+ * POST /api/v1/ai/chat/attachments — upload a single chat image attachment.
+ *
+ * The chat panel uses this BEFORE sending the chat turn: it uploads the
+ * bytes, gets back `{ storageKey, mimeType }`, then passes that as an
+ * `attachments` entry on the websocket `ai:message` payload. The actual
+ * image inlining for the LLM happens server-side in AIService just before
+ * the provider call, so the websocket frame and the persisted message rows
+ * stay small.
+ */
+export async function uploadChatImageAttachment(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const userId = req.user?.userId;
+  if (!userId) {
+    throw new AppError(401, 'Unauthorized');
+  }
+  const file = (req as Request & { file?: Express.Multer.File }).file;
+  if (!file) {
+    throw new AppError(400, 'No file uploaded (use multipart field "image")');
+  }
+  if (!ALLOWED_CHAT_IMAGE_MIME_TYPES.has(file.mimetype)) {
+    throw new AppError(
+      400,
+      `Unsupported image type "${file.mimetype}". Allowed: png, jpeg, webp, gif.`,
+    );
+  }
+  // File storage adapter expects an opaque fileId; mint a UUID per upload.
+  const stored = await FileStorageService.store(file.buffer, `chat-image-${uuidv4()}`);
+  res.status(201).json({
+    success: true,
+    data: {
+      storageKey: stored.storageKey,
+      mimeType: file.mimetype,
+      filename: file.originalname,
+      size: file.size,
+    },
+  });
+}
 
 const AI_ACTION_QUERY_MAP: Record<AIActionType, { queryType: 'grammar_check' | 'rewrite'; label: string }> = {
   grammar: { queryType: 'grammar_check', label: 'Fix grammar' },

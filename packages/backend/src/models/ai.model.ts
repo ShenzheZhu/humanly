@@ -7,6 +7,7 @@ import {
   AIQueryType,
   AISuggestion,
   AIContentModification,
+  ModelCapabilities,
 } from '@humanly/shared';
 
 /**
@@ -17,6 +18,8 @@ interface AIChatSessionRow {
   document_id: string;
   user_id: string;
   status: 'active' | 'closed';
+  model_version: string | null;
+  model_capabilities: ModelCapabilities | Record<string, unknown> | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -63,9 +66,19 @@ function toAIChatSession(row: AIChatSessionRow): AIChatSession {
     userId: row.user_id,
     status: row.status,
     messages: [],
+    modelVersion: row.model_version ?? undefined,
+    modelCapabilities: isModelCapabilities(row.model_capabilities)
+      ? (row.model_capabilities as ModelCapabilities)
+      : undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function isModelCapabilities(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const inputs = (value as { inputs?: unknown }).inputs;
+  return Array.isArray(inputs);
 }
 
 /**
@@ -147,16 +160,27 @@ export class AIModel {
   // ============================================================================
 
   /**
-   * Create a new chat session
+   * Create a new chat session. The optional model snapshot is persisted on
+   * the session row so the websocket layer can detect mid-session model
+   * switches that drop a modality already used in the conversation (#93).
    */
-  static async createSession(documentId: string, userId: string): Promise<AIChatSession> {
+  static async createSession(
+    documentId: string,
+    userId: string,
+    modelSnapshot?: { modelVersion: string; capabilities: ModelCapabilities },
+  ): Promise<AIChatSession> {
     const sql = `
-      INSERT INTO ai_chat_sessions (document_id, user_id, status)
-      VALUES ($1, $2, 'active')
+      INSERT INTO ai_chat_sessions (document_id, user_id, status, model_version, model_capabilities)
+      VALUES ($1, $2, 'active', $3, $4)
       RETURNING *
     `;
 
-    const row = await queryOne<AIChatSessionRow>(sql, [documentId, userId]);
+    const row = await queryOne<AIChatSessionRow>(sql, [
+      documentId,
+      userId,
+      modelSnapshot?.modelVersion ?? null,
+      JSON.stringify(modelSnapshot?.capabilities ?? {}),
+    ]);
     if (!row) {
       throw new Error('Failed to create AI chat session');
     }
@@ -208,13 +232,19 @@ export class AIModel {
   }
 
   /**
-   * Get or create active session
+   * Get or create active session. When creating a new session and a model
+   * snapshot is supplied, the snapshot is persisted so capability gating
+   * (#93) has a stable reference for the rest of the conversation.
    */
-  static async getOrCreateSession(documentId: string, userId: string): Promise<AIChatSession> {
+  static async getOrCreateSession(
+    documentId: string,
+    userId: string,
+    modelSnapshot?: { modelVersion: string; capabilities: ModelCapabilities },
+  ): Promise<AIChatSession> {
     const existing = await this.findActiveSession(documentId, userId);
     if (existing) return existing;
 
-    return this.createSession(documentId, userId);
+    return this.createSession(documentId, userId, modelSnapshot);
   }
 
   /**

@@ -370,6 +370,10 @@ export async function handleAIMessage(
         sessionId: session.id,
         message: message.trim(),
         context,
+        // Pass through image attachments uploaded via
+        // `POST /api/v1/ai/chat/attachments` so capability gating and the
+        // provider-side image inlining in AIService see them (#93).
+        attachments: data.attachments,
       },
       onTextChunk: (chunk: string) => {
         if (!streamState.cancelled) {
