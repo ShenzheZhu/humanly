@@ -57,6 +57,8 @@ export async function uploadChatImageAttachment(
   // this storageKey (#93 security follow-up).
   await AIChatAttachmentModel.record({
     storageKey: stored.storageKey,
+    storageProvider: stored.storageProvider,
+    storageBucket: stored.storageBucket,
     userId,
     mimeType: file.mimetype,
     filename: file.originalname,

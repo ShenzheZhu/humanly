@@ -1898,19 +1898,24 @@ export class AIService {
           (part as any).image_url.url.startsWith('humanly-storage:')
         ) {
           const storageKey = (part as any).image_url.url.slice('humanly-storage:'.length);
-          const mimeType = (part as any).image_url.mimeType || 'image/png';
+          const requestedMimeType = (part as any).image_url.mimeType || 'image/png';
           // Ownership check (#93 security follow-up): refuse cross-user
           // use of a storageKey before touching the storage adapter.
-          const owned = await AIChatAttachmentModel.isOwnedBy(storageKey, userId);
-          if (!owned) {
+          const attachment = await AIChatAttachmentModel.findOwnedByStorageKey(storageKey, userId);
+          if (!attachment) {
             throw new AppError(
               403,
               'Image attachment does not belong to this user',
             );
           }
           try {
-            const buffer = await FileStorageService.getBuffer(storageKey);
+            const buffer = await FileStorageService.getBuffer({
+              storageProvider: attachment.storage_provider,
+              storageBucket: attachment.storage_bucket,
+              storageKey: attachment.storage_key,
+            });
             const base64 = buffer.toString('base64');
+            const mimeType = attachment.mime_type || requestedMimeType;
             (part as any).image_url.url = `data:${mimeType};base64,${base64}`;
             // Strip our internal placeholder fields before dispatch.
             delete (part as any).image_url.mimeType;
