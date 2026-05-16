@@ -97,8 +97,18 @@ interface AIState {
   openPanelWithQuote: (text: string) => void;
 
   // Chat actions
-  sendMessage: (documentId: string, message: string, context?: AIChatRequest['context']) => Promise<void>;
-  sendMessageViaSocket: (documentId: string, message: string, context?: AIChatRequest['context']) => void;
+  sendMessage: (
+    documentId: string,
+    message: string,
+    context?: AIChatRequest['context'],
+    attachments?: AIChatRequest['attachments'],
+  ) => Promise<void>;
+  sendMessageViaSocket: (
+    documentId: string,
+    message: string,
+    context?: AIChatRequest['context'],
+    attachments?: AIChatRequest['attachments'],
+  ) => void;
   // One-shot streaming for selection-menu quick actions. Resolves with the
   // final text once the silent stream completes. Does NOT touch session
   // state or the messages array; emits frames over the SILENT_SESSION_ID
@@ -174,7 +184,7 @@ export const useAIStore = create<AIState>()(
       openPanelWithQuote: (text) => set({ isPanelOpen: true, quotedText: text }),
 
       // Send message via REST API (non-streaming)
-      sendMessage: async (documentId, message, context) => {
+      sendMessage: async (documentId, message, context, attachments) => {
         const { currentSession } = get();
 
         set({ isLoading: true, error: null });
@@ -188,16 +198,19 @@ export const useAIStore = create<AIState>()(
             sessionId: currentSession?.id,
             message,
             context,
+            attachments,
           });
 
           const { sessionId, message: responseMessage, suggestions } = response.data;
 
-          // Update messages
+          // Update messages — carry attachments on the user echo so the
+          // chat bubble can render image previews on reload (#93).
           const userMessage: AIChatMessage = {
             id: `user-${Date.now()}`,
             role: 'user',
             content: message,
             timestamp: new Date(),
+            metadata: attachments && attachments.length > 0 ? { attachments } : undefined,
           };
 
           set((state) => ({
@@ -217,7 +230,7 @@ export const useAIStore = create<AIState>()(
       },
 
       // Send message via WebSocket (streaming)
-      sendMessageViaSocket: (documentId, message, context) => {
+      sendMessageViaSocket: (documentId, message, context, attachments) => {
         const { currentSession } = get();
 
         // Check if socket is connected before attempting to send
@@ -229,12 +242,14 @@ export const useAIStore = create<AIState>()(
           return;
         }
 
-        // Add user message immediately
+        // Add user message immediately. Attachments ride on metadata so
+        // the bubble can show an image thumbnail without re-fetching (#93).
         const userMessage: AIChatMessage = {
           id: `user-${Date.now()}`,
           role: 'user',
           content: message,
           timestamp: new Date(),
+          metadata: attachments && attachments.length > 0 ? { attachments } : undefined,
         };
 
         set((state) => ({
@@ -250,6 +265,7 @@ export const useAIStore = create<AIState>()(
           sessionId: currentSession?.id,
           message,
           context,
+          attachments,
         } as AIChatRequest);
       },
 
