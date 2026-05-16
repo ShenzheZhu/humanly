@@ -1,6 +1,6 @@
 # Agent Progress Tracker
 
-Last updated: 2026-05-15 (#86 DeepSeek DSML leak fix opened)
+Last updated: 2026-05-15 (#89 agent smoke pseudo-call checks opened)
 
 This document is the shared handoff surface for agents working on `humanly-code`.
 GitHub issues and pull requests remain the source of truth for canonical history;
@@ -45,7 +45,8 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 | #65 | Streaming/model-swap hardening + PDF search fixes | #66 | Merged & closed |
 | #70 | Reference-only `ls` / `grep` / `read` tool redesign | #71 | Merged & closed |
 | #73 | Two-PDF / four-model QA smoke + DeepSeek V4 Pro whitelist + 60 tool-call default | #74 | Merged & closed |
-| #85 | DeepSeek DSML pseudo tool-call leakage | #86 | Open |
+| #85 | DeepSeek DSML / JSON pseudo tool-call leakage | #86 | Merged & closed |
+| #88 | Sync agent smoke pseudo-call checks with DeepSeek hardening | #89 | Open |
 | — | LOCAL_DEV mock infra (`pnpm dev:mock`, bypass-login, docs) | #27 | Merged |
 
 ### Deferred backlog (Epic #4 checklist; reopen as standalone issues when ready)
@@ -63,12 +64,13 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 ## Open PRs
 
 - **#29** `feat/agentic-chat` → `main` — final integration merge for Epic #4. **Paused** because we are not merging to `main` yet; GitHub currently reports conflicts with `main`, which are expected to be handled only when main integration resumes.
-- **#86** `fix/85-deepseek-dsml-tool-leak` → `main` — hides DeepSeek DSML pseudo tool-call blocks before streaming them to the UI and updates the repair prompt to the current `ls` / `grep` / `read` tool surface.
+- **#89** `fix/88-sync-agent-smoke-pseudo-call-rules` → `main` — updates prompt wording and the real-LLM smoke validator so DSML / JSON pseudo tool-call leaks are caught by the harness too. CI is green.
 
 ## Open follow-up issues
 
 - **#63** Hide raw model reasoning and show realtime AI activity. Raw provider reasoning should not render as user-visible chain-of-thought; the UI should show status/activity like reading files, searching, and composing.
 - **#72** Store uploaded PDFs in Google Cloud Storage. Local Docker currently mounts `packages/backend/storage` into the backend container; production-grade storage still needs GCS.
+- **#87** Fix local backend/build:all TypeScript build failures. Tests are green, frontend builds pass, and Docker backend build emits despite TS errors, but local `pnpm build:backend` / `pnpm build:all` still fail under strict `tsc`.
 
 ## Open work outside Epic #4
 
@@ -85,7 +87,8 @@ Lightweight coordination docs, handoff notes, and tracker updates can skip issue
 - **#65 / #66** Model-switch quick-action fallback, PDF search stuck-on-first-pages behavior, and pseudo tool-call leakage were hardened.
 - **#70 / #71** AI retrieval surface was redesigned from document/paper-specific tools to reference-only unix-style primitives: `ls`, `grep`, and `read`, with adaptive strategy hints and a fallback ladder.
 - **#73 / #74** Two-PDF / four-model real-LLM manual QA smoke completed. Product change adds `deepseek-ai/DeepSeek-V4-Pro` to the curated Together list and raises the default `AI_AGENT_MAX_TOOL_CALLS` fallback from 20 to 60 while preserving env override support.
-- **#85 / #86** Open PR: DeepSeek V4 Pro DSML pseudo tool-call blocks like `<｜DSML｜tool_calls>...` are detected, withheld during streaming, and stripped from stored output; repair prompt now references `ls` / `grep` / `read`.
+- **#85 / #86** DeepSeek V4 Pro DSML pseudo tool-call blocks like `<｜DSML｜tool_calls>...` and visible JSON pseudo calls like `{"function":"ls","arguments":{}}` are detected, withheld during streaming, and stripped from stored output; repair prompt now references `ls` / `grep` / `read`.
+- **#88 / #89** Open PR: real-LLM smoke script now flags DSML and visible JSON pseudo-call leaks, matching the product hardening.
 
 ### Recently merged outside Epic #4
 
