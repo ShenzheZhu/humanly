@@ -52,17 +52,19 @@ export const MODEL_WHITELIST: Record<string, AIModelDescriptor[]> = {
     { id: 'mistralai/mistral-large', capabilities: TEXT_ONLY },
   ],
   'api.together.xyz': [
-    // Together: only the models whose model page explicitly lists "Vision"
-    // are flagged. Qwen3.5-397B-A17B's Together capability text omits
-    // Vision today, so we keep it text-only even though the upstream model
-    // is multimodal.
-    { id: 'Qwen/Qwen3.5-397B-A17B', capabilities: TEXT_ONLY },
-    { id: 'Qwen/Qwen3.5-9B', capabilities: TEXT_AND_IMAGE },
+    // Capability flags follow each endpoint's "Input modalities" line on
+    // its Together model card, not the family-level Together listing page
+    // (which can omit Vision even when the endpoint accepts image input).
+    // Qwen3.5-397B-A17B's endpoint advertises Text + Image.
+    { id: 'Qwen/Qwen3.5-397B-A17B', capabilities: TEXT_AND_IMAGE },
+    // Qwen3.6-Plus accepts image input, but its structured tool-call
+    // payload is unreliable on Together (see #47 hardening notes), so the
+    // agentic ls/grep/read loop is brittle on this model. Safe for pure
+    // image Q&A, not recommended for retrieval-driven chat.
+    { id: 'Qwen/Qwen3.6-Plus', capabilities: TEXT_AND_IMAGE },
     { id: 'moonshotai/Kimi-K2.6', capabilities: TEXT_AND_IMAGE },
     { id: 'deepseek-ai/DeepSeek-V4-Pro', capabilities: TEXT_ONLY },
     { id: 'zai-org/GLM-5', capabilities: TEXT_ONLY },
-    { id: 'meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8', capabilities: TEXT_AND_IMAGE },
-    { id: 'google/gemma-3-27b-it', capabilities: TEXT_AND_IMAGE },
   ],
 };
 

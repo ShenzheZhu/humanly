@@ -71,14 +71,10 @@ describe('vision capability matrix (locked per provider docs)', () => {
     textOnly('openrouter.ai', 'mistralai/mistral-large');
   });
 
-  it('Together: only models whose Together model page lists Vision are flagged', () => {
-    vision('api.together.xyz', 'Qwen/Qwen3.5-9B');
+  it('Together: flags vision per each endpoint\'s "Input modalities" line', () => {
+    vision('api.together.xyz', 'Qwen/Qwen3.5-397B-A17B');
+    vision('api.together.xyz', 'Qwen/Qwen3.6-Plus');
     vision('api.together.xyz', 'moonshotai/Kimi-K2.6');
-    vision('api.together.xyz', 'meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8');
-    vision('api.together.xyz', 'google/gemma-3-27b-it');
-    // 397B is multimodal upstream but Together's serverless endpoint has
-    // not exposed Vision for it as of issue #93 — keep text-only.
-    textOnly('api.together.xyz', 'Qwen/Qwen3.5-397B-A17B');
     textOnly('api.together.xyz', 'deepseek-ai/DeepSeek-V4-Pro');
     textOnly('api.together.xyz', 'zai-org/GLM-5');
   });
