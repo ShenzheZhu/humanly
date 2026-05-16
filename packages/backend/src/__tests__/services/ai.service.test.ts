@@ -65,7 +65,6 @@ import { AIModel } from '../../models/ai.model';
 import { DocumentModel } from '../../models/document.model';
 import { TaskModel } from '../../models/task.model';
 import { UserAISettingsModel } from '../../models/user-ai-settings.model';
-import { AppError } from '../../middleware/error-handler';
 
 const MockAIModel = AIModel as jest.Mocked<typeof AIModel>;
 const MockDocumentModel = DocumentModel as jest.Mocked<typeof DocumentModel>;
@@ -925,7 +924,7 @@ describe('AIService.chat', () => {
         image_bytes: Buffer.from('db-fallback-image'),
         created_at: new Date(),
       });
-      FileStorageService.getBuffer.mockRejectedValueOnce(new AppError(404, 'File not found'));
+      FileStorageService.getBuffer.mockRejectedValueOnce({ statusCode: 404, message: 'File not found' });
       MockUserAISettings.getByUserId.mockResolvedValue(
         makeSettings({ model: 'gpt-4o', baseUrl: 'https://api.openai.com/v1' }),
       );

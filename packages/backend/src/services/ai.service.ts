@@ -1917,9 +1917,13 @@ export class AIService {
                 storageKey: attachment.storage_key,
               });
             } catch (error) {
+              const storageError = error as { statusCode?: unknown; status?: unknown; message?: unknown };
+              const storageStatus = Number(storageError.statusCode ?? storageError.status);
+              const storageMessage = typeof storageError.message === 'string'
+                ? storageError.message
+                : '';
               if (
-                error instanceof AppError &&
-                error.statusCode === 404 &&
+                (storageStatus === 404 || storageMessage === 'File not found') &&
                 attachment.image_bytes
               ) {
                 buffer = attachment.image_bytes;
