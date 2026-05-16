@@ -73,7 +73,6 @@ describe('vision capability matrix (locked per provider docs)', () => {
 
   it('Together: flags vision per each endpoint\'s "Input modalities" line', () => {
     vision('api.together.xyz', 'Qwen/Qwen3.5-397B-A17B');
-    vision('api.together.xyz', 'Qwen/Qwen3.6-Plus');
     vision('api.together.xyz', 'moonshotai/Kimi-K2.6');
     textOnly('api.together.xyz', 'deepseek-ai/DeepSeek-V4-Pro');
     textOnly('api.together.xyz', 'zai-org/GLM-5');

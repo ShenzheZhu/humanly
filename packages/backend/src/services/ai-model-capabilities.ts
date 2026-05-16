@@ -54,7 +54,6 @@ const MATRIX: Record<string, Record<string, ModelCapabilities>> = {
   },
   'api.together.xyz': {
     'Qwen/Qwen3.5-397B-A17B': TEXT_AND_IMAGE,
-    'Qwen/Qwen3.6-Plus': TEXT_AND_IMAGE,
     'moonshotai/Kimi-K2.6': TEXT_AND_IMAGE,
     'deepseek-ai/DeepSeek-V4-Pro': TEXT_ONLY,
     'zai-org/GLM-5': TEXT_ONLY,

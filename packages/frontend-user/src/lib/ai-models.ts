@@ -57,11 +57,10 @@ export const MODEL_WHITELIST: Record<string, AIModelDescriptor[]> = {
     // (which can omit Vision even when the endpoint accepts image input).
     // Qwen3.5-397B-A17B's endpoint advertises Text + Image.
     { id: 'Qwen/Qwen3.5-397B-A17B', capabilities: TEXT_AND_IMAGE },
-    // Qwen3.6-Plus accepts image input, but its structured tool-call
-    // payload is unreliable on Together (see #47 hardening notes), so the
-    // agentic ls/grep/read loop is brittle on this model. Safe for pure
-    // image Q&A, not recommended for retrieval-driven chat.
-    { id: 'Qwen/Qwen3.6-Plus', capabilities: TEXT_AND_IMAGE },
+    // Qwen3.6-Plus was considered but dropped from the whitelist: its
+    // structured tool-call payload is unreliable on Together (see #47
+    // hardening notes), and the agent's ls/grep/read loop is brittle on
+    // this model even though it advertises vision input.
     { id: 'moonshotai/Kimi-K2.6', capabilities: TEXT_AND_IMAGE },
     { id: 'deepseek-ai/DeepSeek-V4-Pro', capabilities: TEXT_ONLY },
     { id: 'zai-org/GLM-5', capabilities: TEXT_ONLY },
