@@ -4,6 +4,7 @@ import { AIChatRequest, AILogQueryFilters, AIContentModification } from '@humanl
 import { AppError } from '../middleware/error-handler';
 import { AISelectionActionModel, AIActionType, AIDecision } from '../models/ai-selection-action.model';
 import { AIModel } from '../models/ai.model';
+import { AIChatAttachmentModel } from '../models/ai-chat-attachment.model';
 import { FileStorageService } from '../services/file-storage.service';
 import { logger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
@@ -52,6 +53,15 @@ export async function uploadChatImageAttachment(
   }
   // File storage adapter expects an opaque fileId; mint a UUID per upload.
   const stored = await FileStorageService.store(file.buffer, `chat-image-${uuidv4()}`);
+  // Persist ownership so later dispatches can refuse cross-user use of
+  // this storageKey (#93 security follow-up).
+  await AIChatAttachmentModel.record({
+    storageKey: stored.storageKey,
+    userId,
+    mimeType: file.mimetype,
+    filename: file.originalname,
+    sizeBytes: file.size,
+  });
   res.status(201).json({
     success: true,
     data: {
@@ -80,21 +90,25 @@ export async function sendChatMessage(req: Request, res: Response): Promise<void
     throw new AppError(401, 'Unauthorized');
   }
 
-  const { documentId, sessionId, message, context, silent } = req.body;
+  const { documentId, sessionId, message, context, silent, attachments } = req.body;
 
   if (!documentId) {
     throw new AppError(400, 'Document ID is required');
   }
 
-  if (!message || typeof message !== 'string' || message.trim().length === 0) {
-    throw new AppError(400, 'Message is required');
+  // Allow image-only turns: a vision query with no text is valid (#93).
+  const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
+  const messageStr = typeof message === 'string' ? message.trim() : '';
+  if (messageStr.length === 0 && !hasAttachments) {
+    throw new AppError(400, 'Message or image attachment is required');
   }
 
   const request: AIChatRequest = {
     documentId,
     sessionId,
-    message: message.trim(),
+    message: messageStr,
     context,
+    attachments: hasAttachments ? attachments : undefined,
   };
 
   // Silent mode: only get AI response without creating session/logs

@@ -9,6 +9,14 @@ jest.mock('../../models/ai.model');
 jest.mock('../../models/document.model');
 jest.mock('../../models/task.model');
 jest.mock('../../models/user-ai-settings.model');
+jest.mock('../../models/ai-chat-attachment.model', () => ({
+  AIChatAttachmentModel: {
+    record: jest.fn(async () => {}),
+    // Default: every storageKey is owned by the requesting user so the
+    // image-roundtrip case stays green. Individual cases can override.
+    isOwnedBy: jest.fn(async () => true),
+  },
+}));
 jest.mock('../../services/file-storage.service', () => ({
   FileStorageService: {
     getBuffer: jest.fn(async () => Buffer.from('fake-image-bytes')),
@@ -720,6 +728,27 @@ describe('AIService.chat', () => {
       await expect(
         AIService.chat('user-1', request as any),
       ).resolves.toMatchObject({ sessionId: 'session-1' });
+    });
+
+    it('rejects 403 when attachment storageKey is owned by another user', async () => {
+      const { AIChatAttachmentModel } = jest.requireMock('../../models/ai-chat-attachment.model');
+      AIChatAttachmentModel.isOwnedBy.mockResolvedValueOnce(false);
+      MockUserAISettings.getByUserId.mockResolvedValue(
+        makeSettings({ model: 'gpt-4o', baseUrl: 'https://api.openai.com/v1' }),
+      );
+      MockAIModel.getOrCreateSession.mockResolvedValue(makeSession());
+      const requestWithImage = {
+        ...request,
+        attachments: [
+          { type: 'image', storageKey: 'someone-elses-key', mimeType: 'image/png' },
+        ],
+      };
+      await expect(
+        AIService.chat('user-1', requestWithImage as any),
+      ).rejects.toMatchObject({
+        statusCode: 403,
+        message: expect.stringContaining('does not belong to this user'),
+      });
     });
 
     it('lets an image request through on a vision-capable model', async () => {

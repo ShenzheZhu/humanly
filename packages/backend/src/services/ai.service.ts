@@ -1,9 +1,7 @@
 import OpenAI from 'openai';
 import { AIModel, AIChatSessionMissingError } from '../models/ai.model';
-import {
-  resolveCapabilitiesOrSafeDefault,
-  modelSupportsImage,
-} from './ai-model-capabilities';
+import { AIChatAttachmentModel } from '../models/ai-chat-attachment.model';
+import { resolveCapabilitiesOrSafeDefault } from './ai-model-capabilities';
 import { DocumentModel } from '../models/document.model';
 import { TaskModel } from '../models/task.model';
 import { AIRetrievalService } from './ai-retrieval.service';
@@ -1753,6 +1751,26 @@ export class AIService {
   }
 
   /**
+   * Rebuild a persisted AIChatMessage into a provider-ready content value.
+   * Plain text content stays a string; messages whose metadata carries
+   * image attachments are turned back into the OpenAI-style content-parts
+   * array so multi-turn vision conversations preserve the image across
+   * subsequent assistant turns (#93). Non-user roles never carry image
+   * attachments today, so the helper still returns the plain content for
+   * them.
+   */
+  private static rebuildHistoryContent(msg: AIChatMessage): string | Array<Record<string, unknown>> {
+    const imageAttachments = (msg.metadata?.attachments ?? []).filter(
+      (a): a is { type: 'image'; storageKey: string; mimeType: string; filename?: string } =>
+        (a as { type?: string }).type === 'image',
+    );
+    if (msg.role === 'user' && imageAttachments.length > 0) {
+      return this.buildUserContent(msg.content, imageAttachments);
+    }
+    return msg.content;
+  }
+
+  /**
    * Walk the just-built messages array and replace any synchronous
    * `humanly-storage:KEY` image placeholders with real `data:` URLs
    * fetched from the file-storage adapter. Runs once per turn, after the
@@ -1761,6 +1779,7 @@ export class AIService {
    */
   private static async inlineImageAttachments(
     messages: Array<{ role: string; content: any }>,
+    userId: string,
   ): Promise<void> {
     for (const msg of messages) {
       if (!Array.isArray(msg.content)) continue;
@@ -1774,6 +1793,15 @@ export class AIService {
         ) {
           const storageKey = (part as any).image_url.url.slice('humanly-storage:'.length);
           const mimeType = (part as any).image_url.mimeType || 'image/png';
+          // Ownership check (#93 security follow-up): refuse cross-user
+          // use of a storageKey before touching the storage adapter.
+          const owned = await AIChatAttachmentModel.isOwnedBy(storageKey, userId);
+          if (!owned) {
+            throw new AppError(
+              403,
+              'Image attachment does not belong to this user',
+            );
+          }
           try {
             const buffer = await FileStorageService.getBuffer(storageKey);
             const base64 = buffer.toString('base64');
@@ -1782,6 +1810,7 @@ export class AIService {
             delete (part as any).image_url.mimeType;
             delete (part as any).image_url.filename;
           } catch (error) {
+            if (error instanceof AppError) throw error;
             throw new AppError(
               502,
               'Failed to load chat image attachment from storage',
@@ -1813,12 +1842,11 @@ export class AIService {
     }
     for (const attachment of attachments) {
       if (attachment.type === 'image') {
-        // The actual byte-fetch + data-URL build happens asynchronously in
-        // `resolveAttachmentDataUrl`; this synchronous builder only carries
-        // the storageKey + mimeType placeholder so the upstream code path
-        // remains synchronous-friendly. The provider layer treats unknown
-        // entries safely; the image bytes are inlined just before dispatch
-        // by `inlineImageAttachments`.
+        // Fresh objects per call so `inlineImageAttachments` mutations
+        // never bleed back into the persisted `metadata.attachments`
+        // entries the user message row holds. The provider layer treats
+        // the placeholder URL as opaque; the data: URL swap happens just
+        // before dispatch.
         parts.push({
           type: 'image_url',
           image_url: {
@@ -2012,15 +2040,23 @@ export class AIService {
         throw error;
       }
 
-      // Build conversation history
-      const messages: { role: string; content: string }[] = [
+      // Build conversation history. Content can be a plain string for
+      // text-only turns or an OpenAI-style content-parts array when the
+      // turn carries an image attachment (#93).
+      const messages: { role: string; content: any }[] = [
         { role: 'system', content: buildSystemPrompt(request.context) },
       ];
 
-      // Add previous messages (last 10 for context)
+      // Add previous messages (last 10 for context). User turns with image
+      // attachments stored on metadata.attachments must be rebuilt as
+      // multimodal content parts; otherwise turn-2+ silently drops the
+      // image the vision model already committed to in turn-1 (#93).
       const recentMessages = session.messages.slice(-10);
       for (const msg of recentMessages) {
-        messages.push({ role: msg.role, content: msg.content });
+        messages.push({
+          role: msg.role,
+          content: this.rebuildHistoryContent(msg),
+        });
       }
 
       // Add current message (multimodal payload built below if attachments)
@@ -2034,7 +2070,7 @@ export class AIService {
       const modelVersion = modelVersionForChat;
 
       // Inline any image attachments as data: URLs just before dispatch.
-      await this.inlineImageAttachments(messages as any);
+      await this.inlineImageAttachments(messages as any, userId);
 
       // Get AI response
       const response = await provider.agentChat(messages as any, {
@@ -2187,10 +2223,15 @@ export class AIService {
         { role: 'system', content: buildSystemPrompt(request.context) },
       ];
 
-      // Add previous messages (last 10 for context)
+      // Add previous messages (last 10 for context). User turns with
+      // image attachments are rebuilt as multimodal content parts so
+      // turn-2+ does not silently drop the image (#93).
       const recentMessages = session.messages.slice(-10);
       for (const msg of recentMessages) {
-        messages.push({ role: msg.role, content: msg.content });
+        messages.push({
+          role: msg.role,
+          content: this.rebuildHistoryContent(msg),
+        });
       }
 
       // Add current message (multimodal payload built below if attachments)
@@ -2200,7 +2241,7 @@ export class AIService {
       });
 
       // Inline image attachments to data: URLs just before dispatch.
-      await this.inlineImageAttachments(messages);
+      await this.inlineImageAttachments(messages, userId);
 
       // Use the retrieval-capable agent and stream the final response once any
       // needed retrieval tool calls have completed.
