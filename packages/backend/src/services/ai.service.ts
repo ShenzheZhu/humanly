@@ -1550,7 +1550,7 @@ OUTPUT RULES:
 - Answer concisely after you have enough evidence.
 - Cite by page when [page N] markers appeared in your tool results; otherwise cite by line.
 - When evidence is incomplete, say so explicitly and name what is missing.
-- Tool calls must be REAL structured function calls. Never write XML, pseudo-tags, or "<tool_call>..." prose in your visible answer.`;
+- Tool calls must be REAL structured function calls. Never write XML, DSML, JSON snippets like {"function":"ls","arguments":{}}, pseudo-tags, or prose tool calls in your visible answer.`;
 }
 
 /**

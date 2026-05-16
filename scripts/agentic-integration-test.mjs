@@ -386,7 +386,7 @@ FALLBACK LADDER — keep trying before answering "not found":
 
 OUTPUT:
 - Cite by [page N] when present, otherwise by line.
-- Tool calls must be REAL structured function calls. Never write XML / pseudo-tags / prose tool calls.`;
+- Tool calls must be REAL structured function calls. Never write XML, DSML, JSON snippets like {"function":"ls","arguments":{}}, pseudo-tags, or prose tool calls.`;
 
 function extractThinkingFromContent(content) {
   // Best-effort parse of inline reasoning blocks. Handles two patterns:
@@ -420,14 +420,14 @@ function shouldRepairEmptyToolCallResponse(finishReason, toolCalls) {
 
 function buildToolCallRepairPrompt() {
   return `Internal tool-call repair instruction:
-The previous model response ended with finish_reason="tool_calls" but did not include a valid tool_calls payload. Do not answer from memory.
+The previous model response attempted a tool call but did not include a valid structured tool_calls payload. Do not answer from memory.
 
 Retry by emitting exactly one or more valid tool calls using JSON arguments. The available tools are:
 - ls() — pass {} as arguments.
 - grep — pass {"file":"<id from ls>","pattern":"...","context_before":0,"context_after":0}.
 - read — pass {"file":"<id from ls>","offset":1,"limit":200}.
 
-Do not write XML, pseudo-tags, or prose tool calls.`;
+Do not write XML, DSML, JSON snippets like {"function":"ls","arguments":{}}, pseudo-tags, or prose tool calls.`;
 }
 
 async function runAgent(userPrompt, traceFile) {
@@ -627,7 +627,15 @@ function summarizeTrace(prompt, trace) {
 }
 
 function hasPseudoToolMarkup(text) {
-  return /<function=|<\/tool_call>|<parameter=|<\/function>/i.test(text || '');
+  const value = text || '';
+  return [
+    /<\s*tool_call\b/i,
+    /<\s*tool_use\b/i,
+    /<\s*function\s*=/i,
+    /<\s*parameter\s*=/i,
+    /<\s*(?:\uFF5C\s*)?DSML\s*[\uFF5C|]\s*tool_calls\b/i,
+    /\{\s*"(?:function|name)"\s*:\s*"(?:ls|grep|read)"\s*,\s*"arguments"\s*:/i,
+  ].some((pattern) => pattern.test(value));
 }
 
 function extractJsonObject(text) {
