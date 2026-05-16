@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { SelectionReplacementResult } from '@humanly/editor';
 import { Sparkles, Check, Wand2, BookOpen, Loader2, MessageSquare, AlertCircle, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api-client';
+import { useAIStore } from '@/stores/ai-store';
+import { QuickActionDiff } from './quick-action-diff';
 
 interface SelectionInfo {
   text: string;
@@ -29,11 +31,36 @@ interface AISelectionMenuProps {
   ) => void;
   onAskAI?: (selectedText: string) => void;
   taskManaged?: boolean;
+  // Lazy accessor for the document's current plain text. Used to compute
+  // a ±200 char window around the selection so the backend system prompt
+  // can instruct the model to preserve author voice.
+  getDocumentPlainText?: () => string;
+  documentTitle?: string;
+  // Wired by the host so keyboard shortcuts (Cmd+Shift+1/2/3/4) can fire
+  // the same action handlers as the dropdown clicks. The menu calls this
+  // on mount/unmount with a trigger callback, and the host stores it for
+  // its own keydown listener.
+  registerActionTrigger?: (trigger: ((type: ActionType) => void) | null) => void;
+}
+
+const SURROUNDING_PRE_MAX = 200;
+const SURROUNDING_POST_MAX = 200;
+
+/**
+ * Slice `before` / `after` windows around the selection offsets, capped at
+ * SURROUNDING_PRE_MAX / SURROUNDING_POST_MAX characters. Char-window v1;
+ * sentence/paragraph-aware clipping is deliberately out of scope here.
+ */
+function computeSurrounding(plainText: string, start: number, end: number) {
+  return {
+    before: plainText.slice(Math.max(0, start - SURROUNDING_PRE_MAX), start),
+    after: plainText.slice(end, end + SURROUNDING_POST_MAX),
+  };
 }
 
 export type ActionType = 'grammar' | 'improve' | 'simplify' | 'formal';
 
-interface SuggestionState {
+interface ReviewState {
   actionType: ActionType;
   actionLabel: string;
   originalText: string;
@@ -76,16 +103,26 @@ export function AISelectionMenu({
   onClose,
   replaceSelection,
   cancelAIAction,
+  undoLastAction,
   onActionApplied,
   onAskAI,
   taskManaged = false,
+  getDocumentPlainText,
+  documentTitle,
+  registerActionTrigger,
 }: AISelectionMenuProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingAction, setLoadingAction] = useState<ActionType | null>(null);
-  const [suggestionState, setSuggestionState] = useState<SuggestionState | null>(null);
+  const [reviewState, setReviewState] = useState<ReviewState | null>(null);
   const [hasAISettings, setHasAISettings] = useState<boolean | null>(null);
   const [showWarning, setShowWarning] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Latest handleAction is captured via a ref so the trigger we register
+  // with the host stays referentially stable across re-renders. Without
+  // this the host would have to thread a deps-changing callback through
+  // a keydown listener.
+  const handleActionRef = useRef<((action: typeof ACTIONS[number]) => Promise<void>) | null>(null);
 
   // Check if user has AI settings configured
   useEffect(() => {
@@ -119,7 +156,7 @@ export function AISelectionMenu({
     setIsLoading(true);
     setLoadingAction(action.type);
     setErrorMessage(null);
-    setSuggestionState({
+    setReviewState({
       actionType: action.type,
       actionLabel: action.label,
       originalText: selection.text,
@@ -127,33 +164,50 @@ export function AISelectionMenu({
       isStreaming: true,
     });
 
-    try {
-      const result = await api.post<{
-        success: boolean;
-        data: {
-          message: { id: string; role: string; content: string };
-        };
-      }>('/ai/chat', {
-        documentId,
-        message: `${action.prompt}\n\n"${selection.text}"`,
-        silent: true,
-        context: {
-          selectedText: selection.text,
-        },
-      }, {
-        timeout: 120000,
-      });
+    // Build the surrounding-context window if the host wired it in. Falls
+    // back to no context, in which case the backend prompt builder emits
+    // the base instruction without voice-preservation guidance.
+    const plainText = getDocumentPlainText?.();
+    const surroundingContext = plainText
+      ? {
+          ...computeSurrounding(plainText, selection.start, selection.end),
+          documentTitle: documentTitle ?? '',
+        }
+      : undefined;
 
-      const improvedText = (result.data?.message?.content || '').trim();
-      if (!improvedText) {
+    try {
+      const streamSilent = useAIStore.getState().streamSilent;
+      let buffer = '';
+      const finalText = await streamSilent(
+        documentId,
+        `${action.prompt}\n\n"${selection.text}"`,
+        {
+          selectedText: selection.text,
+          surroundingContext,
+        },
+        (chunk) => {
+          buffer += chunk;
+          setReviewState((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  suggestedText: buffer,
+                }
+              : prev,
+          );
+        },
+      );
+
+      const trimmed = (finalText || '').trim().replace(/^["']|["']$/g, '');
+      if (!trimmed) {
         throw new Error('AI response was empty');
       }
 
-      setSuggestionState({
+      setReviewState({
         actionType: action.type,
         actionLabel: action.label,
         originalText: selection.text,
-        suggestedText: improvedText.replace(/^["']|["']$/g, ''),
+        suggestedText: trimmed,
         logId: undefined,
         isStreaming: false,
       });
@@ -163,17 +217,36 @@ export function AISelectionMenu({
       console.error('AI action failed:', error);
       const msg = error?.response?.data?.error || error?.message || 'AI request failed';
       setErrorMessage(msg);
-      setSuggestionState(null);
+      setReviewState(null);
       cancelAIAction();
       setIsLoading(false);
       setLoadingAction(null);
     }
   };
 
-  const handleKeep = async () => {
-    if (!suggestionState) return;
+  // Keep the trigger ref pointing at the latest handleAction closure so the
+  // host's keyboard handler always invokes the freshest version (state for
+  // hasAISettings, isLoading, etc. read from the captured closure).
+  handleActionRef.current = handleAction;
 
-    const improvedText = suggestionState.suggestedText.trim();
+  // Register / unregister the keyboard trigger with the host on mount /
+  // unmount. The host (document page) calls the trigger when the user
+  // presses Cmd/Ctrl+Shift+1..4 while a selection is active.
+  useEffect(() => {
+    if (!registerActionTrigger) return;
+    const trigger = (type: ActionType) => {
+      const action = ACTIONS.find((a) => a.type === type);
+      if (!action) return;
+      handleActionRef.current?.(action);
+    };
+    registerActionTrigger(trigger);
+    return () => registerActionTrigger(null);
+  }, [registerActionTrigger]);
+
+  const handleKeep = async () => {
+    if (!reviewState) return;
+
+    const improvedText = reviewState.suggestedText.trim();
     if (!improvedText) {
       setErrorMessage('AI response was empty');
       return;
@@ -184,9 +257,9 @@ export function AISelectionMenu({
     // Track the action in event history (local tracking)
     if (onActionApplied) {
       onActionApplied(
-        suggestionState.actionType,
-        suggestionState.originalText,
-        suggestionState.suggestedText,
+        reviewState.actionType,
+        reviewState.originalText,
+        reviewState.suggestedText,
         replacementResult
       );
     }
@@ -195,44 +268,56 @@ export function AISelectionMenu({
     try {
       await api.post('/ai/selection-action', {
         documentId,
-        logId: suggestionState.logId,
-        actionType: suggestionState.actionType,
-        originalText: suggestionState.originalText,
-        suggestedText: suggestionState.suggestedText,
+        logId: reviewState.logId,
+        actionType: reviewState.actionType,
+        originalText: reviewState.originalText,
+        suggestedText: reviewState.suggestedText,
         decision: 'accepted',
       });
     } catch (error) {
       // Don't block the user flow if tracking fails
     }
 
-    setSuggestionState(null);
+    setReviewState(null);
     onClose();
   };
 
   const handleUndo = async () => {
-    if (!suggestionState) return;
+    if (!reviewState) return;
 
-    // Track rejection in the backend
-    try {
-      await api.post('/ai/selection-action', {
-        documentId,
-        logId: suggestionState.logId,
-        actionType: suggestionState.actionType,
-        originalText: suggestionState.originalText,
-        suggestedText: suggestionState.suggestedText,
-        decision: 'rejected',
-      });
-    } catch (error) {
-      // Don't block the user flow if tracking fails
+    const wasStreaming = !!reviewState.isStreaming;
+
+    if (wasStreaming) {
+      // Stop the in-flight silent stream on the server. cancelSilentStream
+      // emits ai:cancel against the SILENT_SESSION_ID sentinel; the backend
+      // handler stops generation. We skip the /ai/selection-action POST
+      // because no completed suggestion existed to accept or reject.
+      useAIStore.getState().cancelSilentStream();
+    } else {
+      // Track rejection of a completed suggestion in the backend
+      try {
+        await api.post('/ai/selection-action', {
+          documentId,
+          logId: reviewState.logId,
+          actionType: reviewState.actionType,
+          originalText: reviewState.originalText,
+          suggestedText: reviewState.suggestedText,
+          decision: 'rejected',
+        });
+      } catch (error) {
+        // Don't block the user flow if tracking fails
+      }
     }
 
-    setSuggestionState(null);
+    setReviewState(null);
+    setIsLoading(false);
+    setLoadingAction(null);
     cancelAIAction();
     onClose();
   };
 
-  // Suggestion mode: show compact Undo / Keep bar
-  if (suggestionState) {
+  // Review mode: show compact Undo / Keep bar
+  if (reviewState) {
     return (
       <div
         className={cn(
@@ -242,9 +327,9 @@ export function AISelectionMenu({
       >
         <div className="mb-2 flex items-center justify-between gap-3">
           <div className="text-xs font-medium text-foreground">
-            {suggestionState.actionLabel}
+            {reviewState.actionLabel}
           </div>
-          {suggestionState.isStreaming ? (
+          {reviewState.isStreaming ? (
             <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
               Generating...
@@ -252,7 +337,14 @@ export function AISelectionMenu({
           ) : null}
         </div>
         <div className="max-h-40 overflow-y-auto rounded-md bg-muted/40 p-2 text-xs whitespace-pre-wrap text-foreground">
-          {suggestionState.suggestedText || 'Waiting for AI response...'}
+          {reviewState.isStreaming
+            ? reviewState.suggestedText || 'Waiting for AI response...'
+            : (
+              <QuickActionDiff
+                before={reviewState.originalText}
+                after={reviewState.suggestedText}
+              />
+            )}
         </div>
         <div className="mt-3 flex items-center gap-2">
           <Button
@@ -262,13 +354,13 @@ export function AISelectionMenu({
             onClick={handleUndo}
           >
             <Undo2 className="h-3.5 w-3.5" />
-            {suggestionState.isStreaming ? 'Cancel' : 'Discard'}
+            {reviewState.isStreaming ? 'Cancel' : 'Discard'}
           </Button>
           <Button
             size="sm"
             className="h-8 px-3 text-xs font-medium gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
             onClick={handleKeep}
-            disabled={suggestionState.isStreaming || !suggestionState.suggestedText.trim()}
+            disabled={reviewState.isStreaming || !reviewState.suggestedText.trim()}
           >
             <Check className="h-3.5 w-3.5" />
             Apply

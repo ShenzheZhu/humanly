@@ -13,6 +13,7 @@ import {
   AIQueryType,
   AISuggestion,
   AIContentModification,
+  AgentEvent,
 } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
@@ -20,14 +21,260 @@ import { env } from '../config/env';
 import { UserAISettingsModel } from '../models/user-ai-settings.model';
 
 /**
+ * Optional callback that observes every step of the tool-calling loop.
+ * The WebSocket layer wraps this to push `ai:turn-start` / `ai:tool-call`
+ * / `ai:tool-result` / `ai:turn-end` frames out to the chat UI.
+ *
+ * Errors thrown by the sink are swallowed; observability must never break
+ * the agent loop.
+ */
+export type AgentEventSink = (event: AgentEvent) => void;
+
+function emitAgentEvent(sink: AgentEventSink | undefined, event: AgentEvent): void {
+  if (!sink) return;
+  try {
+    sink(event);
+  } catch (error) {
+    logger.warn('AgentEventSink threw; ignoring', { error, eventType: event.type });
+  }
+}
+
+const THINK_OPEN_TAG = '<think>';
+const THINK_CLOSE_TAG = '</think>';
+const IMPLICIT_THINKING_MAX_CHARS = 4096;
+const IMPLICIT_THINKING_MAX_CHUNKS = 24;
+
+export interface ThinkingSplit {
+  visible: string;
+  thinking: string;
+}
+
+/**
+ * Splits provider-exposed reasoning bytes away from visible answer text.
+ *
+ * Providers are not consistent here:
+ * - OpenAI-compatible reasoning models may stream `delta.reasoning_content`.
+ * - Qwen-style streams may put explicit `<think>...</think>` in content.
+ * - DeepSeek-R1 on Together can omit the opening tag and later close with
+ *   `</think>`. We hold a small likely-reasoning prefix until the close tag
+ *   arrives, then emit it as thinking instead of leaking it into chat text.
+ */
+export class ThinkingContentSplitter {
+  private inExplicitThinking = false;
+  private implicitBuffer = '';
+  private implicitChunks = 0;
+  private canStartImplicit = true;
+
+  push(content: string): ThinkingSplit {
+    if (!content) return { visible: '', thinking: '' };
+    return this.processContent(content);
+  }
+
+  pushReasoning(reasoning: string): ThinkingSplit {
+    return { visible: '', thinking: reasoning || '' };
+  }
+
+  flush(): ThinkingSplit {
+    if (!this.implicitBuffer) return { visible: '', thinking: '' };
+    const visible = this.implicitBuffer;
+    this.implicitBuffer = '';
+    this.canStartImplicit = false;
+    return { visible, thinking: '' };
+  }
+
+  private processContent(content: string): ThinkingSplit {
+    let source = this.implicitBuffer + content;
+    let visible = '';
+    let thinking = '';
+    this.implicitBuffer = '';
+
+    while (source.length > 0) {
+      if (this.inExplicitThinking) {
+        const closeIndex = source.indexOf(THINK_CLOSE_TAG);
+        if (closeIndex === -1) {
+          thinking += source;
+          source = '';
+        } else {
+          thinking += source.slice(0, closeIndex);
+          source = source.slice(closeIndex + THINK_CLOSE_TAG.length);
+          this.inExplicitThinking = false;
+          this.canStartImplicit = false;
+        }
+        continue;
+      }
+
+      const openIndex = source.indexOf(THINK_OPEN_TAG);
+      const closeIndex = source.indexOf(THINK_CLOSE_TAG);
+
+      if (closeIndex !== -1 && (openIndex === -1 || closeIndex < openIndex)) {
+        if (this.canStartImplicit) {
+          thinking += source.slice(0, closeIndex);
+          source = source.slice(closeIndex + THINK_CLOSE_TAG.length);
+          this.canStartImplicit = false;
+        } else {
+          visible += source.slice(0, closeIndex);
+          source = source.slice(closeIndex + THINK_CLOSE_TAG.length);
+        }
+        continue;
+      }
+
+      if (openIndex !== -1) {
+        visible += source.slice(0, openIndex);
+        source = source.slice(openIndex + THINK_OPEN_TAG.length);
+        this.inExplicitThinking = true;
+        continue;
+      }
+
+      if (this.shouldHoldForImplicitThinking(source)) {
+        this.implicitBuffer = source;
+        this.implicitChunks += 1;
+        if (
+          this.implicitBuffer.length > IMPLICIT_THINKING_MAX_CHARS ||
+          this.implicitChunks > IMPLICIT_THINKING_MAX_CHUNKS
+        ) {
+          visible += this.implicitBuffer;
+          this.implicitBuffer = '';
+          this.canStartImplicit = false;
+        }
+      } else {
+        visible += source;
+        this.canStartImplicit = false;
+      }
+      source = '';
+    }
+
+    return { visible, thinking };
+  }
+
+  private shouldHoldForImplicitThinking(source: string): boolean {
+    if (!this.canStartImplicit || this.implicitBuffer) return Boolean(this.implicitBuffer);
+    const trimmed = source.trimStart().toLowerCase();
+    if (!trimmed) return false;
+    return /^(we need|we should|i need|i should|okay|ok,|alright|let's|the user|need to|first,|hmm|let me|i'll|i will)/.test(trimmed);
+  }
+}
+
+function emitThinkingDelta(sink: AgentEventSink | undefined, text: string): void {
+  if (!text) return;
+  emitAgentEvent(sink, { type: 'thinking-delta', text });
+}
+
+function splitStaticThinking(content: string | null | undefined): ThinkingSplit {
+  const splitter = new ThinkingContentSplitter();
+  const first = splitter.push(content || '');
+  const flushed = splitter.flush();
+  return {
+    visible: first.visible + flushed.visible,
+    thinking: first.thinking + flushed.thinking,
+  };
+}
+
+export function shouldRepairEmptyToolCallResponse(completion: any): boolean {
+  const choice = completion?.choices?.[0];
+  const finishReason = choice?.finish_reason;
+  const toolCalls = choice?.message?.tool_calls;
+  return (finishReason === 'tool_calls' || finishReason === 'function_call')
+    && (!Array.isArray(toolCalls) || toolCalls.length === 0);
+}
+
+// Regexes for the common shapes of pseudo tool-call leaks observed in
+// production traces. Some models, when they fail to emit a structured
+// tool_calls payload, instead write the call as XML-ish prose in the
+// visible content. Detect any of:
+//   <tool_call> ... </tool_call>
+//   <function=name> ... </function>
+//   <parameter=foo>bar</parameter>
+//   <tool_use> ... </tool_use>
+// Anchors are loose on purpose so trailing whitespace / line breaks inside
+// the markup also match. The /s flag lets `.` cross newlines.
+const PSEUDO_TOOL_CALL_PATTERNS: RegExp[] = [
+  /<\s*tool_call\b[^>]*>[\s\S]*?<\s*\/\s*tool_call\s*>/gi,
+  /<\s*tool_use\b[^>]*>[\s\S]*?<\s*\/\s*tool_use\s*>/gi,
+  /<\s*function\s*=\s*[^>]*>[\s\S]*?<\s*\/\s*function\s*>/gi,
+  /<\s*parameter\s*=\s*[^>]*>[\s\S]*?<\s*\/\s*parameter\s*>/gi,
+];
+
+/** True if `text` contains any prose-encoded tool-call markup. */
+export function containsPseudoToolCall(text: string | null | undefined): boolean {
+  if (!text) return false;
+  return PSEUDO_TOOL_CALL_PATTERNS.some((re) => {
+    re.lastIndex = 0;
+    return re.test(text);
+  });
+}
+
+/**
+ * Strip prose-encoded tool-call markup from a visible-text buffer so the
+ * user never sees `<tool_call>...</tool_call>` in the chat. We always retry
+ * the call on the agent loop side so the dropped markup is replaced with a
+ * real structured call result, not silence.
+ */
+export function stripPseudoToolCallMarkup(text: string | null | undefined): string {
+  if (!text) return '';
+  let cleaned = text;
+  for (const re of PSEUDO_TOOL_CALL_PATTERNS) {
+    cleaned = cleaned.replace(re, '');
+  }
+  return cleaned.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+export function buildToolCallRepairPrompt(documentId: string): string {
+  return `Internal tool-call repair instruction:
+The previous model response ended with finish_reason="tool_calls" but did not include a valid tool_calls payload. Do not answer from memory.
+
+Retry by emitting exactly one or more valid tool calls using JSON arguments.
+- Current documentId is "${documentId}".
+- For current document text: call getDocumentText with {"documentId":"${documentId}"} or searchDocument with {"documentId":"${documentId}","query":"...","limit":10}.
+- For linked PDFs: first call listLinkedPapers with {"documentId":"${documentId}"}. Then call getPaperContent with one valid mode:
+  - search: {"paperId":"<id from listLinkedPapers>","mode":"search","query":"...","limit":10}
+  - page: {"paperId":"<id from listLinkedPapers>","mode":"page","pageNumber":1}
+  - section: {"paperId":"<id from listLinkedPapers>","mode":"section","sectionTitle":"..."}
+Do not write XML, pseudo-tags, or prose tool calls.`;
+}
+
+export function buildFinalAnswerSynthesisPrompt(reason: string): string {
+  return `Internal final-answer instruction:
+Retrieval is stopping now because ${reason}. Do not call any more tools.
+
+Use only the conversation and tool results already available above. Produce the best possible user-facing answer:
+- answer the user's original question when the gathered evidence is enough;
+- cite page numbers or document sources when they appear in the tool results;
+- explicitly say what evidence is missing or uncertain;
+- if no relevant evidence was found, say that clearly;
+- mention briefly that retrieval was cut short only if that affects confidence.
+
+Never return an empty answer.`;
+}
+
+function appendToolBudgetNotice(output: string, remainingToolCalls: number, maxToolCalls: number): string {
+  return [
+    output,
+    '',
+    `[Tool budget: ${remainingToolCalls} of ${maxToolCalls} tool calls remaining. If you have enough evidence to answer the user's question, stop calling tools and produce the final answer.]`,
+  ].join('\n');
+}
+
+function normalizeAgentMaxToolCalls(value: number | undefined): number {
+  if (!Number.isFinite(value) || !value) return 60;
+  return Math.max(1, Math.min(Math.floor(value), 100));
+}
+
+interface AgentChatOptions {
+  userId: string;
+  documentId: string;
+  maxTokens?: number;
+  disableThinking?: boolean;
+  onAgentEvent?: AgentEventSink;
+}
+
+/**
  * AI Provider interface for different AI backends
  */
 interface AIProvider {
-  agentChat(messages: { role: string; content: string }[], options: {
-    userId: string;
-    documentId: string;
-    maxTokens?: number;
-  }): Promise<{
+  agentChat(
+    messages: { role: string; content: string }[],
+    options: AgentChatOptions
+  ): Promise<{
     content: string;
     tokensUsed?: { input: number; output: number };
   }>;
@@ -35,11 +282,16 @@ interface AIProvider {
   agentStreamChat(
     messages: { role: string; content: string }[],
     onChunk: (chunk: string) => void,
-    options: {
-      userId: string;
-      documentId: string;
-      maxTokens?: number;
-    }
+    options: AgentChatOptions
+  ): Promise<{
+    content: string;
+    tokensUsed?: { input: number; output: number };
+  }>;
+
+  directStreamChat(
+    messages: { role: string; content: string }[],
+    onChunk: (chunk: string) => void,
+    options: AgentChatOptions
   ): Promise<{
     content: string;
     tokensUsed?: { input: number; output: number };
@@ -62,12 +314,14 @@ class OpenAIProvider implements AIProvider {
   private apiKey: string;
   private model: string;
   private baseUrl: string;
+  private maxToolCalls: number;
   private client: OpenAI;
 
-  constructor(config?: { apiKey: string; model: string; baseUrl: string }) {
+  constructor(config?: { apiKey: string; model: string; baseUrl: string; maxToolCalls?: number }) {
     this.apiKey = config?.apiKey || env.aiApiKey || '';
-    this.model = config?.model || env.aiModel || 'Qwen/Qwen3.5-9B';
+    this.model = config?.model || env.aiModel || 'Qwen/Qwen3.5-397B-A17B';
     this.baseUrl = config?.baseUrl || env.aiBaseUrl || 'https://api.together.xyz/v1';
+    this.maxToolCalls = normalizeAgentMaxToolCalls(config?.maxToolCalls ?? env.aiAgentMaxToolCalls);
     this.client = new OpenAI({
       apiKey: this.apiKey || 'missing-api-key',
       baseURL: this.baseUrl,
@@ -76,7 +330,7 @@ class OpenAIProvider implements AIProvider {
 
   async agentChat(
     messages: { role: string; content: string }[],
-    options: { userId: string; documentId: string; maxTokens?: number }
+    options: AgentChatOptions
   ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
     if (!this.apiKey) {
       throw new AppError(500, 'AI service not configured');
@@ -92,7 +346,10 @@ class OpenAIProvider implements AIProvider {
     }));
 
     let response: any;
-    for (let i = 0; i < 6; i++) {
+    let toolCallsUsed = 0;
+    let turnIndex = 0;
+    while (toolCallsUsed < this.maxToolCalls) {
+      emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex });
       try {
         response = await this.client.responses.create({
           model: this.model,
@@ -111,10 +368,13 @@ class OpenAIProvider implements AIProvider {
         logger.info('AI agent completed without additional tool calls', {
           userId: options.userId,
           documentId: options.documentId,
-          iteration: i + 1,
+          iteration: turnIndex + 1,
         });
+        const split = splitStaticThinking(response.output_text || '');
+        emitThinkingDelta(options.onAgentEvent, split.thinking);
+        emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
         return {
-          content: response.output_text || '',
+          content: split.visible.trim() || 'I could not produce a final answer from the available context.',
           tokensUsed: response.usage ? {
             input: response.usage.input_tokens,
             output: response.usage.output_tokens,
@@ -122,18 +382,50 @@ class OpenAIProvider implements AIProvider {
         };
       }
 
+      if (toolCallsUsed + toolCalls.length > this.maxToolCalls) {
+        logger.warn('AI Responses agent requested more tools than the remaining tool budget', {
+          userId: options.userId,
+          documentId: options.documentId,
+          iteration: turnIndex + 1,
+          requestedTools: toolCalls.length,
+          toolCallsUsed,
+          maxToolCalls: this.maxToolCalls,
+        });
+        emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
+        return this.finalizeResponsesCompletion(
+          input,
+          `the maximum of ${this.maxToolCalls} tool calls would be exceeded`,
+          options,
+          response
+        );
+      }
+
       logger.info('AI agent requested retrieval tools', {
         userId: options.userId,
         documentId: options.documentId,
-        iteration: i + 1,
+        iteration: turnIndex + 1,
         tools: toolCalls.map((toolCall: any) => toolCall.name),
       });
 
       input.push(...response.output);
       for (const toolCall of toolCalls) {
-        let output: string;
+        let args: Record<string, any> = {};
         try {
-          const args = JSON.parse(toolCall.arguments || '{}');
+          args = JSON.parse(toolCall.arguments || '{}');
+        } catch {
+          args = { _raw: toolCall.arguments };
+        }
+        emitAgentEvent(options.onAgentEvent, {
+          type: 'tool-call',
+          toolCallId: toolCall.call_id,
+          toolName: toolCall.name,
+          args,
+        });
+
+        const toolStartedAt = Date.now();
+        let output: string;
+        let isError = false;
+        try {
           output = await AIRetrievalService.executeTool(
             options.userId,
             options.documentId,
@@ -141,6 +433,7 @@ class OpenAIProvider implements AIProvider {
             args
           );
         } catch (error) {
+          isError = true;
           output = JSON.stringify({
             error: error instanceof Error ? error.message : 'Tool execution failed',
           });
@@ -153,27 +446,37 @@ class OpenAIProvider implements AIProvider {
           outputBytes: output.length,
         });
 
+        emitAgentEvent(options.onAgentEvent, {
+          type: 'tool-result',
+          toolCallId: toolCall.call_id,
+          result: output,
+          isError,
+          durationMs: Date.now() - toolStartedAt,
+        });
+
+        toolCallsUsed += 1;
         input.push({
           type: 'function_call_output',
           call_id: toolCall.call_id,
-          output,
+          output: appendToolBudgetNotice(output, this.maxToolCalls - toolCallsUsed, this.maxToolCalls),
         });
       }
+      emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
+      turnIndex += 1;
     }
 
-    return {
-      content: response?.output_text || 'I could not complete retrieval within the tool-call limit.',
-      tokensUsed: response?.usage ? {
-        input: response.usage.input_tokens,
-        output: response.usage.output_tokens,
-      } : undefined,
-    };
+    return this.finalizeResponsesCompletion(
+      input,
+      `the maximum of ${this.maxToolCalls} tool calls was reached`,
+      options,
+      response
+    );
   }
 
   async agentStreamChat(
     messages: { role: string; content: string }[],
     onChunk: (chunk: string) => void,
-    options: { userId: string; documentId: string; maxTokens?: number }
+    options: AgentChatOptions
   ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
     if (!this.apiKey) {
       throw new AppError(500, 'AI service not configured');
@@ -190,6 +493,19 @@ class OpenAIProvider implements AIProvider {
       onChunk(response.content);
     }
     return response;
+  }
+
+  async directStreamChat(
+    messages: { role: string; content: string }[],
+    onChunk: (chunk: string) => void,
+    options: AgentChatOptions
+  ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
+    if (!this.apiKey) {
+      throw new AppError(500, 'AI service not configured');
+    }
+
+    const content = await this.streamFinalChatCompletion(messages, onChunk, options);
+    return { content };
   }
 
   private buildChatCompletionMessages(
@@ -219,6 +535,47 @@ class OpenAIProvider implements AIProvider {
     ];
   }
 
+  private async finalizeResponsesCompletion(
+    input: any[],
+    reason: string,
+    options: AgentChatOptions,
+    previousResponse?: any
+  ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
+    logger.warn('AI Responses agent finalizing after retrieval budget guard', {
+      userId: options.userId,
+      documentId: options.documentId,
+      reason,
+    });
+
+    let response: any;
+    try {
+      response = await this.client.responses.create({
+        model: this.model,
+        input: [
+          ...input,
+          { role: 'user', content: buildFinalAnswerSynthesisPrompt(reason) },
+        ],
+        max_output_tokens: options.maxTokens || 2048,
+      });
+    } catch (error) {
+      this.handleSDKError(error);
+    }
+
+    const split = splitStaticThinking(response.output_text || '');
+    emitThinkingDelta(options.onAgentEvent, split.thinking);
+    const content = split.visible.trim()
+      || 'I reached the retrieval limit before the model produced a final answer, and I could not synthesize a reliable answer from the retrieved evidence.';
+    const usage = response.usage || previousResponse?.usage;
+
+    return {
+      content,
+      tokensUsed: usage ? {
+        input: usage.input_tokens,
+        output: usage.output_tokens,
+      } : undefined,
+    };
+  }
+
   private buildChatCompletionTools() {
     return AIRetrievalService.tools.map(tool => ({
       type: 'function' as const,
@@ -233,14 +590,18 @@ class OpenAIProvider implements AIProvider {
 
   private async agentChatCompletions(
     messages: { role: string; content: string }[],
-    options: { userId: string; documentId: string; maxTokens?: number }
+    options: AgentChatOptions
   ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
     const chatTools = this.buildChatCompletionTools();
     const chatMessages = this.buildChatCompletionMessages(messages, options.documentId);
 
     let lastUsage: { input: number; output: number } | undefined;
+    let emptyToolCallRepairAttempts = 0;
+    let toolCallsUsed = 0;
+    let turnIndex = 0;
 
-    for (let i = 0; i < 6; i++) {
+    while (toolCallsUsed < this.maxToolCalls) {
+      emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex });
       let completion: any;
       try {
         completion = await this.client.chat.completions.create({
@@ -260,34 +621,131 @@ class OpenAIProvider implements AIProvider {
       } : lastUsage;
 
       const assistantMessage = completion.choices?.[0]?.message || {};
+      emitThinkingDelta(options.onAgentEvent, assistantMessage.reasoning_content || assistantMessage.reasoning || '');
       const toolCalls = assistantMessage.tool_calls || [];
       if (toolCalls.length === 0) {
+        if (shouldRepairEmptyToolCallResponse(completion)) {
+          if (emptyToolCallRepairAttempts < 1) {
+            emptyToolCallRepairAttempts += 1;
+            logger.warn('AI agent received empty tool-call finish; retrying with repair instruction', {
+              userId: options.userId,
+              documentId: options.documentId,
+              iteration: turnIndex + 1,
+              transport: 'chat_completions',
+            });
+            emitThinkingDelta(options.onAgentEvent, 'Retrying retrieval because the provider returned an empty tool-call response.');
+            chatMessages.push({ role: 'user', content: buildToolCallRepairPrompt(options.documentId) });
+            emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
+            turnIndex += 1;
+            continue;
+          }
+
+          logger.warn('AI agent empty tool-call repair failed', {
+            userId: options.userId,
+            documentId: options.documentId,
+            iteration: turnIndex + 1,
+            transport: 'chat_completions',
+          });
+          emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
+          return {
+            content: 'I could not complete retrieval because the AI provider returned an invalid empty tool-call response.',
+            tokensUsed: lastUsage,
+          };
+        }
+
         logger.info('AI agent completed without additional tool calls', {
           userId: options.userId,
           documentId: options.documentId,
-          iteration: i + 1,
+          iteration: turnIndex + 1,
           transport: 'chat_completions',
         });
+        const split = splitStaticThinking(assistantMessage.content || '');
+        emitThinkingDelta(options.onAgentEvent, split.thinking);
+        let visible = split.visible;
+        if (containsPseudoToolCall(visible)) {
+          // Bug C: model tried to fake a tool call in prose instead of via
+          // the structured tool_calls payload. Strip the markup, then
+          // trigger ONE repair retry on the same loop using the existing
+          // empty-tool-call repair prompt — it already tells the model to
+          // emit structured calls and never write pseudo-tags.
+          logger.warn('AI agent stripped pseudo tool-call markup from non-stream final', {
+            userId: options.userId,
+            documentId: options.documentId,
+            iteration: turnIndex + 1,
+            transport: 'chat_completions',
+          });
+          if (emptyToolCallRepairAttempts < 1) {
+            emptyToolCallRepairAttempts += 1;
+            chatMessages.push({ role: 'user', content: buildToolCallRepairPrompt(options.documentId) });
+            emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
+            turnIndex += 1;
+            continue;
+          }
+          visible = stripPseudoToolCallMarkup(visible);
+        }
+        emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
         return {
-          content: assistantMessage.content || '',
+          content: visible.trim() || 'I could not produce a final answer from the available context.',
           tokensUsed: lastUsage,
         };
+      }
+
+      if (toolCallsUsed + toolCalls.length > this.maxToolCalls) {
+        logger.warn('AI agent requested more tools than the remaining tool budget', {
+          userId: options.userId,
+          documentId: options.documentId,
+          iteration: turnIndex + 1,
+          transport: 'chat_completions',
+          requestedTools: toolCalls.length,
+          toolCallsUsed,
+          maxToolCalls: this.maxToolCalls,
+        });
+        emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
+        return this.finalizeChatCompletion(
+          chatMessages,
+          `the maximum of ${this.maxToolCalls} tool calls would be exceeded`,
+          options,
+          lastUsage
+        );
       }
 
       logger.info('AI agent requested retrieval tools', {
         userId: options.userId,
         documentId: options.documentId,
-        iteration: i + 1,
+        iteration: turnIndex + 1,
         transport: 'chat_completions',
         tools: toolCalls.map((toolCall: any) => toolCall.function?.name),
       });
 
-      chatMessages.push(assistantMessage);
+      if (assistantMessage.content) {
+        const split = splitStaticThinking(assistantMessage.content);
+        emitThinkingDelta(options.onAgentEvent, split.thinking);
+        chatMessages.push({
+          ...assistantMessage,
+          content: split.visible || null,
+        });
+      } else {
+        chatMessages.push(assistantMessage);
+      }
       for (const toolCall of toolCalls) {
         const toolName = toolCall.function?.name;
-        let output: string;
+        let args: Record<string, any> = {};
         try {
-          const args = JSON.parse(toolCall.function?.arguments || '{}');
+          args = JSON.parse(toolCall.function?.arguments || '{}');
+        } catch {
+          args = { _raw: toolCall.function?.arguments };
+        }
+        emitAgentEvent(options.onAgentEvent, {
+          type: 'tool-call',
+          toolCallId: toolCall.id,
+          toolName,
+          args,
+        });
+
+        const toolStartedAt = Date.now();
+        let output: string;
+        let isError = false;
+        try {
           output = await AIRetrievalService.executeTool(
             options.userId,
             options.documentId,
@@ -295,6 +753,7 @@ class OpenAIProvider implements AIProvider {
             args
           );
         } catch (error) {
+          isError = true;
           output = JSON.stringify({
             error: error instanceof Error ? error.message : 'Tool execution failed',
           });
@@ -308,30 +767,47 @@ class OpenAIProvider implements AIProvider {
           outputBytes: output.length,
         });
 
+        emitAgentEvent(options.onAgentEvent, {
+          type: 'tool-result',
+          toolCallId: toolCall.id,
+          result: output,
+          isError,
+          durationMs: Date.now() - toolStartedAt,
+        });
+
+        toolCallsUsed += 1;
         chatMessages.push({
           role: 'tool',
           tool_call_id: toolCall.id,
-          content: output,
+          content: appendToolBudgetNotice(output, this.maxToolCalls - toolCallsUsed, this.maxToolCalls),
         });
       }
+      emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
+      turnIndex += 1;
     }
 
-    return {
-      content: 'I could not complete retrieval within the tool-call limit.',
-      tokensUsed: lastUsage,
-    };
+    return this.finalizeChatCompletion(
+      chatMessages,
+      `the maximum of ${this.maxToolCalls} tool calls was reached`,
+      options,
+      lastUsage
+    );
   }
 
   private async agentStreamChatCompletions(
     messages: { role: string; content: string }[],
     onChunk: (chunk: string) => void,
-    options: { userId: string; documentId: string; maxTokens?: number }
+    options: AgentChatOptions
   ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
     const chatTools = this.buildChatCompletionTools();
     const chatMessages = this.buildChatCompletionMessages(messages, options.documentId);
     let lastUsage: { input: number; output: number } | undefined;
+    let emptyToolCallRepairAttempts = 0;
+    let toolCallsUsed = 0;
+    let turnIndex = 0;
 
-    for (let i = 0; i < 6; i++) {
+    while (toolCallsUsed < this.maxToolCalls) {
+      emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex });
       let completion: any;
       try {
         completion = await this.client.chat.completions.create({
@@ -351,16 +827,80 @@ class OpenAIProvider implements AIProvider {
       } : lastUsage;
 
       const assistantMessage = completion.choices?.[0]?.message || {};
+      emitThinkingDelta(options.onAgentEvent, assistantMessage.reasoning_content || assistantMessage.reasoning || '');
       const toolCalls = assistantMessage.tool_calls || [];
       if (toolCalls.length === 0) {
+        if (shouldRepairEmptyToolCallResponse(completion)) {
+          if (emptyToolCallRepairAttempts < 1) {
+            emptyToolCallRepairAttempts += 1;
+            logger.warn('AI agent received empty tool-call finish; retrying with repair instruction', {
+              userId: options.userId,
+              documentId: options.documentId,
+              iteration: turnIndex + 1,
+              transport: 'chat_completions',
+            });
+            emitThinkingDelta(options.onAgentEvent, 'Retrying retrieval because the provider returned an empty tool-call response.');
+            chatMessages.push({ role: 'user', content: buildToolCallRepairPrompt(options.documentId) });
+            emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
+            turnIndex += 1;
+            continue;
+          }
+
+          logger.warn('AI agent empty tool-call repair failed', {
+            userId: options.userId,
+            documentId: options.documentId,
+            iteration: turnIndex + 1,
+            transport: 'chat_completions',
+          });
+          const fallback = 'I could not complete retrieval because the AI provider returned an invalid empty tool-call response.';
+          onChunk(fallback);
+          emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
+          return {
+            content: fallback,
+            tokensUsed: lastUsage,
+          };
+        }
+
         logger.info('AI agent final response streaming started', {
           userId: options.userId,
           documentId: options.documentId,
-          iteration: i + 1,
+          iteration: turnIndex + 1,
           transport: 'chat_completions',
         });
+        const finalContent = await this.streamFinalChatCompletion(chatMessages, onChunk, options);
+        emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
         return {
-          content: await this.streamFinalChatCompletion(chatMessages, onChunk, options),
+          content: finalContent,
+          tokensUsed: lastUsage,
+        };
+      }
+
+      if (toolCallsUsed + toolCalls.length > this.maxToolCalls) {
+        logger.warn('AI streaming agent requested more tools than the remaining tool budget', {
+          userId: options.userId,
+          documentId: options.documentId,
+          iteration: turnIndex + 1,
+          transport: 'chat_completions',
+          requestedTools: toolCalls.length,
+          toolCallsUsed,
+          maxToolCalls: this.maxToolCalls,
+        });
+        const finalContent = await this.streamFinalChatCompletion(
+          [
+            ...chatMessages,
+            {
+              role: 'user',
+              content: buildFinalAnswerSynthesisPrompt(
+                `the maximum of ${this.maxToolCalls} tool calls would be exceeded`
+              ),
+            },
+          ],
+          onChunk,
+          options
+        );
+        emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
+        return {
+          content: finalContent,
           tokensUsed: lastUsage,
         };
       }
@@ -368,17 +908,40 @@ class OpenAIProvider implements AIProvider {
       logger.info('AI agent requested retrieval tools', {
         userId: options.userId,
         documentId: options.documentId,
-        iteration: i + 1,
+        iteration: turnIndex + 1,
         transport: 'chat_completions',
         tools: toolCalls.map((toolCall: any) => toolCall.function?.name),
       });
 
-      chatMessages.push(assistantMessage);
+      if (assistantMessage.content) {
+        const split = splitStaticThinking(assistantMessage.content);
+        emitThinkingDelta(options.onAgentEvent, split.thinking);
+        chatMessages.push({
+          ...assistantMessage,
+          content: split.visible || null,
+        });
+      } else {
+        chatMessages.push(assistantMessage);
+      }
       for (const toolCall of toolCalls) {
         const toolName = toolCall.function?.name;
-        let output: string;
+        let args: Record<string, any> = {};
         try {
-          const args = JSON.parse(toolCall.function?.arguments || '{}');
+          args = JSON.parse(toolCall.function?.arguments || '{}');
+        } catch {
+          args = { _raw: toolCall.function?.arguments };
+        }
+        emitAgentEvent(options.onAgentEvent, {
+          type: 'tool-call',
+          toolCallId: toolCall.id,
+          toolName,
+          args,
+        });
+
+        const toolStartedAt = Date.now();
+        let output: string;
+        let isError = false;
+        try {
           output = await AIRetrievalService.executeTool(
             options.userId,
             options.documentId,
@@ -386,6 +949,7 @@ class OpenAIProvider implements AIProvider {
             args
           );
         } catch (error) {
+          isError = true;
           output = JSON.stringify({
             error: error instanceof Error ? error.message : 'Tool execution failed',
           });
@@ -399,16 +963,36 @@ class OpenAIProvider implements AIProvider {
           outputBytes: output.length,
         });
 
+        emitAgentEvent(options.onAgentEvent, {
+          type: 'tool-result',
+          toolCallId: toolCall.id,
+          result: output,
+          isError,
+          durationMs: Date.now() - toolStartedAt,
+        });
+
+        toolCallsUsed += 1;
         chatMessages.push({
           role: 'tool',
           tool_call_id: toolCall.id,
-          content: output,
+          content: appendToolBudgetNotice(output, this.maxToolCalls - toolCallsUsed, this.maxToolCalls),
         });
       }
+      emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex });
+      turnIndex += 1;
     }
 
-    const fallback = 'I could not complete retrieval within the tool-call limit.';
-    onChunk(fallback);
+    const fallback = await this.streamFinalChatCompletion(
+      [
+        ...chatMessages,
+        {
+          role: 'user',
+          content: buildFinalAnswerSynthesisPrompt(`the maximum of ${this.maxToolCalls} tool calls was reached`),
+        },
+      ],
+      onChunk,
+      options
+    );
     return {
       content: fallback,
       tokensUsed: lastUsage,
@@ -418,7 +1002,7 @@ class OpenAIProvider implements AIProvider {
   private async streamFinalChatCompletion(
     chatMessages: any[],
     onChunk: (chunk: string) => void,
-    options: { maxTokens?: number }
+    options: AgentChatOptions
   ): Promise<string> {
     let stream: any;
     try {
@@ -427,21 +1011,144 @@ class OpenAIProvider implements AIProvider {
         messages: chatMessages,
         stream: true,
         max_tokens: options.maxTokens || 2048,
+        ...(options.disableThinking && this.supportsChatTemplateThinkingToggle()
+          ? { chat_template_kwargs: { enable_thinking: false } }
+          : {}),
       } as any);
     } catch (error) {
       this.handleSDKError(error);
     }
 
     let fullContent = '';
+
+    // Bug A: quick-action / silent path must NOT run content through the
+    // thinking splitter. The splitter holds prefixes like "Let me / We need
+    // / I'll" for an implicit <think> close that never arrives on non-Qwen
+    // providers (Kimi / GLM / DeepSeek-V4), so the whole response was being
+    // held as "thinking" and visible streamed out as the empty-content
+    // fallback. disableThinking=true now means "stream raw text, do not
+    // capture reasoning, do not split". The provider kwarg above silences
+    // Qwen's own reasoning channel for free.
+    if (options.disableThinking) {
+      for await (const chunk of stream) {
+        const content = chunk.choices?.[0]?.delta?.content || '';
+        if (content) {
+          fullContent += content;
+          onChunk(content);
+        }
+      }
+      // Quick-action silent path: strip pseudo tool-call markup if the
+      // model emitted it. The selection-menu UI shows the result inside
+      // a small review card; we never want raw XML there.
+      if (containsPseudoToolCall(fullContent)) {
+        logger.warn('AI silent stream stripped pseudo tool-call markup from output', {
+          userId: options.userId,
+          documentId: options.documentId,
+        });
+        fullContent = stripPseudoToolCallMarkup(fullContent);
+      }
+      if (!fullContent.trim()) {
+        const fallback = 'I could not produce a final answer from the available context.';
+        fullContent = fallback;
+        onChunk(fallback);
+      }
+      return fullContent;
+    }
+
+    const thinkingSplitter = new ThinkingContentSplitter();
     for await (const chunk of stream) {
-      const content = chunk.choices?.[0]?.delta?.content || '';
+      const delta = chunk.choices?.[0]?.delta || {};
+      const reasoning = delta.reasoning_content || delta.reasoning || '';
+      emitThinkingDelta(options.onAgentEvent, reasoning);
+
+      const content = delta.content || '';
       if (content) {
-        fullContent += content;
-        onChunk(content);
+        const split = thinkingSplitter.push(content);
+        emitThinkingDelta(options.onAgentEvent, split.thinking);
+        if (split.visible) {
+          fullContent += split.visible;
+          onChunk(split.visible);
+        }
       }
     }
 
+    const flushed = thinkingSplitter.flush();
+    emitThinkingDelta(options.onAgentEvent, flushed.thinking);
+    if (flushed.visible) {
+      fullContent += flushed.visible;
+      onChunk(flushed.visible);
+    }
+
+    // Strip prose-encoded tool-call leaks from the final visible buffer.
+    // The streamed onChunk side may have briefly shown the XML to the
+    // user, but the returned value (which the agent loop uses to decide
+    // whether to retry, and which we store on the message log) is clean.
+    // The caller of streamFinalChatCompletion can compare the original
+    // length vs the cleaned length to know whether to trigger a repair.
+    if (containsPseudoToolCall(fullContent)) {
+      logger.warn('AI stream stripped pseudo tool-call markup from final visible content', {
+        userId: options.userId,
+        documentId: options.documentId,
+      });
+      fullContent = stripPseudoToolCallMarkup(fullContent);
+    }
+
+    if (!fullContent.trim()) {
+      const fallback = 'I could not produce a final answer from the available context.';
+      fullContent = fallback;
+      onChunk(fallback);
+    }
+
     return fullContent;
+  }
+
+  private supportsChatTemplateThinkingToggle(): boolean {
+    return this.baseUrl.includes('api.together.xyz') && this.model.startsWith('Qwen/');
+  }
+
+  private async finalizeChatCompletion(
+    chatMessages: any[],
+    reason: string,
+    options: AgentChatOptions,
+    lastUsage?: { input: number; output: number }
+  ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
+    logger.warn('AI agent finalizing after retrieval budget guard', {
+      userId: options.userId,
+      documentId: options.documentId,
+      reason,
+      transport: 'chat_completions',
+    });
+
+    let completion: any;
+    try {
+      completion = await this.client.chat.completions.create({
+        model: this.model,
+        messages: [
+          ...chatMessages,
+          { role: 'user', content: buildFinalAnswerSynthesisPrompt(reason) },
+        ],
+        max_tokens: options.maxTokens || 2048,
+      } as any);
+    } catch (error) {
+      this.handleSDKError(error);
+    }
+
+    const assistantMessage = completion.choices?.[0]?.message || {};
+    emitThinkingDelta(options.onAgentEvent, assistantMessage.reasoning_content || assistantMessage.reasoning || '');
+    const split = splitStaticThinking(assistantMessage.content || '');
+    emitThinkingDelta(options.onAgentEvent, split.thinking);
+
+    const content = split.visible.trim()
+      || 'I reached the retrieval limit before the model produced a final answer, and I could not synthesize a reliable answer from the retrieved evidence.';
+    const usage = completion.usage ? {
+      input: completion.usage.prompt_tokens,
+      output: completion.usage.completion_tokens,
+    } : lastUsage;
+
+    return {
+      content,
+      tokensUsed: usage,
+    };
   }
 
   private handleSDKError(error: unknown): never {
@@ -468,15 +1175,20 @@ class OpenAIProvider implements AIProvider {
  * Mock provider for development/testing
  */
 class MockAIProvider implements AIProvider {
-  async agentChat(messages: { role: string; content: string }[]): Promise<{
+  async agentChat(
+    messages: { role: string; content: string }[],
+    options: AgentChatOptions
+  ): Promise<{
     content: string;
     tokensUsed?: { input: number; output: number };
   }> {
     const lastMessage = messages[messages.length - 1];
     const mockResponse = this.generateMockResponse(lastMessage?.content || '');
 
+    emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex: 0 });
     // Simulate delay
     await new Promise(resolve => setTimeout(resolve, 500));
+    emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: 0 });
 
     return {
       content: mockResponse,
@@ -486,24 +1198,35 @@ class MockAIProvider implements AIProvider {
 
   async agentStreamChat(
     messages: { role: string; content: string }[],
-    onChunk: (chunk: string) => void
+    onChunk: (chunk: string) => void,
+    options: AgentChatOptions
   ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
     const lastMessage = messages[messages.length - 1];
     const mockResponse = this.generateMockResponse(lastMessage?.content || '');
     const words = mockResponse.split(' ');
     let fullContent = '';
 
+    emitAgentEvent(options.onAgentEvent, { type: 'turn-start', turnIndex: 0 });
     for (const word of words) {
       await new Promise(resolve => setTimeout(resolve, 50));
       const chunk = (fullContent ? ' ' : '') + word;
       fullContent += chunk;
       onChunk(chunk);
     }
+    emitAgentEvent(options.onAgentEvent, { type: 'turn-end', turnIndex: 0 });
 
     return {
       content: fullContent,
       tokensUsed: { input: 100, output: words.length },
     };
+  }
+
+  async directStreamChat(
+    messages: { role: string; content: string }[],
+    onChunk: (chunk: string) => void,
+    options: AgentChatOptions
+  ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
+    return this.agentStreamChat(messages, onChunk, options);
   }
 
   private generateMockResponse(query: string): string {
@@ -691,19 +1414,75 @@ Guidelines:
   return prompt;
 }
 
-function buildRetrievalInstructions(documentId: string): string {
-  return `You are an AI writing assistant integrated into a document editor with optional linked PDFs.
+export function buildRetrievalInstructions(_documentId: string): string {
+  return `You are an AI writing assistant. You answer questions about uploaded reference files using three primitives:
 
-Use the retrieval tools as your source of truth. Do not rely only on preloaded summaries, selected text, or prior chat context when the user asks about the document, writing process, or linked PDF.
+  ls()                                              — list files: [{ id, filename }]
+  grep(file, pattern, context_before?, context_after?) — case-insensitive substring search
+                                                       returns up to 50 matches in document order, each
+                                                       { line, page (nearest preceding [page N], or null),
+                                                         text, contextLines? }
+  read(file, offset?, limit?)                       — read a contiguous line range
+                                                       returns { lines, totalLines, hasPages, pageRange?, truncated? }
+                                                       offset 1-indexed (default 1); limit default 200, hard cap 800
 
-Routing:
-- For the current written document, inspect getDocumentPlainText first. Use searchDocumentText for targeted questions and getDocumentContent only when Lexical structure matters.
-- For writing process, revision behavior, paste behavior, cursor activity, or evidence of editing, inspect getDocumentEvents.
-- For uploaded PDFs, call getLinkedFiles first, then searchFileText, getFilePage, or getFileSection as needed.
-- If the answer requires multiple sources, call multiple tools and synthesize them.
+PRIVACY BOUNDARY (hard rule):
+You can only see files in ls(). You CANNOT read the user's editor draft, their current writing, selected text, or anything not in ls(). The schema does not even expose such a tool. If the user asks for editor content ("summarize my draft", "find a typo in what I wrote", "what's in my essay"), refuse honestly:
 
-Current scoped documentId: ${documentId}
-Answer concisely. Mention when available evidence is incomplete or a tool returns no relevant data.`;
+  "I can only read reference files you've uploaded. For your own writing, paste it into chat or use the selection-menu Quick Actions (Fix grammar / Improve / Simplify / Make formal)."
+
+STRATEGY HINTS — adapt to the file size and the question, do not follow a fixed workflow:
+- Always call ls() first if you have not yet seen what is attached. It is cheap and idempotent.
+- Small file (totalLines ≤ 200): one read({ file, offset: 1, limit: 200 }) usually beats grep.
+- Medium file (200–1000 lines): grep first to locate the right region, then read a targeted range around the hit.
+- Large file (>1000 lines): always grep first. Never read sequentially.
+- For PDFs, [page N] markers appear inline in the text — cite them when answering ("see page 21").
+- For late-document sections (conclusion / references / appendix on a long PDF), reading at high offset is often faster than guessing the right keyword.
+
+FALLBACK LADDER — when a tool returns nothing useful, KEEP TRYING before answering "not found":
+1. grep returned []? Try, in order:
+   a. A synonym or related term  ("conclusion" → "concluding remarks" → "summary" → "in summary")
+   b. A shorter substring         ("methodology" → "method")
+   c. A numbered-heading style    ("Conclusion" → "5. Conclusion" → "§5")
+   d. Direct read of the likely region (for late sections, read near the end of the file)
+2. read returned content that does not answer the question?
+   a. grep again with a better pattern based on what you saw
+   b. read an adjacent line range
+3. ls returned []? The user has not uploaded any references. Tell them so plainly. Do not pretend a file exists.
+4. A tool errored? Retry once with the same arguments. If it still errors, surface the error honestly.
+5. Only after 3-4 reasonable attempts have all failed, say:
+   "I could not find <topic> in <filename>. Could you point me at a specific page or term that mentions it?"
+   Never fabricate an answer to fill the gap.
+
+OUTPUT RULES:
+- Answer concisely after you have enough evidence.
+- Cite by page when [page N] markers appeared in your tool results; otherwise cite by line.
+- When evidence is incomplete, say so explicitly and name what is missing.
+- Tool calls must be REAL structured function calls. Never write XML, pseudo-tags, or "<tool_call>..." prose in your visible answer.`;
+}
+
+/**
+ * System prompt for the four selection-menu quick actions (fix grammar /
+ * improve writing / simplify / make formal). Differs from the chat system
+ * prompt: the model returns only the rewritten text, no commentary, and
+ * matches the author's voice using the surrounding-context window.
+ */
+function buildQuickActionSystemPrompt(context?: AIChatRequest['context']): string {
+  const base = 'You are a helpful writing assistant. Follow the user instructions precisely and only return the requested text without any explanation or surrounding quotation marks.';
+  const sc = context?.surroundingContext;
+  if (!sc) return base;
+
+  const parts: string[] = [base];
+  if (sc.documentTitle) {
+    parts.push(`The user is writing a document titled: "${sc.documentTitle}".`);
+  }
+  if (sc.before || sc.after) {
+    parts.push("Preserve the author's voice, register, and style. Below is the surrounding text the user is NOT asking you to change — match this voice when you rewrite the selection.");
+    if (sc.before) parts.push(`[BEFORE THE SELECTION]\n${sc.before}`);
+    if (sc.after) parts.push(`[AFTER THE SELECTION]\n${sc.after}`);
+    parts.push('Only rewrite the selection itself. Do not echo any of the before/after text in your response.');
+  }
+  return parts.join('\n\n');
 }
 
 export class AIService {
@@ -791,7 +1570,7 @@ export class AIService {
 
     // Build simple messages without conversation history
     const messages: { role: string; content: string }[] = [
-      { role: 'system', content: 'You are a helpful writing assistant. Follow the user instructions precisely and only return the requested text without any explanation.' },
+      { role: 'system', content: buildQuickActionSystemPrompt(request.context) },
       { role: 'user', content: request.message },
     ];
 
@@ -813,6 +1592,56 @@ export class AIService {
         content: response.content,
       },
     };
+  }
+
+  /**
+   * Streaming silent chat - same idea as silentChat but pushes the response
+   * back chunk-by-chunk over the supplied callbacks. The WebSocket handler
+   * wraps this with the `sessionId: 'silent'` sentinel so the chat panel
+   * does not adopt the frames as a real conversation turn.
+   */
+  static async silentStreamChat(
+    userId: string,
+    request: AIChatRequest,
+    onChunk: (chunk: string) => void,
+    onComplete: (content: string) => void,
+    onError: (error: Error) => void,
+  ): Promise<void> {
+    try {
+      const isOwner = await DocumentModel.isOwner(request.documentId, userId);
+      if (!isOwner) {
+        throw new AppError(404, 'Document not found');
+      }
+
+      const provider = await this.getProviderForUser(userId);
+
+      const messages: { role: string; content: string }[] = [
+        { role: 'system', content: buildQuickActionSystemPrompt(request.context) },
+        { role: 'user', content: request.message },
+      ];
+
+      const response = await provider.directStreamChat(messages, onChunk, {
+        userId,
+        documentId: request.documentId,
+        maxTokens: Math.min(env.aiMaxTokens, 768),
+        disableThinking: true,
+      });
+
+      logger.info('AI silent stream chat completed', {
+        userId,
+        documentId: request.documentId,
+        bytes: response.content.length,
+      });
+
+      onComplete(response.content);
+    } catch (error) {
+      logger.error('AI silent stream chat failed', {
+        userId,
+        documentId: request.documentId,
+        error,
+      });
+      onError(error instanceof Error ? error : new Error('Unknown error'));
+    }
   }
 
   /**
@@ -887,7 +1716,8 @@ export class AIService {
       const assistantMessage = await AIModel.addMessage(
         session.id,
         'assistant',
-        response.content
+        response.content,
+        { logId: log.id }
       );
 
       // Update log with response
@@ -932,13 +1762,19 @@ export class AIService {
 
   /**
    * Stream a chat response
+   *
+   * `onAgentEvent` (optional) receives every tool-call lifecycle event from the
+   * underlying agent loop. The WebSocket handler wraps this to push the
+   * `ai:turn-start` / `ai:tool-call` / `ai:tool-result` / `ai:turn-end` frames
+   * out to the chat UI for the agentic timeline render.
    */
   static async streamChat(
     userId: string,
     request: AIChatRequest,
     onChunk: (chunk: string) => void,
     onComplete: (response: AIChatResponse) => void,
-    onError: (error: Error) => void
+    onError: (error: Error) => void,
+    onAgentEvent?: AgentEventSink
   ): Promise<void> {
     const startTime = Date.now();
 
@@ -998,6 +1834,7 @@ export class AIService {
       const response = await provider.agentStreamChat(messages, onChunk, {
         userId,
         documentId: request.documentId,
+        onAgentEvent,
       });
 
       const responseTimeMs = Date.now() - startTime;
@@ -1006,7 +1843,8 @@ export class AIService {
       const assistantMessage = await AIModel.addMessage(
         session.id,
         'assistant',
-        response.content
+        response.content,
+        { logId: log.id }
       );
 
       // Update log with response

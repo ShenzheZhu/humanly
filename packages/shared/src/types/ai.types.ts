@@ -27,6 +27,7 @@ export interface AIChatMessage {
   content: string;
   timestamp: Date | string;
   metadata?: {
+    logId?: string;
     suggestions?: AISuggestion[];
     attachments?: {
       type: 'selection' | 'document';
@@ -150,6 +151,15 @@ export interface AIChatRequest {
   documentId: string;
   sessionId?: string;
   message: string;
+  // When true, the backend skips session creation and interaction-log
+  // persistence and streams the result over a `sessionId: 'silent'`
+  // sentinel channel. Used by selection-menu quick actions where the user
+  // wants a one-shot rewrite, not a chat turn.
+  silent?: boolean;
+  // Client-generated id for matching one-shot silent streams. Multiple quick
+  // actions can overlap when a user retries/cancels quickly, so the shared
+  // `sessionId: 'silent'` sentinel is not specific enough by itself.
+  clientRequestId?: string;
   context?: {
     fullContent?: string;
     selection?: {
@@ -160,6 +170,14 @@ export interface AIChatRequest {
     cursorPosition?: number;
     pdfContext?: string; // PDF document text for answering questions about linked files
     selectedText?: string; // Quoted text from editor selection
+    // Pre/post text around a selection and the document title, supplied so
+    // quick-action prompts can instruct the model to preserve the author's
+    // voice instead of treating the selection as isolated.
+    surroundingContext?: {
+      before: string;
+      after: string;
+      documentTitle: string;
+    };
   };
 }
 
@@ -247,9 +265,89 @@ export interface AIClientToServerEvents {
  * WebSocket AI Events - Server to Client
  */
 export interface AIServerToClientEvents {
-  'ai:response-start': (data: { sessionId: string; messageId: string }) => void;
-  'ai:response-chunk': (data: { sessionId: string; messageId: string; chunk: string }) => void;
-  'ai:response-complete': (data: AIChatResponse) => void;
+  'ai:response-start': (data: { sessionId: string; messageId: string; clientRequestId?: string }) => void;
+  'ai:response-chunk': (data: { sessionId: string; messageId: string; clientRequestId?: string; chunk: string }) => void;
+  'ai:response-complete': (data: AIChatResponse & { clientRequestId?: string }) => void;
   'ai:suggestion': (data: { sessionId: string; suggestions: AISuggestion[] }) => void;
-  'ai:error': (data: { sessionId: string; message: string; code?: string }) => void;
+  'ai:error': (data: { sessionId: string; clientRequestId?: string; message: string; code?: string }) => void;
+  // Agentic tool-call lifecycle events. Emitted by the AgentRunner so the
+  // chat panel can render a Cursor-style tool-call timeline alongside the
+  // streaming assistant text.
+  'ai:turn-start': (data: AgentTurnStartPayload) => void;
+  'ai:tool-call': (data: AgentToolCallPayload) => void;
+  'ai:tool-result': (data: AgentToolResultPayload) => void;
+  'ai:thinking-delta': (data: AgentThinkingDeltaPayload) => void;
+  'ai:turn-end': (data: AgentTurnEndPayload) => void;
+}
+
+/**
+ * Canonical agent event union emitted internally by the AgentRunner.
+ *
+ * The runner emits these into an event sink; the WebSocket adapter maps each
+ * variant onto the corresponding `ai:*` client event. Persisted interaction
+ * logs and replay tooling also consume this shape.
+ */
+export type AgentEvent =
+  | { type: 'turn-start'; turnIndex: number }
+  | { type: 'text-delta'; text: string }
+  | { type: 'thinking-delta'; text: string }
+  | { type: 'tool-call'; toolCallId: string; toolName: string; args: Record<string, any> }
+  | {
+      type: 'tool-result';
+      toolCallId: string;
+      result: string;
+      isError: boolean;
+      durationMs?: number;
+    }
+  | { type: 'turn-end'; turnIndex: number }
+  | { type: 'error'; message: string; code?: string };
+
+/**
+ * Persisted record of a single tool invocation. Used by interaction logs and
+ * timeline replay; mirrors the on-the-wire `tool-call` / `tool-result` pair.
+ */
+export interface AgentToolCallRecord {
+  toolCallId: string;
+  toolName: string;
+  args: Record<string, any>;
+  result?: string;
+  isError?: boolean;
+  startedAt: string;
+  completedAt?: string;
+  durationMs?: number;
+}
+
+export interface AgentTurnStartPayload {
+  sessionId: string;
+  messageId: string;
+  turnIndex: number;
+}
+
+export interface AgentToolCallPayload {
+  sessionId: string;
+  messageId: string;
+  toolCallId: string;
+  toolName: string;
+  args: Record<string, any>;
+}
+
+export interface AgentToolResultPayload {
+  sessionId: string;
+  messageId: string;
+  toolCallId: string;
+  result: string;
+  isError: boolean;
+  durationMs?: number;
+}
+
+export interface AgentThinkingDeltaPayload {
+  sessionId: string;
+  messageId: string;
+  text: string;
+}
+
+export interface AgentTurnEndPayload {
+  sessionId: string;
+  messageId: string;
+  turnIndex: number;
 }

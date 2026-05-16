@@ -5,7 +5,7 @@ import { ArrowLeft, Download, FileText, Clock, Award, PanelLeftClose, PanelLeft,
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { LexicalEditor, type SelectionReplacementResult } from '@humanly/editor';
+import { LexicalEditor, type EditorAIBridgeAPI, type SelectionReplacementResult } from '@humanly/editor';
 import { useDocument } from '@/hooks/use-document';
 import { useCertificates } from '@/hooks/use-certificates';
 import { useAuthStore } from '@/stores/auth-store';
@@ -70,6 +70,23 @@ const API_URL =
   (process.env.NODE_ENV === 'production' ? '/api/v1' : 'http://localhost:3001/api/v1');
 const SUBMISSION_SESSION_START_DELAY_MS = 250;
 
+interface EditorAIBridgeCaptureProps {
+  insertAtCursor: EditorAIBridgeAPI['insertAtCursor'];
+  onInsertAtCursorChange: (insertAtCursor: EditorAIBridgeAPI['insertAtCursor'] | null) => void;
+}
+
+function EditorAIBridgeCapture({
+  insertAtCursor,
+  onInsertAtCursorChange,
+}: EditorAIBridgeCaptureProps): null {
+  useEffect(() => {
+    onInsertAtCursorChange(insertAtCursor);
+    return () => onInsertAtCursorChange(null);
+  }, [insertAtCursor, onInsertAtCursorChange]);
+
+  return null;
+}
+
 export default function DocumentEditorPage() {
   const params = useParams();
   const router = useRouter();
@@ -101,9 +118,11 @@ export default function DocumentEditorPage() {
   const [submissionSessionId, setSubmissionSessionId] = useState<string | null>(null);
   const [taskEnrollment, setTaskEnrollment] = useState<TaskEnrollment | null>(null);
   const [isTaskEnrollmentLoading, setIsTaskEnrollmentLoading] = useState(true);
+  const [editorInsertAtCursor, setEditorInsertAtCursor] = useState<EditorAIBridgeAPI['insertAtCursor'] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const submissionSessionRef = useRef<{ taskId: string; sessionId: string } | null>(null);
   const lastSubmissionSessionRef = useRef<{ taskId: string; sessionId: string } | null>(null);
+  const quickActionTriggerRef = useRef<((type: ActionType) => void) | null>(null);
 
   // AI Assistant
   const {
@@ -127,6 +146,24 @@ export default function DocumentEditorPage() {
       setWordCount(document.wordCount || 0);
     }
   }, [document]);
+
+  useEffect(() => {
+    const quickActionByKey: Record<string, ActionType> = {
+      '1': 'grammar',
+      '2': 'improve',
+      '3': 'simplify',
+      '4': 'formal',
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || !event.shiftKey) return;
+      const actionType = quickActionByKey[event.key];
+      if (!actionType || !quickActionTriggerRef.current) return;
+      event.preventDefault();
+      quickActionTriggerRef.current(actionType);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Keyboard shortcut for AI Assistant (Cmd/Ctrl + J)
   useEffect(() => {
@@ -359,6 +396,55 @@ export default function DocumentEditorPage() {
 
   const openPanelWithQuote = useAIStore((state) => state.openPanelWithQuote);
   const handleAskAI = useCallback((selectedText: string) => openPanelWithQuote(selectedText), [openPanelWithQuote]);
+
+  const handleEditorInsertAtCursorChange = useCallback(
+    (insertAtCursor: EditorAIBridgeAPI['insertAtCursor'] | null) => {
+      setEditorInsertAtCursor(() => insertAtCursor);
+    },
+    []
+  );
+
+  const handleInsertAssistantMessage = useCallback(
+    async (
+      text: string,
+      source: { messageId: string; logId?: string }
+    ) => {
+      if (!editorInsertAtCursor) {
+        toast({
+          title: 'Editor unavailable',
+          description: 'Open this document in the editor to insert AI text.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const insertion = editorInsertAtCursor(text);
+      const currentSessionId =
+        submissionSessionRef.current?.sessionId ||
+        lastSubmissionSessionRef.current?.sessionId ||
+        submissionSessionId;
+      const event = {
+        sessionId: currentSessionId || undefined,
+        eventType: 'ai_insert_from_chat',
+        timestamp: new Date(),
+        textAfter: text,
+        cursorPosition: insertion.cursorPosition,
+        selectionStart: insertion.selectionStart,
+        selectionEnd: insertion.selectionEnd,
+        editorStateBefore: insertion.editorStateBefore,
+        editorStateAfter: insertion.editorStateAfter,
+        metadata: {
+          messageId: source.messageId,
+          logId: source.logId,
+          insertedTextLength: text.length,
+        },
+      };
+
+      await trackEvents([event as any], currentSessionId);
+      toast({ title: 'Inserted into document' });
+    },
+    [editorInsertAtCursor, submissionSessionId, toast, trackEvents]
+  );
 
   const handleAISelectionAction = useCallback(
     async (
@@ -771,8 +857,19 @@ export default function DocumentEditorPage() {
                           handleAskAI(text);
                         }}
                         taskManaged={!!taskEnrollment}
+                        getDocumentPlainText={() => document?.plainText || ''}
+                        documentTitle={document?.title || ''}
+                        registerActionTrigger={(trigger) => {
+                          quickActionTriggerRef.current = trigger;
+                        }}
                       />
                     ) : undefined}
+                    renderAIBridge={({ insertAtCursor }) => (
+                      <EditorAIBridgeCapture
+                        insertAtCursor={insertAtCursor}
+                        onInsertAtCursorChange={handleEditorInsertAtCursorChange}
+                      />
+                    )}
                   />
                 </div>
               </div>
@@ -789,6 +886,7 @@ export default function DocumentEditorPage() {
                       onClose={closeAIPanel}
                       taskManaged={!!taskEnrollment}
                       lockedModel={lockedTaskModel}
+                      insertAtCursor={editorInsertAtCursor ? handleInsertAssistantMessage : null}
                     />
                   </div>
                 </ResizablePanel>

@@ -3,30 +3,15 @@ import path from 'path';
 import { query, queryOne } from '../config/database';
 import { DocumentModel } from '../models/document.model';
 import { FileModel } from '../models/file.model';
-import { DocumentEventModel } from '../models/document-event.model';
 import { FileStorageService } from './file-storage.service';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 
 type Tool = OpenAI.Responses.FunctionTool;
 
-interface SearchResult {
-  source: string;
-  pageNumber?: number;
-  sectionTitle?: string;
-  startOffset?: number;
-  endOffset?: number;
-  text: string;
-}
-
 const MAX_TEXT = 12000;
 const CHUNK_SIZE = 1800;
 const CHUNK_OVERLAP = 200;
-
-function clampLimit(limit?: number, fallback = 10, max = 50): number {
-  if (!limit || Number.isNaN(limit)) return fallback;
-  return Math.min(Math.max(Math.floor(limit), 1), max);
-}
 
 function excerpt(text: string, maxLength = MAX_TEXT): string {
   return text.length > maxLength ? `${text.slice(0, maxLength)}\n[truncated]` : text;
@@ -40,11 +25,6 @@ function makeChunks(text: string, size = CHUNK_SIZE, overlap = CHUNK_OVERLAP): s
     start += size - overlap;
   }
   return chunks;
-}
-
-function scoreText(text: string, terms: string[]): number {
-  const lower = text.toLowerCase();
-  return terms.reduce((score, term) => score + (lower.includes(term) ? 1 : 0), 0);
 }
 
 function detectSections(pages: Array<{ pageNumber: number; text: string }>): Array<{
@@ -124,127 +104,58 @@ async function extractPdfPages(buffer: Buffer): Promise<Array<{ pageNumber: numb
 }
 
 export class AIRetrievalService {
+  // Three unix-style primitives for reading uploaded reference files.
+  // The agent NEVER has tools that can reach the user's editor draft — that
+  // boundary is enforced by absence (no tool exists), not by prompt politeness.
+  // PDFs are surfaced as plain text with inline `[page N]` markers; the agent
+  // sees and cites these markers naturally without needing a page-aware mode.
   static readonly tools: Tool[] = [
     {
       type: 'function',
-      name: 'getDocumentPlainText',
-      description: 'Retrieve the latest plain text for the current document.',
+      name: 'ls',
+      description:
+        'List uploaded reference files attached to the current chat. Returns [{ id, filename }] in upload order. Call first when you need to know what is available; idempotent and cheap.',
       strict: true,
       parameters: {
         type: 'object',
         additionalProperties: false,
-        properties: {
-          documentId: { type: 'string' },
-        },
-        required: ['documentId'],
+        properties: {},
+        required: [],
       },
     },
     {
       type: 'function',
-      name: 'getDocumentContent',
-      description: 'Retrieve the Lexical JSON editor state for the current document when structure is needed.',
+      name: 'grep',
+      description:
+        'Case-insensitive literal substring search over one file. Returns up to 50 matches in document order: each is { line, page (nearest preceding [page N] marker, or null), text, contextLines? }. Use context_before / context_after to pull surrounding lines without an extra read. Pattern is plain text — do NOT use regex syntax. Best when you have a clear keyword; if it returns nothing try a synonym, a shorter substring, or just read the likely region directly.',
       strict: true,
       parameters: {
         type: 'object',
         additionalProperties: false,
         properties: {
-          documentId: { type: 'string' },
+          file: { type: 'string', description: 'File id from ls().' },
+          pattern: { type: 'string', description: 'Literal substring to match, case-insensitive. No regex.' },
+          context_before: { type: 'integer', description: 'Lines to include before each match. Default 0.' },
+          context_after: { type: 'integer', description: 'Lines to include after each match. Default 0.' },
         },
-        required: ['documentId'],
+        required: ['file', 'pattern', 'context_before', 'context_after'],
       },
     },
     {
       type: 'function',
-      name: 'searchDocumentText',
-      description: 'Search the current document plain text and return the most relevant excerpts.',
+      name: 'read',
+      description:
+        'Read a contiguous line range from one file. Returns { lines: [{ line, text }], totalLines, hasPages, truncated? }. offset is the 1-indexed first line; limit is the max number of lines to return (default 200). The full content of each requested line is returned — lines are never character-truncated. For PDFs the [page N] markers appear as their own lines; cite them when you reference the source ("see page 21").',
       strict: true,
       parameters: {
         type: 'object',
         additionalProperties: false,
         properties: {
-          documentId: { type: 'string' },
-          query: { type: 'string' },
-          limit: { type: 'integer' },
+          file: { type: 'string', description: 'File id from ls().' },
+          offset: { type: 'integer', description: '1-indexed start line. Default 1.' },
+          limit: { type: 'integer', description: 'Max lines to return. Default 200.' },
         },
-        required: ['documentId', 'query', 'limit'],
-      },
-    },
-    {
-      type: 'function',
-      name: 'getDocumentEvents',
-      description: 'Retrieve writing/editing activity events for process, revision, paste, cursor, or authorship questions.',
-      strict: true,
-      parameters: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          documentId: { type: 'string' },
-          startDate: { type: 'string' },
-          endDate: { type: 'string' },
-          eventType: { type: 'string' },
-          limit: { type: 'integer' },
-        },
-        required: ['documentId', 'startDate', 'endDate', 'eventType', 'limit'],
-      },
-    },
-    {
-      type: 'function',
-      name: 'getLinkedFiles',
-      description: 'Find uploaded PDF files linked to the current document or its enrolled task.',
-      strict: true,
-      parameters: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          documentId: { type: 'string' },
-        },
-        required: ['documentId'],
-      },
-    },
-    {
-      type: 'function',
-      name: 'searchFileText',
-      description: 'Search extracted text chunks from a linked PDF file.',
-      strict: true,
-      parameters: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          fileId: { type: 'string' },
-          query: { type: 'string' },
-          limit: { type: 'integer' },
-        },
-        required: ['fileId', 'query', 'limit'],
-      },
-    },
-    {
-      type: 'function',
-      name: 'getFilePage',
-      description: 'Retrieve extracted text for a specific PDF page.',
-      strict: true,
-      parameters: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          fileId: { type: 'string' },
-          pageNumber: { type: 'integer' },
-        },
-        required: ['fileId', 'pageNumber'],
-      },
-    },
-    {
-      type: 'function',
-      name: 'getFileSection',
-      description: 'Retrieve extracted text for a detected section of a linked PDF file.',
-      strict: true,
-      parameters: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          fileId: { type: 'string' },
-          sectionTitle: { type: 'string' },
-        },
-        required: ['fileId', 'sectionTitle'],
+        required: ['file', 'offset', 'limit'],
       },
     },
   ];
@@ -256,29 +167,18 @@ export class AIRetrievalService {
     args: Record<string, any>
   ): Promise<string> {
     switch (name) {
-      case 'getDocumentPlainText':
-        return JSON.stringify(await this.getDocumentPlainText(userId, this.requireDocumentScope(scopedDocumentId, args.documentId)));
-      case 'getDocumentContent':
-        return JSON.stringify(await this.getDocumentContent(userId, this.requireDocumentScope(scopedDocumentId, args.documentId)));
-      case 'searchDocumentText':
-        return JSON.stringify(await this.searchDocumentText(userId, this.requireDocumentScope(scopedDocumentId, args.documentId), args.query, args.limit));
-      case 'getDocumentEvents':
-        return JSON.stringify(await this.getDocumentEvents(userId, this.requireDocumentScope(scopedDocumentId, args.documentId), {
-          startDate: args.startDate || undefined,
-          endDate: args.endDate || undefined,
-          eventType: args.eventType || undefined,
-          limit: args.limit,
-        }));
-      case 'getLinkedFiles':
-        return JSON.stringify(await this.getLinkedFiles(userId, this.requireDocumentScope(scopedDocumentId, args.documentId)));
-      case 'searchFileText':
-        return JSON.stringify(await this.searchFileText(userId, scopedDocumentId, args.fileId, args.query, args.limit));
-      case 'getFilePage':
-        return JSON.stringify(await this.getFilePage(userId, scopedDocumentId, args.fileId, args.pageNumber));
-      case 'getFileSection':
-        return JSON.stringify(await this.getFileSection(userId, scopedDocumentId, args.fileId, args.sectionTitle));
+      case 'ls':
+        return JSON.stringify(await this.ls(userId, scopedDocumentId));
+      case 'grep':
+        return JSON.stringify(
+          await this.grep(userId, scopedDocumentId, args.file, args.pattern, args.context_before, args.context_after)
+        );
+      case 'read':
+        return JSON.stringify(
+          await this.read(userId, scopedDocumentId, args.file, args.offset, args.limit)
+        );
       default:
-        return JSON.stringify({ error: `Unknown tool: ${name}` });
+        return JSON.stringify({ error: `Unknown tool: ${name}. Available tools: ls, grep, read.` });
     }
   }
 
@@ -343,13 +243,6 @@ export class AIRetrievalService {
     }
   }
 
-  private static requireDocumentScope(scopedDocumentId: string, requestedDocumentId: string): string {
-    if (requestedDocumentId !== scopedDocumentId) {
-      throw new AppError(403, 'Tool call document is outside the current chat scope');
-    }
-    return scopedDocumentId;
-  }
-
   private static async getOwnedDocument(userId: string, documentId: string) {
     const document = await DocumentModel.findByIdAndUserId(documentId, userId);
     if (!document) {
@@ -376,88 +269,15 @@ export class AIRetrievalService {
     }
   }
 
-  private static async getDocumentPlainText(userId: string, documentId: string) {
-    const document = await this.getOwnedDocument(userId, documentId);
-    return {
-      documentId,
-      title: document.title,
-      plainText: excerpt(document.plainText),
-      wordCount: document.wordCount,
-      characterCount: document.characterCount,
-      updatedAt: document.updatedAt,
-    };
-  }
+  // ── ls / grep / read implementation ────────────────────────────────────
 
-  private static async getDocumentContent(userId: string, documentId: string) {
-    const document = await this.getOwnedDocument(userId, documentId);
-    return {
-      documentId,
-      title: document.title,
-      content: document.content,
-      updatedAt: document.updatedAt,
-    };
-  }
-
-  private static async searchDocumentText(userId: string, documentId: string, searchQuery: string, limit?: number) {
-    const document = await this.getOwnedDocument(userId, documentId);
-    const terms = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
-    const chunks = makeChunks(document.plainText);
-    const results: SearchResult[] = chunks
-      .map((text, index) => ({
-        source: 'document',
-        startOffset: index * (CHUNK_SIZE - CHUNK_OVERLAP),
-        endOffset: index * (CHUNK_SIZE - CHUNK_OVERLAP) + text.length,
-        text,
-        score: scoreText(text, terms),
-      }))
-      .filter(result => result.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, clampLimit(limit))
-      .map(({ score: _score, ...result }) => result);
-
-    return { documentId, query: searchQuery, results };
-  }
-
-  private static async getDocumentEvents(
-    userId: string,
-    documentId: string,
-    filters: { startDate?: string; endDate?: string; eventType?: string; limit?: number }
-  ) {
-    await this.getOwnedDocument(userId, documentId);
-    const events = await DocumentEventModel.findByDocumentId(documentId, {
-      startDate: filters.startDate ? new Date(filters.startDate) : undefined,
-      endDate: filters.endDate ? new Date(filters.endDate) : undefined,
-      eventType: filters.eventType || undefined,
-      limit: clampLimit(filters.limit, 100, 500),
-    } as any);
-
-    return {
-      documentId,
-      events: events.map(event => ({
-        id: event.id,
-        eventType: event.eventType,
-        timestamp: event.timestamp,
-        keyCode: event.keyCode,
-        keyChar: event.keyChar,
-        cursorPosition: event.cursorPosition,
-        selectionStart: event.selectionStart,
-        selectionEnd: event.selectionEnd,
-        textBefore: event.textBefore ? excerpt(event.textBefore, 500) : undefined,
-        textAfter: event.textAfter ? excerpt(event.textAfter, 500) : undefined,
-        metadata: event.metadata,
-      })),
-    };
-  }
-
-  private static async getLinkedFiles(userId: string, documentId: string) {
+  /** List uploaded references attached to the current document. */
+  private static async ls(userId: string, documentId: string) {
     await this.getOwnedDocument(userId, documentId);
     const files = await query<any>(
       `SELECT DISTINCT files.id,
               files.title,
-              files.purpose,
               files.original_filename,
-              files.page_count,
-              files.file_size,
               files.created_at
        FROM files
        LEFT JOIN task_enrollments te
@@ -466,91 +286,158 @@ export class AIRetrievalService {
         AND te.submission_document_id = $1
        WHERE files.document_id = $1
           OR te.id IS NOT NULL
-       ORDER BY files.created_at DESC`,
+       ORDER BY files.created_at ASC`,
       [documentId, userId]
     );
     return {
-      documentId,
-      files: files.map(file => ({
+      files: files.map((file) => ({
         id: file.id,
-        title: file.title,
-        purpose: file.purpose,
-        originalFilename: file.original_filename,
-        pageCount: file.page_count,
-        fileSize: file.file_size,
-        createdAt: file.created_at,
+        filename: file.title || file.original_filename || 'untitled',
       })),
     };
   }
 
-  private static async searchFileText(
+  /**
+   * Build the unified plain-text view of a reference: every page, in order,
+   * separated by `[page N]` markers on their own lines. Lines are 1-indexed
+   * across the whole file (the marker counts as one line).
+   *
+   * For non-PDF formats added later (DOCX / PPTX / TXT), the upload-time
+   * extractor populates `file_pages` the same way (one logical "page" per
+   * heading / slide / etc., or a single page row for plain text); this loader
+   * stays format-agnostic.
+   */
+  private static async loadFileText(
+    userId: string,
+    documentId: string,
+    fileId: string
+  ): Promise<{ lines: string[]; pageStartLines: Map<number, number>; hasPages: boolean }> {
+    if (!fileId || typeof fileId !== 'string') {
+      throw new AppError(400, 'file is required');
+    }
+    await this.assertLinkedFile(userId, documentId, fileId);
+    await this.indexFile(fileId);
+
+    const rows = await query<{ page_number: number; text: string }>(
+      'SELECT page_number, text FROM file_pages WHERE file_id = $1 ORDER BY page_number ASC',
+      [fileId]
+    );
+    const allLines: string[] = [];
+    const pageStartLines = new Map<number, number>();
+    const hasPages = rows.length > 0 && (rows.length > 1 || rows[0].page_number === 1);
+    for (const row of rows) {
+      // Marker line first, then the page's content lines. Even single-page
+      // files get a marker so [page 1] citations work uniformly.
+      const markerLine = `[page ${row.page_number}]`;
+      pageStartLines.set(row.page_number, allLines.length + 1); // 1-indexed
+      allLines.push(markerLine);
+      const pageLines = (row.text || '').split('\n');
+      for (const line of pageLines) {
+        allLines.push(line);
+      }
+    }
+    return { lines: allLines, pageStartLines, hasPages };
+  }
+
+  /** Find nearest preceding page marker line index (1-indexed) for a given line. */
+  private static nearestPrecedingPage(
+    pageStartLines: Map<number, number>,
+    targetLine: number
+  ): number | null {
+    let best: number | null = null;
+    for (const [pageNumber, startLine] of pageStartLines) {
+      if (startLine <= targetLine && (best === null || startLine > pageStartLines.get(best)!)) {
+        best = pageNumber;
+      }
+    }
+    return best;
+  }
+
+  private static async grep(
     userId: string,
     documentId: string,
     fileId: string,
-    searchQuery: string,
-    limit?: number
+    pattern: string,
+    contextBefore?: number,
+    contextAfter?: number
   ) {
-    await this.assertLinkedFile(userId, documentId, fileId);
-    await this.indexFile(fileId);
+    if (!pattern || typeof pattern !== 'string') {
+      throw new AppError(400, 'pattern is required');
+    }
+    const before = Math.max(0, Math.min(20, Math.floor(contextBefore ?? 0)));
+    const after = Math.max(0, Math.min(20, Math.floor(contextAfter ?? 0)));
 
-    const rows = await query<any>(
-      `SELECT page_number, section_title, text,
-              ts_rank(to_tsvector('english', text), plainto_tsquery('english', $2)) AS rank
-       FROM file_text_chunks
-       WHERE file_id = $1
-         AND to_tsvector('english', text) @@ plainto_tsquery('english', $2)
-       ORDER BY rank DESC, chunk_index ASC
-       LIMIT $3`,
-      [fileId, searchQuery, clampLimit(limit)]
-    );
+    const { lines, pageStartLines } = await this.loadFileText(userId, documentId, fileId);
+    const needle = pattern.toLowerCase();
+    const matchCap = 50;
+
+    const matches: Array<{
+      line: number;
+      page: number | null;
+      text: string;
+      contextLines?: Array<{ line: number; text: string; isMatch: boolean }>;
+    }> = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      if (matches.length >= matchCap) break;
+      if (!lines[i].toLowerCase().includes(needle)) continue;
+      const line1 = i + 1;
+      const ctxStart = Math.max(0, i - before);
+      const ctxEnd = Math.min(lines.length, i + after + 1);
+      const contextLines = (before > 0 || after > 0)
+        ? Array.from({ length: ctxEnd - ctxStart }, (_, k) => ({
+            line: ctxStart + k + 1,
+            text: lines[ctxStart + k],
+            isMatch: ctxStart + k === i,
+          }))
+        : undefined;
+      matches.push({
+        line: line1,
+        page: this.nearestPrecedingPage(pageStartLines, line1),
+        text: lines[i],
+        ...(contextLines ? { contextLines } : {}),
+      });
+    }
 
     return {
-      fileId,
-      query: searchQuery,
-      results: rows.map(row => ({
-        source: 'file',
-        pageNumber: row.page_number,
-        sectionTitle: row.section_title,
-        text: excerpt(row.text, 2500),
-      })),
+      file: fileId,
+      pattern,
+      truncated: matches.length === matchCap,
+      matchCount: matches.length,
+      matches,
     };
   }
 
-  private static async getFilePage(userId: string, documentId: string, fileId: string, pageNumber: number) {
-    await this.assertLinkedFile(userId, documentId, fileId);
-    await this.indexFile(fileId);
+  private static async read(
+    userId: string,
+    documentId: string,
+    fileId: string,
+    offset?: number,
+    limit?: number
+  ) {
+    const { lines, pageStartLines, hasPages } = await this.loadFileText(userId, documentId, fileId);
+    const offsetN = Math.max(1, Math.floor(offset ?? 1));
+    // Hard cap at 800 lines per call so a single read does not blow the
+    // model's context window; the agent can call again with a higher
+    // offset to continue.
+    const HARD_LIMIT = 800;
+    const limitN = Math.max(1, Math.min(HARD_LIMIT, Math.floor(limit ?? 200)));
 
-    const row = await queryOne<{ text: string }>(
-      'SELECT text FROM file_pages WHERE file_id = $1 AND page_number = $2',
-      [fileId, pageNumber]
-    );
-    if (!row) {
-      throw new AppError(404, 'File page not found');
-    }
-    return { fileId, pageNumber, text: excerpt(row.text) };
-  }
+    const startIdx = offsetN - 1;
+    const endIdx = Math.min(lines.length, startIdx + limitN);
+    const slice = lines.slice(startIdx, endIdx);
+    const startPage = hasPages ? this.nearestPrecedingPage(pageStartLines, offsetN) : null;
+    const endPage = hasPages && endIdx > 0 ? this.nearestPrecedingPage(pageStartLines, endIdx) : null;
 
-  private static async getFileSection(userId: string, documentId: string, fileId: string, sectionTitle: string) {
-    await this.assertLinkedFile(userId, documentId, fileId);
-    await this.indexFile(fileId);
-
-    const row = await queryOne<any>(
-      `SELECT section_title, start_page, end_page, text
-       FROM file_sections
-       WHERE file_id = $1 AND lower(section_title) LIKE lower($2)
-       ORDER BY length(section_title) ASC
-       LIMIT 1`,
-      [fileId, `%${sectionTitle}%`]
-    );
-    if (!row) {
-      throw new AppError(404, 'File section not found');
-    }
     return {
-      fileId,
-      sectionTitle: row.section_title,
-      startPage: row.start_page,
-      endPage: row.end_page,
-      text: excerpt(row.text),
+      file: fileId,
+      offset: offsetN,
+      limit: limitN,
+      totalLines: lines.length,
+      hasPages,
+      pageRange: hasPages ? { start: startPage, end: endPage } : null,
+      truncated: endIdx < lines.length,
+      lines: slice.map((text, i) => ({ line: startIdx + i + 1, text })),
     };
   }
 }
