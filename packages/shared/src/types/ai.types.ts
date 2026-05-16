@@ -33,6 +33,14 @@ export interface AIChatMessage {
       type: 'selection' | 'document';
       content: string;
     }[];
+    /**
+     * Persisted record of the agent's tool-call timeline for this assistant
+     * turn. Populated by the backend's AgentToolCallCollector so reopening
+     * the chat panel rehydrates the ls / grep / read trail from the
+     * `ai_chat_messages.metadata` JSONB column instead of only showing the
+     * live websocket stream (#94).
+     */
+    toolCalls?: AgentToolCallRecord[];
   };
 }
 
