@@ -15,6 +15,16 @@ jest.mock('../../models/ai-chat-attachment.model', () => ({
     // Default: every storageKey is owned by the requesting user so the
     // image-roundtrip case stays green. Individual cases can override.
     isOwnedBy: jest.fn(async () => true),
+    findOwnedByStorageKey: jest.fn(async (storageKey: string, userId: string) => ({
+      storage_key: storageKey,
+      storage_provider: 'local',
+      storage_bucket: null,
+      user_id: userId,
+      mime_type: 'image/png',
+      filename: 'upload.png',
+      size_bytes: 16,
+      created_at: new Date(),
+    })),
   },
 }));
 jest.mock('../../services/file-storage.service', () => ({
@@ -826,7 +836,7 @@ describe('AIService.chat', () => {
 
     it('rejects 403 when attachment storageKey is owned by another user', async () => {
       const { AIChatAttachmentModel } = jest.requireMock('../../models/ai-chat-attachment.model');
-      AIChatAttachmentModel.isOwnedBy.mockResolvedValueOnce(false);
+      AIChatAttachmentModel.findOwnedByStorageKey.mockResolvedValueOnce(null);
       MockUserAISettings.getByUserId.mockResolvedValue(
         makeSettings({ model: 'gpt-4o', baseUrl: 'https://api.openai.com/v1' }),
       );
@@ -862,6 +872,40 @@ describe('AIService.chat', () => {
       await expect(
         AIService.chat('user-1', requestWithImage as any),
       ).resolves.toMatchObject({ sessionId: 'session-1' });
+    });
+
+    it('loads image attachments with the recorded storage provider locator', async () => {
+      const { AIChatAttachmentModel } = jest.requireMock('../../models/ai-chat-attachment.model');
+      const { FileStorageService } = jest.requireMock('../../services/file-storage.service');
+      AIChatAttachmentModel.findOwnedByStorageKey.mockResolvedValueOnce({
+        storage_key: 'gcs/key.png',
+        storage_provider: 'gcs',
+        storage_bucket: 'prod-bucket',
+        user_id: 'user-1',
+        mime_type: 'image/png',
+        filename: 'upload.png',
+        size_bytes: 16,
+        created_at: new Date(),
+      });
+      MockUserAISettings.getByUserId.mockResolvedValue(
+        makeSettings({ model: 'gpt-4o', baseUrl: 'https://api.openai.com/v1' }),
+      );
+      MockAIModel.getOrCreateSession.mockResolvedValue(makeSession());
+      const requestWithImage = {
+        ...request,
+        attachments: [
+          { type: 'image', storageKey: 'gcs/key.png', mimeType: 'image/png' },
+        ],
+      };
+
+      await expect(
+        AIService.chat('user-1', requestWithImage as any),
+      ).resolves.toMatchObject({ sessionId: 'session-1' });
+      expect(FileStorageService.getBuffer).toHaveBeenCalledWith({
+        storageProvider: 'gcs',
+        storageBucket: 'prod-bucket',
+        storageKey: 'gcs/key.png',
+      });
     });
   });
 });
