@@ -125,7 +125,7 @@ export default function EnrollmentSubmissionsPage() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => router.push(`/tasks/${taskId}/enrollments`)}
+          onClick={() => router.push(`/tasks/${taskId}?tab=users`)}
           className="-ml-2 mb-2"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />

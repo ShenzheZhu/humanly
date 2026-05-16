@@ -1,10 +1,12 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-import TaskOverviewPage from '@/app/tasks/[id]/page';
+import TaskDetailPage from '@/app/tasks/[id]/page';
 
 const mockPush = jest.fn();
+const mockReplace = jest.fn();
 const mockApiGet = jest.fn();
 const mockClipboardWriteText = jest.fn();
+let mockSearchParams = new URLSearchParams();
 
 jest.mock('next/navigation', () => ({
   useParams: () => ({
@@ -12,7 +14,9 @@ jest.mock('next/navigation', () => ({
   }),
   useRouter: () => ({
     push: mockPush,
+    replace: mockReplace,
   }),
+  useSearchParams: () => mockSearchParams,
 }));
 
 jest.mock('@/lib/api-client', () => ({
@@ -42,7 +46,7 @@ const taskFixture = {
   endDate: new Date('2026-05-02T12:00:00.000Z'),
   environmentConfig: null,
   isActive: true,
-  enrolledUserCount: 0,
+  enrolledUserCount: 2,
   createdAt: new Date('2026-05-01T11:00:00.000Z'),
   updatedAt: new Date('2026-05-01T11:00:00.000Z'),
 };
@@ -58,14 +62,70 @@ const statsFixture = {
   activeUsers24h: 0,
 };
 
+const enrollmentsFixture = [
+  {
+    id: 'enrollment-1',
+    taskId: 'task-123',
+    userId: 'user-1',
+    email: 'user@example.com',
+    documentId: 'document-latest',
+    documentTitle: 'Latest Essay',
+    joinedAt: '2026-05-01T12:00:00.000Z',
+    submissionCount: 2,
+    eventCount: 42,
+    lastActivity: '2026-05-15T01:58:00.000Z',
+  },
+  {
+    id: 'enrollment-2',
+    taskId: 'task-123',
+    userId: 'user-2',
+    email: 'quiet@example.com',
+    documentId: null,
+    documentTitle: null,
+    joinedAt: '2026-05-02T12:00:00.000Z',
+    submissionCount: 0,
+    eventCount: 0,
+    lastActivity: null,
+  },
+];
+
+const submissionsFixture = [
+  {
+    id: 'submission-latest',
+    userId: 'user-1',
+    userEmail: 'user@example.com',
+    documentId: 'document-latest',
+    documentTitle: 'Latest Essay',
+    certificateId: 'certificate-1',
+    certificateVerificationToken: 'cert-token-123',
+    submittedAt: '2026-05-15T01:58:00.000Z',
+    status: 'active' as const,
+  },
+  {
+    id: 'submission-older',
+    userId: 'user-1',
+    userEmail: 'user@example.com',
+    documentId: 'document-older',
+    documentTitle: 'Older Essay',
+    certificateId: null,
+    certificateVerificationToken: null,
+    submittedAt: '2026-05-10T01:58:00.000Z',
+    status: 'historical' as const,
+  },
+];
+
 function mockTaskOverviewResponses() {
   mockApiGet.mockImplementation((url: string) => {
     if (url.endsWith('/analytics/summary')) {
       return Promise.resolve({ success: true, data: statsFixture });
     }
 
+    if (url.endsWith('/enrollments')) {
+      return Promise.resolve({ success: true, data: { enrollments: enrollmentsFixture } });
+    }
+
     if (url.endsWith('/submissions')) {
-      return Promise.resolve({ success: true, data: { submissions: [] } });
+      return Promise.resolve({ success: true, data: { submissions: submissionsFixture } });
     }
 
     return Promise.resolve({ success: true, data: taskFixture });
@@ -75,8 +135,10 @@ function mockTaskOverviewResponses() {
 describe('admin task overview invite code copy button', () => {
   beforeEach(() => {
     mockPush.mockClear();
+    mockReplace.mockClear();
     mockApiGet.mockReset();
     mockClipboardWriteText.mockReset();
+    mockSearchParams = new URLSearchParams();
     mockTaskOverviewResponses();
 
     Object.defineProperty(navigator, 'clipboard', {
@@ -90,7 +152,7 @@ describe('admin task overview invite code copy button', () => {
   it('copies the invite code and shows success feedback', async () => {
     mockClipboardWriteText.mockResolvedValueOnce(undefined);
 
-    render(<TaskOverviewPage />);
+    render(<TaskDetailPage />);
 
     await screen.findByRole('heading', { name: 'Clipboard Task' });
     fireEvent.click(screen.getByRole('button', { name: /copy invite code/i }));
@@ -107,7 +169,7 @@ describe('admin task overview invite code copy button', () => {
       new DOMException('Write permission denied.', 'NotAllowedError')
     );
 
-    render(<TaskOverviewPage />);
+    render(<TaskDetailPage />);
 
     await screen.findByRole('heading', { name: 'Clipboard Task' });
     fireEvent.click(screen.getByRole('button', { name: /copy invite code/i }));
@@ -118,5 +180,34 @@ describe('admin task overview invite code copy button', () => {
     expect(screen.getByRole('heading', { name: 'Clipboard Task' })).toBeInTheDocument();
 
     warnSpy.mockRestore();
+  });
+
+  it('opens the submission tab from query and shows latest submissions by default', async () => {
+    mockSearchParams = new URLSearchParams('tab=submission');
+
+    render(<TaskDetailPage />);
+
+    await screen.findByRole('heading', { name: 'Clipboard Task' });
+    expect(await screen.findByRole('heading', { name: /latest submissions/i })).toBeInTheDocument();
+    expect(screen.getByText('Latest Essay')).toBeInTheDocument();
+    expect(screen.queryByText('Older Essay')).not.toBeInTheDocument();
+    expect(screen.getByText('No submission yet')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /user@example.com/i }));
+
+    expect(await screen.findByText('Older Essay')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /issued/i })).toHaveAttribute(
+      'href',
+      'http://localhost:3002/verify/cert-token-123'
+    );
+  });
+
+  it('updates the task tab query when a tab is selected', async () => {
+    render(<TaskDetailPage />);
+
+    await screen.findByRole('heading', { name: 'Clipboard Task' });
+    fireEvent.click(screen.getByRole('button', { name: 'Analytics' }));
+
+    expect(mockReplace).toHaveBeenCalledWith('/tasks/task-123?tab=analytics', { scroll: false });
   });
 });

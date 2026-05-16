@@ -471,7 +471,7 @@ export default function TasksPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => router.push(`/tasks/${task.id}/settings`)}
+                onClick={() => router.push(`/tasks/${task.id}?tab=setting`)}
               >
                 <Settings className="h-4 w-4" />
               </Button>
