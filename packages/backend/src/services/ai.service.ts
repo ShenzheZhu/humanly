@@ -186,6 +186,7 @@ export function shouldRepairEmptyToolCallResponse(completion: any): boolean {
 //   <parameter=foo>bar</parameter>
 //   <tool_use> ... </tool_use>
 //   <｜DSML｜tool_calls> ... </｜DSML｜tool_calls>
+//   {"function":"ls","arguments":{...}}
 // Anchors are loose on purpose so trailing whitespace / line breaks inside
 // the markup also match. The /s flag lets `.` cross newlines.
 const PSEUDO_TOOL_CALL_PATTERNS: RegExp[] = [
@@ -194,10 +195,11 @@ const PSEUDO_TOOL_CALL_PATTERNS: RegExp[] = [
   /<\s*function\s*=\s*[^>]*>[\s\S]*?<\s*\/\s*function\s*>/gi,
   /<\s*parameter\s*=\s*[^>]*>[\s\S]*?<\s*\/\s*parameter\s*>/gi,
   /<\s*(?:\uFF5C\s*)?DSML\s*[\uFF5C|]\s*tool_calls\b[^>]*>[\s\S]*?<\s*\/\s*(?:\uFF5C\s*)?DSML\s*[\uFF5C|]\s*tool_calls\s*>/gi,
+  /\{\s*"(?:function|name)"\s*:\s*"(?:ls|grep|read)"\s*,\s*"arguments"\s*:\s*\{(?:[^{}]|\{[^{}]*\})*\}\s*\}/gi,
 ];
 
 const PSEUDO_TOOL_CALL_START_PATTERN =
-  /<\s*(?:tool_call\b|tool_use\b|function\s*=|parameter\s*=|(?:\uFF5C\s*)?DSML\s*[\uFF5C|]\s*tool_calls\b)/i;
+  /<\s*(?:tool_call\b|tool_use\b|function\s*=|parameter\s*=|(?:\uFF5C\s*)?DSML\s*[\uFF5C|]\s*tool_calls\b)|\{\s*"(?:function|name)"\s*:\s*"(?:ls|grep|read)"\s*,\s*"arguments"\s*:/i;
 
 function findPseudoToolCallStart(text: string): number {
   const match = PSEUDO_TOOL_CALL_START_PATTERN.exec(text);
@@ -250,9 +252,13 @@ export class PseudoToolCallStreamFilter {
       if (start === -1) {
         if (!flush) {
           const lastOpen = this.buffer.lastIndexOf('<');
-          if (lastOpen >= 0 && this.buffer.length - lastOpen < 80) {
-            visible += this.buffer.slice(0, lastOpen);
-            this.buffer = this.buffer.slice(lastOpen);
+          const lastJsonOpen = this.buffer.lastIndexOf('{');
+          const holdFrom = [lastOpen, lastJsonOpen]
+            .filter((index) => index >= 0 && this.buffer.length - index < 160)
+            .sort((a, b) => a - b)[0];
+          if (holdFrom !== undefined) {
+            visible += this.buffer.slice(0, holdFrom);
+            this.buffer = this.buffer.slice(holdFrom);
             return visible;
           }
         }

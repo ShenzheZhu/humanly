@@ -143,6 +143,11 @@ describe('pseudo tool-call markup helpers', () => {
     expect(containsPseudoToolCall(input)).toBe(true);
   });
 
+  it('detects bare JSON function-call prose leaks', () => {
+    expect(containsPseudoToolCall('{"function":"ls","arguments":{}}')).toBe(true);
+    expect(containsPseudoToolCall('{"name":"grep","arguments":{"file":"doc-1","pattern":"references"}}')).toBe(true);
+  });
+
   it('returns false on clean answers', () => {
     expect(containsPseudoToolCall('The conclusion is on page 21.')).toBe(false);
     expect(containsPseudoToolCall('')).toBe(false);
@@ -169,6 +174,11 @@ describe('pseudo tool-call markup helpers', () => {
     expect(stripPseudoToolCallMarkup(input)).toBe('A  B');
   });
 
+  it('strips bare JSON function-call prose leaks', () => {
+    const input = 'I will check first.\n{"function":"ls","arguments":{}}\n';
+    expect(stripPseudoToolCallMarkup(input)).toBe('I will check first.');
+  });
+
   it('withholds chunked pseudo tool calls from streaming output', () => {
     const filter = new PseudoToolCallStreamFilter();
 
@@ -181,6 +191,26 @@ describe('pseudo tool-call markup helpers', () => {
     expect(second).toBe('');
     expect(third + flushed).toBe('after');
     expect(filter.strippedPseudoToolCall).toBe(true);
+  });
+
+  it('withholds chunked JSON pseudo tool calls from streaming output', () => {
+    const filter = new PseudoToolCallStreamFilter();
+
+    const first = filter.push("I'll check first.\n{");
+    const second = filter.push('"function":"');
+    const third = filter.push('ls","arguments":{}}');
+    const flushed = filter.flush();
+
+    expect(first).toBe("I'll check first.\n");
+    expect(second).toBe('');
+    expect(third + flushed).toBe('');
+    expect(filter.strippedPseudoToolCall).toBe(true);
+  });
+
+  it('does not strip normal JSON answers', () => {
+    const input = '{"answer":"ls is a Unix command","confidence":"high"}';
+    expect(containsPseudoToolCall(input)).toBe(false);
+    expect(stripPseudoToolCallMarkup(input)).toBe(input);
   });
 
   it('collapses trailing whitespace introduced by stripping', () => {
