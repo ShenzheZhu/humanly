@@ -43,6 +43,56 @@ export interface ToolCallEntry {
   status: 'pending' | 'done';
 }
 
+function toEpochMs(value: string | number | undefined, fallback: number): number {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return fallback;
+}
+
+/**
+ * Rebuild the per-message tool-call timeline keyed map from a freshly loaded
+ * `AIChatSession.messages` list (issue #94). The backend persists each
+ * assistant turn's `AgentToolCallRecord[]` on `metadata.toolCalls`; this
+ * walker converts each record into the in-memory `ToolCallEntry` shape the
+ * `ToolCallTimeline` component already renders for live streams.
+ *
+ * A record with no `result` (mid-turn abort persisted by the collector) keeps
+ * `status: 'pending'` so the UI shows the trail honestly instead of
+ * pretending the call finished.
+ */
+export function rehydrateToolCallTimelines(
+  messages: AIChatMessage[],
+): Record<string, ToolCallEntry[]> {
+  const result: Record<string, ToolCallEntry[]> = {};
+  const now = Date.now();
+  for (const message of messages) {
+    if (message.role !== 'assistant') continue;
+    const records = message.metadata?.toolCalls;
+    if (!records || records.length === 0) continue;
+    result[message.id] = records.map((record) => {
+      const startedAt = toEpochMs(record.startedAt, now);
+      const completedAt =
+        record.completedAt !== undefined ? toEpochMs(record.completedAt, startedAt) : undefined;
+      const hasResult = record.result !== undefined;
+      return {
+        toolCallId: record.toolCallId,
+        toolName: record.toolName,
+        args: record.args,
+        result: record.result,
+        isError: record.isError,
+        durationMs: record.durationMs,
+        startedAt,
+        completedAt,
+        status: hasResult ? 'done' : 'pending',
+      };
+    });
+  }
+  return result;
+}
+
 /**
  * AI Store State
  */
@@ -447,10 +497,15 @@ export const useAIStore = create<AIState>()(
               data: AIChatSession;
             }>(`/ai/sessions/detail/${activeSession.id}`);
 
+            const loadedMessages = sessionResponse.data.messages || [];
             set({
               currentSession: sessionResponse.data,
               sessions,
-              messages: sessionResponse.data.messages || [],
+              messages: loadedMessages,
+              // Rehydrate the tool-call timeline from each assistant
+              // message's persisted metadata so reopening the panel shows
+              // the agent trail, not just the final answer (#94).
+              toolCallTimelines: rehydrateToolCallTimelines(loadedMessages),
               isLoading: false,
             });
           } else {
@@ -476,9 +531,13 @@ export const useAIStore = create<AIState>()(
             data: AIChatSession;
           }>(`/ai/sessions/detail/${sessionId}`);
 
+          const loadedMessages = response.data.messages || [];
           set({
             currentSession: response.data,
-            messages: response.data.messages || [],
+            messages: loadedMessages,
+            // Rehydrate the tool-call timeline from persisted metadata so
+            // the chat panel shows the agent trail across reloads (#94).
+            toolCallTimelines: rehydrateToolCallTimelines(loadedMessages),
             isLoading: false,
           });
         } catch (error: any) {
