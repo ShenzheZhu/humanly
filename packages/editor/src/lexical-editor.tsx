@@ -5,8 +5,16 @@ import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin';
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { TabIndentationPlugin } from '@lexical/react/LexicalTabIndentationPlugin';
+import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext';
 import LexicalErrorBoundary from '@lexical/react/LexicalErrorBoundary';
-import { EditorState } from 'lexical';
+import {
+  $createParagraphNode,
+  $createTextNode,
+  $getRoot,
+  $getSelection,
+  $isRangeSelection,
+  EditorState,
+} from 'lexical';
 import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { ListNode, ListItemNode } from '@lexical/list';
 import { TrackingPlugin } from './plugins/tracking-plugin';
@@ -17,7 +25,7 @@ import { FormattingPlugin } from './plugins/formatting-plugin';
 import { ListPlugin } from './plugins/list-plugin';
 import { AlignmentPlugin } from './plugins/alignment-plugin';
 import { SelectionPopupPlugin } from './plugins/selection-popup-plugin';
-import { LexicalEditorProps, EditorTheme } from './types';
+import { LexicalEditorProps, EditorTheme, EditorInsertResult } from './types';
 
 /**
  * Default editor theme
@@ -53,6 +61,57 @@ const defaultTheme: EditorTheme = {
   quote: 'border-l-4 border-gray-300 pl-4 italic my-3',
 };
 
+interface AIBridgePluginProps {
+  renderAIBridge: NonNullable<LexicalEditorProps['renderAIBridge']>;
+}
+
+function AIBridgePlugin({ renderAIBridge }: AIBridgePluginProps): JSX.Element {
+  const [editor] = useLexicalComposerContext();
+
+  const insertAtCursor = React.useCallback((text: string): EditorInsertResult => {
+    const editorStateBefore = editor.getEditorState().toJSON();
+    let editorStateAfter: Record<string, any> | undefined;
+    let selectionStart = 0;
+    let selectionEnd = 0;
+    let cursorPosition = 0;
+
+    editor.update(() => {
+      const root = $getRoot();
+      const textBefore = root.getTextContent();
+      const selection = $getSelection();
+
+      if ($isRangeSelection(selection)) {
+        selectionStart = Math.min(selection.anchor.offset, selection.focus.offset);
+        selectionEnd = Math.max(selection.anchor.offset, selection.focus.offset);
+        selection.insertText(text);
+        cursorPosition = selectionStart + text.length;
+      } else {
+        selectionStart = textBefore.length;
+        selectionEnd = textBefore.length;
+        cursorPosition = textBefore.length + text.length;
+
+        const paragraph = $createParagraphNode();
+        paragraph.append($createTextNode(text));
+        root.append(paragraph);
+      }
+
+    }, { discrete: true });
+
+    editorStateAfter = editor.getEditorState().toJSON();
+    editor.focus();
+
+    return {
+      selectionStart,
+      selectionEnd,
+      cursorPosition,
+      editorStateBefore,
+      editorStateAfter,
+    };
+  }, [editor]);
+
+  return <>{renderAIBridge({ insertAtCursor })}</>;
+}
+
 /**
  * LexicalEditor is a rich text editor with integrated keystroke tracking
  */
@@ -73,6 +132,7 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
     onAutoSave,
     className = '',
     renderSelectionPopup,
+    renderAIBridge,
   } = props;
 
   // Parse initial content
@@ -266,6 +326,10 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
 
         {renderSelectionPopup && (
           <SelectionPopupPlugin renderPopup={renderSelectionPopup} />
+        )}
+
+        {renderAIBridge && (
+          <AIBridgePlugin renderAIBridge={renderAIBridge} />
         )}
       </div>
     </LexicalComposer>

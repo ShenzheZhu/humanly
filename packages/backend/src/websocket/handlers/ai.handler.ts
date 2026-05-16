@@ -1,12 +1,19 @@
 import { Server as SocketIOServer } from 'socket.io';
 import { TypedSocket } from '../socket-server';
+import { AgentRunner } from '../../services/agent-runner.service';
 import { AIService } from '../../services/ai.service';
 import { AIModel } from '../../models/ai.model';
 import { DocumentModel } from '../../models/document.model';
 import { DocumentEventModel } from '../../models/document-event.model';
-import { AIChatRequest, DocumentEventInsertData } from '@humanly/shared';
+import { AIChatRequest, AgentEvent, DocumentEventInsertData } from '@humanly/shared';
 import { logger } from '../../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
+
+/**
+ * Sentinel session id used by quick-action streams so the chat-panel
+ * listeners can tell them apart from a real conversation turn.
+ */
+const SILENT_SESSION_ID = 'silent';
 
 /**
  * Track AI event to document events table
@@ -200,6 +207,62 @@ export async function handleAIMessage(
       return;
     }
 
+    // Quick action / silent path: stream the rewrite back over a sentinel
+    // sessionId without touching ai_chat_sessions or interaction-log rows.
+    // The chat-panel listeners filter frames with this sessionId so they
+    // never adopt the result as a conversation turn.
+    if (data.silent) {
+      const { clientRequestId } = data;
+      socket.emit('ai:response-start', {
+        sessionId: SILENT_SESSION_ID,
+        messageId,
+        clientRequestId,
+      });
+
+      logger.info('AI silent stream started', {
+        socketId: socket.id,
+        userId,
+        documentId,
+        messageId,
+        clientRequestId,
+      });
+
+      await AIService.silentStreamChat(
+        userId,
+        data,
+        (chunk: string) => {
+          socket.emit('ai:response-chunk', {
+            sessionId: SILENT_SESSION_ID,
+            messageId,
+            clientRequestId,
+            chunk,
+          });
+        },
+        (content: string) => {
+          socket.emit('ai:response-complete', {
+            sessionId: SILENT_SESSION_ID,
+            clientRequestId,
+            message: {
+              id: messageId,
+              role: 'assistant',
+              content,
+              timestamp: new Date(),
+            },
+            logId: '',
+          });
+        },
+        (error: Error) => {
+          socket.emit('ai:error', {
+            sessionId: SILENT_SESSION_ID,
+            clientRequestId,
+            message: error.message || 'Silent AI request failed',
+            code: 'SILENT_AI_ERROR',
+          });
+        },
+      );
+      return;
+    }
+
     // Verify document ownership
     const isOwner = await DocumentModel.isOwner(documentId, userId);
     if (!isOwner) {
@@ -246,17 +309,69 @@ export async function handleAIMessage(
     // Store the query for tracking after response completes
     const queryText = message.trim();
 
+    // Translate AgentRunner's internal AgentEvent stream into typed Socket.IO
+    // frames so the chat UI can render the tool-call timeline. Drops events
+    // when the client has cancelled the stream.
+    const onAgentEvent = (event: AgentEvent) => {
+      if (streamState.cancelled) return;
+      switch (event.type) {
+        case 'turn-start':
+          socket.emit('ai:turn-start', {
+            sessionId: session.id,
+            messageId,
+            turnIndex: event.turnIndex,
+          });
+          break;
+        case 'tool-call':
+          socket.emit('ai:tool-call', {
+            sessionId: session.id,
+            messageId,
+            toolCallId: event.toolCallId,
+            toolName: event.toolName,
+            args: event.args,
+          });
+          break;
+        case 'tool-result':
+          socket.emit('ai:tool-result', {
+            sessionId: session.id,
+            messageId,
+            toolCallId: event.toolCallId,
+            result: event.result,
+            isError: event.isError,
+            durationMs: event.durationMs,
+          });
+          break;
+        case 'thinking-delta':
+          socket.emit('ai:thinking-delta', {
+            sessionId: session.id,
+            messageId,
+            text: event.text,
+          });
+          break;
+        case 'turn-end':
+          socket.emit('ai:turn-end', {
+            sessionId: session.id,
+            messageId,
+            turnIndex: event.turnIndex,
+          });
+          break;
+        // text-delta is already surfaced via the onChunk path; error is handled
+        // by the AgentRunner.run rejection.
+        default:
+          break;
+      }
+    };
+
     // Stream the response
-    await AIService.streamChat(
+    await AgentRunner.run({
       userId,
-      {
+      request: {
         documentId,
         sessionId: session.id,
         message: message.trim(),
         context,
       },
-      // onChunk
-      (chunk: string) => {
+      onTextChunk: (chunk: string) => {
         if (!streamState.cancelled) {
           socket.emit('ai:response-chunk', {
             sessionId: session.id,
@@ -265,8 +380,8 @@ export async function handleAIMessage(
           });
         }
       },
-      // onComplete
-      (response) => {
+      onAgentEvent,
+      onComplete: (response) => {
         activeStreams.delete(session.id);
 
         if (!streamState.cancelled) {
@@ -296,8 +411,7 @@ export async function handleAIMessage(
           });
         }
       },
-      // onError
-      (error) => {
+      onError: (error) => {
         activeStreams.delete(session.id);
 
         logger.error('AI streaming error', {
@@ -313,8 +427,8 @@ export async function handleAIMessage(
           message: error.message || 'An error occurred while processing your request',
           code: 'AI_ERROR',
         });
-      }
-    );
+      },
+    });
   } catch (error) {
     logger.error('Failed to process AI message', {
       socketId: socket.id,

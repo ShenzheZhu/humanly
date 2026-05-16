@@ -12,6 +12,7 @@
     "dev:frontend": "pnpm --filter @humanly/frontend dev",
     "dev:frontend-user": "pnpm --filter @humanly/frontend-user dev",
     "dev:tracker": "pnpm --filter @humanly/tracker build:watch",
+    "dev:mock": "node scripts/dev-mock-server.mjs",
     "build:shared": "pnpm --filter @humanly/shared build",
     "build:editor": "pnpm --filter @humanly/editor build",
     "build:backend": "pnpm --filter @humanly/backend build",

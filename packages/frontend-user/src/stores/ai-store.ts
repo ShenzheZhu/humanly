@@ -7,9 +7,41 @@ import {
   AISuggestion,
   AIChatRequest,
   AIChatResponse,
+  AgentToolCallPayload,
+  AgentToolResultPayload,
+  AgentThinkingDeltaPayload,
+  AgentTurnStartPayload,
+  AgentTurnEndPayload,
 } from '@humanly/shared';
 import api from '@/lib/api-client';
 import { getSocket, initializeSocket, emitEvent, onEvent, offEvent } from '@/lib/socket-client';
+
+/**
+ * Sentinel sessionId used by the backend handler for selection-menu quick
+ * actions. The chat-panel listeners skip frames carrying this id so the
+ * silent stream never adopts a real conversation turn; the streamSilent
+ * action registers its own ephemeral listeners scoped to this sentinel.
+ */
+const SILENT_SESSION_ID = 'silent';
+
+/**
+ * Tool-call entry in the per-message agentic timeline.
+ *
+ * `status` flips from `pending` to `done` when the matching `ai:tool-result`
+ * frame arrives. `result` is the raw JSON string the backend tool returned;
+ * the chat UI (#05) decodes and pretty-prints it inside a collapsible card.
+ */
+export interface ToolCallEntry {
+  toolCallId: string;
+  toolName: string;
+  args: Record<string, any>;
+  result?: string;
+  isError?: boolean;
+  durationMs?: number;
+  startedAt: number;
+  completedAt?: number;
+  status: 'pending' | 'done';
+}
 
 /**
  * AI Store State
@@ -26,6 +58,22 @@ interface AIState {
 
   // Suggestions
   activeSuggestions: AISuggestion[];
+
+  // Agentic tool-call timelines, keyed by assistant messageId. Populated by
+  // the ai:tool-call / ai:tool-result WebSocket frames during a streaming
+  // turn; rendered by the ToolCallCard component (#9). Initially keyed by
+  // the in-flight WebSocket messageId, then re-keyed to the persisted
+  // AIChatMessage.id on ai:response-complete.
+  toolCallTimelines: Record<string, ToolCallEntry[]>;
+
+  // Provider-exposed reasoning text, keyed by assistant messageId. This is
+  // intentionally separate from streamingContent so reasoning never bleeds
+  // into the visible assistant markdown body.
+  thinkingByMessageId: Record<string, string>;
+
+  // The WebSocket-side messageId for the response currently being streamed,
+  // used to bridge tool-call timelines onto the final persisted message id.
+  streamingMessageId: string | null;
 
   // Logs
   logs: AIInteractionLog[];
@@ -51,6 +99,17 @@ interface AIState {
   // Chat actions
   sendMessage: (documentId: string, message: string, context?: AIChatRequest['context']) => Promise<void>;
   sendMessageViaSocket: (documentId: string, message: string, context?: AIChatRequest['context']) => void;
+  // One-shot streaming for selection-menu quick actions. Resolves with the
+  // final text once the silent stream completes. Does NOT touch session
+  // state or the messages array; emits frames over the SILENT_SESSION_ID
+  // sentinel filtered out by the chat-panel listeners.
+  streamSilent: (
+    documentId: string,
+    message: string,
+    context: AIChatRequest['context'] | undefined,
+    onChunk: (chunk: string) => void,
+  ) => Promise<string>;
+  cancelSilentStream: () => void;
   cancelStream: () => void;
   clearMessages: () => Promise<void>;
   startNewChat: () => Promise<void>;
@@ -86,6 +145,9 @@ const initialState = {
   isStreaming: false,
   streamingContent: '',
   activeSuggestions: [],
+  toolCallTimelines: {} as Record<string, ToolCallEntry[]>,
+  thinkingByMessageId: {} as Record<string, string>,
+  streamingMessageId: null,
   logs: [],
   logsTotal: 0,
   isPanelOpen: false,
@@ -199,6 +261,82 @@ export const useAIStore = create<AIState>()(
         set({ isStreaming: false, streamingContent: '' });
       },
 
+      streamSilent: (documentId, message, context, onChunk) =>
+        new Promise<string>((resolve, reject) => {
+          const clientRequestId =
+            typeof crypto !== 'undefined' && 'randomUUID' in crypto
+              ? crypto.randomUUID()
+              : `silent-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          let messageId: string | null = null;
+          let finalContent = '';
+          const timeoutId = window.setTimeout(() => {
+            cleanup();
+            reject(new Error('AI request timed out. Please try again.'));
+          }, 90_000);
+
+          // Ephemeral listeners scoped to the silent sentinel. They piggy-back
+          // on the same ai:response-* channel as chat but are matched on the
+          // SILENT_SESSION_ID guard and on messageId once response-start
+          // assigns one.
+          const onStart = (data: { sessionId: string; messageId: string; clientRequestId?: string }) => {
+            if (data.sessionId !== SILENT_SESSION_ID) return;
+            if (data.clientRequestId !== clientRequestId) return;
+            if (messageId !== null) return; // already locked onto an earlier silent stream
+            messageId = data.messageId;
+          };
+          const onChunkEvent = (data: { sessionId: string; messageId: string; clientRequestId?: string; chunk: string }) => {
+            if (data.sessionId !== SILENT_SESSION_ID) return;
+            if (data.clientRequestId !== clientRequestId) return;
+            if (messageId === null || data.messageId !== messageId) return;
+            onChunk(data.chunk);
+          };
+          const onComplete = (response: AIChatResponse & { clientRequestId?: string }) => {
+            if (response.sessionId !== SILENT_SESSION_ID) return;
+            if (response.clientRequestId !== clientRequestId) return;
+            if (messageId === null || response.message.id !== messageId) return;
+            finalContent = response.message.content;
+            cleanup();
+            resolve(finalContent);
+          };
+          const onError = (data: { sessionId: string; clientRequestId?: string; message: string }) => {
+            if (data.sessionId !== SILENT_SESSION_ID) return;
+            if (data.clientRequestId !== clientRequestId) return;
+            cleanup();
+            reject(new Error(data.message || 'Silent AI request failed'));
+          };
+          const cleanup = () => {
+            window.clearTimeout(timeoutId);
+            offEvent('ai:response-start', onStart);
+            offEvent('ai:response-chunk', onChunkEvent);
+            offEvent('ai:response-complete', onComplete);
+            offEvent('ai:error', onError);
+          };
+
+          onEvent('ai:response-start', onStart);
+          onEvent('ai:response-chunk', onChunkEvent);
+          onEvent('ai:response-complete', onComplete);
+          onEvent('ai:error', onError);
+
+          const socket = getSocket();
+          if (!socket || !socket.connected) {
+            cleanup();
+            reject(new Error('Not connected to server. Please refresh and try again.'));
+            return;
+          }
+
+          emitEvent('ai:message', {
+            documentId,
+            message,
+            silent: true,
+            clientRequestId,
+            context,
+          } as AIChatRequest);
+        }),
+
+      cancelSilentStream: () => {
+        emitEvent('ai:cancel', { sessionId: SILENT_SESSION_ID });
+      },
+
       clearMessages: async () => {
         const { currentSession } = get();
         const deletedSessionId = currentSession?.id;
@@ -221,6 +359,9 @@ export const useAIStore = create<AIState>()(
           currentSession: null,
           activeSuggestions: [],
           quotedText: null,
+          toolCallTimelines: {},
+          thinkingByMessageId: {},
+          streamingMessageId: null,
           logs: deletedSessionId
             ? get().logs.filter((log) => log.sessionId !== deletedSessionId)
             : get().logs,
@@ -250,6 +391,9 @@ export const useAIStore = create<AIState>()(
           activeSuggestions: [],
           quotedText: null,
           error: null,
+          toolCallTimelines: {},
+          thinkingByMessageId: {},
+          streamingMessageId: null,
           logs: deletedSessionId
             ? get().logs.filter((log) => log.sessionId !== deletedSessionId)
             : get().logs,
@@ -344,6 +488,7 @@ export const useAIStore = create<AIState>()(
               role: 'assistant',
               content: log.response,
               timestamp: log.timestamp,
+              metadata: { logId: log.id },
             });
           }
         });
@@ -465,11 +610,13 @@ export const useAIStore = create<AIState>()(
 
         // Response start
         onEvent('ai:response-start', ({ sessionId, messageId }) => {
-          set({ isStreaming: true, streamingContent: '' });
+          if (sessionId === SILENT_SESSION_ID) return; // quick-action stream, handled by streamSilent
+          set({ isStreaming: true, streamingContent: '', streamingMessageId: messageId });
         });
 
         // Response chunk (streaming)
-        onEvent('ai:response-chunk', ({ sessionId, messageId, chunk }) => {
+        onEvent('ai:response-chunk', ({ sessionId, chunk }) => {
+          if (sessionId === SILENT_SESSION_ID) return;
           set((state) => ({
             streamingContent: state.streamingContent + chunk,
           }));
@@ -477,6 +624,7 @@ export const useAIStore = create<AIState>()(
 
         // Response complete
         onEvent('ai:response-complete', (response: AIChatResponse) => {
+          if (response.sessionId === SILENT_SESSION_ID) return;
           set((state) => {
             // Don't add if it's the system connection message
             if (response.message.role === 'system' && response.logId === '') {
@@ -494,6 +642,7 @@ export const useAIStore = create<AIState>()(
                     },
                 isStreaming: false,
                 streamingContent: '',
+                streamingMessageId: null,
               };
             }
 
@@ -510,6 +659,21 @@ export const useAIStore = create<AIState>()(
                   status: 'active' as const,
                 };
 
+            // Re-key the tool-call timeline from the in-flight WebSocket
+            // messageId onto the persisted AIChatMessage.id so the chat UI
+            // can look it up by the same id it renders.
+            let toolCallTimelines = state.toolCallTimelines;
+            if (state.streamingMessageId && toolCallTimelines[state.streamingMessageId]) {
+              const { [state.streamingMessageId]: timeline, ...rest } = toolCallTimelines;
+              toolCallTimelines = { ...rest, [response.message.id]: timeline };
+            }
+
+            let thinkingByMessageId = state.thinkingByMessageId;
+            if (state.streamingMessageId && thinkingByMessageId[state.streamingMessageId]) {
+              const { [state.streamingMessageId]: thinking, ...rest } = thinkingByMessageId;
+              thinkingByMessageId = { ...rest, [response.message.id]: thinking };
+            }
+
             // If we were streaming, the content was already shown via streamingContent
             // Just convert it to a proper message, don't duplicate
             if (state.isStreaming && state.streamingContent) {
@@ -519,6 +683,9 @@ export const useAIStore = create<AIState>()(
                 activeSuggestions: response.suggestions || state.activeSuggestions,
                 isStreaming: false,
                 streamingContent: '', // Clear streaming content since message is now in messages array
+                streamingMessageId: null,
+                toolCallTimelines,
+                thinkingByMessageId,
               };
             }
 
@@ -529,22 +696,100 @@ export const useAIStore = create<AIState>()(
               activeSuggestions: response.suggestions || state.activeSuggestions,
               isStreaming: false,
               streamingContent: '',
+              streamingMessageId: null,
+              toolCallTimelines,
+              thinkingByMessageId,
             };
           });
         });
 
         // Suggestions
-        onEvent('ai:suggestion', ({ sessionId, suggestions }) => {
+        onEvent('ai:suggestion', ({ suggestions }) => {
           set({ activeSuggestions: suggestions });
         });
 
         // Error
-        onEvent('ai:error', ({ sessionId, message, code }) => {
+        onEvent('ai:error', ({ sessionId, message }) => {
+          if (sessionId === SILENT_SESSION_ID) return;
           set({
             isStreaming: false,
             streamingContent: '',
             error: message,
           });
+        });
+
+        // ── Agentic tool-call lifecycle ──────────────────────────────────
+        // turn-start / turn-end mostly carry semantic boundaries for the UI;
+        // the actual tool work flows through tool-call → tool-result. We
+        // log all four so the agentic chain is visible in DevTools, even
+        // before the ToolCallCard UI lands in #05.
+
+        onEvent('ai:turn-start', (payload: AgentTurnStartPayload) => {
+          console.log('[agent] turn-start', payload);
+        });
+
+        onEvent('ai:tool-call', (payload: AgentToolCallPayload) => {
+          console.log('[agent] tool-call', payload);
+          set((state) => {
+            const existing = state.toolCallTimelines[payload.messageId] || [];
+            const entry: ToolCallEntry = {
+              toolCallId: payload.toolCallId,
+              toolName: payload.toolName,
+              args: payload.args,
+              startedAt: Date.now(),
+              status: 'pending',
+            };
+            return {
+              toolCallTimelines: {
+                ...state.toolCallTimelines,
+                [payload.messageId]: [...existing, entry],
+              },
+            };
+          });
+        });
+
+        onEvent('ai:tool-result', (payload: AgentToolResultPayload) => {
+          console.log('[agent] tool-result', payload);
+          set((state) => {
+            const existing = state.toolCallTimelines[payload.messageId];
+            if (!existing) return state;
+            const updated = existing.map((entry) =>
+              entry.toolCallId === payload.toolCallId
+                ? {
+                    ...entry,
+                    result: payload.result,
+                    isError: payload.isError,
+                    durationMs: payload.durationMs,
+                    completedAt: Date.now(),
+                    status: 'done' as const,
+                  }
+                : entry
+            );
+            return {
+              toolCallTimelines: {
+                ...state.toolCallTimelines,
+                [payload.messageId]: updated,
+              },
+            };
+          });
+        });
+
+        onEvent('ai:thinking-delta', (payload: AgentThinkingDeltaPayload) => {
+          if (payload.sessionId === SILENT_SESSION_ID) return;
+          console.log('[agent] thinking-delta', {
+            ...payload,
+            text: `${payload.text.length} chars`,
+          });
+          set((state) => ({
+            thinkingByMessageId: {
+              ...state.thinkingByMessageId,
+              [payload.messageId]: (state.thinkingByMessageId[payload.messageId] || '') + payload.text,
+            },
+          }));
+        });
+
+        onEvent('ai:turn-end', (payload: AgentTurnEndPayload) => {
+          console.log('[agent] turn-end', payload);
         });
       },
 
@@ -554,6 +799,11 @@ export const useAIStore = create<AIState>()(
         offEvent('ai:response-complete');
         offEvent('ai:suggestion');
         offEvent('ai:error');
+        offEvent('ai:turn-start');
+        offEvent('ai:tool-call');
+        offEvent('ai:tool-result');
+        offEvent('ai:thinking-delta');
+        offEvent('ai:turn-end');
         listenersSetup = false;
       },
 

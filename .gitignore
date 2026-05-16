@@ -95,3 +95,4 @@ DEV_LOG.md
 
 # ── Uploads (VM local storage, not in git) ───────────────────────────────────
 uploads/
+tmp/

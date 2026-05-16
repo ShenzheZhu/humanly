@@ -6,6 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { getWhitelist } from '@/lib/ai-models';
 import { useAI, useAILogs } from '@/hooks/use-ai';
@@ -19,8 +25,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { AISettingsDialog } from './ai-settings-dialog';
+import { ReasoningBlock, ToolCallTimeline } from './tool-call-card';
 import api from '@/lib/api-client';
+import type { ToolCallEntry } from '@/stores/ai-store';
 
 interface AIAssistantPanelProps {
   documentId: string;
@@ -29,6 +38,7 @@ interface AIAssistantPanelProps {
   getSelection?: () => { text: string; start: number; end: number } | null;
   taskManaged?: boolean;
   lockedModel?: string;
+  insertAtCursor?: ((text: string, source: { messageId: string; logId?: string }) => void | Promise<void>) | null;
 }
 
 const QUICK_ACTION_PROMPT_PREFIXES = [
@@ -66,6 +76,7 @@ export function AIAssistantPanel({
   getSelection,
   taskManaged = false,
   lockedModel,
+  insertAtCursor,
 }: AIAssistantPanelProps) {
   const [input, setInput] = useState('');
   const [historyPopoverOpen, setHistoryPopoverOpen] = useState(false);
@@ -147,7 +158,10 @@ export function AIAssistantPanel({
     messages,
     isStreaming,
     streamingContent,
+    streamingMessageId,
     suggestions,
+    toolCallTimelines,
+    thinkingByMessageId,
     isLoading,
     error,
     sendMessage,
@@ -274,6 +288,11 @@ export function AIAssistantPanel({
     setHistoryPopoverOpen(false);
   };
 
+  const streamingToolCalls = streamingMessageId ? toolCallTimelines[streamingMessageId] : undefined;
+  const hasStreamingToolCalls = Boolean(streamingToolCalls?.length);
+  const streamingThinking = streamingMessageId ? thinkingByMessageId?.[streamingMessageId] : undefined;
+  const hasStreamingThinking = Boolean(streamingThinking?.trim());
+
   return (
     <div className="flex h-full w-full flex-col bg-background min-w-0 overflow-hidden">
       {/* Header - Match Editor style */}
@@ -368,24 +387,33 @@ export function AIAssistantPanel({
           )}
 
           {messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
+            <MessageBubble
+              key={message.id}
+              message={message}
+              toolCalls={toolCallTimelines?.[message.id]}
+              thinking={thinkingByMessageId?.[message.id]}
+              insertAtCursor={insertAtCursor}
+            />
           ))}
 
           {/* Streaming message */}
-          {isStreaming && streamingContent && (
+          {isStreaming && (streamingContent || hasStreamingToolCalls || hasStreamingThinking) && streamingMessageId && (
             <MessageBubble
               message={{
-                id: 'streaming',
+                id: streamingMessageId,
                 role: 'assistant',
                 content: streamingContent,
                 timestamp: new Date(),
               }}
               isStreaming
+              toolCalls={streamingToolCalls}
+              thinking={streamingThinking}
+              insertAtCursor={insertAtCursor}
             />
           )}
 
           {/* Loading indicator */}
-          {isStreaming && !streamingContent && (
+          {isStreaming && !streamingContent && !hasStreamingToolCalls && !hasStreamingThinking && (
             <div className="flex items-center gap-2 text-muted-foreground px-1">
               <div className="flex gap-1">
                 <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
@@ -576,10 +604,14 @@ export function AIAssistantPanel({
 interface MessageBubbleProps {
   message: AIChatMessage;
   isStreaming?: boolean;
+  toolCalls?: ToolCallEntry[];
+  thinking?: string;
+  insertAtCursor?: ((text: string, source: { messageId: string; logId?: string }) => void | Promise<void>) | null;
 }
 
-function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
+function MessageBubble({ message, isStreaming, toolCalls, thinking, insertAtCursor }: MessageBubbleProps) {
   const isUser = message.role === 'user';
+  const canInsert = !isUser && !isStreaming && message.content.trim().length > 0;
 
   return (
     <div className={cn('flex min-w-0 w-full', isUser ? 'justify-end' : 'justify-start')}>
@@ -596,15 +628,64 @@ function MessageBubble({ message, isStreaming }: MessageBubbleProps) {
             {message.content}
           </div>
         ) : (
-          <div className="prose prose-sm dark:prose-invert max-w-none break-words overflow-wrap-anywhere leading-relaxed min-w-0 [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1 [&>hr]:my-2 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 [&>*]:max-w-full [&>*]:min-w-0 [&>pre]:overflow-x-auto [&>pre]:max-w-full [&>pre]:whitespace-pre [&>code]:break-words [&>code]:whitespace-pre-wrap [&_a]:break-all [&_a]:overflow-wrap-anywhere">
-            <ReactMarkdown>{message.content}</ReactMarkdown>
-            {isStreaming && (
-              <span className="inline-block w-1.5 h-4 ml-0.5 bg-current animate-pulse rounded-sm" />
+          <div className="min-w-0">
+            <ReasoningBlock thinking={thinking} />
+            <ToolCallTimeline entries={toolCalls} />
+            <div className="prose prose-sm dark:prose-invert max-w-none break-words overflow-x-auto overflow-wrap-anywhere leading-relaxed min-w-0 [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1 [&>hr]:my-2 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0 [&>*]:max-w-full [&>*]:min-w-0 [&>pre]:overflow-x-auto [&>pre]:max-w-full [&>pre]:whitespace-pre [&>code]:break-words [&>code]:whitespace-pre-wrap [&_a]:break-all [&_a]:overflow-wrap-anywhere [&_table]:w-full [&_table]:border-collapse [&_table]:text-xs [&_th]:border [&_th]:px-2 [&_th]:py-1 [&_td]:border [&_td]:px-2 [&_td]:py-1">
+              {message.content && (
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {message.content}
+                </ReactMarkdown>
+              )}
+              {isStreaming && (
+                <span className="inline-block w-1.5 h-4 ml-0.5 bg-current animate-pulse rounded-sm" />
+              )}
+            </div>
+            {canInsert && (
+              <InsertAtCursorButton
+                disabled={!insertAtCursor}
+                onInsert={() => insertAtCursor?.(message.content, {
+                  messageId: message.id,
+                  logId: message.metadata?.logId,
+                })}
+              />
             )}
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+interface InsertAtCursorButtonProps {
+  disabled: boolean;
+  onInsert: () => void | Promise<void>;
+}
+
+function InsertAtCursorButton({ disabled, onInsert }: InsertAtCursorButtonProps) {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="mt-2 inline-flex">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={disabled}
+              className="h-7 gap-1.5 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+              onClick={onInsert}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Insert at cursor
+            </Button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          <p>{disabled ? 'Open this document in the editor to insert' : 'Insert this response at the editor cursor'}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
