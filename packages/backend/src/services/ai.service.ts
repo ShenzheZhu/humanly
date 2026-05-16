@@ -14,6 +14,7 @@ import {
   AISuggestion,
   AIContentModification,
   AgentEvent,
+  AgentToolCallRecord,
 } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
@@ -36,6 +37,71 @@ function emitAgentEvent(sink: AgentEventSink | undefined, event: AgentEvent): vo
     sink(event);
   } catch (error) {
     logger.warn('AgentEventSink threw; ignoring', { error, eventType: event.type });
+  }
+}
+
+/**
+ * Collects `tool-call` / `tool-result` pairs off an AgentEvent stream so the
+ * websocket handler's live frames and the persisted record on the assistant
+ * message stay in sync. Issue #94: previously the timeline existed only in
+ * the live WebSocket frames, so reopening or refreshing the chat lost the
+ * agent trail.
+ */
+export class AgentToolCallCollector {
+  private readonly inFlight = new Map<string, { record: AgentToolCallRecord; startMs: number }>();
+  private readonly completed: AgentToolCallRecord[] = [];
+
+  observe(event: AgentEvent): void {
+    if (event.type === 'tool-call') {
+      const startedAt = new Date();
+      this.inFlight.set(event.toolCallId, {
+        startMs: Date.now(),
+        record: {
+          toolCallId: event.toolCallId,
+          toolName: event.toolName,
+          args: event.args,
+          startedAt: startedAt.toISOString(),
+        },
+      });
+      return;
+    }
+    if (event.type === 'tool-result') {
+      const pending = this.inFlight.get(event.toolCallId);
+      if (!pending) {
+        // tool-result without a paired tool-call — still record so the trail
+        // is not silently dropped.
+        this.completed.push({
+          toolCallId: event.toolCallId,
+          toolName: 'unknown',
+          args: {},
+          result: event.result,
+          isError: event.isError,
+          startedAt: new Date().toISOString(),
+          completedAt: new Date().toISOString(),
+          durationMs: event.durationMs,
+        });
+        return;
+      }
+      this.inFlight.delete(event.toolCallId);
+      this.completed.push({
+        ...pending.record,
+        result: event.result,
+        isError: event.isError,
+        completedAt: new Date().toISOString(),
+        durationMs: event.durationMs ?? Date.now() - pending.startMs,
+      });
+    }
+  }
+
+  /**
+   * Finalize and return the collected records, preserving live ordering.
+   * Any tool calls without a paired result (e.g. mid-turn abort) are still
+   * surfaced with no `result` so the timeline shows what was attempted.
+   */
+  finalize(): AgentToolCallRecord[] {
+    const orphans = Array.from(this.inFlight.values()).map(({ record }) => record);
+    this.inFlight.clear();
+    return [...this.completed, ...orphans];
   }
 }
 
@@ -1985,24 +2051,41 @@ export class AIService {
       // Get provider for this document. Task documents use task owner settings.
       const { provider, modelVersion } = await this.getExecutionSettingsForDocument(userId, request.documentId);
 
+      // Collect tool-call lifecycle off the AgentEvent stream so we can
+      // persist the timeline on the assistant message metadata for later
+      // session reloads (#94). The websocket layer still gets every event
+      // in real time via the wrapped sink.
+      const toolCallCollector = new AgentToolCallCollector();
+      const wrappedAgentEvent: AgentEventSink = (event) => {
+        toolCallCollector.observe(event);
+        if (onAgentEvent) emitAgentEvent(onAgentEvent, event);
+      };
+
       // Use the retrieval-capable agent and stream the final response once any
       // needed retrieval tool calls have completed.
       const response = await provider.agentStreamChat(messages, onChunk, {
         userId,
         documentId: request.documentId,
-        onAgentEvent,
+        onAgentEvent: wrappedAgentEvent,
       });
 
       const responseTimeMs = Date.now() - startTime;
 
-      // Add assistant message to session
+      // Add assistant message to session. Persist the tool-call timeline on
+      // metadata so reopening the chat panel rehydrates the agent trail
+      // instead of showing only the bare final answer (#94).
+      const toolCalls = toolCallCollector.finalize();
+      const assistantMetadata: Record<string, any> = { logId: log.id };
+      if (toolCalls.length > 0) {
+        assistantMetadata.toolCalls = toolCalls;
+      }
       let assistantMessage;
       try {
         assistantMessage = await AIModel.addMessage(
           session.id,
           'assistant',
           response.content,
-          { logId: log.id }
+          assistantMetadata,
         );
       } catch (error) {
         if (AIService.isSessionMissingError(error)) {
