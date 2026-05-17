@@ -91,8 +91,9 @@ Minimum:
 
 Recommended:
 
-- Together AI key and OpenRouter key.
-- A stable primary model, usually `Qwen/Qwen3.5-397B-A17B`.
+- Together AI key and, only when funded, an OpenRouter key.
+- A stable primary model, usually Together Kimi/DeepSeek/GLM. Use OpenRouter
+  Qwen only after confirming the OpenRouter account has credits.
 - A secondary model list for catalog checks: Qwen, Kimi, DeepSeek, GLM.
 - A small structured PDF, such as a syllabus.
 - A longer paper PDF for reference-retrieval stress, when provider rate limits

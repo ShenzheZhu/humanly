@@ -17,7 +17,9 @@ Final status after [PR #171](https://github.com/ShenzheZhu/humanly/pull/171):
 - DeepSeek DSML / pseudo tool-call leakage: not reproduced.
 - `I could not produce a final answer...` fallback leakage: not reproduced.
 - Together Qwen remains excluded from the Together stable user-facing list.
-- OpenRouter Qwen remains in the stable list and passed the full matrix.
+- OpenRouter Qwen passed the compatibility matrix, but OpenRouter availability is
+  account-balance dependent. Do not treat it as currently usable unless the
+  configured OpenRouter key has credits.
 
 ## What Was New Compared With Earlier AI QA
 
@@ -43,7 +45,7 @@ This pass expanded coverage in four ways:
 | Provider | Models Tested | Result |
 | --- | --- | --- |
 | Together | `moonshotai/Kimi-K2.6`, `deepseek-ai/DeepSeek-V4-Pro`, `zai-org/GLM-5` | Healthy after #170 quick-action fix |
-| OpenRouter | `qwen/qwen3.5-397b-a17b`, `moonshotai/kimi-k2.6`, `deepseek/deepseek-v4-pro`, `z-ai/glm-5` | Healthy |
+| OpenRouter | `qwen/qwen3.5-397b-a17b`, `moonshotai/kimi-k2.6`, `deepseek/deepseek-v4-pro`, `z-ai/glm-5` | Compatibility healthy when the account has credits |
 | Together excluded | `Qwen/Qwen3.5-397B-A17B` | Still excluded because Together structured tool calls can hang while plain text works |
 
 ## PDF Fixture Matrix
@@ -206,6 +208,8 @@ These are not current product bugs, but they remain live areas to keep testing:
 
 - Provider availability can still fluctuate; 429/503/service unavailable should
   be classified as provider behavior if Humanly surfaces a bounded error.
+- OpenRouter compatibility results do not imply the current OpenRouter account
+  has credits. Check credits before exposing OpenRouter models as active options.
 - Full editor-selection UI automation is still browser-agent-assisted rather
   than a stable CI harness. Keep lower-level quick-action tests strong.
 - Model lists should stay small and QA-backed. Do not add a model to the user
