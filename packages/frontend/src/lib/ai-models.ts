@@ -34,16 +34,19 @@ export const MODEL_WHITELIST: Record<string, AIModelDescriptor[]> = {
     { id: 'gemini-1.5-flash', capabilities: TEXT_AND_IMAGE },
   ],
   'openrouter.ai': [
-    { id: 'qwen/qwen3.5-397b-a17b', capabilities: TEXT_ONLY },
-    { id: 'moonshotai/kimi-k2.6', capabilities: TEXT_ONLY },
+    { id: 'qwen/qwen3.5-397b-a17b', capabilities: TEXT_AND_IMAGE },
+    { id: 'qwen/qwen3.5-9b', capabilities: TEXT_AND_IMAGE },
+    { id: 'moonshotai/kimi-k2.6', capabilities: TEXT_AND_IMAGE },
     { id: 'deepseek/deepseek-v4-pro', capabilities: TEXT_ONLY },
-    { id: 'z-ai/glm-5', capabilities: TEXT_ONLY },
+    { id: 'z-ai/glm-5.1', capabilities: TEXT_ONLY },
+    { id: 'anthropic/claude-sonnet-4.6', capabilities: TEXT_AND_IMAGE },
+    { id: 'openai/gpt-5.4-mini', capabilities: TEXT_AND_IMAGE },
+    { id: 'google/gemini-3.1-flash-lite', capabilities: TEXT_AND_IMAGE },
   ],
   'api.together.xyz': [
-    { id: 'Qwen/Qwen3.5-397B-A17B', capabilities: TEXT_AND_IMAGE },
     { id: 'moonshotai/Kimi-K2.6', capabilities: TEXT_AND_IMAGE },
     { id: 'deepseek-ai/DeepSeek-V4-Pro', capabilities: TEXT_ONLY },
-    { id: 'zai-org/GLM-5', capabilities: TEXT_ONLY },
+    { id: 'zai-org/GLM-5.1', capabilities: TEXT_ONLY },
   ],
 };
 

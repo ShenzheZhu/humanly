@@ -42,15 +42,19 @@ const MATRIX: Record<string, Record<string, ModelCapabilities>> = {
     'gemini-1.5-flash': TEXT_AND_IMAGE,
   },
   'openrouter.ai': {
-    'qwen/qwen3.5-397b-a17b': TEXT_ONLY,
-    'moonshotai/kimi-k2.6': TEXT_ONLY,
+    'qwen/qwen3.5-397b-a17b': TEXT_AND_IMAGE,
+    'qwen/qwen3.5-9b': TEXT_AND_IMAGE,
+    'moonshotai/kimi-k2.6': TEXT_AND_IMAGE,
     'deepseek/deepseek-v4-pro': TEXT_ONLY,
-    'z-ai/glm-5': TEXT_ONLY,
+    'z-ai/glm-5.1': TEXT_ONLY,
+    'anthropic/claude-sonnet-4.6': TEXT_AND_IMAGE,
+    'openai/gpt-5.4-mini': TEXT_AND_IMAGE,
+    'google/gemini-3.1-flash-lite': TEXT_AND_IMAGE,
   },
   'api.together.xyz': {
     'moonshotai/Kimi-K2.6': TEXT_AND_IMAGE,
     'deepseek-ai/DeepSeek-V4-Pro': TEXT_ONLY,
-    'zai-org/GLM-5': TEXT_ONLY,
+    'zai-org/GLM-5.1': TEXT_ONLY,
   },
 };
 

@@ -28,15 +28,21 @@ describe('backend ai-model-capabilities', () => {
   it('mirrors the frontend Together stable tool-call model set', () => {
     vision('api.together.xyz', 'moonshotai/Kimi-K2.6');
     textOnly('api.together.xyz', 'deepseek-ai/DeepSeek-V4-Pro');
-    textOnly('api.together.xyz', 'zai-org/GLM-5');
+    textOnly('api.together.xyz', 'zai-org/GLM-5.1');
     expect(getModelCapabilities('https://api.together.xyz/v1', 'Qwen/Qwen3.5-397B-A17B')).toBeNull();
+    expect(getModelCapabilities('https://api.together.xyz/v1', 'Qwen/Qwen3.5-9B')).toBeNull();
+    expect(getModelCapabilities('https://api.together.xyz/v1', 'zai-org/GLM-5')).toBeNull();
   });
 
-  it('mirrors the frontend OpenRouter stable text-only model set', () => {
-    textOnly('openrouter.ai', 'qwen/qwen3.5-397b-a17b');
-    textOnly('openrouter.ai', 'moonshotai/kimi-k2.6');
+  it('mirrors the frontend OpenRouter stable model set', () => {
+    vision('openrouter.ai', 'qwen/qwen3.5-397b-a17b');
+    vision('openrouter.ai', 'qwen/qwen3.5-9b');
+    vision('openrouter.ai', 'moonshotai/kimi-k2.6');
     textOnly('openrouter.ai', 'deepseek/deepseek-v4-pro');
-    textOnly('openrouter.ai', 'z-ai/glm-5');
+    textOnly('openrouter.ai', 'z-ai/glm-5.1');
+    vision('openrouter.ai', 'anthropic/claude-sonnet-4.6');
+    vision('openrouter.ai', 'openai/gpt-5.4-mini');
+    vision('openrouter.ai', 'google/gemini-3.1-flash-lite');
   });
 
   it('flags DeepSeek direct as text-only', () => {
