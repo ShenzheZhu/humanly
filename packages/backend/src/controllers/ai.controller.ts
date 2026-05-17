@@ -329,6 +329,7 @@ export async function trackSelectionAction(req: Request, res: Response): Promise
   if (!actionType || !validActionTypes.includes(actionType)) {
     throw new AppError(400, 'Valid action type is required (grammar, improve, simplify, formal)');
   }
+  const validatedActionType = actionType as AIActionType;
 
   if (!originalText || typeof originalText !== 'string') {
     throw new AppError(400, 'Original text is required');
@@ -346,7 +347,7 @@ export async function trackSelectionAction(req: Request, res: Response): Promise
   const action = await AISelectionActionModel.create({
     documentId,
     userId,
-    actionType,
+    actionType: validatedActionType,
     originalText,
     suggestedText,
     decision,
@@ -356,7 +357,7 @@ export async function trackSelectionAction(req: Request, res: Response): Promise
 
   try {
     let targetLogId = logId as string | undefined;
-    const { queryType, label } = AI_ACTION_QUERY_MAP[actionType];
+    const { queryType, label } = AI_ACTION_QUERY_MAP[validatedActionType];
 
     if (!targetLogId) {
       const existingLog = await AIModel.findRecentSelectionLog({
@@ -414,7 +415,7 @@ export async function trackSelectionAction(req: Request, res: Response): Promise
     logger.warn('Failed to mirror AI selection action into AI interaction logs', {
       userId,
       documentId,
-      actionType,
+      actionType: validatedActionType,
       error,
     });
   }

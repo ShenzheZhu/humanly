@@ -122,7 +122,7 @@ export function createApp(): Express {
   app.use('/api/v1/documents', documentRoutes);
   app.use('/api/v1/certificates', certificateRoutes);
   app.use('/api/v1/track', trackingRoutes);
-  app.use('/api/v1', exportRoutes);
+  app.use('/api/v1/tasks', exportRoutes);
   app.use('/api/v1/tasks', analyticsRoutes);
   app.use('/api/v1/ai', aiRoutes);
   app.use('/api/v1', fileRoutes);

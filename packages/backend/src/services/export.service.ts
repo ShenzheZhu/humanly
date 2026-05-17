@@ -19,38 +19,48 @@ export interface ExportMetadata {
   totalEvents: number;
 }
 
+type ExportRow = [
+  eventSource: 'tracker' | 'document',
+  id: string,
+  sessionId: string | null,
+  taskId: string,
+  externalUserId: string | null,
+  eventType: string,
+  timestamp: Date,
+  targetElement: string | null,
+  keyCode: string | null,
+  keyChar: string | null,
+  textBefore: string | null,
+  textAfter: string | null,
+  cursorPosition: number | null,
+  selectionStart: number | null,
+  selectionEnd: number | null,
+  metadata: Record<string, any> | null,
+  documentId: string | null,
+  userId: string | null,
+];
+
 /**
- * Service for exporting event data in various formats
+ * Service for exporting task activity in various formats.
+ *
+ * Humanly currently has two task-event stores:
+ * - `events`: legacy tracker/embed events keyed directly by task/session
+ * - `document_events`: user-portal editor events keyed by submission document
+ *
+ * Exports intentionally union both sources and expose `eventSource` so callers
+ * can distinguish them without losing task-level completeness.
  */
 export class ExportService {
-  /**
-   * Export events to JSON format with streaming
-   */
   static async exportToJSON(
     taskId: string,
     userId: string,
     filters: ExportFilters = {}
   ): Promise<{ stream: Readable; metadata: ExportMetadata }> {
     try {
-      // Verify task ownership
-      const ownsTask = await TaskModel.verifyOwnership(taskId, userId);
-      if (!ownsTask) {
-        throw new AppError(403, 'You do not have access to this task');
-      }
-
-      // Get task details
-      const task = await TaskModel.findById(taskId);
-      if (!task) {
-        throw new AppError(404, 'Task not found');
-      }
-
-      // Build query
+      const task = await this.verifyTaskAccess(taskId, userId);
       const { sql, params } = this.buildExportQuery(taskId, filters);
-
-      // Get total count
       const totalEvents = await this.getEventCount(taskId, filters);
 
-      // Create metadata
       const metadata: ExportMetadata = {
         taskId: task.id,
         taskName: task.name,
@@ -59,18 +69,7 @@ export class ExportService {
         totalEvents,
       };
 
-      const client = await pool.connect();
-      let rows: any[] = [];
-      try {
-        const result = await client.query({
-          text: sql,
-          values: params,
-          rowMode: 'array',
-        });
-        rows = result.rows;
-      } finally {
-        client.release();
-      }
+      const rows = await this.fetchRows(sql, params);
 
       const chunks: string[] = [
         '{\n',
@@ -93,8 +92,6 @@ export class ExportService {
       chunks.push('\n  ]\n');
       chunks.push('}\n');
 
-      const stream = Readable.from(chunks);
-
       logger.info('JSON export completed', {
         taskId,
         userId,
@@ -102,7 +99,7 @@ export class ExportService {
         filters,
       });
 
-      return { stream, metadata };
+      return { stream: Readable.from(chunks), metadata };
     } catch (error) {
       logger.error('Failed to export to JSON', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -113,34 +110,16 @@ export class ExportService {
     }
   }
 
-  /**
-   * Export events to CSV format with streaming
-   */
   static async exportToCSV(
     taskId: string,
     userId: string,
     filters: ExportFilters = {}
   ): Promise<{ stream: Readable; metadata: ExportMetadata }> {
     try {
-      // Verify task ownership
-      const ownsTask = await TaskModel.verifyOwnership(taskId, userId);
-      if (!ownsTask) {
-        throw new AppError(403, 'You do not have access to this task');
-      }
-
-      // Get task details
-      const task = await TaskModel.findById(taskId);
-      if (!task) {
-        throw new AppError(404, 'Task not found');
-      }
-
-      // Build query
+      const task = await this.verifyTaskAccess(taskId, userId);
       const { sql, params } = this.buildExportQuery(taskId, filters);
-
-      // Get total count
       const totalEvents = await this.getEventCount(taskId, filters);
 
-      // Create metadata
       const metadata: ExportMetadata = {
         taskId: task.id,
         taskName: task.name,
@@ -149,23 +128,14 @@ export class ExportService {
         totalEvents,
       };
 
-      const client = await pool.connect();
-      let rows: any[] = [];
-      try {
-        const result = await client.query({
-          text: sql,
-          values: params,
-          rowMode: 'array',
-        });
-        rows = result.rows;
-      } finally {
-        client.release();
-      }
-
+      const rows = await this.fetchRows(sql, params);
       const headers = [
+        'event_source',
         'id',
         'session_id',
         'task_id',
+        'document_id',
+        'user_id',
         'external_user_id',
         'event_type',
         'timestamp',
@@ -184,7 +154,6 @@ export class ExportService {
         `${headers.join(',')}\n`,
         ...rows.map((row) => `${this.flattenEventToCSV(row)}\n`),
       ];
-      const stream = Readable.from(chunks);
 
       logger.info('CSV export completed', {
         taskId,
@@ -193,7 +162,7 @@ export class ExportService {
         filters,
       });
 
-      return { stream, metadata };
+      return { stream: Readable.from(chunks), metadata };
     } catch (error) {
       logger.error('Failed to export to CSV', {
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -204,172 +173,210 @@ export class ExportService {
     }
   }
 
-  /**
-   * Build SQL query for exporting events with filters
-   */
+  private static async verifyTaskAccess(taskId: string, userId: string) {
+    const ownsTask = await TaskModel.verifyOwnership(taskId, userId);
+    if (!ownsTask) {
+      throw new AppError(403, 'You do not have access to this task');
+    }
+
+    const task = await TaskModel.findById(taskId);
+    if (!task) {
+      throw new AppError(404, 'Task not found');
+    }
+
+    return task;
+  }
+
+  private static async fetchRows(sql: string, params: any[]): Promise<ExportRow[]> {
+    const client = await pool.connect();
+    try {
+      const result = await client.query({
+        text: sql,
+        values: params,
+        rowMode: 'array',
+      });
+      return result.rows as ExportRow[];
+    } finally {
+      client.release();
+    }
+  }
+
   private static buildExportQuery(
     taskId: string,
     filters: ExportFilters
   ): { sql: string; params: any[] } {
-    const conditions: string[] = ['e.task_id = $1'];
+    const trackerConditions: string[] = ['e.task_id = $1'];
+    const documentConditions: string[] = ['te.task_id = $1'];
     const params: any[] = [taskId];
     let paramCount = 1;
 
-    // Date range filters
     if (filters.startDate) {
       paramCount++;
-      conditions.push(`e.timestamp >= $${paramCount}`);
+      trackerConditions.push(`e.timestamp >= $${paramCount}`);
+      documentConditions.push(`de.timestamp >= $${paramCount}`);
       params.push(filters.startDate);
     }
 
     if (filters.endDate) {
       paramCount++;
-      conditions.push(`e.timestamp <= $${paramCount}`);
+      trackerConditions.push(`e.timestamp <= $${paramCount}`);
+      documentConditions.push(`de.timestamp <= $${paramCount}`);
       params.push(filters.endDate);
     }
 
-    // Session IDs filter
     if (filters.sessionIds && filters.sessionIds.length > 0) {
       paramCount++;
-      conditions.push(`e.session_id = ANY($${paramCount})`);
+      trackerConditions.push(`e.session_id = ANY($${paramCount})`);
+      documentConditions.push(`de.session_id = ANY($${paramCount})`);
       params.push(filters.sessionIds);
     }
 
-    // User IDs filter (external user IDs)
     if (filters.userIds && filters.userIds.length > 0) {
       paramCount++;
-      conditions.push(`s.external_user_id = ANY($${paramCount})`);
+      trackerConditions.push(`s.external_user_id = ANY($${paramCount})`);
+      documentConditions.push(`u.email = ANY($${paramCount})`);
       params.push(filters.userIds);
     }
 
-    const whereClause = conditions.join(' AND ');
+    const trackerWhereClause = trackerConditions.join(' AND ');
+    const documentWhereClause = documentConditions.join(' AND ');
 
-    // Query with all event fields and external_user_id from sessions
     const sql = `
+      WITH exported_events AS (
+        SELECT
+          'tracker'::text as event_source,
+          e.id::text as id,
+          e.session_id::text as session_id,
+          e.task_id::text as task_id,
+          s.external_user_id,
+          e.event_type::text as event_type,
+          e.timestamp,
+          e.target_element,
+          e.key_code,
+          e.key_char,
+          e.text_before,
+          e.text_after,
+          e.cursor_position,
+          e.selection_start,
+          e.selection_end,
+          e.metadata,
+          NULL::text as document_id,
+          NULL::text as user_id
+        FROM events e
+        LEFT JOIN sessions s ON e.session_id = s.id
+        WHERE ${trackerWhereClause}
+        UNION ALL
+        SELECT
+          'document'::text as event_source,
+          de.id::text as id,
+          de.session_id::text as session_id,
+          te.task_id::text as task_id,
+          u.email as external_user_id,
+          de.event_type::text as event_type,
+          de.timestamp,
+          NULL::text as target_element,
+          de.key_code,
+          de.key_char,
+          de.text_before,
+          de.text_after,
+          de.cursor_position,
+          de.selection_start,
+          de.selection_end,
+          de.metadata,
+          de.document_id::text as document_id,
+          de.user_id::text as user_id
+        FROM task_enrollments te
+        JOIN document_events de ON de.document_id = te.submission_document_id
+        JOIN users u ON u.id = de.user_id
+        WHERE ${documentWhereClause}
+      )
       SELECT
-        e.id,
-        e.session_id,
-        e.task_id,
-        s.external_user_id,
-        e.event_type,
-        e.timestamp,
-        e.target_element,
-        e.key_code,
-        e.key_char,
-        e.text_before,
-        e.text_after,
-        e.cursor_position,
-        e.selection_start,
-        e.selection_end,
-        e.metadata
-      FROM events e
-      LEFT JOIN sessions s ON e.session_id = s.id
-      WHERE ${whereClause}
-      ORDER BY e.timestamp ASC
+        event_source,
+        id,
+        session_id,
+        task_id,
+        external_user_id,
+        event_type,
+        timestamp,
+        target_element,
+        key_code,
+        key_char,
+        text_before,
+        text_after,
+        cursor_position,
+        selection_start,
+        selection_end,
+        metadata,
+        document_id,
+        user_id
+      FROM exported_events
+      ORDER BY timestamp ASC
     `;
 
     return { sql, params };
   }
 
-  /**
-   * Get total event count for export
-   */
   private static async getEventCount(
     taskId: string,
     filters: ExportFilters
   ): Promise<number> {
-    const conditions: string[] = ['e.task_id = $1'];
-    const params: any[] = [taskId];
-    let paramCount = 1;
-
-    if (filters.startDate) {
-      paramCount++;
-      conditions.push(`e.timestamp >= $${paramCount}`);
-      params.push(filters.startDate);
-    }
-
-    if (filters.endDate) {
-      paramCount++;
-      conditions.push(`e.timestamp <= $${paramCount}`);
-      params.push(filters.endDate);
-    }
-
-    if (filters.sessionIds && filters.sessionIds.length > 0) {
-      paramCount++;
-      conditions.push(`e.session_id = ANY($${paramCount})`);
-      params.push(filters.sessionIds);
-    }
-
-    if (filters.userIds && filters.userIds.length > 0) {
-      paramCount++;
-      conditions.push(`s.external_user_id = ANY($${paramCount})`);
-      params.push(filters.userIds);
-    }
-
-    const whereClause = conditions.join(' AND ');
-
-    const sql = `
-      SELECT COUNT(*) as count
-      FROM events e
-      LEFT JOIN sessions s ON e.session_id = s.id
-      WHERE ${whereClause}
-    `;
+    const { sql, params } = this.buildExportQuery(taskId, filters);
+    const countSql = `SELECT COUNT(*) as count FROM (${sql.replace(/ORDER BY timestamp ASC\s*$/m, '')}) exported_count`;
 
     const client = await pool.connect();
     try {
-      const result = await client.query(sql, params);
+      const result = await client.query(countSql, params);
       return parseInt(result.rows[0].count, 10);
     } finally {
       client.release();
     }
   }
 
-  /**
-   * Map database row to Event object
-   */
-  private static mapRowToEvent(row: any[]): any {
+  private static mapRowToEvent(row: ExportRow): Record<string, any> {
     return {
-      id: row[0],
-      sessionId: row[1],
-      taskId: row[2],
-      externalUserId: row[3],
-      eventType: row[4],
-      timestamp: row[5],
-      targetElement: row[6],
-      keyCode: row[7],
-      keyChar: row[8],
-      textBefore: row[9],
-      textAfter: row[10],
-      cursorPosition: row[11],
-      selectionStart: row[12],
-      selectionEnd: row[13],
-      metadata: row[14],
+      eventSource: row[0],
+      id: row[1],
+      sessionId: row[2],
+      taskId: row[3],
+      externalUserId: row[4],
+      eventType: row[5],
+      timestamp: row[6],
+      targetElement: row[7],
+      keyCode: row[8],
+      keyChar: row[9],
+      textBefore: row[10],
+      textAfter: row[11],
+      cursorPosition: row[12],
+      selectionStart: row[13],
+      selectionEnd: row[14],
+      metadata: row[15],
+      documentId: row[16],
+      userId: row[17],
     };
   }
 
-  /**
-   * Flatten event object to CSV row with proper escaping
-   */
-  private static flattenEventToCSV(row: any[]): string {
+  private static flattenEventToCSV(row: ExportRow): string {
     const values = [
-      row[0], // id
-      row[1], // session_id
-      row[2], // task_id
-      row[3], // external_user_id
-      row[4], // event_type
-      row[5], // timestamp
-      row[6], // target_element
-      row[7], // key_code
-      row[8], // key_char
-      row[9], // text_before
-      row[10], // text_after
-      row[11], // cursor_position
-      row[12], // selection_start
-      row[13], // selection_end
-      row[14] ? JSON.stringify(row[14]) : '', // metadata as JSON string
+      row[0],
+      row[1],
+      row[2],
+      row[3],
+      row[16],
+      row[17],
+      row[4],
+      row[5],
+      row[6],
+      row[7],
+      row[8],
+      row[9],
+      row[10],
+      row[11],
+      row[12],
+      row[13],
+      row[14],
+      row[15] ? JSON.stringify(row[15]) : '',
     ];
 
-    // Escape and quote CSV values
     return values
       .map((value) => {
         if (value === null || value === undefined) {
@@ -378,7 +385,6 @@ export class ExportService {
 
         const stringValue = String(value);
 
-        // If value contains comma, quote, or newline, wrap in quotes and escape quotes
         if (
           stringValue.includes(',') ||
           stringValue.includes('"') ||
@@ -393,9 +399,6 @@ export class ExportService {
       .join(',');
   }
 
-  /**
-   * Generate filename for export download
-   */
   static generateFilename(
     taskId: string,
     format: 'json' | 'csv',

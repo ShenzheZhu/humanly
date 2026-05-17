@@ -21,7 +21,7 @@ import {
   getSnippets,
 } from '../controllers/task.controller';
 
-const router = Router();
+const router: Router = Router();
 
 // All routes require authentication
 router.use(authenticate);
