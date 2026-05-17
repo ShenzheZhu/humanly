@@ -427,6 +427,11 @@ function normalizeAgentMaxToolCalls(value: number | undefined): number {
   return Math.max(1, Math.min(Math.floor(value), 100));
 }
 
+function normalizeProviderTimeoutMs(value: number | undefined): number {
+  if (!Number.isFinite(value) || !value) return 60000;
+  return Math.max(5000, Math.min(Math.floor(value), 180000));
+}
+
 interface AgentChatOptions {
   userId: string;
   documentId: string;
@@ -489,6 +494,7 @@ class OpenAIProvider implements AIProvider {
   private model: string;
   private baseUrl: string;
   private maxToolCalls: number;
+  private providerTimeoutMs: number;
   private client: OpenAI;
 
   constructor(config?: { apiKey: string; model: string; baseUrl: string; maxToolCalls?: number }) {
@@ -496,10 +502,20 @@ class OpenAIProvider implements AIProvider {
     this.model = config?.model || env.aiModel || 'Qwen/Qwen3.5-397B-A17B';
     this.baseUrl = config?.baseUrl || env.aiBaseUrl || 'https://api.together.xyz/v1';
     this.maxToolCalls = normalizeAgentMaxToolCalls(config?.maxToolCalls ?? env.aiAgentMaxToolCalls);
+    this.providerTimeoutMs = normalizeProviderTimeoutMs(env.aiProviderTimeoutMs);
     this.client = new OpenAI({
       apiKey: this.apiKey || 'missing-api-key',
       baseURL: this.baseUrl,
+      timeout: this.providerTimeoutMs,
+      maxRetries: 0,
     });
+  }
+
+  private requestOptions(): { timeout: number; maxRetries: number } {
+    return {
+      timeout: this.providerTimeoutMs,
+      maxRetries: 0,
+    };
   }
 
   async agentChat(
@@ -532,7 +548,7 @@ class OpenAIProvider implements AIProvider {
           tools: AIRetrievalService.tools,
           max_output_tokens: options.maxTokens || 2048,
           parallel_tool_calls: true,
-        });
+        }, this.requestOptions());
       } catch (error) {
         this.handleSDKError(error);
       }
@@ -730,7 +746,7 @@ class OpenAIProvider implements AIProvider {
           { role: 'user', content: buildFinalAnswerSynthesisPrompt(reason) },
         ],
         max_output_tokens: options.maxTokens || 2048,
-      });
+      }, this.requestOptions());
     } catch (error) {
       this.handleSDKError(error);
     }
@@ -784,7 +800,7 @@ class OpenAIProvider implements AIProvider {
           tools: chatTools,
           tool_choice: 'auto',
           max_tokens: options.maxTokens || 2048,
-        } as any);
+        } as any, this.requestOptions() as any);
       } catch (error) {
         this.handleSDKError(error);
       }
@@ -990,7 +1006,7 @@ class OpenAIProvider implements AIProvider {
           tools: chatTools,
           tool_choice: 'auto',
           max_tokens: options.maxTokens || 2048,
-        } as any);
+        } as any, this.requestOptions() as any);
       } catch (error) {
         this.handleSDKError(error);
       }
@@ -1208,7 +1224,7 @@ class OpenAIProvider implements AIProvider {
         ...(options.disableThinking && this.supportsChatTemplateThinkingToggle()
           ? { chat_template_kwargs: { enable_thinking: false } }
           : {}),
-      } as any);
+      } as any, this.requestOptions() as any);
     } catch (error) {
       this.handleSDKError(error);
     }
@@ -1266,7 +1282,7 @@ class OpenAIProvider implements AIProvider {
             ...(options.disableThinking && this.supportsChatTemplateThinkingToggle()
               ? { chat_template_kwargs: { enable_thinking: false } }
               : {}),
-          } as any);
+          } as any, this.requestOptions() as any);
         } catch (error) {
           this.handleSDKError(error);
         }
@@ -1371,7 +1387,7 @@ class OpenAIProvider implements AIProvider {
           { role: 'user', content: buildFinalAnswerSynthesisPrompt(reason) },
         ],
         max_tokens: options.maxTokens || 2048,
-      } as any);
+      } as any, this.requestOptions() as any);
     } catch (error) {
       this.handleSDKError(error);
     }
@@ -1399,6 +1415,18 @@ class OpenAIProvider implements AIProvider {
     logger.error('OpenAI API error', { status: sdkError?.status, error: sdkError });
     const detail = sdkError?.error?.message || sdkError?.message || '';
     const prefix = 'AI Provider: ';
+    const errorName = sdkError?.name || sdkError?.constructor?.name || '';
+
+    if (
+      errorName === 'APIConnectionTimeoutError'
+      || errorName === 'TimeoutError'
+      || /timed?\s*out|timeout/i.test(detail)
+    ) {
+      throw new AppError(
+        504,
+        `${prefix}request timed out after ${Math.round(this.providerTimeoutMs / 1000)}s. Please try again or ask a narrower question.`
+      );
+    }
 
     if (sdkError?.status === 401) {
       throw new AppError(502, detail ? `${prefix}${detail}` : 'Invalid API key. Please check your AI settings.');
