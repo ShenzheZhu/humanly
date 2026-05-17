@@ -427,12 +427,12 @@ function normalizeAgentMaxToolCalls(value: number | undefined): number {
   return Math.max(1, Math.min(Math.floor(value), 100));
 }
 
-function normalizeProviderTimeoutMs(value: number | undefined): number {
-  if (!Number.isFinite(value) || !value) return 60000;
-  return Math.max(5000, Math.min(Math.floor(value), 180000));
+export function normalizeProviderTimeoutMs(value: number | undefined): number {
+  if (!Number.isFinite(value) || !value) return 180000;
+  return Math.max(5000, Math.min(Math.floor(value), 300000));
 }
 
-function buildProviderTimeoutFallback(timeoutMs: number): string {
+export function buildProviderTimeoutFallback(timeoutMs: number): string {
   return `The AI request took longer than ${Math.round(timeoutMs / 1000)} seconds and was stopped before it could finish. Please try again with a narrower question.`;
 }
 
