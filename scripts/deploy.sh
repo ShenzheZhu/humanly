@@ -63,6 +63,10 @@ echo "==> [8/8] Restart application services"
 docker compose -f "$COMPOSE_FILE" up -d --no-deps --wait backend frontend-user frontend
 docker compose -f "$COMPOSE_FILE" up -d --no-deps --force-recreate nginx
 
+echo "==> Ensure production TLS certificate covers supported hostnames"
+bash scripts/ensure-production-cert.sh
+docker compose -f "$COMPOSE_FILE" up -d --no-deps --force-recreate nginx
+
 echo "==> Current service status"
 docker compose -f "$COMPOSE_FILE" ps
 

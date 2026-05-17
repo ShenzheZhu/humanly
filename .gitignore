@@ -25,6 +25,8 @@ out/
 
 # ── SSL certificates and private keys ─────────────────────────────────────────
 nginx/ssl/
+nginx/letsencrypt/
+nginx/certbot/
 *.pem
 *.key
 *.crt
@@ -69,7 +71,7 @@ temp/
 *.swo
 *~
 
-# ── Claude Code ───────────────────────────────────────────────────────────────
+# ── Local assistant state ─────────────────────────────────────────────────────
 .claude/
 .AGENTS/
 /CLAUDE.md

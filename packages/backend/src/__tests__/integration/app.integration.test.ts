@@ -27,6 +27,19 @@ describe('createApp integration', () => {
     );
   });
 
+  it('returns versioned API health status', async () => {
+    const response = await request(app).get('/api/v1/health');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        status: 'ok',
+        timestamp: expect.any(String),
+        uptime: expect.any(Number),
+      })
+    );
+  });
+
   it('returns API metadata', async () => {
     const response = await request(app).get('/api/v1');
 

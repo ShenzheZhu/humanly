@@ -95,14 +95,17 @@ export function createApp(): Express {
     next();
   });
 
-  // Health check endpoint
-  app.get('/health', (_req: Request, res: Response) => {
+  const healthHandler = (_req: Request, res: Response) => {
     res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
     });
-  });
+  };
+
+  // Health check endpoints
+  app.get('/health', healthHandler);
+  app.get('/api/v1/health', healthHandler);
 
   // API version
   app.get('/api/v1', (_req: Request, res: Response) => {
