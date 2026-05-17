@@ -14,6 +14,7 @@ Final status after [PR #171](https://github.com/ShenzheZhu/humanly/pull/171):
 - Backend agentic PDF QA: healthy.
 - Production AI chat UI: healthy.
 - Production quick actions: healthy after #170 fix and deploy.
+- Production Kimi image input canary: healthy after follow-up pass.
 - DeepSeek DSML / pseudo tool-call leakage: not reproduced.
 - `I could not produce a final answer...` fallback leakage: not reproduced.
 - Together Qwen remains excluded from the Together stable user-facing list.
@@ -111,6 +112,25 @@ AI Assistant chat canary:
 - Final answer correctly returned Dr. Mark Hathaway and Mondays 2-3 PM via Zoom.
 - No dirty tool markup or fallback text appeared in the UI.
 
+Image-input canary:
+
+- The original PDF stress matrix did not include multimodal turns. A follow-up
+  production API canary was added immediately after that gap was identified.
+- Artifact:
+  `tmp/kimi-image-canary-20260517T221134.json`
+- Provider/model:
+  Together `moonshotai/Kimi-K2.6`
+- Image:
+  `tomato_egg_flavour_wheel.png`
+- Result:
+  5/5 passed.
+- Kimi answered a vision question and identified the central title,
+  `Tomato and Egg Stir-Fry Flavour Wheel`, plus readable labels such as
+  `ketchup sweetness`, `dark soy sauce`, `tomato acidity`, and `egg richness`.
+- The response was non-empty and had no fallback/tool-call leakage.
+- Text-only Together DeepSeek rejected the same image with a stable
+  `does not accept image input` capability error.
+
 Quick-action canary:
 
 - Tested the silent quick-action path used by grammar, improve, simplify, and formal.
@@ -202,12 +222,13 @@ This pass explicitly rechecked prior high-risk AI bugs:
 | DeepSeek DSML visible tool-call leakage | DeepSeek on Together and OpenRouter across PDF matrix | not reproduced |
 | Final-answer fallback leakage | dirty/fallback regex scan on all rows + UI canary | not reproduced |
 
-Not covered by this pass:
+Follow-up image coverage:
 
-- Multimodal image-input turns were not part of the PDF-centric stress matrix.
-  #110 and #115 remain in the regression ledger, but they were not re-run in
-  this pass and need a dedicated production canary before calling full AI chat
-  coverage complete.
+- Multimodal image-input turns were not part of the original PDF-centric matrix.
+  They were covered by the follow-up Kimi image canary described above.
+- #110 and #115 remain in the regression ledger because future image regressions
+  can still happen through storage, ownership, capability gating, or provider
+  vision behavior.
 
 ## Residual Risks
 
