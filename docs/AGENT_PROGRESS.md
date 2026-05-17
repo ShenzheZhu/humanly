@@ -16,11 +16,9 @@ short state snapshot for fast agent orientation.
 - Use `docs/REGRESSION_GUARD.md` and `docs/REGRESSION_LEDGER.md` before filing
   a bug from QA.
 
-## Open Known Issue
+## Open Known Issues
 
-- #105 - `api.writehumanly.net` TLS certificate hostname mismatch. The deployed
-  app/admin proxy API paths work and remain the QA path until this infra issue is
-  handled.
+- None at the moment. Check GitHub issues before starting new work.
 
 ## Recently Merged
 
@@ -34,6 +32,10 @@ short state snapshot for fast agent orientation.
   before `git fetch`.
 - #151 / #152 - post-deploy image cleanup so old app image sets are removed
   after a successful release.
+- #153 / #154 - Codex development manual, documentation map, and docs-only
+  deploy skip.
+- #105 / #155 - direct `api.writehumanly.net` TLS support, versioned health
+  endpoint, certificate SAN guard, and post-deploy HTTPS health checks.
 
 ## Release/Deploy State
 
