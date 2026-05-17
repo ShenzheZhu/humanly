@@ -19,7 +19,7 @@ import {
   refreshTokenRateLimiter,
 } from '../middleware/rate-limit';
 
-const router = Router();
+const router: Router = Router();
 
 /**
  * POST /api/v1/auth/register
