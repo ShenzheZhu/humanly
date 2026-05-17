@@ -100,6 +100,21 @@ migration_presence() {
     022_drop_legacy_review_tables.sql)
       legacy_review_tables_retired
       ;;
+    023_ai_chat_session_capabilities.sql)
+      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'ai_chat_sessions' AND column_name = 'model_version') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'ai_chat_sessions' AND column_name = 'model_capabilities');"
+      ;;
+    024_chat_image_attachments_ownership.sql)
+      psql_scalar -c "SELECT to_regclass('public.ai_chat_attachments') IS NOT NULL;"
+      ;;
+    025_chat_image_attachment_storage_locator.sql)
+      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'ai_chat_attachments' AND column_name = 'storage_provider') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'ai_chat_attachments' AND column_name = 'storage_bucket');"
+      ;;
+    026_chat_image_attachment_db_fallback.sql)
+      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'ai_chat_attachments' AND column_name = 'image_bytes');"
+      ;;
+    027_analytics_query_indexes.sql)
+      psql_scalar -c "SELECT to_regclass('public.idx_sessions_task_user_start') IS NOT NULL AND to_regclass('public.idx_sessions_task_start') IS NOT NULL AND to_regclass('public.idx_document_events_session_timestamp') IS NOT NULL AND to_regclass('public.idx_document_events_unlinked_doc_user_created') IS NOT NULL AND to_regclass('public.idx_task_enrollments_task_user') IS NOT NULL AND to_regclass('public.idx_submissions_task_submitted_at') IS NOT NULL;"
+      ;;
     *)
       echo "unknown"
       ;;
