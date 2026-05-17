@@ -146,11 +146,13 @@ export async function testConnection(req: Request, res: Response) {
       });
     }
 
-    // Extract model IDs from response
-    // OpenAI format: { data: [{ id: "gpt-4o", ... }, ...] }
+    // Extract model IDs from response. OpenAI-compatible providers usually
+    // return { data: [{ id: "gpt-4o", ... }] }, while Together currently
+    // returns a top-level array from /v1/models.
     let models: string[] = [];
-    if (data.data && Array.isArray(data.data)) {
-      models = data.data
+    const modelList = Array.isArray(data) ? data : data.data;
+    if (Array.isArray(modelList)) {
+      models = modelList
         .map((m: any) => m.id)
         .filter((id: string) => id)
         .sort();
