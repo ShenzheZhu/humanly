@@ -65,6 +65,7 @@ import { AIModel } from '../../models/ai.model';
 import { DocumentModel } from '../../models/document.model';
 import { TaskModel } from '../../models/task.model';
 import { UserAISettingsModel } from '../../models/user-ai-settings.model';
+import { AIRetrievalService } from '../../services/ai-retrieval.service';
 
 const MockAIModel = AIModel as jest.Mocked<typeof AIModel>;
 const MockDocumentModel = DocumentModel as jest.Mocked<typeof DocumentModel>;
@@ -566,6 +567,7 @@ describe('AIService.silentChat', () => {
       userId: 'user-1',
       environmentConfig: { aiAccess: 'on' },
     } as any);
+    jest.spyOn(AIRetrievalService, 'buildCompactReferenceContext').mockResolvedValue(null);
     MockTaskModel.findBySubmissionDocument.mockResolvedValue(null);
     MockUserAISettings.getByUserId.mockResolvedValue(makeSettings());
     mockFetch.mockResolvedValue(mockResponsesResponse('Grammar fixed.'));
@@ -730,6 +732,26 @@ describe('AIService.chat', () => {
     expect(result.sessionId).toBe('session-1');
     expect(result.message.content).toBe('Fixed.');
     expect(result.logId).toBe('log-1');
+  });
+
+  it('injects compact reference context before provider dispatch', async () => {
+    MockUserAISettings.getByUserId.mockResolvedValue(makeSettings({
+      model: 'Qwen/Qwen3.5-397B-A17B',
+      baseUrl: 'https://api.together.xyz/v1',
+    }));
+    jest.spyOn(AIRetrievalService, 'buildCompactReferenceContext')
+      .mockResolvedValueOnce('Uploaded reference snapshot:\nReference file: syllabus.pdf');
+    mockFetch.mockResolvedValueOnce(mockChatCompletionResponse('The instructor is listed in the snapshot.'));
+
+    await AIService.chat('user-1', request as any);
+
+    const body = JSON.parse(mockFetch.mock.calls[mockFetch.mock.calls.length - 1][1].body);
+    expect(body.messages).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        role: 'system',
+        content: expect.stringContaining('Uploaded reference snapshot'),
+      }),
+    ]));
   });
 
   it('uses existing session when sessionId is provided', async () => {

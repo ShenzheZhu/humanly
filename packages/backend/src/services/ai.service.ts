@@ -2297,6 +2297,13 @@ export class AIService {
       const messages: { role: string; content: any }[] = [
         { role: 'system', content: buildSystemPrompt(request.context) },
       ];
+      const referenceContext = await AIRetrievalService.buildCompactReferenceContext(
+        userId,
+        request.documentId
+      );
+      if (referenceContext) {
+        messages.push({ role: 'system', content: referenceContext });
+      }
 
       // Add previous messages (last 10 for context). User turns with image
       // attachments stored on metadata.attachments must be rebuilt as
@@ -2496,6 +2503,13 @@ export class AIService {
       const messages: { role: string; content: any }[] = [
         { role: 'system', content: buildSystemPrompt(request.context) },
       ];
+      const referenceContext = await AIRetrievalService.buildCompactReferenceContext(
+        userId,
+        request.documentId
+      );
+      if (referenceContext) {
+        messages.push({ role: 'system', content: referenceContext });
+      }
 
       // Add previous messages (last 10 for context). User turns with
       // image attachments are rebuilt as multimodal content parts so

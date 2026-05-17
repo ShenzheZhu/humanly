@@ -12,6 +12,8 @@ type Tool = OpenAI.Responses.FunctionTool;
 const MAX_TEXT = 12000;
 const CHUNK_SIZE = 1800;
 const CHUNK_OVERLAP = 200;
+const COMPACT_CONTEXT_MAX_CHARS = 18000;
+const COMPACT_CONTEXT_MAX_FILES = 3;
 
 function excerpt(text: string, maxLength = MAX_TEXT): string {
   return text.length > maxLength ? `${text.slice(0, maxLength)}\n[truncated]` : text;
@@ -180,6 +182,60 @@ export class AIRetrievalService {
       default:
         return JSON.stringify({ error: `Unknown tool: ${name}. Available tools: ls, grep, read.` });
     }
+  }
+
+  /**
+   * Build a deterministic reference snapshot for small-file QA. Tool calling
+   * remains available, but short syllabi / prompts should not require the
+   * model to discover obvious facts through a fragile multi-turn tool loop.
+   */
+  static async buildCompactReferenceContext(
+    userId: string,
+    scopedDocumentId: string,
+    maxChars = COMPACT_CONTEXT_MAX_CHARS
+  ): Promise<string | null> {
+    const listing = await this.ls(userId, scopedDocumentId);
+    if (listing.files.length === 0) {
+      return null;
+    }
+
+    let remaining = Math.max(2000, Math.floor(maxChars));
+    const sections: string[] = [];
+    for (const file of listing.files.slice(0, COMPACT_CONTEXT_MAX_FILES)) {
+      if (remaining <= 0) break;
+      try {
+        const { lines, hasPages } = await this.loadFileText(userId, scopedDocumentId, file.id);
+        const header = [
+          `Reference file: ${file.filename}`,
+          `File id: ${file.id}`,
+          hasPages ? 'Format: page-marked plain text' : 'Format: plain text',
+        ].join('\n');
+        const bodyBudget = Math.max(0, remaining - header.length - 64);
+        if (bodyBudget <= 0) break;
+        const body = excerpt(lines.join('\n'), bodyBudget);
+        const section = `${header}\n---\n${body}`;
+        sections.push(section);
+        remaining -= section.length + 16;
+      } catch (error) {
+        logger.warn('Failed to build compact AI reference context', {
+          userId,
+          documentId: scopedDocumentId,
+          fileId: file.id,
+          error,
+        });
+      }
+    }
+
+    if (sections.length === 0) {
+      return null;
+    }
+
+    return [
+      'Uploaded reference snapshot:',
+      'Use this snapshot first for straightforward questions about attached references. If it is insufficient or truncated, use ls/grep/read tools for more evidence.',
+      '',
+      sections.join('\n\n'),
+    ].join('\n');
   }
 
   static async indexFile(fileId: string): Promise<void> {
