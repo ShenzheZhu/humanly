@@ -1483,6 +1483,7 @@ class OpenAIProvider implements AIProvider {
       'moonshotai/Kimi-K2.6',
       'deepseek-ai/DeepSeek-V4-Pro',
       'zai-org/GLM-5',
+      'zai-org/GLM-5.1',
     ].includes(this.model);
   }
 

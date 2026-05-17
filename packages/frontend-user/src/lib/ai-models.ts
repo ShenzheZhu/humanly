@@ -43,10 +43,14 @@ export const MODEL_WHITELIST: Record<string, AIModelDescriptor[]> = {
     // OpenRouter exposes provider-native ids. Keep this list small and
     // aligned with the deployed QA matrix instead of surfacing a generic
     // model catalog.
-    { id: 'qwen/qwen3.5-397b-a17b', capabilities: TEXT_ONLY },
-    { id: 'moonshotai/kimi-k2.6', capabilities: TEXT_ONLY },
+    { id: 'qwen/qwen3.5-397b-a17b', capabilities: TEXT_AND_IMAGE },
+    { id: 'qwen/qwen3.5-9b', capabilities: TEXT_AND_IMAGE },
+    { id: 'moonshotai/kimi-k2.6', capabilities: TEXT_AND_IMAGE },
     { id: 'deepseek/deepseek-v4-pro', capabilities: TEXT_ONLY },
-    { id: 'z-ai/glm-5', capabilities: TEXT_ONLY },
+    { id: 'z-ai/glm-5.1', capabilities: TEXT_ONLY },
+    { id: 'anthropic/claude-sonnet-4.6', capabilities: TEXT_AND_IMAGE },
+    { id: 'openai/gpt-5.4-mini', capabilities: TEXT_AND_IMAGE },
+    { id: 'google/gemini-3.1-flash-lite', capabilities: TEXT_AND_IMAGE },
   ],
   'api.together.xyz': [
     // Capability flags follow each endpoint's "Input modalities" line on
@@ -54,7 +58,7 @@ export const MODEL_WHITELIST: Record<string, AIModelDescriptor[]> = {
     // (which can omit Vision even when the endpoint accepts image input).
     { id: 'moonshotai/Kimi-K2.6', capabilities: TEXT_AND_IMAGE },
     { id: 'deepseek-ai/DeepSeek-V4-Pro', capabilities: TEXT_ONLY },
-    { id: 'zai-org/GLM-5', capabilities: TEXT_ONLY },
+    { id: 'zai-org/GLM-5.1', capabilities: TEXT_ONLY },
   ],
 };
 
