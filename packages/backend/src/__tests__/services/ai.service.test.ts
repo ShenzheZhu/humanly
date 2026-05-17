@@ -54,9 +54,11 @@ import {
   PseudoToolCallStreamFilter,
   ThinkingContentSplitter,
   buildFinalAnswerSynthesisPrompt,
+  buildProviderTimeoutFallback,
   buildToolCallRepairPrompt,
   classifyQuestionCategory,
   containsPseudoToolCall,
+  normalizeProviderTimeoutMs,
   normalizeQuickActionOutput,
   shouldRepairEmptyToolCallResponse,
   stripPseudoToolCallMarkup,
@@ -153,6 +155,26 @@ describe('tool-call repair helpers', () => {
     expect(prompt).toContain('maximum of 20 tool calls');
     expect(prompt).toContain('tool results already available');
     expect(prompt).toContain('Never return an empty answer');
+  });
+});
+
+// ── Provider timeout helpers (#161) ──────────────────────────────────────────
+
+describe('provider timeout helpers', () => {
+  it('defaults to a long-PDF friendly 180s budget', () => {
+    expect(normalizeProviderTimeoutMs(undefined)).toBe(180000);
+    expect(normalizeProviderTimeoutMs(Number.NaN)).toBe(180000);
+  });
+
+  it('keeps timeout configurable but bounded', () => {
+    expect(normalizeProviderTimeoutMs(1000)).toBe(5000);
+    expect(normalizeProviderTimeoutMs(240000)).toBe(240000);
+    expect(normalizeProviderTimeoutMs(900000)).toBe(300000);
+  });
+
+  it('surfaces the configured timeout in fallback copy', () => {
+    expect(buildProviderTimeoutFallback(180000)).toContain('180 seconds');
+    expect(buildProviderTimeoutFallback(180000)).not.toContain('60 seconds');
   });
 });
 
