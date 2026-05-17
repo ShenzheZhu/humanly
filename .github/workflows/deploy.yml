@@ -158,3 +158,10 @@ jobs:
             BACKEND_IMAGE="$BACKEND_IMAGE" FRONTEND_USER_IMAGE="$FRONTEND_USER_IMAGE" FRONTEND_IMAGE="$FRONTEND_IMAGE" VM_DEPLOY_PATH="$VM_DEPLOY_PATH" bash scripts/deploy.sh
           script_stop: true
           command_timeout: 40m
+
+      - name: Verify production health endpoints
+        run: |
+          curl -fsS https://app.writehumanly.net/health >/dev/null
+          curl -fsS https://admin.writehumanly.net/health >/dev/null
+          curl -fsS https://api.writehumanly.net/health >/dev/null
+          curl -fsS https://api.writehumanly.net/api/v1/health >/dev/null
