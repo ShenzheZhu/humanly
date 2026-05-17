@@ -66,11 +66,11 @@ describe('vision capability matrix (locked per provider docs)', () => {
     textOnly('openrouter.ai', 'z-ai/glm-5');
   });
 
-  it('Together: flags vision per each endpoint\'s "Input modalities" line', () => {
-    vision('api.together.xyz', 'Qwen/Qwen3.5-397B-A17B');
+  it('Together: uses the deployed stable tool-call model set', () => {
     vision('api.together.xyz', 'moonshotai/Kimi-K2.6');
     textOnly('api.together.xyz', 'deepseek-ai/DeepSeek-V4-Pro');
     textOnly('api.together.xyz', 'zai-org/GLM-5');
+    expect(getWhitelist('https://api.together.xyz/v1')).not.toContain('Qwen/Qwen3.5-397B-A17B');
   });
 });
 

@@ -583,7 +583,7 @@ class OpenAIProvider implements AIProvider {
 
   constructor(config?: { apiKey: string; model: string; baseUrl: string; maxToolCalls?: number }) {
     this.apiKey = config?.apiKey || env.aiApiKey || '';
-    this.model = config?.model || env.aiModel || 'Qwen/Qwen3.5-397B-A17B';
+    this.model = config?.model || env.aiModel || 'moonshotai/Kimi-K2.6';
     this.baseUrl = config?.baseUrl || env.aiBaseUrl || 'https://api.together.xyz/v1';
     this.maxToolCalls = normalizeAgentMaxToolCalls(config?.maxToolCalls ?? env.aiAgentMaxToolCalls);
     this.providerTimeoutMs = normalizeProviderTimeoutMs(env.aiProviderTimeoutMs);
@@ -2507,8 +2507,7 @@ export class AIService {
       await this.inlineImageAttachments(messages as any, userId);
 
       // Reuse the same retrieval-capable streaming engine as the UI, but
-      // silence chunks for this REST endpoint. Together Qwen is reliable on
-      // the streaming path and can hang on the older non-streaming path (#107).
+      // silence chunks for this REST endpoint.
       const toolCallCollector = new AgentToolCallCollector();
       let ignoreLateProviderEvents = false;
       const providerTimeoutMs = normalizeProviderTimeoutMs(env.aiProviderTimeoutMs);

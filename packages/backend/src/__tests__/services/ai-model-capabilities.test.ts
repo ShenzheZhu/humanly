@@ -25,11 +25,11 @@ describe('backend ai-model-capabilities', () => {
     vision('generativelanguage.googleapis.com', 'gemini-2.5-flash');
   });
 
-  it('mirrors the frontend Together vision flags', () => {
-    vision('api.together.xyz', 'Qwen/Qwen3.5-397B-A17B');
+  it('mirrors the frontend Together stable tool-call model set', () => {
     vision('api.together.xyz', 'moonshotai/Kimi-K2.6');
     textOnly('api.together.xyz', 'deepseek-ai/DeepSeek-V4-Pro');
     textOnly('api.together.xyz', 'zai-org/GLM-5');
+    expect(getModelCapabilities('https://api.together.xyz/v1', 'Qwen/Qwen3.5-397B-A17B')).toBeNull();
   });
 
   it('mirrors the frontend OpenRouter stable text-only model set', () => {

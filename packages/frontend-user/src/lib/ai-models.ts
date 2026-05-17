@@ -10,10 +10,9 @@ const TEXT_AND_IMAGE: ModelCapabilities = { inputs: ['text', 'image'] };
  * a capability snapshot on a chat session.
  *
  * Capability classification is sourced from each provider's own model
- * page. Together is the most heterogeneous: Qwen3.5-397B-A17B is text-only
- * on Together's serverless endpoint today even though the upstream Qwen
- * model is natively multimodal — we mark it text-only until Together
- * exposes vision for that variant.
+ * page, then narrowed to provider/model pairs that passed Humanly's
+ * agentic-tool QA. A model can stay available on one provider while being
+ * omitted from another when its structured tool-call endpoint is unstable.
  */
 export const MODEL_WHITELIST: Record<string, AIModelDescriptor[]> = {
   'api.openai.com': [
@@ -53,12 +52,6 @@ export const MODEL_WHITELIST: Record<string, AIModelDescriptor[]> = {
     // Capability flags follow each endpoint's "Input modalities" line on
     // its Together model card, not the family-level Together listing page
     // (which can omit Vision even when the endpoint accepts image input).
-    // Qwen3.5-397B-A17B's endpoint advertises Text + Image.
-    { id: 'Qwen/Qwen3.5-397B-A17B', capabilities: TEXT_AND_IMAGE },
-    // Qwen3.6-Plus was considered but dropped from the whitelist: its
-    // structured tool-call payload is unreliable on Together (see #47
-    // hardening notes), and the agent's ls/grep/read loop is brittle on
-    // this model even though it advertises vision input.
     { id: 'moonshotai/Kimi-K2.6', capabilities: TEXT_AND_IMAGE },
     { id: 'deepseek-ai/DeepSeek-V4-Pro', capabilities: TEXT_ONLY },
     { id: 'zai-org/GLM-5', capabilities: TEXT_ONLY },
