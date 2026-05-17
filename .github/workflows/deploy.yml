@@ -137,8 +137,18 @@ jobs:
           envs: BACKEND_IMAGE,FRONTEND_USER_IMAGE,FRONTEND_IMAGE,VM_DEPLOY_PATH,GITHUB_SHA
           script: |
             set -euo pipefail
+
+            echo "==> Pre-fetch VM disk cleanup"
+            df -h "$VM_DEPLOY_PATH" || true
+            docker system df || true
+            docker builder prune -af || true
+            docker image prune -af || true
+            docker container prune -f || true
+            df -h "$VM_DEPLOY_PATH" || true
+
             cd "$VM_DEPLOY_PATH"
-            git fetch origin main
+            git gc --prune=now || true
+            git fetch --prune origin main
             git checkout main
             git pull --ff-only origin main
             test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
