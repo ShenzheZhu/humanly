@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  Award,
   BookOpen,
   CalendarClock,
   FileText,
@@ -31,6 +32,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -49,6 +56,7 @@ import { formatDateTime } from '@/lib/utils';
 import type { WritingEnvironmentConfig } from '@humanly/shared';
 
 type SortOption = 'lastEdited' | 'title' | 'wordCount';
+type WorkspaceTab = 'documents' | 'tasks';
 
 interface TaskEnrollment {
   id: string;
@@ -75,6 +83,7 @@ export default function DocumentsPage() {
   const { documents, isLoading, error, createDocument, deleteDocument } = useDocuments();
   const { toast } = useToast();
   const [sortBy, setSortBy] = useState<SortOption>('lastEdited');
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<WorkspaceTab>('documents');
   const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<TaskEnrollment | null>(null);
   const [inviteCode, setInviteCode] = useState('');
@@ -200,6 +209,7 @@ export default function DocumentsPage() {
       await fetchTaskEnrollments();
       setShowJoinDialog(false);
       setInviteCode('');
+      setActiveWorkspaceTab('tasks');
 
       toast({
         title: 'Task joined',
@@ -281,187 +291,218 @@ export default function DocumentsPage() {
 
   return (
     <main className={containerClass}>
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">My Documents</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Workspace</h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1">
-            Create and manage your documents with authorship tracking
+            Choose between personal authorship documents and assigned writing tasks.
           </p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Dialog open={showJoinDialog} onOpenChange={setShowJoinDialog}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="w-full sm:w-auto">
-                <KeyRound className="mr-2 h-4 w-4" />
-                Join Task
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Join Task</DialogTitle>
-                <DialogDescription>
-                  Enter the 6-character invite code from your instructor or admin.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-2 py-4">
-                <Label htmlFor="invite-code">Invite Code</Label>
-                <Input
-                  id="invite-code"
-                  value={inviteCode}
-                  maxLength={6}
-                  placeholder="A7K2QX"
-                  className="font-mono uppercase tracking-widest"
-                  onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      handleJoinTask();
-                    }
-                  }}
-                />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setShowJoinDialog(false)} disabled={isJoiningTask}>
-                  Cancel
-                </Button>
-                <Button onClick={handleJoinTask} disabled={isJoiningTask}>
-                  {isJoiningTask ? 'Joining...' : 'Join Task'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          <Button className="w-full sm:w-auto" onClick={() => router.push('/documents/new')}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Document
-          </Button>
         </div>
       </div>
 
-      {validTaskEnrollments.length > 0 && (
-        <section className="mb-10">
-          <div className="mb-4 flex items-center justify-between gap-3">
+      <Tabs value={activeWorkspaceTab} onValueChange={(value) => setActiveWorkspaceTab(value as WorkspaceTab)}>
+        <TabsList className="mb-6 grid w-full grid-cols-2 sm:w-[420px]">
+          <TabsTrigger value="documents">My Documents</TabsTrigger>
+          <TabsTrigger value="tasks">Assigned Tasks</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="documents" className="mt-0 space-y-6">
+          <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight">Enrolled Task Documents</h2>
-              <p className="text-sm text-muted-foreground">
-                {validTaskEnrollments.length} task-scoped {validTaskEnrollments.length === 1 ? 'submission' : 'submissions'}
+              <h2 className="text-xl font-semibold tracking-tight">My Documents</h2>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                Create personal writing projects, track your process, and generate verifiable authorship certificates.
               </p>
             </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {validTaskEnrollments.map((task) => {
-              const taskName = getDisplayTaskName(task);
-              return (
-              <Card key={`${task.id}-${task.documentId}`} className="transition-shadow hover:shadow-md">
-                <CardContent className="flex h-full flex-col gap-3 p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Task Name
-                      </p>
-                      <h3 className="truncate text-lg font-semibold" title={taskName}>
-                        {taskName}
-                      </h3>
-                    </div>
-                    <BookOpen className="h-5 w-5 shrink-0 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Code
-                    </p>
-                    <div className="rounded-md border bg-muted/30 px-3 py-2 font-mono text-sm font-semibold tracking-wider">
-                      {task.inviteCode}
-                    </div>
-                  </div>
-                  {(task.startDate || task.endDate) && (
-                    <div className="grid gap-2 rounded-md border bg-muted/20 p-3 text-sm">
-                      {task.startDate && (
-                        <div className="flex items-start gap-2">
-                          <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                          <div className="min-w-0">
-                            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                              Starts
-                            </p>
-                            <p className="break-words">{formatDateTime(task.startDate)}</p>
-                          </div>
-                        </div>
-                      )}
-                      {task.endDate && (
-                        <div className="flex items-start gap-2">
-                          <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                          <div className="min-w-0">
-                            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                              Deadline
-                            </p>
-                            <p className="break-words">{formatDateTime(task.endDate)}</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  <div className="flex-1" />
-                  <div className="flex gap-2">
-                    <Button className="flex-1" onClick={() => router.push(`/documents/${task.documentId}`)}>
-                      Open Submission
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      title="Delete task submission"
-                      onClick={() => setTaskToDelete(task)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-            })}
-          </div>
-        </section>
-      )}
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button variant="outline" className="w-full sm:w-auto" onClick={() => router.push('/certificates')}>
+                <Award className="mr-2 h-4 w-4" />
+                View Certificates
+              </Button>
+              <Button className="w-full sm:w-auto" onClick={() => router.push('/documents/new')}>
+                <Plus className="mr-2 h-4 w-4" />
+                New Document
+              </Button>
+            </div>
+          </section>
 
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">My Documents</h2>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              {personalDocuments.length} personal/private {personalDocuments.length === 1 ? 'document' : 'documents'}
+            </p>
+            <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="lastEdited">Last edited</SelectItem>
+                <SelectItem value="title">Title</SelectItem>
+                <SelectItem value="wordCount">Word count</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {personalDocuments.length === 0 ? (
+            <div className="flex min-h-[360px] flex-col items-center justify-center rounded-lg border-2 border-dashed">
+              <FileText className="h-12 w-12 text-muted-foreground" />
+              <h3 className="mt-4 text-lg font-semibold">No personal documents yet</h3>
+              <p className="mt-2 max-w-sm text-center text-sm text-muted-foreground">
+                Start a personal writing document when you want authorship tracking and certificate generation.
+              </p>
+              <Button className="mt-4" onClick={() => router.push('/documents/new')}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Document
+              </Button>
+            </div>
+          ) : (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {personalDocuments.map((document) => (
+                <DocumentCard
+                  key={document.id}
+                  document={document}
+                  onDelete={handleDeleteDocument}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="tasks" className="mt-0 space-y-6">
+          <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight">Assigned Tasks</h2>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                Join tasks from an instructor or organization and complete the assigned submission workflow.
+              </p>
+            </div>
+            <Dialog open={showJoinDialog} onOpenChange={setShowJoinDialog}>
+              <DialogTrigger asChild>
+                <Button className="w-full sm:w-auto">
+                  <KeyRound className="mr-2 h-4 w-4" />
+                  Join Task
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Join Task</DialogTitle>
+                  <DialogDescription>
+                    Enter the 6-character invite code from your instructor or admin.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-2 py-4">
+                  <Label htmlFor="invite-code">Invite Code</Label>
+                  <Input
+                    id="invite-code"
+                    value={inviteCode}
+                    maxLength={6}
+                    placeholder="A7K2QX"
+                    className="font-mono uppercase tracking-widest"
+                    onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        handleJoinTask();
+                      }
+                    }}
+                  />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowJoinDialog(false)} disabled={isJoiningTask}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleJoinTask} disabled={isJoiningTask}>
+                    {isJoiningTask ? 'Joining...' : 'Join Task'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </section>
+
           <p className="text-sm text-muted-foreground">
-            {personalDocuments.length} personal/private {personalDocuments.length === 1 ? 'document' : 'documents'}
+            {validTaskEnrollments.length} assigned {validTaskEnrollments.length === 1 ? 'task' : 'tasks'}
           </p>
-        </div>
-        <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Sort by" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="lastEdited">Last edited</SelectItem>
-            <SelectItem value="title">Title</SelectItem>
-            <SelectItem value="wordCount">Word count</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
 
-      {personalDocuments.length === 0 ? (
-        <div className="flex min-h-[400px] flex-col items-center justify-center rounded-lg border-2 border-dashed">
-          <FileText className="h-12 w-12 text-muted-foreground" />
-          <h3 className="mt-4 text-lg font-semibold">No documents yet</h3>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Get started by creating your first document
-          </p>
-          <Button className="mt-4" onClick={() => router.push('/documents/new')}>
-            <Plus className="mr-2 h-4 w-4" />
-            Create Document
-          </Button>
-        </div>
-      ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {personalDocuments.map((document) => (
-            <DocumentCard
-              key={document.id}
-              document={document}
-              onDelete={handleDeleteDocument}
-            />
-          ))}
-        </div>
-      )}
+          {validTaskEnrollments.length === 0 ? (
+            <div className="flex min-h-[360px] flex-col items-center justify-center rounded-lg border-2 border-dashed">
+              <BookOpen className="h-12 w-12 text-muted-foreground" />
+              <h3 className="mt-4 text-lg font-semibold">No assigned tasks yet</h3>
+              <p className="mt-2 max-w-sm text-center text-sm text-muted-foreground">
+                Use an invite code when an instructor or organization asks you to complete a Humanly task.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {validTaskEnrollments.map((task) => {
+                const taskName = getDisplayTaskName(task);
+                return (
+                  <Card key={`${task.id}-${task.documentId}`} className="transition-shadow hover:shadow-md">
+                    <CardContent className="flex h-full flex-col gap-3 p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Task
+                          </p>
+                          <h3 className="truncate text-lg font-semibold" title={taskName}>
+                            {taskName}
+                          </h3>
+                        </div>
+                        <BookOpen className="h-5 w-5 shrink-0 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Invite Code
+                        </p>
+                        <div className="rounded-md border bg-muted/30 px-3 py-2 font-mono text-sm font-semibold tracking-wider">
+                          {task.inviteCode}
+                        </div>
+                      </div>
+                      {(task.startDate || task.endDate) && (
+                        <div className="grid gap-2 rounded-md border bg-muted/20 p-3 text-sm">
+                          {task.startDate && (
+                            <div className="flex items-start gap-2">
+                              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                  Starts
+                                </p>
+                                <p className="break-words">{formatDateTime(task.startDate)}</p>
+                              </div>
+                            </div>
+                          )}
+                          {task.endDate && (
+                            <div className="flex items-start gap-2">
+                              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                  Deadline
+                                </p>
+                                <p className="break-words">{formatDateTime(task.endDate)}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <div className="flex-1" />
+                      <div className="flex gap-2">
+                        <Button className="flex-1" onClick={() => router.push(`/documents/${task.documentId}`)}>
+                          Open Submission
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          title="Delete task submission"
+                          onClick={() => setTaskToDelete(task)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
       <AlertDialog open={!!taskToDelete} onOpenChange={(open) => !open && setTaskToDelete(null)}>
         <AlertDialogContent>

@@ -45,7 +45,7 @@ export default function CertificatesPage() {
       <div className="mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">My Certificates</h1>
         <p className="text-sm sm:text-base text-muted-foreground mt-2">
-          Proof of authorship generated from your documents
+          Proof of authorship generated from your personal documents
         </p>
       </div>
 
@@ -61,7 +61,7 @@ export default function CertificatesPage() {
             <Award className="h-16 w-16 text-muted-foreground" />
             <h3 className="mt-4 text-lg font-semibold">No certificates yet</h3>
             <p className="mt-2 text-center text-sm text-muted-foreground max-w-md">
-              Certificates are created automatically once a document has sufficient activity.
+              Generate a certificate from a personal document after you have enough writing activity.
             </p>
           </CardContent>
         </Card>

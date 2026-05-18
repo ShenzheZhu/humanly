@@ -121,7 +121,9 @@ describe('task enrollment workflow', () => {
     const user = userEvent.setup();
     const { rerender } = render(<DocumentsPage />);
 
-    expect((await screen.findAllByRole('heading', { name: /^my documents$/i })).length).toBeGreaterThan(0);
+    expect(await screen.findByRole('heading', { name: /^workspace$/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: /assigned tasks/i }));
 
     await user.click(screen.getByRole('button', { name: /join task/i }));
     let dialog = screen.getByRole('dialog');
@@ -155,7 +157,7 @@ describe('task enrollment workflow', () => {
     });
 
     rerender(<DocumentsPage />);
-    expect(await screen.findByText('Enrolled Task Documents')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Assigned Tasks' })).toBeInTheDocument();
     expect(screen.getByText('Enrollment Task')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /join task/i }));

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { FileText, FileCheck, LogOut, User, Menu } from 'lucide-react';
+import { FileText, LogOut, User, Menu } from 'lucide-react';
 import { BRAND } from '@humanly/shared';
 import { Button } from '@/components/ui/button';
 import {
@@ -36,14 +36,10 @@ export function Navbar() {
 
   const navItems = [
     {
-      name: 'Documents',
+      name: 'Workspace',
       href: '/documents',
       icon: FileText,
-    },
-    {
-      name: 'Certificates',
-      href: '/certificates',
-      icon: FileCheck,
+      activePaths: ['/documents', '/certificates'],
     },
   ];
 
@@ -66,7 +62,7 @@ export function Navbar() {
             <div className="ml-10 hidden md:flex items-baseline space-x-4">
               {navItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname.startsWith(item.href);
+                const isActive = item.activePaths.some((path) => pathname.startsWith(path));
                 return (
                   <Link
                     key={item.name}
@@ -122,7 +118,7 @@ export function Navbar() {
                   <div className="mt-6 flex flex-col space-y-4">
                     {navItems.map((item) => {
                       const Icon = item.icon;
-                      const isActive = pathname.startsWith(item.href);
+                      const isActive = item.activePaths.some((path) => pathname.startsWith(path));
                       return (
                         <Link
                           key={item.name}
