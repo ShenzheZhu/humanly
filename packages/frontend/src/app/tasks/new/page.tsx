@@ -86,6 +86,14 @@ const CUSTOM_MODEL_VALUE = '__custom_model__';
 const USE_EXISTING_AI_KEY = '__use_existing__';
 const UNLIMITED_TASK_WINDOW_YEARS = 100;
 
+const fallbackWritingModels = () => (
+  WRITING_AI_MODELS.filter((model) => model !== 'Custom models')
+);
+
+const modelBelongsToOptions = (model: string, options: string[]) => (
+  !!model && model !== CUSTOM_MODEL_VALUE && options.includes(model)
+);
+
 type AiConnectionResult = {
   success: boolean;
   message: string;
@@ -177,15 +185,15 @@ export default function NewTaskPage() {
   const aiModelOptions = useMemo(() => {
     const whitelist = getWhitelist(aiBaseUrl);
     let options: string[];
-    if (testedAiModels.length) {
-      options = testedAiModels;
-    } else if (whitelist?.length) {
+    if (whitelist?.length) {
       options = whitelist;
+    } else if (testedAiModels.length) {
+      options = testedAiModels;
     } else {
-      options = WRITING_AI_MODELS.filter((model) => model !== 'Custom models');
+      options = fallbackWritingModels();
     }
 
-    return aiModel && aiModel !== CUSTOM_MODEL_VALUE && !options.includes(aiModel)
+    return !whitelist?.length && aiModel && aiModel !== CUSTOM_MODEL_VALUE && !options.includes(aiModel)
       ? [aiModel, ...options]
       : options;
   }, [aiBaseUrl, aiModel, testedAiModels]);
@@ -207,6 +215,19 @@ export default function NewTaskPage() {
     }));
   };
 
+  useEffect(() => {
+    const whitelist = getWhitelist(aiBaseUrl);
+    if (
+      aiAccess !== 'off' &&
+      whitelist?.length &&
+      aiModel !== CUSTOM_MODEL_VALUE &&
+      !whitelist.includes(aiModel)
+    ) {
+      setAiModel(whitelist[0]);
+      setEnvironmentAiModel(whitelist[0]);
+    }
+  }, [aiAccess, aiBaseUrl, aiModel]);
+
   const setAiTokenBudget = (patch: NonNullable<WritingEnvironmentConfig['aiTokenBudget']>) => {
     setEnvironmentConfig((current) => ({
       ...current,
@@ -219,10 +240,12 @@ export default function NewTaskPage() {
   };
 
   const setAiAccess = (nextAccess: WritingAiAccess) => {
-    const defaultModel = aiModel || aiModelOptions[0] || 'gpt-4.1';
+    const defaultModel = modelBelongsToOptions(aiModel, aiModelOptions)
+      ? aiModel
+      : aiModelOptions[0] || 'gpt-4.1';
 
     setAiAccessState(nextAccess);
-    if (nextAccess !== 'off' && !aiModel) {
+    if (nextAccess !== 'off' && !modelBelongsToOptions(aiModel, aiModelOptions)) {
       setAiModel(defaultModel);
     }
 
@@ -269,7 +292,7 @@ export default function NewTaskPage() {
       if (result.success) {
         const fallbackModels = getWhitelist(aiBaseUrl.trim() || DEFAULT_AI_BASE_URL) || [];
         const modelsFromApi = Array.isArray(result.models) ? result.models.filter(Boolean) : [];
-        const nextModels = modelsFromApi.length ? modelsFromApi : fallbackModels;
+        const nextModels = fallbackModels.length ? fallbackModels : modelsFromApi;
 
         setTestedAiModels(nextModels);
 

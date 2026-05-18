@@ -81,7 +81,7 @@ function ResetPasswordContent() {
       <CardHeader>
         <CardTitle>Set new password</CardTitle>
         <CardDescription>
-          Enter your new password below. Make sure it's at least 8 characters long.
+          Enter your new password below. Make sure it is at least 8 characters long.
         </CardDescription>
       </CardHeader>
 

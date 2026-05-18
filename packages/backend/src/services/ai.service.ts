@@ -312,6 +312,8 @@ const QUICK_ACTION_FAILURE_PATTERNS: RegExp[] = [
   /i\s+reached\s+the\s+retrieval\s+limit\s+before\s+the\s+model\s+produced\s+a\s+final\s+answer/i,
   /could\s+not\s+complete\s+retrieval\s+because\s+the\s+ai\s+provider\s+returned/i,
   /internal\s+(?:tool-call\s+repair|final-answer)\s+instruction/i,
+  /can\s+only\s+read\s+reference\s+files/i,
+  /use\s+the\s+selection-menu\s+quick\s+actions?/i,
 ];
 
 export function normalizeQuickActionOutput(text: string | null | undefined): string {
@@ -448,6 +450,41 @@ export function normalizeProviderTimeoutMs(value: number | undefined): number {
 
 export function buildProviderTimeoutFallback(timeoutMs: number): string {
   return `The AI request took longer than ${Math.round(timeoutMs / 1000)} seconds and was stopped before it could finish. Please try again with a narrower question.`;
+}
+
+const NO_REFERENCE_FILES_CHAT_RESPONSE = [
+  'This document does not have any linked reference files yet.',
+  'I can answer from text you paste into this chat, and I can help rewrite selected editor text through the selection quick actions, but I cannot inspect your editor draft or cite a PDF until a reference file is uploaded or linked.',
+].join(' ');
+
+const REFERENCE_AVAILABILITY_TERMS = [
+  'reference',
+  'references',
+  'pdf',
+  'file',
+  'files',
+  'source',
+  'sources',
+  'context',
+  'linked',
+  'uploaded',
+  'attached',
+  'document',
+  'paper',
+  'syllabus',
+  'reading',
+  'readings',
+];
+
+function shouldPreflightReferenceAvailability(
+  message: string,
+  queryType: AIQueryType,
+  questionCategory: AIQuestionCategory,
+): boolean {
+  const lower = message.toLowerCase();
+  if (queryType === 'reference' || questionCategory === 'understanding') return true;
+  if (lower.includes('?')) return true;
+  return REFERENCE_AVAILABILITY_TERMS.some(term => lower.includes(term));
 }
 
 const RETRYABLE_PROVIDER_STATUSES = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
@@ -2007,6 +2044,25 @@ export class AIService {
     };
   }
 
+  private static async buildNoReferencePreflightAnswer(
+    userId: string,
+    documentId: string,
+    message: string,
+    queryType: AIQueryType,
+    questionCategory: AIQuestionCategory,
+  ): Promise<string | null> {
+    if (!shouldPreflightReferenceAvailability(message, queryType, questionCategory)) {
+      return null;
+    }
+
+    const listing = await AIRetrievalService.listReferenceFiles(userId, documentId);
+    if (listing.files.length > 0) {
+      return null;
+    }
+
+    return NO_REFERENCE_FILES_CHAT_RESPONSE;
+  }
+
   /**
    * Silent chat - get AI response without creating session/logs
    * Used for quick inline actions like grammar correction
@@ -2029,12 +2085,22 @@ export class AIService {
       { role: 'user', content: request.message },
     ];
 
-    // Get AI response
-    const response = await provider.agentChat(messages, {
+    let streamedContent = '';
+    const response = await provider.directStreamChat(messages, (chunk: string) => {
+      streamedContent += chunk;
+    }, {
       userId,
       documentId: request.documentId,
       maxTokens: shortcutMaxTokens,
+      disableThinking: true,
     });
+    const content = normalizeQuickActionOutput(response.content || streamedContent);
+    if (!content) {
+      throw new AppError(
+        502,
+        'AI did not return a usable rewrite for the selected text. Please try again.'
+      );
+    }
 
     logger.info('AI silent chat completed', {
       userId,
@@ -2045,7 +2111,7 @@ export class AIService {
       message: {
         id: `silent-${Date.now()}`,
         role: 'assistant',
-        content: response.content,
+        content,
       },
     };
   }
@@ -2579,6 +2645,45 @@ export class AIService {
       // Inline any image attachments as data: URLs just before dispatch.
       await this.inlineImageAttachments(messages as any, userId);
 
+      const noReferenceAnswer = await this.buildNoReferencePreflightAnswer(
+        userId,
+        request.documentId,
+        request.message,
+        queryType,
+        questionCategory,
+      );
+      if (noReferenceAnswer) {
+        const responseTimeMs = Date.now() - startTime;
+        const assistantMetadata: Record<string, any> = { logId: log.id };
+        const assistantMessage = await AIModel.addMessage(
+          session.id,
+          'assistant',
+          noReferenceAnswer,
+          assistantMetadata,
+        );
+
+        await AIModel.updateLogWithResponse(log.id, {
+          response: noReferenceAnswer,
+          responseTimeMs,
+          modelVersion,
+          status: 'success',
+        });
+
+        logger.info('AI chat completed with no-reference preflight answer', {
+          userId,
+          documentId: request.documentId,
+          sessionId: session.id,
+          queryType,
+          responseTimeMs,
+        });
+
+        return {
+          sessionId: session.id,
+          message: assistantMessage,
+          logId: log.id,
+        };
+      }
+
       // Reuse the same retrieval-capable streaming engine as the UI, but
       // silence chunks for this REST endpoint.
       const toolCallCollector = new AgentToolCallCollector();
@@ -2785,6 +2890,47 @@ export class AIService {
 
       // Inline image attachments to data: URLs just before dispatch.
       await this.inlineImageAttachments(messages, userId);
+
+      const noReferenceAnswer = await this.buildNoReferencePreflightAnswer(
+        userId,
+        request.documentId,
+        request.message,
+        queryType,
+        questionCategory,
+      );
+      if (noReferenceAnswer) {
+        onChunk(noReferenceAnswer);
+        const responseTimeMs = Date.now() - startTime;
+        const assistantMetadata: Record<string, any> = { logId: log.id };
+        const assistantMessage = await AIModel.addMessage(
+          session.id,
+          'assistant',
+          noReferenceAnswer,
+          assistantMetadata,
+        );
+
+        await AIModel.updateLogWithResponse(log.id, {
+          response: noReferenceAnswer,
+          responseTimeMs,
+          modelVersion,
+          status: 'success',
+        });
+
+        logger.info('AI stream chat completed with no-reference preflight answer', {
+          userId,
+          documentId: request.documentId,
+          sessionId: session.id,
+          queryType,
+          responseTimeMs,
+        });
+
+        onComplete({
+          sessionId: session.id,
+          message: assistantMessage,
+          logId: log.id,
+        });
+        return;
+      }
 
       // Collect tool-call lifecycle off the AgentEvent stream so we can
       // persist the timeline on the assistant message metadata for later

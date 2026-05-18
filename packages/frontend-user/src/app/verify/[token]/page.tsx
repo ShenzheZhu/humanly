@@ -5,10 +5,9 @@ import { useParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Shield, CheckCircle2, XCircle, Calendar, Type, FileText, Clock } from 'lucide-react';
+import { Shield, XCircle, Calendar, Type, FileText, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { AccessCodeDialog } from '@/components/certificates/access-code-dialog';
-import { DocumentViewer } from '@/components/certificates/document-viewer';
 import { DocumentReplay } from '@/components/certificates/document-replay';
 
 interface VerificationResult {
@@ -177,8 +176,6 @@ export default function VerifyPage() {
   const bgClass = verification.valid
     ? 'bg-gradient-to-br from-green-50 to-emerald-100'
     : 'bg-gradient-to-br from-red-50 to-orange-100';
-
-  const statusBgClass = verification.valid ? 'bg-green-100' : 'bg-red-100';
 
   return (
     <div className={'min-h-screen flex items-center justify-center p-2 sm:p-4 ' + bgClass}>

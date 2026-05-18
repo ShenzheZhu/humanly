@@ -48,7 +48,7 @@ export default function CheckEmailPage() {
           </div>
           <CardTitle>Check Your Email</CardTitle>
           <CardDescription>
-            We've sent you a verification code
+            We have sent you a verification code
           </CardDescription>
         </CardHeader>
 
@@ -97,7 +97,7 @@ export default function CheckEmailPage() {
           )}
 
           <div className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
-            <p className="font-medium mb-2">Didn't receive the code?</p>
+            <p className="font-medium mb-2">Did not receive the code?</p>
             <ul className="space-y-1 list-disc list-inside">
               <li>Check your spam or junk folder</li>
               <li>Make sure {email || 'your email address'} is correct</li>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
+import { downloadBlob } from '@/lib/download';
 import type { Certificate, AIAuthorshipStats } from '@humanly/shared';
 
 export interface CertificatesFilters {
@@ -161,12 +162,7 @@ export function useCertificate(certificateId: string) {
         type: 'application/json',
       });
 
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `certificate-${certificateId}.json`;
-      link.click();
-      window.URL.revokeObjectURL(url);
+      downloadBlob(blob, `certificate-${certificateId}.json`);
     } catch (err: any) {
       throw new Error(err.response?.data?.message || 'Failed to download JSON');
     }
@@ -179,12 +175,7 @@ export function useCertificate(certificateId: string) {
       });
 
       const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `certificate-${certificateId}.pdf`;
-      link.click();
-      window.URL.revokeObjectURL(url);
+      downloadBlob(blob, `certificate-${certificateId}.pdf`);
     } catch (err: any) {
       throw new Error(err.response?.data?.message || 'Failed to download PDF');
     }

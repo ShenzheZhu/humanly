@@ -5,12 +5,12 @@ the change instead of defaulting to one enormous regression pass.
 
 ## Layers
 
-| Layer | Entry Point | Automation Level | Purpose |
-| --- | --- | --- | --- |
-| Backend contract | `pnpm qa:backend:contract` | Fully automated | API shape, auth guards, health, and future socket/provider-contract checks. |
-| AI usage | `pnpm qa:ai:usage` | Automated API/provider harness plus manual judgment for answer quality | Real model behavior, tool-call compatibility, grounded PDF QA, image gating, and provider drift. |
-| Deploy smoke | `pnpm qa:deploy:smoke` | Fully automated shallow checks | Domains, TLS, app/admin proxy health, direct API health, and post-deploy surface reachability. |
-| Browser E2E | `pnpm qa:browser:guide` then follow `BROWSER_E2E_SKILL.md` | Browser-agent-assisted manual QA | User/admin flows that need visual/editor/browser judgment. |
+| Layer            | Entry Point                                                | Automation Level                                                       | Purpose                                                                                          |
+| ---------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Backend contract | `pnpm qa:backend:contract`                                 | Fully automated                                                        | API shape, auth guards, health, and future socket/provider-contract checks.                      |
+| AI usage         | `pnpm qa:ai:usage`                                         | Automated API/provider harness plus manual judgment for answer quality | Real model behavior, tool-call compatibility, grounded PDF QA, image gating, and provider drift. |
+| Deploy smoke     | `pnpm qa:deploy:smoke`                                     | Fully automated shallow checks                                         | Domains, TLS, app/admin proxy health, direct API health, and post-deploy surface reachability.   |
+| Browser E2E      | `pnpm qa:browser:guide` then follow `BROWSER_E2E_SKILL.md` | Browser-agent-assisted manual QA                                       | User/admin flows that need visual/editor/browser judgment.                                       |
 
 Existing detailed playbooks still matter:
 
@@ -22,14 +22,14 @@ Existing detailed playbooks still matter:
 
 ## When To Run What
 
-| Change | Required QA |
-| --- | --- |
-| Pure docs/process | `git diff --check`; optional command `--help` checks. |
-| Backend API/auth/document logic | `pnpm qa:backend:contract`; targeted backend tests. |
-| AI prompt/tool/model/provider changes | `pnpm qa:backend:contract` and `pnpm qa:ai:usage` with live provider execution. |
-| Frontend/editor/enroll visible UX | Relevant automated tests plus `BROWSER_E2E_SKILL.md` sections for the changed flow. |
+| Change                                          | Required QA                                                                              |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Pure docs/process                               | `git diff --check`; optional command `--help` checks.                                    |
+| Backend API/auth/document logic                 | `pnpm qa:backend:contract`; targeted backend tests.                                      |
+| AI prompt/tool/model/provider changes           | `pnpm qa:backend:contract` and `pnpm qa:ai:usage` with live provider execution.          |
+| Frontend/editor/enroll visible UX               | Relevant automated tests plus `BROWSER_E2E_SKILL.md` sections for the changed flow.      |
 | Deployment, Docker, nginx, cert, or env changes | `pnpm qa:deploy:smoke`; then the short post-deploy canary in `docs/REGRESSION_GUARD.md`. |
-| Release candidate | All four layers plus the full production playbook. |
+| Release candidate                               | All four layers plus the full production playbook.                                       |
 
 ## Report Schema
 
@@ -83,6 +83,9 @@ Rules:
 - Critical `fail` exits non-zero.
 - Non-critical failures and warnings keep the run usable but must be called out
   in the PR/issue.
+- Network requests use a bounded timeout so a harness cannot hang forever.
+  Override the default 30s timeout with `QA_FETCH_TIMEOUT_MS=<milliseconds>`
+  when intentionally testing slow providers or long-running endpoints.
 - Secrets are represented only as booleans such as `hasApiKey`; never write API
   keys, tokens, or passwords into reports.
 - Browser E2E reports live in the QA control issue because screenshots and
@@ -127,8 +130,15 @@ pnpm qa:backend:contract
 
 The mutating pass registers/logs in a QA user, creates a draft document, updates
 it, writes representative focus/input/paste/blur events, reads events and
-statistics, searches the document list, and deletes the created document by
-default.
+statistics, searches the document list, validates AI settings/token-budget
+contracts, and deletes created document/settings data by default.
+
+The AI settings checks verify:
+
+- current fields: `shortcutMaxTokens` and `chatMaxTokens`;
+- legacy compatibility: `responseMaxTokens` and `agentMaxTokens`;
+- invalid budget rejection;
+- public reads expose only masked key metadata, never the raw API key.
 
 Optional PDF file probe:
 
@@ -170,6 +180,23 @@ OPENROUTER_API_KEY=... \
 pnpm qa:ai:usage
 ```
 
+Optional provider image-input smoke for vision-capable models:
+
+```bash
+QA_AI_EXECUTE=1 \
+QA_AI_IMAGE_EXECUTE=1 \
+QA_AI_PROVIDER=openrouter \
+QA_AI_MODELS=anthropic/claude-sonnet-4.6 \
+QA_AI_IMAGE_MODELS=anthropic/claude-sonnet-4.6 \
+OPENROUTER_API_KEY=... \
+pnpm qa:ai:usage
+```
+
+This sends a generated red PNG through the OpenAI-compatible `image_url`
+message shape and verifies the model identifies it as red. Keep text-only
+models out of `QA_AI_IMAGE_MODELS`; capability gating in the browser/app layer
+is covered by Browser E2E Phase C.
+
 Token budget is configurable. Defaults are intentionally product-like enough
 for reasoning-heavy models:
 
@@ -208,6 +235,27 @@ Current live smoke checks:
 - pseudo-tool/DSML/XML/JSON markup leak detection in visible text;
 - matrix expansion across configured models, document fixture classes, and
   query types.
+
+Humanly app-level smoke:
+
+```bash
+QA_AI_APP_EXECUTE=1 \
+QA_AI_APP_BASE_URL=https://app.writehumanly.net/api/v1 \
+QA_AI_APP_PROVIDER_BASE_URL=https://api.together.xyz/v1 \
+QA_AI_APP_MODEL=moonshotai/Kimi-K2.6 \
+QA_AI_APP_API_KEY=... \
+pnpm qa:ai:usage
+```
+
+This mode registers a transient user, saves AI settings, creates an AI-enabled
+personal document, uploads a small generated PDF, runs a shortcut-style silent
+chat, runs a grounded PDF chat question, verifies the final answer is non-empty
+and free of pseudo-tool markup, checks the persisted tool-call trace, and then
+deletes created data unless `QA_AI_APP_KEEP_DATA=1` is set.
+
+Use `QA_AI_APP_REQUIRE_TOOL_CALL=0` only when diagnosing a provider/model that
+answers correctly but fails to persist a structured tool-call trace; that should
+be recorded as residual risk in the QA issue.
 
 ## Deploy Smoke
 
@@ -251,9 +299,22 @@ Browser E2E is not a CI-style unattended test today. Use:
 pnpm qa:browser:guide
 ```
 
+This writes a normal QA report and a reusable phase packet:
+
+```text
+tmp/qa-runs/browser-guide/<run-id>/report.md
+tmp/qa-runs/browser-guide/<run-id>/phase-packet.md
+```
+
+You can scope it to specific browser phases:
+
+```bash
+QA_BROWSER_TARGET=production QA_BROWSER_PHASES=C,D,E pnpm qa:browser:guide
+```
+
 Then follow `docs/testing/BROWSER_E2E_SKILL.md` with the Codex browser agent or
-a human tester. Convert stable findings into lower-level regression locks when
-possible.
+a human tester, posting one phase-packet section per QA control issue comment.
+Convert stable findings into lower-level regression locks when possible.
 
 The browser guide includes a phase report template. Use one issue comment per
 phase so long runs can be resumed and audited without relying on chat memory.

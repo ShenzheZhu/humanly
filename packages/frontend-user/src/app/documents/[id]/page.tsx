@@ -11,6 +11,7 @@ import { useCertificates } from '@/hooks/use-certificates';
 import { useAuthStore } from '@/stores/auth-store';
 import { useToast } from '@/components/ui/use-toast';
 import { validatePdfFile } from '@/lib/document-pdf';
+import { downloadBlob } from '@/lib/download';
 import {
   CertificateGenerationDialog,
   type CertificateGenerationOptions,
@@ -69,6 +70,7 @@ const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   (process.env.NODE_ENV === 'production' ? '/api/v1' : 'http://localhost:3001/api/v1');
 const SUBMISSION_SESSION_START_DELAY_MS = 250;
+const EDITOR_AUTO_SAVE_INTERVAL_MS = 1500;
 
 interface EditorAIBridgeCaptureProps {
   insertAtCursor: EditorAIBridgeAPI['insertAtCursor'];
@@ -605,12 +607,10 @@ export default function DocumentEditorPage() {
       [JSON.stringify(currentEnvironmentConfig, null, 2)],
       { type: 'application/json' }
     );
-    const url = URL.createObjectURL(blob);
-    const anchor = window.document.createElement('a');
-    anchor.href = url;
-    anchor.download = `${(title || 'document').replace(/[^a-z0-9_-]+/gi, '_')}-environment-config.json`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(
+      blob,
+      `${(title || 'document').replace(/[^a-z0-9_-]+/gi, '_')}-environment-config.json`
+    );
   };
 
   return (
@@ -852,7 +852,7 @@ export default function DocumentEditorPage() {
                     trackingEnabled={true}
                     copyPastePolicy={currentEnvironmentConfig.copyPastePolicy}
                     autoSaveEnabled={true}
-                    autoSaveInterval={30000}
+                    autoSaveInterval={EDITOR_AUTO_SAVE_INTERVAL_MS}
                     onContentChange={handleContentChange}
                     onEventsBuffer={handleEventsBuffer}
                     onAutoSave={handleAutoSave}

@@ -49,7 +49,7 @@ export default function ForgotPasswordPage() {
       <CardHeader>
         <CardTitle>Reset your password</CardTitle>
         <CardDescription>
-          Enter your email address and we'll send you instructions to reset your password.
+          Enter your email address and we will send you instructions to reset your password.
         </CardDescription>
       </CardHeader>
 
@@ -59,7 +59,7 @@ export default function ForgotPasswordPage() {
             <CheckCircle2 className="h-4 w-4" />
             <AlertTitle>Check your email</AlertTitle>
             <AlertDescription>
-              We've sent password reset instructions to your email address. Please check your inbox and follow the link to reset your password.
+              We have sent password reset instructions to your email address. Please check your inbox and follow the link to reset your password.
             </AlertDescription>
           </Alert>
         ) : (

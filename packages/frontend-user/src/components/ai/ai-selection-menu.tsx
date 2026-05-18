@@ -5,7 +5,7 @@ import type { SelectionReplacementResult } from '@humanly/editor';
 import { Sparkles, Check, Wand2, BookOpen, Loader2, MessageSquare, AlertCircle, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import api from '@/lib/api-client';
+import api, { type HumanlyAxiosRequestConfig } from '@/lib/api-client';
 import { useAIStore } from '@/stores/ai-store';
 import { QuickActionDiff } from './quick-action-diff';
 
@@ -45,6 +45,7 @@ interface AISelectionMenuProps {
 
 const SURROUNDING_PRE_MAX = 200;
 const SURROUNDING_POST_MAX = 200;
+const BACKGROUND_REQUEST_CONFIG: HumanlyAxiosRequestConfig = { skipAuthRedirect: true };
 
 /**
  * Slice `before` / `after` windows around the selection offsets, capped at
@@ -103,7 +104,6 @@ export function AISelectionMenu({
   onClose,
   replaceSelection,
   cancelAIAction,
-  undoLastAction,
   onActionApplied,
   onAskAI,
   taskManaged = false,
@@ -273,7 +273,7 @@ export function AISelectionMenu({
         originalText: reviewState.originalText,
         suggestedText: reviewState.suggestedText,
         decision: 'accepted',
-      });
+      }, BACKGROUND_REQUEST_CONFIG);
     } catch (error) {
       // Don't block the user flow if tracking fails
     }
@@ -303,7 +303,7 @@ export function AISelectionMenu({
           originalText: reviewState.originalText,
           suggestedText: reviewState.suggestedText,
           decision: 'rejected',
-        });
+        }, BACKGROUND_REQUEST_CONFIG);
       } catch (error) {
         // Don't block the user flow if tracking fails
       }

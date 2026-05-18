@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, type HumanlyAxiosRequestConfig } from '@/lib/api-client';
 import { uploadPdfForDocument } from '@/lib/document-pdf';
 import type { AppFile, Document, DocumentEvent } from '@humanly/shared';
 
@@ -63,10 +63,12 @@ export function useDocument(documentId: string) {
 
   const trackEvents = useCallback(async (events: Partial<DocumentEvent>[], sessionId?: string | null) => {
     try {
+      const backgroundRequestConfig: HumanlyAxiosRequestConfig = { skipAuthRedirect: true };
+
       await apiClient.post(`/documents/${documentId}/events`, {
         events,
         ...(sessionId ? { sessionId } : {}),
-      });
+      }, backgroundRequestConfig);
     } catch (err: any) {
       console.error('Error tracking events:', err);
     }

@@ -10,8 +10,6 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/components/ui/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { AccessCodeDialog } from '@/components/certificates/access-code-dialog';
-import { apiClient } from '@/lib/api-client';
 import {
   ArrowLeft,
   FileJson,
@@ -32,8 +30,6 @@ import {
   CheckCircle,
   XCircle,
   MessageSquare,
-  Sparkles,
-  BookOpen,
   Wand2,
 } from 'lucide-react';
 import { format } from 'date-fns';
