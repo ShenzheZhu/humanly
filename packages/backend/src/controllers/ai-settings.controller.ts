@@ -2,10 +2,10 @@ import { Request, Response } from 'express';
 import { UserAISettingsModel } from '../models/user-ai-settings.model';
 import { logger } from '../utils/logger';
 import {
-  AI_AGENT_MAX_TOKENS_DEFAULT,
+  AI_CHAT_MAX_TOKENS_DEFAULT,
   AI_MAX_TOKENS_MAX,
   AI_MAX_TOKENS_MIN,
-  AI_RESPONSE_MAX_TOKENS_DEFAULT,
+  AI_SHORTCUT_MAX_TOKENS_DEFAULT,
 } from '@humanly/shared';
 
 type ProviderModelsResponse =
@@ -48,7 +48,9 @@ export async function getSettings(req: Request, res: Response): Promise<void> {
 
 export async function saveSettings(req: Request, res: Response): Promise<void> {
   const userId = (req as any).user.userId;
-  const { apiKey, baseUrl, model, responseMaxTokens, agentMaxTokens } = req.body;
+  const { apiKey, baseUrl, model } = req.body;
+  const shortcutMaxTokens = req.body.shortcutMaxTokens ?? req.body.responseMaxTokens;
+  const chatMaxTokens = req.body.chatMaxTokens ?? req.body.agentMaxTokens;
 
   if (!baseUrl || !model) {
     res.status(400).json({
@@ -83,32 +85,32 @@ export async function saveSettings(req: Request, res: Response): Promise<void> {
     keyToSave = existing.apiKey;
   }
 
-  const parsedResponseMaxTokens = parseTokenBudget(
-    responseMaxTokens,
-    existing?.responseMaxTokens ?? AI_RESPONSE_MAX_TOKENS_DEFAULT
+  const parsedShortcutMaxTokens = parseTokenBudget(
+    shortcutMaxTokens,
+    existing?.shortcutMaxTokens ?? AI_SHORTCUT_MAX_TOKENS_DEFAULT
   );
-  if (!parsedResponseMaxTokens.ok) {
-    res.status(400).json({ success: false, error: parsedResponseMaxTokens.error });
+  if (!parsedShortcutMaxTokens.ok) {
+    res.status(400).json({ success: false, error: parsedShortcutMaxTokens.error });
     return;
   }
 
-  const parsedAgentMaxTokens = parseTokenBudget(
-    agentMaxTokens,
-    existing?.agentMaxTokens ?? AI_AGENT_MAX_TOKENS_DEFAULT
+  const parsedChatMaxTokens = parseTokenBudget(
+    chatMaxTokens,
+    existing?.chatMaxTokens ?? AI_CHAT_MAX_TOKENS_DEFAULT
   );
-  if (!parsedAgentMaxTokens.ok) {
-    res.status(400).json({ success: false, error: parsedAgentMaxTokens.error });
+  if (!parsedChatMaxTokens.ok) {
+    res.status(400).json({ success: false, error: parsedChatMaxTokens.error });
     return;
   }
 
   await UserAISettingsModel.upsert(userId, keyToSave, baseUrl, model, {
-    responseMaxTokens: parsedResponseMaxTokens.value,
-    agentMaxTokens: parsedAgentMaxTokens.value,
+    shortcutMaxTokens: parsedShortcutMaxTokens.value,
+    chatMaxTokens: parsedChatMaxTokens.value,
   });
   logger.info('AI settings saved', {
     userId,
-    responseMaxTokens: parsedResponseMaxTokens.value,
-    agentMaxTokens: parsedAgentMaxTokens.value,
+    shortcutMaxTokens: parsedShortcutMaxTokens.value,
+    chatMaxTokens: parsedChatMaxTokens.value,
   });
 
   res.json({ success: true, message: 'AI settings saved successfully' });

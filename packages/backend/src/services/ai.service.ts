@@ -20,10 +20,10 @@ import {
   ChatAttachment,
   ModelCapabilities,
   AgentToolCallRecord,
-  AI_AGENT_MAX_TOKENS_DEFAULT,
+  AI_CHAT_MAX_TOKENS_DEFAULT,
   AI_MAX_TOKENS_MAX,
   AI_MAX_TOKENS_MIN,
-  AI_RESPONSE_MAX_TOKENS_DEFAULT,
+  AI_SHORTCUT_MAX_TOKENS_DEFAULT,
   WritingEnvironmentConfig,
 } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
@@ -563,8 +563,8 @@ interface AIProvider {
 interface AIExecutionSettings {
   provider: AIProvider;
   modelVersion: string;
-  responseMaxTokens: number;
-  agentMaxTokens: number;
+  shortcutMaxTokens: number;
+  chatMaxTokens: number;
   /**
    * Raw provider base URL. Used by capability gating (#93) to look up the
    * resolved model's input modalities so the websocket layer can refuse
@@ -579,27 +579,39 @@ function normalizeConfiguredMaxTokens(value: unknown, fallback: number): number 
   return Math.min(AI_MAX_TOKENS_MAX, Math.max(AI_MAX_TOKENS_MIN, Math.round(parsed)));
 }
 
+function readConfiguredTokenBudget(
+  budget: WritingEnvironmentConfig['aiTokenBudget'] | null | undefined,
+  key: 'shortcutMaxTokens' | 'chatMaxTokens',
+): unknown {
+  if (!budget) return undefined;
+  const rawBudget = budget as Record<string, unknown>;
+  if (key === 'shortcutMaxTokens') {
+    return rawBudget.shortcutMaxTokens ?? rawBudget.responseMaxTokens;
+  }
+  return rawBudget.chatMaxTokens ?? rawBudget.agentMaxTokens;
+}
+
 function resolveEffectiveTokenBudget(
-  settings: { responseMaxTokens?: number; agentMaxTokens?: number },
+  settings: { shortcutMaxTokens?: number; chatMaxTokens?: number },
   environmentConfig?: WritingEnvironmentConfig | null,
-): { responseMaxTokens: number; agentMaxTokens: number } {
-  const responseFallback = normalizeConfiguredMaxTokens(
-    settings.responseMaxTokens,
-    AI_RESPONSE_MAX_TOKENS_DEFAULT,
+): { shortcutMaxTokens: number; chatMaxTokens: number } {
+  const shortcutFallback = normalizeConfiguredMaxTokens(
+    settings.shortcutMaxTokens,
+    AI_SHORTCUT_MAX_TOKENS_DEFAULT,
   );
-  const agentFallback = normalizeConfiguredMaxTokens(
-    settings.agentMaxTokens,
-    AI_AGENT_MAX_TOKENS_DEFAULT,
+  const chatFallback = normalizeConfiguredMaxTokens(
+    settings.chatMaxTokens,
+    AI_CHAT_MAX_TOKENS_DEFAULT,
   );
 
   return {
-    responseMaxTokens: normalizeConfiguredMaxTokens(
-      environmentConfig?.aiTokenBudget?.responseMaxTokens,
-      responseFallback,
+    shortcutMaxTokens: normalizeConfiguredMaxTokens(
+      readConfiguredTokenBudget(environmentConfig?.aiTokenBudget, 'shortcutMaxTokens'),
+      shortcutFallback,
     ),
-    agentMaxTokens: normalizeConfiguredMaxTokens(
-      environmentConfig?.aiTokenBudget?.agentMaxTokens,
-      agentFallback,
+    chatMaxTokens: normalizeConfiguredMaxTokens(
+      readConfiguredTokenBudget(environmentConfig?.aiTokenBudget, 'chatMaxTokens'),
+      chatFallback,
     ),
   };
 }
@@ -1955,8 +1967,8 @@ export class AIService {
           model: settings.model,
         }),
         modelVersion: settings.model,
-        responseMaxTokens: tokenBudget.responseMaxTokens,
-        agentMaxTokens: tokenBudget.agentMaxTokens,
+        shortcutMaxTokens: tokenBudget.shortcutMaxTokens,
+        chatMaxTokens: tokenBudget.chatMaxTokens,
         baseUrl: settings.baseUrl,
       };
     }
@@ -1989,8 +2001,8 @@ export class AIService {
         model,
       }),
       modelVersion: model,
-      responseMaxTokens: tokenBudget.responseMaxTokens,
-      agentMaxTokens: tokenBudget.agentMaxTokens,
+      shortcutMaxTokens: tokenBudget.shortcutMaxTokens,
+      chatMaxTokens: tokenBudget.chatMaxTokens,
       baseUrl: ownerSettings.baseUrl,
     };
   }
@@ -2009,7 +2021,7 @@ export class AIService {
       throw new AppError(404, 'Document not found');
     }
 
-    const { provider, responseMaxTokens } = await this.getExecutionSettingsForDocument(userId, request.documentId);
+    const { provider, shortcutMaxTokens } = await this.getExecutionSettingsForDocument(userId, request.documentId);
 
     // Build simple messages without conversation history
     const messages: { role: string; content: string }[] = [
@@ -2021,7 +2033,7 @@ export class AIService {
     const response = await provider.agentChat(messages, {
       userId,
       documentId: request.documentId,
-      maxTokens: responseMaxTokens,
+      maxTokens: shortcutMaxTokens,
     });
 
     logger.info('AI silent chat completed', {
@@ -2057,7 +2069,7 @@ export class AIService {
         throw new AppError(404, 'Document not found');
       }
 
-      const { provider, responseMaxTokens } = await this.getExecutionSettingsForDocument(userId, request.documentId);
+      const { provider, shortcutMaxTokens } = await this.getExecutionSettingsForDocument(userId, request.documentId);
 
       const messages: { role: string; content: string }[] = [
         { role: 'system', content: buildQuickActionSystemPrompt(request.context) },
@@ -2075,7 +2087,7 @@ export class AIService {
       }, {
         userId,
         documentId: request.documentId,
-        maxTokens: responseMaxTokens,
+        maxTokens: shortcutMaxTokens,
         disableThinking: true,
       });
 
@@ -2404,7 +2416,7 @@ export class AIService {
             ...options,
             maxTokens: normalizeConfiguredMaxTokens(
               options.maxTokens,
-              AI_RESPONSE_MAX_TOKENS_DEFAULT,
+              AI_SHORTCUT_MAX_TOKENS_DEFAULT,
             ),
             disableThinking: true,
           },
@@ -2476,8 +2488,8 @@ export class AIService {
       provider: providerForChat,
       modelVersion: modelVersionForChat,
       baseUrl: baseUrlForChat,
-      responseMaxTokens: responseMaxTokensForChat,
-      agentMaxTokens: agentMaxTokensForChat,
+      shortcutMaxTokens: shortcutMaxTokensForChat,
+      chatMaxTokens: chatMaxTokensForChat,
     } =
       await this.getExecutionSettingsForDocument(userId, request.documentId);
     const capabilitiesForChat = resolveCapabilitiesOrSafeDefault(
@@ -2576,7 +2588,7 @@ export class AIService {
         provider.agentStreamChat(messages as any, () => {}, {
           userId,
           documentId: request.documentId,
-          maxTokens: agentMaxTokensForChat,
+          maxTokens: chatMaxTokensForChat,
           onAgentEvent: (event) => {
             if (!ignoreLateProviderEvents) {
               toolCallCollector.observe(event);
@@ -2598,7 +2610,7 @@ export class AIService {
           {
             userId,
             documentId: request.documentId,
-            maxTokens: responseMaxTokensForChat,
+            maxTokens: shortcutMaxTokensForChat,
           },
           providerTimeoutMs,
         );
@@ -2698,7 +2710,7 @@ export class AIService {
       // Resolve provider + model first so the session snapshot can be
       // captured at creation and capability gating (#93) runs before any
       // DB writes or provider calls.
-      const { provider, modelVersion, baseUrl, responseMaxTokens, agentMaxTokens } =
+      const { provider, modelVersion, baseUrl, shortcutMaxTokens, chatMaxTokens } =
         await this.getExecutionSettingsForDocument(userId, request.documentId);
       const capabilities = resolveCapabilitiesOrSafeDefault(baseUrl, modelVersion);
 
@@ -2798,7 +2810,7 @@ export class AIService {
         provider.agentStreamChat(messages as any, safeOnChunk, {
           userId,
           documentId: request.documentId,
-          maxTokens: agentMaxTokens,
+          maxTokens: chatMaxTokens,
           onAgentEvent: wrappedAgentEvent,
         }),
         providerTimeoutMs,
@@ -2819,7 +2831,7 @@ export class AIService {
           {
             userId,
             documentId: request.documentId,
-            maxTokens: responseMaxTokens,
+            maxTokens: shortcutMaxTokens,
             onAgentEvent: wrappedAgentEvent,
           },
           providerTimeoutMs,

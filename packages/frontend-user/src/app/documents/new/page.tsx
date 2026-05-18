@@ -12,10 +12,10 @@ import {
   XCircle,
 } from 'lucide-react';
 import {
-  AI_AGENT_MAX_TOKENS_DEFAULT,
+  AI_CHAT_MAX_TOKENS_DEFAULT,
   AI_MAX_TOKENS_MAX,
   AI_MAX_TOKENS_MIN,
-  AI_RESPONSE_MAX_TOKENS_DEFAULT,
+  AI_SHORTCUT_MAX_TOKENS_DEFAULT,
   WRITING_AI_MODELS,
   WRITING_ENVIRONMENT_PRESETS,
   normalizeCopyPastePolicy,
@@ -143,12 +143,12 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
       mode: usageMode,
     },
     aiTokenBudget: {
-      responseMaxTokens: isPositiveNumber(aiTokenBudget.responseMaxTokens)
-        ? aiTokenBudget.responseMaxTokens
-        : base.aiTokenBudget?.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT,
-      agentMaxTokens: isPositiveNumber(aiTokenBudget.agentMaxTokens)
-        ? aiTokenBudget.agentMaxTokens
-        : base.aiTokenBudget?.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT,
+      shortcutMaxTokens: isPositiveNumber(aiTokenBudget.shortcutMaxTokens)
+        ? aiTokenBudget.shortcutMaxTokens
+        : base.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+      chatMaxTokens: isPositiveNumber(aiTokenBudget.chatMaxTokens)
+        ? aiTokenBudget.chatMaxTokens
+        : base.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT,
     },
     time: {
       ...base.time,
@@ -226,8 +226,8 @@ export default function NewDocumentPage() {
         setEnvironmentConfig((current) => ({
           ...current,
           aiTokenBudget: {
-            responseMaxTokens: settings.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT,
-            agentMaxTokens: settings.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT,
+            shortcutMaxTokens: settings.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+            chatMaxTokens: settings.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT,
           },
         }));
       } catch {
@@ -351,8 +351,8 @@ export default function NewDocumentPage() {
     markCustom((current) => ({
       ...current,
       aiTokenBudget: {
-        responseMaxTokens: current.aiTokenBudget?.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT,
-        agentMaxTokens: current.aiTokenBudget?.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT,
+        shortcutMaxTokens: current.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+        chatMaxTokens: current.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT,
         ...patch,
       },
     }));
@@ -497,8 +497,8 @@ export default function NewDocumentPage() {
           apiKey: aiApiKey.trim() || USE_EXISTING_AI_KEY,
           baseUrl: aiBaseUrl.trim() || DEFAULT_AI_BASE_URL,
           model: selectedAiModel,
-          responseMaxTokens: configToCreate.aiTokenBudget?.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT,
-          agentMaxTokens: configToCreate.aiTokenBudget?.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT,
+          shortcutMaxTokens: configToCreate.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+          chatMaxTokens: configToCreate.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT,
         });
 
         configToCreate = {
@@ -816,35 +816,35 @@ export default function NewDocumentPage() {
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="grid gap-2">
-                      <Label htmlFor="ai-response-max-tokens">Response Tokens</Label>
+                      <Label htmlFor="ai-shortcut-max-tokens">Shortcut Tokens</Label>
                       <Input
-                        id="ai-response-max-tokens"
+                        id="ai-shortcut-max-tokens"
                         type="number"
                         min={AI_MAX_TOKENS_MIN}
                         max={AI_MAX_TOKENS_MAX}
-                        value={environmentConfig.aiTokenBudget?.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT}
+                        value={environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT}
                         onChange={(event) => setAiTokenBudget({
-                          responseMaxTokens: Number(event.target.value) || AI_RESPONSE_MAX_TOKENS_DEFAULT,
+                          shortcutMaxTokens: Number(event.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
                         })}
                         disabled={isCreating}
                       />
-                      <p className="text-xs text-muted-foreground">Quick actions and fallback answers.</p>
+                      <p className="text-xs text-muted-foreground">Shortcut actions and fallback answers.</p>
                     </div>
 
                     <div className="grid gap-2">
-                      <Label htmlFor="ai-agent-max-tokens">Agent Tokens</Label>
+                      <Label htmlFor="ai-chat-max-tokens">Chat Tokens</Label>
                       <Input
-                        id="ai-agent-max-tokens"
+                        id="ai-chat-max-tokens"
                         type="number"
                         min={AI_MAX_TOKENS_MIN}
                         max={AI_MAX_TOKENS_MAX}
-                        value={environmentConfig.aiTokenBudget?.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT}
+                        value={environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT}
                         onChange={(event) => setAiTokenBudget({
-                          agentMaxTokens: Number(event.target.value) || AI_AGENT_MAX_TOKENS_DEFAULT,
+                          chatMaxTokens: Number(event.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT,
                         })}
                         disabled={isCreating}
                       />
-                      <p className="text-xs text-muted-foreground">Chat turns with retrieval tools.</p>
+                      <p className="text-xs text-muted-foreground">Chat and retrieval tool turns, per model call.</p>
                     </div>
                   </div>
                 </div>

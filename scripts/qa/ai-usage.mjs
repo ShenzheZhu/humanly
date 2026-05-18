@@ -47,8 +47,8 @@ Environment / flags:
   QA_AI_MANIFEST / --manifest          Matrix manifest path
   QA_AI_DOCUMENTS / --documents        Comma-separated manifest document ids
   QA_AI_QUERY_TYPES / --query-types    Comma-separated manifest query ids
-  QA_AI_TEXT_MAX_TOKENS                Text smoke max_tokens (default 1024)
-  QA_AI_TOOL_MAX_TOKENS                Tool smoke max_tokens (default 2048)
+  QA_AI_SHORTCUT_MAX_TOKENS                Shortcut smoke max_tokens (default 1024)
+  QA_AI_CHAT_MAX_TOKENS                Chat tool smoke max_tokens (default 4096)
   QA_OUTPUT_DIR / --output-dir         Report output directory
 
 This skeleton establishes the report/command shape. Full Humanly document x
@@ -72,8 +72,8 @@ const manifestPath = arg('manifest', process.env.QA_AI_MANIFEST || 'fixtures/qa/
 const apiKey = process.env.QA_AI_API_KEY || (provider ? process.env[provider.keyEnv] : undefined);
 const documentFilter = parseSet(arg('documents', process.env.QA_AI_DOCUMENTS));
 const queryTypeFilter = parseSet(arg('query-types', process.env.QA_AI_QUERY_TYPES));
-const textMaxTokens = intArg('text-max-tokens', 'QA_AI_TEXT_MAX_TOKENS', 1024);
-const toolMaxTokens = intArg('tool-max-tokens', 'QA_AI_TOOL_MAX_TOKENS', 2048);
+const shortcutMaxTokens = intArg('shortcut-max-tokens', 'QA_AI_SHORTCUT_MAX_TOKENS', 1024);
+const chatMaxTokens = intArg('chat-max-tokens', 'QA_AI_CHAT_MAX_TOKENS', 4096);
 
 const PSEUDO_TOOL_MARKUP = /(<\s*tool_(?:call|use)s?\b|<\s*function\b|<\s*parameter\b|<[^>]*DSML|tool_calls>|<\/[^>]*invoke>|"function"\s*:\s*"[^"]+"\s*,\s*"arguments")/i;
 
@@ -125,8 +125,8 @@ const report = createQaRun({
     hasApiKey: Boolean(apiKey),
     documentFilter: documentFilter ? [...documentFilter] : undefined,
     queryTypeFilter: queryTypeFilter ? [...queryTypeFilter] : undefined,
-    textMaxTokens,
-    toolMaxTokens,
+    shortcutMaxTokens,
+    chatMaxTokens,
   },
 });
 
@@ -248,7 +248,7 @@ if (!execute) {
                   content: 'Reply with exactly one short sentence confirming that this is a Humanly QA smoke test.',
                 },
               ],
-              max_tokens: textMaxTokens,
+              max_tokens: shortcutMaxTokens,
               temperature: 0,
             }),
           });
@@ -259,7 +259,7 @@ if (!execute) {
             const finishReason = body?.choices?.[0]?.finish_reason || body?.choices?.[0]?.native_finish_reason;
             const reasoningTokens = body?.usage?.completion_tokens_details?.reasoning_tokens;
             throw new Error(
-              `Expected non-empty completion, got ${response.status}; finish=${finishReason || 'unknown'}; reasoningTokens=${reasoningTokens ?? 'unknown'}; textMaxTokens=${textMaxTokens}`,
+              `Expected non-empty completion, got ${response.status}; finish=${finishReason || 'unknown'}; reasoningTokens=${reasoningTokens ?? 'unknown'}; shortcutMaxTokens=${shortcutMaxTokens}`,
             );
           }
           if (PSEUDO_TOOL_MARKUP.test(content)) {
@@ -315,7 +315,7 @@ if (!execute) {
                 },
               ],
               tool_choice: 'auto',
-              max_tokens: toolMaxTokens,
+              max_tokens: chatMaxTokens,
               temperature: 0,
             }),
           });

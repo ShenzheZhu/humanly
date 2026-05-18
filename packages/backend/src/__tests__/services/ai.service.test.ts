@@ -467,8 +467,8 @@ function makeSettings(overrides: Partial<any> = {}): any {
     apiKey: 'sk-test',
     baseUrl: 'https://api.openai.com/v1',
     model: 'gpt-4o',
-    responseMaxTokens: 1024,
-    agentMaxTokens: 2048,
+    shortcutMaxTokens: 1024,
+    chatMaxTokens: 4096,
     maskedApiKey: 'sk-te...st',
     updatedAt: new Date().toISOString(),
     ...overrides,
@@ -819,12 +819,12 @@ describe('AIService.silentStreamChat', () => {
     expect(body.chat_template_kwargs).toBeUndefined();
   });
 
-  it('uses the configured response token budget for quick actions', async () => {
+  it('uses the configured shortcut token budget for quick actions', async () => {
     MockUserAISettings.getByUserId.mockResolvedValue(makeSettings({
       model: 'Qwen/Qwen3.5-397B-A17B',
       baseUrl: 'https://api.together.xyz/v1',
-      responseMaxTokens: 1536,
-      agentMaxTokens: 4096,
+      shortcutMaxTokens: 1536,
+      chatMaxTokens: 4096,
     }));
     mockFetch.mockResolvedValueOnce(mockChatCompletionStream('This is a focused shortcut sentence.'));
 
@@ -892,12 +892,12 @@ describe('AIService.chat', () => {
     expect(body.chat_template_kwargs).toEqual({ enable_thinking: false });
   });
 
-  it('uses the configured agent token budget for personal document chat', async () => {
+  it('uses the configured chat token budget for personal document chat', async () => {
     MockUserAISettings.getByUserId.mockResolvedValue(makeSettings({
       model: 'Qwen/Qwen3.5-397B-A17B',
       baseUrl: 'https://api.together.xyz/v1',
-      responseMaxTokens: 1024,
-      agentMaxTokens: 3072,
+      shortcutMaxTokens: 1024,
+      chatMaxTokens: 3072,
     }));
     mockFetch.mockResolvedValueOnce(mockChatCompletionResponse('Here is the improved text.'));
 
@@ -916,16 +916,16 @@ describe('AIService.chat', () => {
         aiAccess: 'full',
         allowedModels: ['Qwen/Qwen3.5-397B-A17B'],
         aiTokenBudget: {
-          responseMaxTokens: 2048,
-          agentMaxTokens: 4096,
+          shortcutMaxTokens: 2048,
+          chatMaxTokens: 4096,
         },
       },
     } as any);
     MockUserAISettings.getByUserId.mockResolvedValue(makeSettings({
       model: 'moonshotai/Kimi-K2.6',
       baseUrl: 'https://api.together.xyz/v1',
-      responseMaxTokens: 1024,
-      agentMaxTokens: 2048,
+      shortcutMaxTokens: 1024,
+      chatMaxTokens: 4096,
     }));
     mockFetch.mockResolvedValueOnce(mockChatCompletionResponse('Task-scoped answer.'));
 

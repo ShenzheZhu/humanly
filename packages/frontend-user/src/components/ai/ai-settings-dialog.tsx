@@ -31,10 +31,10 @@ import {
 } from '@/components/ui/alert-dialog';
 import api from '@/lib/api-client';
 import {
-  AI_AGENT_MAX_TOKENS_DEFAULT,
+  AI_CHAT_MAX_TOKENS_DEFAULT,
   AI_MAX_TOKENS_MAX,
   AI_MAX_TOKENS_MIN,
-  AI_RESPONSE_MAX_TOKENS_DEFAULT,
+  AI_SHORTCUT_MAX_TOKENS_DEFAULT,
   UserAISettings,
 } from '@humanly/shared';
 import { getWhitelist } from '@/lib/ai-models';
@@ -51,8 +51,8 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
   const [baseUrl, setBaseUrl] = useState('https://api.together.xyz/v1');
   const [apiKey, setApiKey] = useState('');
   const [model, setModel] = useState('');
-  const [responseMaxTokens, setResponseMaxTokens] = useState(AI_RESPONSE_MAX_TOKENS_DEFAULT);
-  const [agentMaxTokens, setAgentMaxTokens] = useState(AI_AGENT_MAX_TOKENS_DEFAULT);
+  const [shortcutMaxTokens, setShortcutMaxTokens] = useState(AI_SHORTCUT_MAX_TOKENS_DEFAULT);
+  const [chatMaxTokens, setChatMaxTokens] = useState(AI_CHAT_MAX_TOKENS_DEFAULT);
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -86,8 +86,8 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
       if (settings && settings.hasApiKey) {
         setBaseUrl(settings.baseUrl);
         setModel(settings.model);
-        setResponseMaxTokens(settings.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT);
-        setAgentMaxTokens(settings.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT);
+        setShortcutMaxTokens(settings.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT);
+        setChatMaxTokens(settings.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT);
         setMaskedKey(settings.maskedApiKey || '');
         setHasExisting(true);
         setApiKey(''); // Don't pre-fill actual key
@@ -97,8 +97,8 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
         setBaseUrl('https://api.together.xyz/v1');
         setApiKey('');
         setModel('');
-        setResponseMaxTokens(AI_RESPONSE_MAX_TOKENS_DEFAULT);
-        setAgentMaxTokens(AI_AGENT_MAX_TOKENS_DEFAULT);
+        setShortcutMaxTokens(AI_SHORTCUT_MAX_TOKENS_DEFAULT);
+        setChatMaxTokens(AI_CHAT_MAX_TOKENS_DEFAULT);
       }
     } catch {
       // No settings yet
@@ -165,8 +165,8 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
         apiKey: apiKey || '__use_existing__',
         baseUrl,
         model,
-        responseMaxTokens,
-        agentMaxTokens,
+        shortcutMaxTokens,
+        chatMaxTokens,
       });
       setHasExisting(true);
       setOpen(false);
@@ -189,8 +189,8 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
       setApiKey('');
       setMaskedKey('');
       setModel('');
-      setResponseMaxTokens(AI_RESPONSE_MAX_TOKENS_DEFAULT);
-      setAgentMaxTokens(AI_AGENT_MAX_TOKENS_DEFAULT);
+      setShortcutMaxTokens(AI_SHORTCUT_MAX_TOKENS_DEFAULT);
+      setChatMaxTokens(AI_CHAT_MAX_TOKENS_DEFAULT);
       setModels([]);
       setTestResult(null);
       setBaseUrl('https://api.together.xyz/v1');
@@ -330,31 +330,31 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label className="text-xs font-medium">Response Tokens</Label>
+                  <Label className="text-xs font-medium">Shortcut Tokens</Label>
                   <Input
                     type="number"
                     min={AI_MAX_TOKENS_MIN}
                     max={AI_MAX_TOKENS_MAX}
-                    value={responseMaxTokens}
-                    onChange={(e) => setResponseMaxTokens(Number(e.target.value) || AI_RESPONSE_MAX_TOKENS_DEFAULT)}
+                    value={shortcutMaxTokens}
+                    onChange={(e) => setShortcutMaxTokens(Number(e.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT)}
                     className="text-sm"
                   />
                   <p className="text-[10px] text-muted-foreground">
-                    Quick actions and fallback answers
+                    Shortcut actions and fallback answers.
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-medium">Agent Tokens</Label>
+                  <Label className="text-xs font-medium">Chat Tokens</Label>
                   <Input
                     type="number"
                     min={AI_MAX_TOKENS_MIN}
                     max={AI_MAX_TOKENS_MAX}
-                    value={agentMaxTokens}
-                    onChange={(e) => setAgentMaxTokens(Number(e.target.value) || AI_AGENT_MAX_TOKENS_DEFAULT)}
+                    value={chatMaxTokens}
+                    onChange={(e) => setChatMaxTokens(Number(e.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT)}
                     className="text-sm"
                   />
                   <p className="text-[10px] text-muted-foreground">
-                    Chat turns with retrieval tools
+                    Chat and retrieval tool turns, per model call.
                   </p>
                 </div>
               </div>
