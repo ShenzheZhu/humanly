@@ -1,6 +1,6 @@
 # Humanly Current State
 
-Last updated: 2026-05-17.
+Last updated: 2026-05-18.
 
 GitHub issues and pull requests are the source of truth. This file is only a
 short state snapshot for fast agent orientation.
@@ -22,6 +22,10 @@ short state snapshot for fast agent orientation.
 
 ## Recently Merged
 
+- #184 / #185 / #189 / #190 / #191 / #192 / #193 - QA harness coverage,
+  production browser hardening, direct shortcut routing, quick-action auth
+  resilience, admin curated AI model selection, shorter editor autosave, and
+  no-reference AI chat preflight for enroll tasks.
 - #142 / #143 - production QA playbook, QA issue initializer, architecture
   backlog, and analytics query indexes.
 - #140 / #141 / #145 - backend build debt and export route/document-event
@@ -47,7 +51,12 @@ short state snapshot for fast agent orientation.
 
 ## QA State
 
-- Full production regression has been run multiple times on 2026-05-17.
+- Full production regression has been run multiple times on 2026-05-17 and
+  2026-05-18.
+- The 2026-05-18 user/admin browser QA pass is complete; all findings were
+  either closed as non-issues/environment behavior or merged through #193.
+- Next AI QA focus: live validation of the newly added OpenRouter model batch
+  after the current issue batch is fully deployed.
 - Reusable production test flow lives in `docs/PRODUCTION_QA_PLAYBOOK.md`.
 - Regression process and old-bug comparison live in
   `docs/REGRESSION_GUARD.md` and `docs/REGRESSION_LEDGER.md`.
