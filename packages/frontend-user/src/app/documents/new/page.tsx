@@ -549,6 +549,7 @@ export default function NewDocumentPage() {
   ]);
 
   const timeMode = environmentConfig.aiUsageLimit.mode === 'time_restricted' ? 'time_restricted' : 'unlimited';
+  const showDetailedEnvironmentControls = environmentSelection !== 'default_writing';
 
   return (
     <div className="container mx-auto max-w-2xl px-4 py-8">
@@ -682,261 +683,296 @@ export default function NewDocumentPage() {
               </div>
             )}
 
-            <div className="space-y-4 rounded-md border p-4">
-              <SectionHeading
-                title="AI"
-                description="Control whether this document can use assistant support."
-              />
-
-              <div className="grid gap-2">
-                <Label>AI</Label>
-                <Select value={environmentConfig.aiAccess} onValueChange={(value) => setAiAccess(value as WritingAiAccess)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="AI access" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="off">AI Off</SelectItem>
-                    <SelectItem value="full">AI On</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {environmentConfig.aiAccess !== 'off' && (
-                <div className="grid gap-4 rounded-md border bg-muted/30 p-3">
-                  <div className="grid gap-2">
-                    <Label htmlFor="ai-api-key">AI API Key</Label>
-                    <Input
-                      id="ai-api-key"
-                      type="password"
-                      value={aiApiKey}
-                      onChange={(event) => {
-                        setAiApiKey(event.target.value);
-                        setAiConnectionResult(null);
-                        setTestedAiModels([]);
-                      }}
-                      placeholder={hasExistingAiKey ? `Current: ${maskedAiKey || 'saved key'}` : 'Enter API key'}
-                      disabled={isCreating}
-                    />
-                    {hasExistingAiKey && !aiApiKey && (
-                      <p className="text-xs text-muted-foreground">
-                        Leave empty to use the saved key.
-                      </p>
-                    )}
-                  </div>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleTestAiConnection}
-                    disabled={isCreating || isTestingAiConnection || (!aiApiKey.trim() && !hasExistingAiKey)}
-                  >
-                    {isTestingAiConnection ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Testing...
-                      </>
-                    ) : (
-                      'Test Connection'
-                    )}
-                  </Button>
-
-                  {aiConnectionResult && (
-                    <div className="flex items-start gap-2 text-xs">
-                      {aiConnectionResult.success ? (
-                        <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                      ) : (
-                        <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                      )}
-                      <p className={aiConnectionResult.success ? 'text-emerald-700' : 'text-destructive'}>
-                        {aiConnectionResult.message}
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="grid gap-2">
-                      <Label>Model</Label>
-                      <Select
-                        value={aiModel}
-                        onValueChange={(value) => {
-                          setAiModel(value);
-                          if (value !== CUSTOM_MODEL_VALUE) {
-                            setCustomAiModel('');
-                            setEnvironmentAiModel(value);
-                          } else {
-                            setEnvironmentAiModel(customAiModel.trim(), true);
-                          }
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select model" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {aiModelOptions.map((model) => (
-                            <SelectItem key={model} value={model}>
-                              {model}
-                            </SelectItem>
-                          ))}
-                          <SelectItem value={CUSTOM_MODEL_VALUE}>Custom model</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="ai-base-url">Base URL</Label>
-                      <Input
-                        id="ai-base-url"
-                        value={aiBaseUrl}
-                        onChange={(event) => {
-                          setAiBaseUrl(event.target.value);
-                          setAiConnectionResult(null);
-                          setTestedAiModels([]);
-                        }}
-                        placeholder={DEFAULT_AI_BASE_URL}
-                        disabled={isCreating}
-                      />
-                    </div>
-                  </div>
-
-                  {aiModel === CUSTOM_MODEL_VALUE && (
-                    <div className="grid gap-2">
-                      <Label htmlFor="custom-ai-model">Custom Model</Label>
-                      <Input
-                        id="custom-ai-model"
-                        value={customAiModel}
-                        onChange={(event) => {
-                          setCustomAiModel(event.target.value);
-                          setEnvironmentAiModel(event.target.value.trim(), true);
-                        }}
-                        placeholder="provider/model-name"
-                        disabled={isCreating}
-                      />
-                    </div>
-                  )}
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="grid gap-2">
-                      <Label htmlFor="ai-shortcut-max-tokens">Shortcut Tokens</Label>
-                      <Input
-                        id="ai-shortcut-max-tokens"
-                        type="number"
-                        min={AI_MAX_TOKENS_MIN}
-                        max={AI_MAX_TOKENS_MAX}
-                        value={environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT}
-                        onChange={(event) => setAiTokenBudget({
-                          shortcutMaxTokens: Number(event.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
-                        })}
-                        disabled={isCreating}
-                      />
-                      <p className="text-xs text-muted-foreground">Shortcut actions and fallback answers.</p>
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="ai-chat-max-tokens">Chat Tokens</Label>
-                      <Input
-                        id="ai-chat-max-tokens"
-                        type="number"
-                        min={AI_MAX_TOKENS_MIN}
-                        max={AI_MAX_TOKENS_MAX}
-                        value={environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT}
-                        onChange={(event) => setAiTokenBudget({
-                          chatMaxTokens: Number(event.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT,
-                        })}
-                        disabled={isCreating}
-                      />
-                      <p className="text-xs text-muted-foreground">Chat and retrieval tool turns, per model call.</p>
-                    </div>
+            {!showDetailedEnvironmentControls ? (
+              <div className="rounded-md border bg-muted/30 p-4">
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                  <div>
+                    <p className="font-medium">Default Environment</p>
+                    <p className="text-sm text-muted-foreground">
+                      A simple personal writing setup with authorship tracking enabled and no AI assistant configured.
+                    </p>
                   </div>
                 </div>
-              )}
-            </div>
 
-            <div className="space-y-4 rounded-md border p-4">
-              <SectionHeading
-                title="Writing Control"
-                description="Set rules for editing behavior during writing."
-              />
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-md bg-background p-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">AI</p>
+                    <p className="mt-1 text-sm font-medium">Off</p>
+                  </div>
+                  <div className="rounded-md bg-background p-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Writing</p>
+                    <p className="mt-1 text-sm font-medium">Copy & paste allowed</p>
+                  </div>
+                  <div className="rounded-md bg-background p-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Time</p>
+                    <p className="mt-1 text-sm font-medium">No limit</p>
+                  </div>
+                </div>
 
-              <div className="grid gap-2">
-                <Label>Copy & Paste</Label>
-                <Select
-                  value={normalizeCopyPastePolicy(environmentConfig.copyPastePolicy)}
-                  onValueChange={(value) => {
-                    markCustom((current) => ({
-                      ...current,
-                      copyPastePolicy: normalizeCopyPastePolicy(value),
-                    }));
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Copy-paste policy" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="allowed">Allowed</SelectItem>
-                    <SelectItem value="blocked">Blocked</SelectItem>
-                  </SelectContent>
-                </Select>
+                <p className="mt-4 text-sm text-muted-foreground">
+                  Choose Custom to configure AI access, copy-paste rules, or a time limit.
+                </p>
               </div>
-            </div>
-
-            <div className="space-y-4 rounded-md border p-4">
-              <SectionHeading
-                title="Time Limitation"
-                description="Set whether the writing session should have a time limit."
-              />
-
-              <div className="grid gap-2">
-                <Label>Time</Label>
-                <Select
-                  value={timeMode}
-                  onValueChange={(value) => {
-                    markCustom((current) => ({
-                      ...current,
-                      aiUsageLimit: {
-                        ...current.aiUsageLimit,
-                        mode: value === 'time_restricted' ? 'time_restricted' : 'unlimited',
-                      },
-                      time: {
-                        ...current.time,
-                        timeLimitSeconds: value === 'time_restricted'
-                          ? current.time.timeLimitSeconds || 3600
-                          : undefined,
-                      },
-                    }));
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Time policy" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unlimited">No limitations</SelectItem>
-                    <SelectItem value="time_restricted">Time limited</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {timeMode === 'time_restricted' && (
-                <div className="grid gap-2">
-                  <Label>Time Limit (minutes)</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={Math.round((environmentConfig.time.timeLimitSeconds || 3600) / 60)}
-                    disabled={isCreating}
-                    onChange={(event) => {
-                      const minutes = Number(event.target.value) || 1;
-                      markCustom((current) => ({
-                        ...current,
-                        time: {
-                          ...current.time,
-                          timeLimitSeconds: minutes * 60,
-                        },
-                      }));
-                    }}
+            ) : (
+              <>
+                <div className="space-y-4 rounded-md border p-4">
+                  <SectionHeading
+                    title="AI"
+                    description="Control whether this document can use assistant support."
                   />
+
+                  <div className="grid gap-2">
+                    <Label>AI</Label>
+                    <Select value={environmentConfig.aiAccess} onValueChange={(value) => setAiAccess(value as WritingAiAccess)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="AI access" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="off">AI Off</SelectItem>
+                        <SelectItem value="full">AI On</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {environmentConfig.aiAccess !== 'off' && (
+                    <div className="grid gap-4 rounded-md border bg-muted/30 p-3">
+                      <div className="grid gap-2">
+                        <Label htmlFor="ai-api-key">AI API Key</Label>
+                        <Input
+                          id="ai-api-key"
+                          type="password"
+                          value={aiApiKey}
+                          onChange={(event) => {
+                            setAiApiKey(event.target.value);
+                            setAiConnectionResult(null);
+                            setTestedAiModels([]);
+                          }}
+                          placeholder={hasExistingAiKey ? `Current: ${maskedAiKey || 'saved key'}` : 'Enter API key'}
+                          disabled={isCreating}
+                        />
+                        {hasExistingAiKey && !aiApiKey && (
+                          <p className="text-xs text-muted-foreground">
+                            Leave empty to use the saved key.
+                          </p>
+                        )}
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleTestAiConnection}
+                        disabled={isCreating || isTestingAiConnection || (!aiApiKey.trim() && !hasExistingAiKey)}
+                      >
+                        {isTestingAiConnection ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Testing...
+                          </>
+                        ) : (
+                          'Test Connection'
+                        )}
+                      </Button>
+
+                      {aiConnectionResult && (
+                        <div className="flex items-start gap-2 text-xs">
+                          {aiConnectionResult.success ? (
+                            <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                          ) : (
+                            <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                          )}
+                          <p className={aiConnectionResult.success ? 'text-emerald-700' : 'text-destructive'}>
+                            {aiConnectionResult.message}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="grid gap-2">
+                          <Label>Model</Label>
+                          <Select
+                            value={aiModel}
+                            onValueChange={(value) => {
+                              setAiModel(value);
+                              if (value !== CUSTOM_MODEL_VALUE) {
+                                setCustomAiModel('');
+                                setEnvironmentAiModel(value);
+                              } else {
+                                setEnvironmentAiModel(customAiModel.trim(), true);
+                              }
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select model" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {aiModelOptions.map((model) => (
+                                <SelectItem key={model} value={model}>
+                                  {model}
+                                </SelectItem>
+                              ))}
+                              <SelectItem value={CUSTOM_MODEL_VALUE}>Custom model</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="ai-base-url">Base URL</Label>
+                          <Input
+                            id="ai-base-url"
+                            value={aiBaseUrl}
+                            onChange={(event) => {
+                              setAiBaseUrl(event.target.value);
+                              setAiConnectionResult(null);
+                              setTestedAiModels([]);
+                            }}
+                            placeholder={DEFAULT_AI_BASE_URL}
+                            disabled={isCreating}
+                          />
+                        </div>
+                      </div>
+
+                      {aiModel === CUSTOM_MODEL_VALUE && (
+                        <div className="grid gap-2">
+                          <Label htmlFor="custom-ai-model">Custom Model</Label>
+                          <Input
+                            id="custom-ai-model"
+                            value={customAiModel}
+                            onChange={(event) => {
+                              setCustomAiModel(event.target.value);
+                              setEnvironmentAiModel(event.target.value.trim(), true);
+                            }}
+                            placeholder="provider/model-name"
+                            disabled={isCreating}
+                          />
+                        </div>
+                      )}
+
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="grid gap-2">
+                          <Label htmlFor="ai-shortcut-max-tokens">Shortcut Tokens</Label>
+                          <Input
+                            id="ai-shortcut-max-tokens"
+                            type="number"
+                            min={AI_MAX_TOKENS_MIN}
+                            max={AI_MAX_TOKENS_MAX}
+                            value={environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT}
+                            onChange={(event) => setAiTokenBudget({
+                              shortcutMaxTokens: Number(event.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+                            })}
+                            disabled={isCreating}
+                          />
+                          <p className="text-xs text-muted-foreground">Shortcut actions and fallback answers.</p>
+                        </div>
+
+                        <div className="grid gap-2">
+                          <Label htmlFor="ai-chat-max-tokens">Chat Tokens</Label>
+                          <Input
+                            id="ai-chat-max-tokens"
+                            type="number"
+                            min={AI_MAX_TOKENS_MIN}
+                            max={AI_MAX_TOKENS_MAX}
+                            value={environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT}
+                            onChange={(event) => setAiTokenBudget({
+                              chatMaxTokens: Number(event.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT,
+                            })}
+                            disabled={isCreating}
+                          />
+                          <p className="text-xs text-muted-foreground">Chat and retrieval tool turns, per model call.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+
+                <div className="space-y-4 rounded-md border p-4">
+                  <SectionHeading
+                    title="Writing Control"
+                    description="Set rules for editing behavior during writing."
+                  />
+
+                  <div className="grid gap-2">
+                    <Label>Copy & Paste</Label>
+                    <Select
+                      value={normalizeCopyPastePolicy(environmentConfig.copyPastePolicy)}
+                      onValueChange={(value) => {
+                        markCustom((current) => ({
+                          ...current,
+                          copyPastePolicy: normalizeCopyPastePolicy(value),
+                        }));
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Copy-paste policy" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="allowed">Allowed</SelectItem>
+                        <SelectItem value="blocked">Blocked</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-4 rounded-md border p-4">
+                  <SectionHeading
+                    title="Time Limitation"
+                    description="Set whether the writing session should have a time limit."
+                  />
+
+                  <div className="grid gap-2">
+                    <Label>Time</Label>
+                    <Select
+                      value={timeMode}
+                      onValueChange={(value) => {
+                        markCustom((current) => ({
+                          ...current,
+                          aiUsageLimit: {
+                            ...current.aiUsageLimit,
+                            mode: value === 'time_restricted' ? 'time_restricted' : 'unlimited',
+                          },
+                          time: {
+                            ...current.time,
+                            timeLimitSeconds: value === 'time_restricted'
+                              ? current.time.timeLimitSeconds || 3600
+                              : undefined,
+                          },
+                        }));
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Time policy" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unlimited">No limitations</SelectItem>
+                        <SelectItem value="time_restricted">Time limited</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {timeMode === 'time_restricted' && (
+                    <div className="grid gap-2">
+                      <Label>Time Limit (minutes)</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={Math.round((environmentConfig.time.timeLimitSeconds || 3600) / 60)}
+                        disabled={isCreating}
+                        onChange={(event) => {
+                          const minutes = Number(event.target.value) || 1;
+                          markCustom((current) => ({
+                            ...current,
+                            time: {
+                              ...current.time,
+                              timeLimitSeconds: minutes * 60,
+                            },
+                          }));
+                        }}
+                      />
+                    </div>
+                    )}
+                </div>
+              </>
+            )}
           </div>
         </CardContent>
         <CardFooter className="flex justify-between">
