@@ -184,9 +184,9 @@ Curated OpenRouter models:
 
 | Model | Expected label | Image input |
 | --- | --- | --- |
-| `qwen/qwen3.5-397b-a17b` | `(text only)` | disabled |
-| `qwen/qwen3.5-9b` | `(text only)` | disabled |
-| `moonshotai/kimi-k2.6` | `(text only)` | disabled |
+| `qwen/qwen3.5-397b-a17b` | `(image+text)` | enabled |
+| `qwen/qwen3.5-9b` | `(image+text)` | enabled |
+| `moonshotai/kimi-k2.6` | `(image+text)` | enabled |
 | `deepseek/deepseek-v4-pro` | `(text only)` | disabled |
 | `z-ai/glm-5.1` | `(text only)` | disabled |
 | `anthropic/claude-sonnet-4.6` | `(image+text)` | enabled |
