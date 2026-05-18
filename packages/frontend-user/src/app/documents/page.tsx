@@ -326,10 +326,7 @@ export default function DocumentsPage() {
             </div>
           </section>
 
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm text-muted-foreground">
-              {personalDocuments.length} personal/private {personalDocuments.length === 1 ? 'document' : 'documents'}
-            </p>
+          <div className="flex justify-end">
             <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Sort by" />
@@ -416,10 +413,6 @@ export default function DocumentsPage() {
               </DialogContent>
             </Dialog>
           </section>
-
-          <p className="text-sm text-muted-foreground">
-            {validTaskEnrollments.length} assigned {validTaskEnrollments.length === 1 ? 'task' : 'tasks'}
-          </p>
 
           {validTaskEnrollments.length === 0 ? (
             <div className="flex min-h-[360px] flex-col items-center justify-center rounded-lg border-2 border-dashed">
