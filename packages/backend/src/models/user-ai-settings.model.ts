@@ -2,10 +2,10 @@ import crypto from 'crypto';
 import { pool } from '../config/database';
 import { env } from '../config/env';
 import {
-  AI_AGENT_MAX_TOKENS_DEFAULT,
+  AI_CHAT_MAX_TOKENS_DEFAULT,
   AI_MAX_TOKENS_MAX,
   AI_MAX_TOKENS_MIN,
-  AI_RESPONSE_MAX_TOKENS_DEFAULT,
+  AI_SHORTCUT_MAX_TOKENS_DEFAULT,
 } from '@humanly/shared';
 
 const ALGORITHM = 'aes-256-gcm';
@@ -50,15 +50,15 @@ export interface UserAISettingsRow {
   encrypted_api_key: string;
   base_url: string;
   model: string;
-  response_max_tokens: number | null;
-  agent_max_tokens: number | null;
+  shortcut_max_tokens: number | null;
+  chat_max_tokens: number | null;
   created_at: string;
   updated_at: string;
 }
 
 export interface UserAISettingsTokenBudget {
-  responseMaxTokens?: number;
-  agentMaxTokens?: number;
+  shortcutMaxTokens?: number;
+  chatMaxTokens?: number;
 }
 
 function normalizeTokenBudgetValue(value: unknown, fallback: number): number {
@@ -72,8 +72,8 @@ export class UserAISettingsModel {
     apiKey: string;
     baseUrl: string;
     model: string;
-    responseMaxTokens: number;
-    agentMaxTokens: number;
+    shortcutMaxTokens: number;
+    chatMaxTokens: number;
     maskedApiKey: string;
     updatedAt: string;
   } | null> {
@@ -88,8 +88,8 @@ export class UserAISettingsModel {
       apiKey,
       baseUrl: row.base_url,
       model: row.model,
-      responseMaxTokens: normalizeTokenBudgetValue(row.response_max_tokens, AI_RESPONSE_MAX_TOKENS_DEFAULT),
-      agentMaxTokens: normalizeTokenBudgetValue(row.agent_max_tokens, AI_AGENT_MAX_TOKENS_DEFAULT),
+      shortcutMaxTokens: normalizeTokenBudgetValue(row.shortcut_max_tokens, AI_SHORTCUT_MAX_TOKENS_DEFAULT),
+      chatMaxTokens: normalizeTokenBudgetValue(row.chat_max_tokens, AI_CHAT_MAX_TOKENS_DEFAULT),
       maskedApiKey: maskApiKey(apiKey),
       updatedAt: row.updated_at,
     };
@@ -98,14 +98,14 @@ export class UserAISettingsModel {
   static async getPublicByUserId(userId: string): Promise<{
     baseUrl: string;
     model: string;
-    responseMaxTokens: number;
-    agentMaxTokens: number;
+    shortcutMaxTokens: number;
+    chatMaxTokens: number;
     hasApiKey: boolean;
     maskedApiKey: string;
     updatedAt: string;
   } | null> {
     const result = await pool.query(
-      'SELECT base_url, model, encrypted_api_key, response_max_tokens, agent_max_tokens, updated_at FROM user_ai_settings WHERE user_id = $1',
+      'SELECT base_url, model, encrypted_api_key, shortcut_max_tokens, chat_max_tokens, updated_at FROM user_ai_settings WHERE user_id = $1',
       [userId]
     );
     if (result.rows.length === 0) return null;
@@ -114,8 +114,8 @@ export class UserAISettingsModel {
     return {
       baseUrl: row.base_url,
       model: row.model,
-      responseMaxTokens: normalizeTokenBudgetValue(row.response_max_tokens, AI_RESPONSE_MAX_TOKENS_DEFAULT),
-      agentMaxTokens: normalizeTokenBudgetValue(row.agent_max_tokens, AI_AGENT_MAX_TOKENS_DEFAULT),
+      shortcutMaxTokens: normalizeTokenBudgetValue(row.shortcut_max_tokens, AI_SHORTCUT_MAX_TOKENS_DEFAULT),
+      chatMaxTokens: normalizeTokenBudgetValue(row.chat_max_tokens, AI_CHAT_MAX_TOKENS_DEFAULT),
       hasApiKey: true,
       maskedApiKey: maskApiKey(apiKey),
       updatedAt: row.updated_at,
@@ -130,13 +130,13 @@ export class UserAISettingsModel {
     tokenBudget: UserAISettingsTokenBudget = {}
   ): Promise<void> {
     const encryptedKey = encrypt(apiKey);
-    const responseMaxTokens = normalizeTokenBudgetValue(
-      tokenBudget.responseMaxTokens,
-      AI_RESPONSE_MAX_TOKENS_DEFAULT
+    const shortcutMaxTokens = normalizeTokenBudgetValue(
+      tokenBudget.shortcutMaxTokens,
+      AI_SHORTCUT_MAX_TOKENS_DEFAULT
     );
-    const agentMaxTokens = normalizeTokenBudgetValue(
-      tokenBudget.agentMaxTokens,
-      AI_AGENT_MAX_TOKENS_DEFAULT
+    const chatMaxTokens = normalizeTokenBudgetValue(
+      tokenBudget.chatMaxTokens,
+      AI_CHAT_MAX_TOKENS_DEFAULT
     );
     await pool.query(
       `INSERT INTO user_ai_settings (
@@ -144,18 +144,18 @@ export class UserAISettingsModel {
          encrypted_api_key,
          base_url,
          model,
-         response_max_tokens,
-         agent_max_tokens
+         shortcut_max_tokens,
+         chat_max_tokens
        )
        VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (user_id) DO UPDATE SET
          encrypted_api_key = $2,
          base_url = $3,
          model = $4,
-         response_max_tokens = $5,
-         agent_max_tokens = $6,
+         shortcut_max_tokens = $5,
+         chat_max_tokens = $6,
          updated_at = NOW()`,
-      [userId, encryptedKey, baseUrl, model, responseMaxTokens, agentMaxTokens]
+      [userId, encryptedKey, baseUrl, model, shortcutMaxTokens, chatMaxTokens]
     );
   }
 

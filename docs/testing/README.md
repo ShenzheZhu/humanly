@@ -174,8 +174,8 @@ Token budget is configurable. Defaults are intentionally product-like enough
 for reasoning-heavy models:
 
 ```text
-QA_AI_TEXT_MAX_TOKENS=1024
-QA_AI_TOOL_MAX_TOKENS=2048
+QA_AI_SHORTCUT_MAX_TOKENS=1024
+QA_AI_CHAT_MAX_TOKENS=4096
 ```
 
 Override when diagnosing a model that spends most of its budget on reasoning:
@@ -184,7 +184,8 @@ Override when diagnosing a model that spends most of its budget on reasoning:
 QA_AI_EXECUTE=1 \
 QA_AI_PROVIDER=openrouter \
 QA_AI_MODELS=qwen/qwen3.5-9b \
-QA_AI_TEXT_MAX_TOKENS=2048 \
+QA_AI_SHORTCUT_MAX_TOKENS=2048 \
+QA_AI_CHAT_MAX_TOKENS=8192 \
 OPENROUTER_API_KEY=... \
 pnpm qa:ai:usage
 ```

@@ -17,10 +17,10 @@ import {
   XCircle,
 } from 'lucide-react';
 import {
-  AI_AGENT_MAX_TOKENS_DEFAULT,
+  AI_CHAT_MAX_TOKENS_DEFAULT,
   AI_MAX_TOKENS_MAX,
   AI_MAX_TOKENS_MIN,
-  AI_RESPONSE_MAX_TOKENS_DEFAULT,
+  AI_SHORTCUT_MAX_TOKENS_DEFAULT,
   DEFAULT_WRITING_ENVIRONMENT_CONFIG,
   WRITING_AI_MODELS,
   normalizeCopyPastePolicy,
@@ -127,8 +127,8 @@ const mergeEnvironmentConfig = (config?: WritingEnvironmentConfig | null): Writi
     maxRequests: config?.aiUsageLimit?.maxRequests || 100,
   },
   aiTokenBudget: {
-    responseMaxTokens: config?.aiTokenBudget?.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT,
-    agentMaxTokens: config?.aiTokenBudget?.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT,
+    shortcutMaxTokens: config?.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+    chatMaxTokens: config?.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT,
   },
   time: {
     ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.time,
@@ -358,8 +358,8 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
     setEnvironmentConfig((current) => ({
       ...current,
       aiTokenBudget: {
-        responseMaxTokens: current.aiTokenBudget?.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT,
-        agentMaxTokens: current.aiTokenBudget?.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT,
+        shortcutMaxTokens: current.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+        chatMaxTokens: current.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT,
         ...patch,
       },
     }));
@@ -513,8 +513,8 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
           apiKey: aiApiKey.trim() || USE_EXISTING_AI_KEY,
           baseUrl: aiBaseUrl.trim() || DEFAULT_AI_BASE_URL,
           model: selectedAiModel,
-          responseMaxTokens: environmentConfig.aiTokenBudget?.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT,
-          agentMaxTokens: environmentConfig.aiTokenBudget?.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT,
+          shortcutMaxTokens: environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+          chatMaxTokens: environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT,
         });
       }
 
@@ -949,35 +949,35 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
 
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <FormLabel htmlFor="ai-response-max-tokens">Response Tokens</FormLabel>
+                        <FormLabel htmlFor="ai-shortcut-max-tokens">Shortcut Tokens</FormLabel>
                         <Input
-                          id="ai-response-max-tokens"
+                          id="ai-shortcut-max-tokens"
                           type="number"
                           min={AI_MAX_TOKENS_MIN}
                           max={AI_MAX_TOKENS_MAX}
-                          value={environmentConfig.aiTokenBudget?.responseMaxTokens || AI_RESPONSE_MAX_TOKENS_DEFAULT}
+                          value={environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT}
                           disabled={isSaving}
                           onChange={(event) => setAiTokenBudget({
-                            responseMaxTokens: Number(event.target.value) || AI_RESPONSE_MAX_TOKENS_DEFAULT,
+                            shortcutMaxTokens: Number(event.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
                           })}
                         />
-                        <FormDescription>Quick actions and fallback answers.</FormDescription>
+                        <FormDescription>Shortcut actions and fallback answers.</FormDescription>
                       </div>
 
                       <div className="space-y-2">
-                        <FormLabel htmlFor="ai-agent-max-tokens">Agent Tokens</FormLabel>
+                        <FormLabel htmlFor="ai-chat-max-tokens">Chat Tokens</FormLabel>
                         <Input
-                          id="ai-agent-max-tokens"
+                          id="ai-chat-max-tokens"
                           type="number"
                           min={AI_MAX_TOKENS_MIN}
                           max={AI_MAX_TOKENS_MAX}
-                          value={environmentConfig.aiTokenBudget?.agentMaxTokens || AI_AGENT_MAX_TOKENS_DEFAULT}
+                          value={environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT}
                           disabled={isSaving}
                           onChange={(event) => setAiTokenBudget({
-                            agentMaxTokens: Number(event.target.value) || AI_AGENT_MAX_TOKENS_DEFAULT,
+                            chatMaxTokens: Number(event.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT,
                           })}
                         />
-                        <FormDescription>Chat turns with retrieval tools.</FormDescription>
+                        <FormDescription>Chat and retrieval tool turns, per model call.</FormDescription>
                       </div>
                     </div>
                   </div>

@@ -95,8 +95,8 @@ describe('saveSettings', () => {
       apiKey: 'sk-existing',
       baseUrl: 'https://api.together.xyz/v1',
       model: 'moonshotai/Kimi-K2.6',
-      responseMaxTokens: 1024,
-      agentMaxTokens: 2048,
+      shortcutMaxTokens: 1024,
+      chatMaxTokens: 4096,
       maskedApiKey: 'sk-ex...ing',
       updatedAt: new Date().toISOString(),
     });
@@ -107,8 +107,8 @@ describe('saveSettings', () => {
         apiKey: '__use_existing__',
         baseUrl: 'https://api.together.xyz/v1',
         model: 'moonshotai/Kimi-K2.6',
-        responseMaxTokens: 2048,
-        agentMaxTokens: 4096,
+        shortcutMaxTokens: 2048,
+        chatMaxTokens: 4096,
       },
     });
     const res = makeRes();
@@ -121,8 +121,46 @@ describe('saveSettings', () => {
       'https://api.together.xyz/v1',
       'moonshotai/Kimi-K2.6',
       {
-        responseMaxTokens: 2048,
-        agentMaxTokens: 4096,
+        shortcutMaxTokens: 2048,
+        chatMaxTokens: 4096,
+      },
+    );
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+  });
+
+  it('accepts legacy response/agent token budget fields during deploy rollover', async () => {
+    MockUserAISettingsModel.getByUserId.mockResolvedValue({
+      apiKey: 'sk-existing',
+      baseUrl: 'https://api.together.xyz/v1',
+      model: 'moonshotai/Kimi-K2.6',
+      shortcutMaxTokens: 1024,
+      chatMaxTokens: 4096,
+      maskedApiKey: 'sk-ex...ing',
+      updatedAt: new Date().toISOString(),
+    });
+    MockUserAISettingsModel.upsert.mockResolvedValue(undefined);
+
+    const req = makeReq({
+      body: {
+        apiKey: '__use_existing__',
+        baseUrl: 'https://api.together.xyz/v1',
+        model: 'moonshotai/Kimi-K2.6',
+        responseMaxTokens: 1536,
+        agentMaxTokens: 6144,
+      },
+    });
+    const res = makeRes();
+
+    await saveSettings(req, res);
+
+    expect(MockUserAISettingsModel.upsert).toHaveBeenCalledWith(
+      'user-1',
+      'sk-existing',
+      'https://api.together.xyz/v1',
+      'moonshotai/Kimi-K2.6',
+      {
+        shortcutMaxTokens: 1536,
+        chatMaxTokens: 6144,
       },
     );
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
@@ -134,8 +172,8 @@ describe('saveSettings', () => {
         apiKey: 'sk-test',
         baseUrl: 'https://api.together.xyz/v1',
         model: 'moonshotai/Kimi-K2.6',
-        responseMaxTokens: 32,
-        agentMaxTokens: 2048,
+        shortcutMaxTokens: 32,
+        chatMaxTokens: 4096,
       },
     });
     const res = makeRes();

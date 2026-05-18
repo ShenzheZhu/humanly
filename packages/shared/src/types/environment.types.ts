@@ -7,8 +7,8 @@ export type CopyPastePolicy = 'allowed' | 'blocked';
 export type WritingEnvironmentPreset = 'default_writing' | 'no_ai' | 'ai_assisted' | 'timed_writing' | 'custom';
 
 export interface WritingAiTokenBudget {
-  responseMaxTokens?: number;
-  agentMaxTokens?: number;
+  shortcutMaxTokens?: number;
+  chatMaxTokens?: number;
 }
 
 export interface WritingEnvironmentConfig {
@@ -63,8 +63,8 @@ export const DEFAULT_WRITING_ENVIRONMENT_CONFIG: WritingEnvironmentConfig = {
   allowedModels: [],
   customModels: [],
   aiTokenBudget: {
-    responseMaxTokens: 1024,
-    agentMaxTokens: 2048,
+    shortcutMaxTokens: 1024,
+    chatMaxTokens: 4096,
   },
   aiUsageLimit: {
     mode: 'unlimited',

@@ -316,16 +316,16 @@ export interface AIConfig {
 /**
  * User AI Settings (returned to frontend, API key masked)
  */
-export const AI_RESPONSE_MAX_TOKENS_DEFAULT = 1024;
-export const AI_AGENT_MAX_TOKENS_DEFAULT = 2048;
+export const AI_SHORTCUT_MAX_TOKENS_DEFAULT = 1024;
+export const AI_CHAT_MAX_TOKENS_DEFAULT = 4096;
 export const AI_MAX_TOKENS_MIN = 256;
 export const AI_MAX_TOKENS_MAX = 16384;
 
 export interface UserAISettings {
   baseUrl: string;
   model: string;
-  responseMaxTokens: number;
-  agentMaxTokens: number;
+  shortcutMaxTokens: number;
+  chatMaxTokens: number;
   hasApiKey: boolean;
   maskedApiKey?: string;
   updatedAt?: string;
@@ -338,8 +338,8 @@ export interface SaveAISettingsRequest {
   apiKey: string;
   baseUrl: string;
   model: string;
-  responseMaxTokens?: number;
-  agentMaxTokens?: number;
+  shortcutMaxTokens?: number;
+  chatMaxTokens?: number;
 }
 
 /**
