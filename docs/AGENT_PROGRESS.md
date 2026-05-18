@@ -55,8 +55,9 @@ short state snapshot for fast agent orientation.
   2026-05-18.
 - The 2026-05-18 user/admin browser QA pass is complete; all findings were
   either closed as non-issues/environment behavior or merged through #193.
-- Next AI QA focus: live validation of the newly added OpenRouter model batch
-  after the current issue batch is fully deployed.
+- OpenRouter Browser E2E model validation completed on 2026-05-18 in #194:
+  all curated OpenRouter models passed PDF chat/tool-card checks; negative
+  lookup and one keyboard quick-action apply path also passed.
 - Reusable production test flow lives in `docs/PRODUCTION_QA_PLAYBOOK.md`.
 - Regression process and old-bug comparison live in
   `docs/REGRESSION_GUARD.md` and `docs/REGRESSION_LEDGER.md`.
