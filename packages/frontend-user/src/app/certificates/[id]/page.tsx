@@ -35,6 +35,7 @@ import {
 import { format } from 'date-fns';
 import QRCode from 'qrcode';
 import { Input } from '@/components/ui/input';
+import { copyTextToClipboard } from '@/lib/clipboard';
 
 export default function CertificateDetailPage() {
   const params = useParams();
@@ -97,26 +98,42 @@ export default function CertificateDetailPage() {
     }
   };
 
-  const handleCopyVerificationToken = () => {
+  const showCopyUnavailableToast = (label: string) => {
+    toast({
+      title: 'Copy unavailable',
+      description: `${label} could not be copied automatically. Select it manually instead.`,
+      variant: 'destructive',
+    });
+  };
+
+  const handleCopyVerificationToken = async () => {
     if (certificate) {
-      navigator.clipboard.writeText(certificate.verificationToken);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-      toast({
-        title: 'Copied',
-        description: 'Verification token copied to clipboard',
-      });
+      const didCopy = await copyTextToClipboard(certificate.verificationToken);
+      if (didCopy) {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        toast({
+          title: 'Copied',
+          description: 'Verification token copied to clipboard',
+        });
+      } else {
+        showCopyUnavailableToast('Verification token');
+      }
     }
   };
 
-  const handleShareVerificationLink = () => {
+  const handleShareVerificationLink = async () => {
     if (certificate) {
       const verifyUrl = `${window.location.origin}/verify/${certificate.verificationToken}`;
-      navigator.clipboard.writeText(verifyUrl);
-      toast({
-        title: 'Link Copied',
-        description: 'Verification link copied to clipboard',
-      });
+      const didCopy = await copyTextToClipboard(verifyUrl);
+      if (didCopy) {
+        toast({
+          title: 'Link Copied',
+          description: 'Verification link copied to clipboard',
+        });
+      } else {
+        showCopyUnavailableToast('Verification link');
+      }
     }
   };
 
@@ -570,9 +587,13 @@ export default function CertificateDetailPage() {
                             {certificate.accessCode}
                           </div>
                           <Button
-                            onClick={() => {
-                              navigator.clipboard.writeText(certificate.accessCode!);
-                              toast({ title: 'Copied', description: 'Access code copied' });
+                            onClick={async () => {
+                              const didCopy = await copyTextToClipboard(certificate.accessCode!);
+                              if (didCopy) {
+                                toast({ title: 'Copied', description: 'Access code copied' });
+                              } else {
+                                showCopyUnavailableToast('Access code');
+                              }
                             }}
                             variant="ghost"
                             size="sm"
