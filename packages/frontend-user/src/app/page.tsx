@@ -12,14 +12,14 @@ export default function HomePage() {
       </div>
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm">
         <div className="text-center">
-          <h1 className="text-6xl font-bold mb-4">
+          <h1 className="text-6xl font-bold mb-4" aria-label={`Welcome to ${BRAND.name}`}>
             Welcome to <span className="text-primary"><img src="/humanly.svg" alt="" className="inline h-[0.75em] w-auto mb-[0.15em] mr-0.5" />{BRAND.name.slice(1)}</span>
           </h1>
           <p className="text-xl text-muted-foreground mb-8">
             {BRAND.taglineUser}
           </p>
           <p className="text-base text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Write documents with integrated keystroke tracking. Generate cryptographically signed certificates proving your content was written by a human, not AI.
+            Humanly lets writers collaborate with AI in a tracked workspace and generate verifiable authorship certificates.
           </p>
           <div className="flex gap-4 justify-center mb-8">
             <Link

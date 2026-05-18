@@ -18,7 +18,6 @@ import { Mail, Lock, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  rememberMe: z.boolean().optional(),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
@@ -39,9 +38,6 @@ export default function LoginPage() {
     clearErrors,
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      rememberMe: false,
-    },
   });
 
   const onSubmit = async (data: LoginForm) => {
@@ -194,22 +190,6 @@ export default function LoginPage() {
             {errors.password && (
               <p className="text-sm text-destructive">{errors.password.message}</p>
             )}
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="rememberMe"
-              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={isLoading}
-              {...register('rememberMe')}
-            />
-            <Label
-              htmlFor="rememberMe"
-              className="text-sm font-normal cursor-pointer"
-            >
-              Remember me
-            </Label>
           </div>
 
           <Button type="submit" className="w-full" disabled={isLoading}>

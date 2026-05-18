@@ -150,7 +150,7 @@ export default function RegisterPage() {
         <CardHeader>
           <CardTitle className="text-center">Registration Successful!</CardTitle>
           <CardDescription className="text-center">
-            Certify Authentic Human Authorship with Behavioral Proof
+            Write with AI. Prove your process.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

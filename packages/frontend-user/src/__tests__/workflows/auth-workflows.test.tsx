@@ -43,6 +43,8 @@ describe('user auth workflows', () => {
 
     const { rerender } = render(<LoginPage />);
 
+    expect(screen.queryByLabelText(/remember me/i)).not.toBeInTheDocument();
+
     await user.type(screen.getByLabelText(/email address/i), 'missing@example.com');
     await user.type(screen.getByLabelText(/^password$/i), 'Password123!');
     await user.click(screen.getByRole('button', { name: /^sign in$/i }));
