@@ -17,7 +17,7 @@ const root = path.resolve(
   "../..",
 );
 const skill = path.join(root, ".agents/skills/humanly-browser-e2e/SKILL.md");
-const guide = path.join(root, "docs/testing/BROWSER_E2E_SKILL.md");
+const guide = path.join(root, "docs/testing/BROWSER_E2E_PLAYBOOK.md");
 const framework = path.join(root, "docs/testing/README.md");
 const modelMatrixReference = path.join(
   root,

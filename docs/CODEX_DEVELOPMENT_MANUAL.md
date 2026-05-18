@@ -106,7 +106,7 @@ Pick the lightest verification that proves the change:
   `.agents/skills/humanly-deploy-smoke/SKILL.md`.
 - Browser-visible user/admin flows: use
   `.agents/skills/humanly-browser-e2e/SKILL.md` and follow
-  `docs/testing/BROWSER_E2E_SKILL.md`.
+  `docs/testing/BROWSER_E2E_PLAYBOOK.md`.
 - Production release: use `docs/PRODUCTION_QA_PLAYBOOK.md`.
 
 Always run `pnpm build:all` before release-style merges when product code or

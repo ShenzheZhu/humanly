@@ -126,7 +126,7 @@ Humanly uses layered confidence, not one enormous brittle UI harness:
 4. `pnpm qa:ai:usage` for real provider/model behavior.
 5. `pnpm qa:deploy:smoke` for deployment, TLS, proxy, and health surfaces.
 6. `.agents/skills/humanly-browser-e2e/SKILL.md` plus
-   `docs/testing/BROWSER_E2E_SKILL.md` for browser-agent-assisted
+   `docs/testing/BROWSER_E2E_PLAYBOOK.md` for browser-agent-assisted
    human-visible flows.
 7. Post-deploy canary: a short human or agent-run smoke on app/admin.
 

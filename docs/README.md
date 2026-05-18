@@ -24,7 +24,7 @@ This directory is the entry point for maintainers and agents working on
   deployment, TLS, proxy, static asset, and API reachability checks.
 - `.agents/skills/humanly-backend-stress/SKILL.md` - Codex repo skill for
   heavier backend document/event/file stress probes.
-- `testing/BROWSER_E2E_SKILL.md` - human-readable browser E2E playbook for
+- `testing/BROWSER_E2E_PLAYBOOK.md` - human-readable browser E2E playbook for
   user/admin flows that require visual/editor judgment.
 - `PRODUCTION_QA_PLAYBOOK.md` - reusable end-to-end production test plan.
 - `BACKEND_STRESS_TESTING.md` - backend/document/file stress harness.

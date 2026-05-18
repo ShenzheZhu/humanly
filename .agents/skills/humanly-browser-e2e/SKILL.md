@@ -12,7 +12,7 @@ model dropdown behavior, screenshots, and production/local navigation.
 ## Start
 
 1. Read `docs/testing/README.md` to select the QA layer.
-2. Read `docs/testing/BROWSER_E2E_SKILL.md` for the human-readable playbook.
+2. Read `docs/testing/BROWSER_E2E_PLAYBOOK.md` for the human-readable playbook.
 3. Use `docs/REGRESSION_GUARD.md` before filing bugs.
 4. Use `docs/ISSUE_AUTHORING_GUIDE.md` for every confirmed bug issue.
 5. Never paste API keys, passwords, access tokens, or refresh tokens into

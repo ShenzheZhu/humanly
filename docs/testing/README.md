@@ -10,7 +10,7 @@ the change instead of defaulting to one enormous regression pass.
 | Backend contract | `pnpm qa:backend:contract` with `.agents/skills/humanly-backend-contract/SKILL.md` | Fully automated                                                        | API shape, auth guards, health, and future socket/provider-contract checks.                      |
 | AI usage         | `pnpm qa:ai:usage` with `.agents/skills/humanly-ai-usage/SKILL.md` | Automated API/provider harness plus manual judgment for answer quality | Real model behavior, tool-call compatibility, grounded PDF QA, image gating, and provider drift. |
 | Deploy smoke     | `pnpm qa:deploy:smoke` with `.agents/skills/humanly-deploy-smoke/SKILL.md` | Fully automated shallow checks                                         | Domains, TLS, app/admin proxy health, direct API health, and post-deploy surface reachability.   |
-| Browser E2E      | `pnpm qa:browser:guide` then use `.agents/skills/humanly-browser-e2e/SKILL.md` and `BROWSER_E2E_SKILL.md` | Browser-agent-assisted manual QA                                       | User/admin flows that need visual/editor/browser judgment.                                       |
+| Browser E2E      | `pnpm qa:browser:guide` then use `.agents/skills/humanly-browser-e2e/SKILL.md` and `BROWSER_E2E_PLAYBOOK.md` | Browser-agent-assisted manual QA                                       | User/admin flows that need visual/editor/browser judgment.                                       |
 | Backend stress   | `pnpm qa:stress:backend` with `.agents/skills/humanly-backend-stress/SKILL.md` | Automated bounded stress harness                                      | Heavier document, event, upload, unsupported-format, and latency coverage.                       |
 
 Existing detailed playbooks still matter:
@@ -329,7 +329,7 @@ QA_BROWSER_TARGET=production QA_BROWSER_PHASES=C,C2,D pnpm qa:browser:guide
 ```
 
 Then use `.agents/skills/humanly-browser-e2e/SKILL.md` and follow
-`docs/testing/BROWSER_E2E_SKILL.md` with the Codex browser agent or a human
+`docs/testing/BROWSER_E2E_PLAYBOOK.md` with the Codex browser agent or a human
 tester, posting one phase-packet section per QA control issue comment. Convert
 stable findings into lower-level regression locks when possible.
 
