@@ -10,7 +10,7 @@ the change instead of defaulting to one enormous regression pass.
 | Backend contract | `pnpm qa:backend:contract`                                 | Fully automated                                                        | API shape, auth guards, health, and future socket/provider-contract checks.                      |
 | AI usage         | `pnpm qa:ai:usage`                                         | Automated API/provider harness plus manual judgment for answer quality | Real model behavior, tool-call compatibility, grounded PDF QA, image gating, and provider drift. |
 | Deploy smoke     | `pnpm qa:deploy:smoke`                                     | Fully automated shallow checks                                         | Domains, TLS, app/admin proxy health, direct API health, and post-deploy surface reachability.   |
-| Browser E2E      | `pnpm qa:browser:guide` then follow `BROWSER_E2E_SKILL.md` | Browser-agent-assisted manual QA                                       | User/admin flows that need visual/editor/browser judgment.                                       |
+| Browser E2E      | `pnpm qa:browser:guide` then use `.agents/skills/humanly-browser-e2e/SKILL.md` and `BROWSER_E2E_SKILL.md` | Browser-agent-assisted manual QA                                       | User/admin flows that need visual/editor/browser judgment.                                       |
 
 Existing detailed playbooks still matter:
 
@@ -27,7 +27,8 @@ Existing detailed playbooks still matter:
 | Pure docs/process                               | `git diff --check`; optional command `--help` checks.                                    |
 | Backend API/auth/document logic                 | `pnpm qa:backend:contract`; targeted backend tests.                                      |
 | AI prompt/tool/model/provider changes           | `pnpm qa:backend:contract` and `pnpm qa:ai:usage` with live provider execution.          |
-| Frontend/editor/enroll visible UX               | Relevant automated tests plus `BROWSER_E2E_SKILL.md` sections for the changed flow.      |
+| Frontend/editor/enroll visible UX               | Relevant automated tests plus the Browser E2E repo skill/playbook sections for the changed flow. |
+| Model/provider UI, image capability labels, or model switching | Browser E2E Phase C2 focused AI model matrix plus relevant automated tests.              |
 | Deployment, Docker, nginx, cert, or env changes | `pnpm qa:deploy:smoke`; then the short post-deploy canary in `docs/REGRESSION_GUARD.md`. |
 | Release candidate                               | All four layers plus the full production playbook.                                       |
 
@@ -309,12 +310,20 @@ tmp/qa-runs/browser-guide/<run-id>/phase-packet.md
 You can scope it to specific browser phases:
 
 ```bash
-QA_BROWSER_TARGET=production QA_BROWSER_PHASES=C,D,E pnpm qa:browser:guide
+QA_BROWSER_TARGET=production QA_BROWSER_PHASES=C,C2,D pnpm qa:browser:guide
 ```
 
-Then follow `docs/testing/BROWSER_E2E_SKILL.md` with the Codex browser agent or
-a human tester, posting one phase-packet section per QA control issue comment.
-Convert stable findings into lower-level regression locks when possible.
+Then use `.agents/skills/humanly-browser-e2e/SKILL.md` and follow
+`docs/testing/BROWSER_E2E_SKILL.md` with the Codex browser agent or a human
+tester, posting one phase-packet section per QA control issue comment. Convert
+stable findings into lower-level regression locks when possible.
+
+For model/provider UI changes, run the focused Phase C2 matrix. Its detailed
+reference lives at:
+
+```text
+.agents/skills/humanly-browser-e2e/references/ai-model-matrix.md
+```
 
 The browser guide includes a phase report template. Use one issue comment per
 phase so long runs can be resumed and audited without relying on chat memory.

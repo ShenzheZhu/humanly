@@ -1,49 +1,9 @@
-# Browser E2E Playbook
+# Browser E2E Phases
 
-The Codex repo skill lives at
-`.agents/skills/humanly-browser-e2e/SKILL.md`. This file is the durable
-human-readable playbook/reference that the skill points to.
-
-Use this guide for Humanly flows that require a browser agent or human tester:
-editor selection, visible AI state, quick actions, uploads, enroll mode, admin
-dashboard, certificates, and screenshots.
-
-This guide complements `docs/PRODUCTION_QA_PLAYBOOK.md`. It is the reusable
-browser-facing slice of that playbook, not a replacement for API/provider
-harnesses.
-
-## Operating Rules
-
-- Use the Codex in-app browser for localhost and production browser checks.
-- Keep a QA control issue for any full production pass.
-- Update the control issue after each phase, not only at the end.
-- Capture the current URL, role, mode, provider/model, and screenshot path for
-  every failure.
-- Check `docs/REGRESSION_LEDGER.md` before filing a bug.
-- File confirmed bugs with `docs/ISSUE_AUTHORING_GUIDE.md`.
-- Do not paste API keys, passwords, access tokens, or refresh tokens into
-  issues, PRs, reports, or final answers.
-
-## Before Opening The Browser
-
-Run or inspect these first:
-
-```bash
-git status --short --branch
-pnpm qa:deploy:smoke
-pnpm qa:backend:contract
-```
-
-For AI-facing browser checks, also run at least a plan-only AI harness:
-
-```bash
-pnpm qa:ai:usage
-```
+Use one QA issue comment per phase. Split large phases into multiple comments
+instead of writing a single end-of-run memory dump.
 
 ## Phase Report Template
-
-Post one comment per phase in the QA control issue. Use this shape exactly
-enough that future agents can diff one run against another:
 
 ```markdown
 ## Phase <letter/name>: <short title>
@@ -87,9 +47,6 @@ Residual Risk:
 - None / ...
 ```
 
-If the phase is large, split it into sub-comments rather than writing a giant
-end-of-run memory dump.
-
 ## Phase A: User Auth
 
 Goal: fresh user identity path works.
@@ -108,12 +65,6 @@ Expected:
 - Correct credentials work.
 - Wrong credentials fail visibly and safely.
 - Refresh does not strand the user on an inconsistent page.
-
-Evidence:
-
-- Account email.
-- URL after login.
-- Console/network errors if any.
 
 ## Phase B: Personal Document Mode
 
@@ -154,86 +105,19 @@ Steps:
 Expected:
 
 - Document questions trigger tool calls.
-- Final answer is not `I could not produce a final answer...` unless a bounded
-  provider failure genuinely occurred.
+- Final answer is non-empty and bounded.
 - Raw DSML/XML/JSON pseudo tool markup does not leak into the final message.
 - Reasoning is shown separately from the final answer.
 - Model switching does not break subsequent turns.
 - Image input is hidden, refused, or handled according to model capability.
 
-Record:
-
-- Provider/model.
-- Question.
-- Tool-call count if visible.
-- Whether reasoning, tools, and final answer were separated.
-- Whether the answer cites or names the reference file/page when appropriate.
-- Whether retry/model-switch behavior still works after an error.
-
 ## Phase C2: Focused AI Model Matrix
 
-Goal: model/provider browser behavior matches the curated production model list
-and capability labels. Run this module when adding, removing, renaming, or
-reclassifying models, or when changing AI chat, model switching, image input,
-reasoning, tool cards, or provider settings.
+Goal: provider/model browser behavior matches the curated model list and
+capability labels.
 
-Detailed reference:
-`.agents/skills/humanly-browser-e2e/references/ai-model-matrix.md`.
-
-Curated OpenRouter models:
-
-| Model | Expected label | Image input |
-| --- | --- | --- |
-| `qwen/qwen3.5-397b-a17b` | `(text only)` | disabled |
-| `qwen/qwen3.5-9b` | `(text only)` | disabled |
-| `moonshotai/kimi-k2.6` | `(text only)` | disabled |
-| `deepseek/deepseek-v4-pro` | `(text only)` | disabled |
-| `z-ai/glm-5.1` | `(text only)` | disabled |
-| `anthropic/claude-sonnet-4.6` | `(image+text)` | enabled |
-| `openai/gpt-5.4-mini` | `(image+text)` | enabled |
-| `google/gemini-3.1-flash-lite` | `(image+text)` | enabled |
-
-Fixture question:
-
-```text
-What percentage is the final exam worth? Answer briefly and mention the page.
-```
-
-Expected answer for the current syllabus fixture: 34%, page 6 or equivalent page
-reference.
-
-Per-model checks:
-
-1. Model is selectable.
-2. Dropdown label uses explicit `(image+text)` or `(text only)` text, not an
-   emoji-only marker.
-3. Image attach control is enabled only for image+text models.
-4. Grounded PDF question shows live reasoning/status, retrieval tool-card UI,
-   and a final answer as separate surfaces.
-5. No raw DSML/XML/JSON pseudo tool markup leaks into visible final text.
-6. Follow-up turn still works after the model is selected.
-
-Edge checks to run at least once per matrix:
-
-1. Negative lookup returns an honest not-found answer.
-2. Quick action still works after a model switch and edits only selected text.
-3. Text-only models cannot accept image input.
-4. Image-capable models can attach image input when the browser environment can
-   operate the file chooser.
-5. Switching from an image-history chat to a text-only model prompts for a new
-   chat or otherwise prevents incompatible history from being sent.
-
-Result table:
-
-```markdown
-| Model | Label OK | Image gate OK | PDF QA | Tool UI | No raw markup | Follow-up | Notes |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| `model/id` | pass/fail | pass/fail | pass/fail | pass/fail | pass/fail | pass/fail | ... |
-```
-
-If browser automation cannot complete a local file chooser, record only that
-image-upload subcheck as residual risk; still verify button gating and
-image-history switching.
+Read `ai-model-matrix.md` for the model table, fixture, prompts, result table,
+and residual-risk policy.
 
 ## Phase D: Quick Actions
 
@@ -341,15 +225,3 @@ Expected:
 - Invalid upload shows bounded error.
 - Auth expiry returns to login or reauth path cleanly.
 - No stale AI/tool/reasoning state leaks into the next turn.
-
-## Failure Handling
-
-For every confirmed product failure:
-
-1. Reproduce once more unless destructive.
-2. Search issues/PRs and `docs/REGRESSION_LEDGER.md`.
-3. Classify using `docs/REGRESSION_GUARD.md`.
-4. Create a Kordi-style issue.
-5. Fix with the smallest coherent branch.
-6. Add or name the regression lock.
-7. Rerun the failed phase and one adjacent happy path.
