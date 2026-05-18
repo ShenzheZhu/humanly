@@ -18,6 +18,12 @@ export function boolArg(name, envName, fallback = false) {
   return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase());
 }
 
+export function intArg(name, envName, fallback) {
+  const value = arg(name, process.env[envName]);
+  const parsed = Number.parseInt(value ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 export function hasFlag(name) {
   return process.argv.includes(`--${name}`);
 }
@@ -42,7 +48,7 @@ export function joinUrl(baseUrl, pathname = '') {
 export function createQaRun({ layer, title, outputRoot = 'tmp/qa-runs', config = {} }) {
   const runId =
     process.env.QA_RUN_ID ||
-    `${layer}-${new Date().toISOString().replace(/[-:.]/g, '').slice(0, 15)}Z`;
+    `${layer}-${new Date().toISOString().replace(/[-:.]/g, '')}-${process.pid}`;
   const outputDir = path.resolve(arg('output-dir', process.env.QA_OUTPUT_DIR || path.join(outputRoot, layer, runId)));
 
   return {
