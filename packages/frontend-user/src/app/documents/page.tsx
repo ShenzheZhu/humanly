@@ -326,19 +326,6 @@ export default function DocumentsPage() {
             </div>
           </section>
 
-          <div className="flex justify-end">
-            <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="lastEdited">Last edited</SelectItem>
-                <SelectItem value="title">Title</SelectItem>
-                <SelectItem value="wordCount">Word count</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           {personalDocuments.length === 0 ? (
             <div className="flex min-h-[360px] flex-col items-center justify-center rounded-lg border-2 border-dashed">
               <FileText className="h-12 w-12 text-muted-foreground" />
@@ -352,15 +339,30 @@ export default function DocumentsPage() {
               </Button>
             </div>
           ) : (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {personalDocuments.map((document) => (
-                <DocumentCard
-                  key={document.id}
-                  document={document}
-                  onDelete={handleDeleteDocument}
-                />
-              ))}
-            </div>
+            <>
+              <div className="flex justify-end">
+                <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="lastEdited">Last edited</SelectItem>
+                    <SelectItem value="title">Title</SelectItem>
+                    <SelectItem value="wordCount">Word count</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {personalDocuments.map((document) => (
+                  <DocumentCard
+                    key={document.id}
+                    document={document}
+                    onDelete={handleDeleteDocument}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </TabsContent>
 
