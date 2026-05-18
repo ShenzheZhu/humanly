@@ -96,12 +96,14 @@ Pick the lightest verification that proves the change:
 
 - Docs-only: link check/search for stale references, `git diff --check`, and any
   relevant workflow syntax check.
-- Backend logic: `pnpm qa:backend:contract`, targeted backend tests, then
-  broader tests when the surface is shared.
+- Backend logic: use `.agents/skills/humanly-backend-contract/SKILL.md`,
+  targeted backend tests, then broader tests when the surface is shared.
 - Frontend visible UX: local mock browser smoke in `docs/LOCAL_DEV.md`.
-- AI/provider behavior: `pnpm qa:ai:usage` with live execution, trace capture,
-  and manual judgment when prompt/tool behavior matters.
-- Deployment or TLS/proxy changes: `pnpm qa:deploy:smoke`.
+- AI/provider behavior: use `.agents/skills/humanly-ai-usage/SKILL.md` with
+  live execution, trace capture, and manual judgment when prompt/tool behavior
+  matters.
+- Deployment or TLS/proxy changes: use
+  `.agents/skills/humanly-deploy-smoke/SKILL.md`.
 - Browser-visible user/admin flows: use
   `.agents/skills/humanly-browser-e2e/SKILL.md` and follow
   `docs/testing/BROWSER_E2E_SKILL.md`.

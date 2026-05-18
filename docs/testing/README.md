@@ -7,10 +7,11 @@ the change instead of defaulting to one enormous regression pass.
 
 | Layer            | Entry Point                                                | Automation Level                                                       | Purpose                                                                                          |
 | ---------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Backend contract | `pnpm qa:backend:contract`                                 | Fully automated                                                        | API shape, auth guards, health, and future socket/provider-contract checks.                      |
-| AI usage         | `pnpm qa:ai:usage`                                         | Automated API/provider harness plus manual judgment for answer quality | Real model behavior, tool-call compatibility, grounded PDF QA, image gating, and provider drift. |
-| Deploy smoke     | `pnpm qa:deploy:smoke`                                     | Fully automated shallow checks                                         | Domains, TLS, app/admin proxy health, direct API health, and post-deploy surface reachability.   |
+| Backend contract | `pnpm qa:backend:contract` with `.agents/skills/humanly-backend-contract/SKILL.md` | Fully automated                                                        | API shape, auth guards, health, and future socket/provider-contract checks.                      |
+| AI usage         | `pnpm qa:ai:usage` with `.agents/skills/humanly-ai-usage/SKILL.md` | Automated API/provider harness plus manual judgment for answer quality | Real model behavior, tool-call compatibility, grounded PDF QA, image gating, and provider drift. |
+| Deploy smoke     | `pnpm qa:deploy:smoke` with `.agents/skills/humanly-deploy-smoke/SKILL.md` | Fully automated shallow checks                                         | Domains, TLS, app/admin proxy health, direct API health, and post-deploy surface reachability.   |
 | Browser E2E      | `pnpm qa:browser:guide` then use `.agents/skills/humanly-browser-e2e/SKILL.md` and `BROWSER_E2E_SKILL.md` | Browser-agent-assisted manual QA                                       | User/admin flows that need visual/editor/browser judgment.                                       |
+| Backend stress   | `pnpm qa:stress:backend` with `.agents/skills/humanly-backend-stress/SKILL.md` | Automated bounded stress harness                                      | Heavier document, event, upload, unsupported-format, and latency coverage.                       |
 
 Existing detailed playbooks still matter:
 
@@ -31,6 +32,20 @@ Existing detailed playbooks still matter:
 | Model/provider UI, image capability labels, or model switching | Browser E2E Phase C2 focused AI model matrix plus relevant automated tests.              |
 | Deployment, Docker, nginx, cert, or env changes | `pnpm qa:deploy:smoke`; then the short post-deploy canary in `docs/REGRESSION_GUARD.md`. |
 | Release candidate                               | All four layers plus the full production playbook.                                       |
+
+## Repo Skills
+
+Codex repo skills live under `.agents/skills` and use the official
+`SKILL.md` frontmatter shape. Use the smallest skill that matches the task:
+
+| Skill | Use For |
+| --- | --- |
+| `.agents/skills/humanly-backend-contract/SKILL.md` | Lightweight backend/API/auth/document/file/AI-settings contract checks. |
+| `.agents/skills/humanly-ai-usage/SKILL.md` | Provider/model/tool/image/app-level AI usage checks. |
+| `.agents/skills/humanly-deploy-smoke/SKILL.md` | Deployment, TLS, proxy, static asset, and API reachability checks. |
+| `.agents/skills/humanly-browser-e2e/SKILL.md` | Browser-agent-assisted user/admin flows and focused model matrix checks. |
+| `.agents/skills/humanly-backend-stress/SKILL.md` | Heavier backend document/event/file stress probes. |
+| `.agents/skills/humanly-regression-guard/SKILL.md` | Bug classification, recurring-risk checks, and regression reporting. |
 
 ## Report Schema
 
