@@ -123,7 +123,7 @@ describe('task enrollment workflow', () => {
 
     expect(await screen.findByRole('heading', { name: /^workspace$/i })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: /assigned tasks/i }));
+    await user.click(screen.getByRole('tab', { name: /task submissions/i }));
 
     await user.click(screen.getByRole('button', { name: /join task/i }));
     let dialog = screen.getByRole('dialog');
@@ -157,7 +157,7 @@ describe('task enrollment workflow', () => {
     });
 
     rerender(<DocumentsPage />);
-    expect(await screen.findByRole('heading', { name: 'Assigned Tasks' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Task Submissions' })).toBeInTheDocument();
     expect(screen.getByText('Enrollment Task')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /join task/i }));

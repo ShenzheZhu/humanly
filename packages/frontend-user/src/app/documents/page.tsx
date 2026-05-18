@@ -295,21 +295,21 @@ export default function DocumentsPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Workspace</h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1">
-            Choose between personal authorship documents and assigned writing tasks.
+            Choose between personal writing and task submissions.
           </p>
         </div>
       </div>
 
       <Tabs value={activeWorkspaceTab} onValueChange={(value) => setActiveWorkspaceTab(value as WorkspaceTab)}>
         <TabsList className="mb-6 grid w-full grid-cols-2 sm:w-[420px]">
-          <TabsTrigger value="documents">My Documents</TabsTrigger>
-          <TabsTrigger value="tasks">Assigned Tasks</TabsTrigger>
+          <TabsTrigger value="documents">Personal Writing</TabsTrigger>
+          <TabsTrigger value="tasks">Task Submissions</TabsTrigger>
         </TabsList>
 
         <TabsContent value="documents" className="mt-0 space-y-6">
           <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight">My Documents</h2>
+              <h2 className="text-xl font-semibold tracking-tight">Personal Writing</h2>
               <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
                 Create personal writing projects, track your process, and generate verifiable authorship certificates.
               </p>
@@ -370,7 +370,7 @@ export default function DocumentsPage() {
         <TabsContent value="tasks" className="mt-0 space-y-6">
           <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight">Assigned Tasks</h2>
+              <h2 className="text-xl font-semibold tracking-tight">Task Submissions</h2>
               <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
                 Join tasks from an instructor or organization and complete the assigned submission workflow.
               </p>

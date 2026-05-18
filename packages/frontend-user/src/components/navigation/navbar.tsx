@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { FileText, LogOut, User, Menu } from 'lucide-react';
+import { LogOut, User, Menu } from 'lucide-react';
 import { BRAND } from '@humanly/shared';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,15 +34,6 @@ export function Navbar() {
     router.push('/login');
   };
 
-  const navItems = [
-    {
-      name: 'Workspace',
-      href: '/documents',
-      icon: FileText,
-      activePaths: ['/documents', '/certificates'],
-    },
-  ];
-
   // Use wider layout for document editor pages
   const isDocumentEditorPage = /^\/documents\/[a-f0-9-]{36}/.test(pathname);
   const containerClass = isDocumentEditorPage
@@ -58,27 +49,6 @@ export function Navbar() {
               <img src="/humanly.svg" alt={BRAND.name} className="h-8 w-8" />
               {BRAND.name}
             </Link>
-            {/* Desktop Navigation */}
-            <div className="ml-10 hidden md:flex items-baseline space-x-4">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = item.activePaths.some((path) => pathname.startsWith(path));
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.name}
-                  </Link>
-                );
-              })}
-            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -116,26 +86,7 @@ export function Navbar() {
                     <SheetTitle>Menu</SheetTitle>
                   </SheetHeader>
                   <div className="mt-6 flex flex-col space-y-4">
-                    {navItems.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = item.activePaths.some((path) => pathname.startsWith(path));
-                      return (
-                        <Link
-                          key={item.name}
-                          href={item.href}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className={`flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium transition-colors ${
-                            isActive
-                              ? 'bg-primary text-primary-foreground'
-                              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                          }`}
-                        >
-                          <Icon className="h-5 w-5" />
-                          {item.name}
-                        </Link>
-                      );
-                    })}
-                    <div className="border-t pt-4">
+                    <div>
                       <div className="px-3 py-2 text-sm text-muted-foreground">
                         {user?.email}
                       </div>
