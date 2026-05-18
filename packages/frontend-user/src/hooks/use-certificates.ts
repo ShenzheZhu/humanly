@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
-import { downloadBlob } from '@/lib/download';
+import { downloadBlobWithSavePicker, type DownloadOutcome } from '@/lib/download';
 import type { Certificate, AIAuthorshipStats } from '@humanly/shared';
 
 export interface CertificatesFilters {
@@ -153,29 +153,40 @@ export function useCertificate(certificateId: string) {
     }
   }, [certificateId, fetchCertificate, fetchAIStats]);
 
-  const downloadJSON = useCallback(async () => {
+  const downloadJSON = useCallback(async (): Promise<DownloadOutcome> => {
     try {
-      const response = await apiClient.get(`/certificates/${certificateId}/json`);
-      const data = response.data;
+      return await downloadBlobWithSavePicker(async () => {
+        const response = await apiClient.get(`/certificates/${certificateId}/json`);
+        const data = response.data;
 
-      const blob = new Blob([JSON.stringify(data, null, 2)], {
-        type: 'application/json',
+        return new Blob([JSON.stringify(data, null, 2)], {
+          type: 'application/json',
+        });
+      }, {
+        filename: `certificate-${certificateId}.json`,
+        description: 'JSON certificate',
+        mimeType: 'application/json',
+        extensions: ['.json'],
       });
-
-      downloadBlob(blob, `certificate-${certificateId}.json`);
     } catch (err: any) {
       throw new Error(err.response?.data?.message || 'Failed to download JSON');
     }
   }, [certificateId]);  
 
-  const downloadPDF = useCallback(async () => {
+  const downloadPDF = useCallback(async (): Promise<DownloadOutcome> => {
     try {
-      const response = await apiClient.get(`/certificates/${certificateId}/pdf`, {
-        responseType: 'blob',
-      });
+      return await downloadBlobWithSavePicker(async () => {
+        const response = await apiClient.get(`/certificates/${certificateId}/pdf`, {
+          responseType: 'blob',
+        });
 
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      downloadBlob(blob, `certificate-${certificateId}.pdf`);
+        return new Blob([response.data], { type: 'application/pdf' });
+      }, {
+        filename: `certificate-${certificateId}.pdf`,
+        description: 'PDF certificate',
+        mimeType: 'application/pdf',
+        extensions: ['.pdf'],
+      });
     } catch (err: any) {
       throw new Error(err.response?.data?.message || 'Failed to download PDF');
     }

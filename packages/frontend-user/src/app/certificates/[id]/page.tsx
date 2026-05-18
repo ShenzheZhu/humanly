@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { useCertificate } from '@/hooks/use-certificates';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/components/ui/use-toast';
 import { Switch } from '@/components/ui/switch';
@@ -66,13 +65,29 @@ export default function CertificateDetailPage() {
     }
   }, [certificate]);
 
+  const showDownloadToast = (label: string, outcome: 'saved' | 'downloaded' | 'canceled') => {
+    if (outcome === 'canceled') {
+      return;
+    }
+
+    if (outcome === 'saved') {
+      toast({
+        title: 'Saved',
+        description: `${label} saved to the selected location`,
+      });
+      return;
+    }
+
+    toast({
+      title: 'Download started',
+      description: `${label} was sent to your browser downloads. If no picker appeared, check the browser download list.`,
+    });
+  };
+
   const handleDownloadJSON = async () => {
     try {
-      await downloadJSON();
-      toast({
-        title: 'Success',
-        description: 'JSON certificate downloaded successfully',
-      });
+      const outcome = await downloadJSON();
+      showDownloadToast('JSON certificate', outcome);
     } catch (err: any) {
       toast({
         title: 'Error',
@@ -84,11 +99,8 @@ export default function CertificateDetailPage() {
 
   const handleDownloadPDF = async () => {
     try {
-      await downloadPDF();
-      toast({
-        title: 'Success',
-        description: 'PDF certificate downloaded successfully',
-      });
+      const outcome = await downloadPDF();
+      showDownloadToast('PDF certificate', outcome);
     } catch (err: any) {
       toast({
         title: 'Error',
@@ -288,12 +300,6 @@ export default function CertificateDetailPage() {
               Generated on {format(new Date(certificate.generatedAt), 'MMMM dd, yyyy')}
             </p>
           </div>
-          <Badge
-            variant={certificate.certificateType === 'full_authorship' ? 'default' : 'secondary'}
-            className="text-sm sm:text-base px-3 py-1 sm:px-4 sm:py-2 self-start"
-          >
-            {certificate.certificateType === 'full_authorship' ? 'Authorship Certificate' : 'Partial Certificate'}
-          </Badge>
         </div>
       </div>
 
