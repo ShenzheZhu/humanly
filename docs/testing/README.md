@@ -117,6 +117,31 @@ QA_BACKEND_MUTATING=1 pnpm qa:backend:contract
 Use this harness for low-level API contract checks. Keep higher-volume event,
 upload, and latency work in `pnpm qa:stress:backend`.
 
+Detailed mutating pass:
+
+```bash
+QA_BACKEND_BASE_URL=https://app.writehumanly.net/api/v1 \
+QA_BACKEND_MUTATING=1 \
+pnpm qa:backend:contract
+```
+
+The mutating pass registers/logs in a QA user, creates a draft document, updates
+it, writes representative focus/input/paste/blur events, reads events and
+statistics, searches the document list, and deletes the created document by
+default.
+
+Optional PDF file probe:
+
+```bash
+QA_BACKEND_MUTATING=1 QA_BACKEND_FILE_PROBE=1 pnpm qa:backend:contract
+```
+
+Keep created data only when debugging:
+
+```bash
+QA_BACKEND_MUTATING=1 QA_BACKEND_KEEP_DATA=1 pnpm qa:backend:contract
+```
+
 ## AI Usage
 
 Plan-only run:
@@ -135,6 +160,35 @@ TOGETHER_API_KEY=... \
 pnpm qa:ai:usage
 ```
 
+Multiple models:
+
+```bash
+QA_AI_EXECUTE=1 \
+QA_AI_PROVIDER=openrouter \
+QA_AI_MODELS=qwen/qwen3.5-9b,anthropic/claude-sonnet-4.6 \
+OPENROUTER_API_KEY=... \
+pnpm qa:ai:usage
+```
+
+Token budget is configurable. Defaults are intentionally product-like enough
+for reasoning-heavy models:
+
+```text
+QA_AI_TEXT_MAX_TOKENS=1024
+QA_AI_TOOL_MAX_TOKENS=2048
+```
+
+Override when diagnosing a model that spends most of its budget on reasoning:
+
+```bash
+QA_AI_EXECUTE=1 \
+QA_AI_PROVIDER=openrouter \
+QA_AI_MODELS=qwen/qwen3.5-9b \
+QA_AI_TEXT_MAX_TOKENS=2048 \
+OPENROUTER_API_KEY=... \
+pnpm qa:ai:usage
+```
+
 The baseline matrix manifest lives at:
 
 ```text
@@ -145,6 +199,14 @@ Future detailed AI usage work should extend this harness with document upload,
 question generation, tool trace capture, model-specific judgment, and UI chat
 canaries. Do not create another one-off AI runner unless this harness cannot be
 extended cleanly.
+
+Current live smoke checks:
+
+- bounded text completion;
+- OpenAI-compatible tool-call schema acceptance;
+- pseudo-tool/DSML/XML/JSON markup leak detection in visible text;
+- matrix expansion across configured models, document fixture classes, and
+  query types.
 
 ## Deploy Smoke
 
@@ -171,6 +233,15 @@ app/admin proxy paths, downgrade direct API to a warning for that specific run:
 QA_DEPLOY_REQUIRE_DIRECT_API=0 pnpm qa:deploy:smoke
 ```
 
+Current checks:
+
+- app/admin root reachability;
+- first Next.js static asset reachability;
+- app/admin proxied `/api/v1/health`;
+- direct API `/api/v1/health`;
+- app/admin/direct API root metadata;
+- app/admin/direct unauthenticated auth guard.
+
 ## Browser E2E
 
 Browser E2E is not a CI-style unattended test today. Use:
@@ -182,3 +253,6 @@ pnpm qa:browser:guide
 Then follow `docs/testing/BROWSER_E2E_SKILL.md` with the Codex browser agent or
 a human tester. Convert stable findings into lower-level regression locks when
 possible.
+
+The browser guide includes a phase report template. Use one issue comment per
+phase so long runs can be resumed and audited without relying on chat memory.

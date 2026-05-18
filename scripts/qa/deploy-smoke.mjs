@@ -58,6 +58,7 @@ const report = createQaRun({
 });
 
 async function htmlCheck(id, title, url) {
+  let html = '';
   await runCheck(
     report,
     {
@@ -67,6 +68,7 @@ async function htmlCheck(id, title, url) {
     },
     async () => {
       const response = await fetch(url, { redirect: 'manual' });
+      html = await response.text();
       const contentType = response.headers.get('content-type') || '';
       if (![200, 307, 308].includes(response.status)) {
         throw new Error(`Expected 200 or redirect, got ${response.status}`);
@@ -76,10 +78,12 @@ async function htmlCheck(id, title, url) {
           status: response.status,
           contentType,
           location: response.headers.get('location'),
+          hasNextData: html.includes('/_next/static/') || html.includes('__NEXT_DATA__'),
         },
       };
     },
   );
+  return html;
 }
 
 async function healthCheck(id, title, baseUrl, critical = true) {
@@ -101,11 +105,101 @@ async function healthCheck(id, title, baseUrl, critical = true) {
   );
 }
 
-await htmlCheck('app-root', 'User portal root is reachable', appBase);
-await htmlCheck('admin-root', 'Admin portal root is reachable', adminBase);
+async function apiRootCheck(id, title, baseUrl, critical = true) {
+  await runCheck(
+    report,
+    {
+      id,
+      title,
+      target: baseUrl,
+      critical,
+    },
+    async () => {
+      const { response, body } = await fetchJson(baseUrl);
+      if (response.status !== 200 || body?.name !== 'humanly API') {
+        throw new Error(`Expected API metadata, got ${response.status}`);
+      }
+      return { details: { status: response.status, body } };
+    },
+  );
+}
+
+async function authGuardCheck(id, title, baseUrl, critical = true) {
+  await runCheck(
+    report,
+    {
+      id,
+      title,
+      target: joinUrl(baseUrl, '/auth/me'),
+      critical,
+    },
+    async () => {
+      const { response, body } = await fetchJson(joinUrl(baseUrl, '/auth/me'));
+      if (![401, 403].includes(response.status)) {
+        throw new Error(`Expected 401/403 auth guard, got ${response.status}`);
+      }
+      return { details: { status: response.status, body } };
+    },
+  );
+}
+
+function findFirstNextAsset(html) {
+  const match = html.match(/src="([^"]*\/_next\/static\/[^"]+\.js)"/);
+  return match?.[1] || null;
+}
+
+async function staticAssetCheck(id, title, baseUrl, html) {
+  const assetPath = findFirstNextAsset(html);
+  if (!assetPath) {
+    addCheck(report, {
+      id,
+      title,
+      target: baseUrl,
+      status: 'warn',
+      details: {
+        reason: 'No Next.js static script reference found in root HTML.',
+      },
+    });
+    return;
+  }
+
+  const assetUrl = assetPath.startsWith('http') ? assetPath : joinUrl(baseUrl, assetPath);
+  await runCheck(
+    report,
+    {
+      id,
+      title,
+      target: assetUrl,
+    },
+    async () => {
+      const response = await fetch(assetUrl);
+      if (response.status !== 200) {
+        throw new Error(`Expected static asset 200, got ${response.status}`);
+      }
+      return {
+        details: {
+          status: response.status,
+          contentType: response.headers.get('content-type'),
+          cacheControl: response.headers.get('cache-control'),
+        },
+      };
+    },
+  );
+}
+
+const appHtml = await htmlCheck('app-root', 'User portal root is reachable', appBase);
+const adminHtml = await htmlCheck('admin-root', 'Admin portal root is reachable', adminBase);
+await staticAssetCheck('app-static-asset', 'User portal static asset is reachable', appBase, appHtml);
+await staticAssetCheck('admin-static-asset', 'Admin portal static asset is reachable', adminBase, adminHtml);
 await healthCheck('app-proxy-health', 'User portal API proxy health is ok', joinUrl(appBase, '/api/v1'));
 await healthCheck('admin-proxy-health', 'Admin portal API proxy health is ok', joinUrl(adminBase, '/api/v1'));
 await healthCheck('direct-api-health', 'Direct API health and TLS are ok', apiBase, requireDirectApi);
+await apiRootCheck('app-proxy-api-root', 'User portal API proxy root exposes metadata', joinUrl(appBase, '/api/v1'));
+await apiRootCheck('admin-proxy-api-root', 'Admin portal API proxy root exposes metadata', joinUrl(adminBase, '/api/v1'));
+await apiRootCheck('direct-api-root', 'Direct API root exposes metadata', apiBase, requireDirectApi);
+await authGuardCheck('app-proxy-auth-guard', 'User portal API proxy auth guard is active', joinUrl(appBase, '/api/v1'));
+await authGuardCheck('admin-proxy-auth-guard', 'Admin portal API proxy auth guard is active', joinUrl(adminBase, '/api/v1'));
+await authGuardCheck('direct-api-auth-guard', 'Direct API auth guard is active', apiBase, requireDirectApi);
 
 addCheck(report, {
   id: 'socket-io-authenticated',

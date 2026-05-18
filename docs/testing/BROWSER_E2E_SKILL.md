@@ -36,6 +36,56 @@ For AI-facing browser checks, also run at least a plan-only AI harness:
 pnpm qa:ai:usage
 ```
 
+## Phase Report Template
+
+Post one comment per phase in the QA control issue. Use this shape exactly
+enough that future agents can diff one run against another:
+
+```markdown
+## Phase <letter/name>: <short title>
+
+Status: pass / fail / blocked / partial
+Started:
+Finished:
+
+Context:
+- Surface: app / admin / localhost / production
+- URL(s):
+- Role/account:
+- Mode: personal document / enroll task / admin task
+- Provider/model, if AI-related:
+- Fixture(s):
+
+Steps Run:
+1.
+2.
+3.
+
+Expected:
+
+Actual:
+
+Evidence:
+- Screenshot(s):
+- Console errors:
+- Network errors:
+- Report artifact:
+
+Bug Links:
+- None / #...
+
+Regression Check:
+- Ledger match:
+- Classification if bug filed:
+- Regression lock needed:
+
+Residual Risk:
+- None / ...
+```
+
+If the phase is large, split it into sub-comments rather than writing a giant
+end-of-run memory dump.
+
 ## Phase A: User Auth
 
 Goal: fresh user identity path works.
@@ -80,6 +130,7 @@ Expected:
 - No editor crash.
 - PDF loads or shows a bounded, actionable error.
 - Document state persists.
+- Personal documents do not accidentally show task/enroll controls.
 
 ## Phase C: AI Chat
 
@@ -112,6 +163,8 @@ Record:
 - Question.
 - Tool-call count if visible.
 - Whether reasoning, tools, and final answer were separated.
+- Whether the answer cites or names the reference file/page when appropriate.
+- Whether retry/model-switch behavior still works after an error.
 
 ## Phase D: Quick Actions
 
@@ -133,6 +186,8 @@ Expected:
 - They operate on selected text only.
 - They do not insert fallback text into the document.
 - Apply/cancel states are responsive and recover after errors.
+- Switching provider/model does not leave stale quick-action state stuck on
+  `Generating...`.
 
 ## Phase E: Enroll Mode
 
@@ -154,6 +209,8 @@ Expected:
 - Task-scoped document is created and linked.
 - AI policy matches admin settings.
 - Submission state is visible and stable.
+- Enroll documents do not accidentally write to the user's personal document
+  list without the task association.
 
 ## Phase F: Admin Dashboard
 
@@ -176,6 +233,7 @@ Expected:
 - No dashboard cards crash on empty or small datasets.
 - Charts render without layout overlap.
 - Admin can navigate back to task settings/submissions.
+- Enrolled and self-created documents are not mixed in task submission tables.
 
 ## Phase G: Certificate And Public Verify
 
@@ -194,6 +252,26 @@ Expected:
 - Public verify loads without auth.
 - Downloads are not 404.
 - Certificate stats are present and plausible.
+
+## Phase H: Browser Resilience Edges
+
+Goal: the browser experience survives common user behavior.
+
+Steps:
+
+1. Hard refresh a document page.
+2. Navigate away and back.
+3. Open the same document in a second tab if practical.
+4. Start an AI response, then cancel or navigate away.
+5. Upload an invalid file type where upload UI is available.
+6. Let a token expire or log out in another tab if practical.
+
+Expected:
+
+- No infinite spinner after cancellation/navigation.
+- Invalid upload shows bounded error.
+- Auth expiry returns to login or reauth path cleanly.
+- No stale AI/tool/reasoning state leaks into the next turn.
 
 ## Failure Handling
 
