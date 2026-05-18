@@ -17,7 +17,7 @@ export default function TermsOfServicePage() {
           <section>
             <h2 className="text-lg font-semibold text-foreground mb-2">Use of Service</h2>
             <p className="leading-relaxed">
-              By accessing or using the Humanly platform ("Service"), you agree to comply with these Terms of Service
+              By accessing or using the Humanly platform (&quot;Service&quot;), you agree to comply with these Terms of Service
               and all applicable laws and regulations. Humanly provides tools for tracking text provenance and user
               interaction events (such as typing, editing, and clipboard activity) within external forms or surveys
               through embedded scripts provided by the Service.

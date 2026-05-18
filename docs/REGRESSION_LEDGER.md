@@ -43,6 +43,7 @@ QA reports should name the bucket before filing the issue.
 | #140 | Local backend `tsc` build failed despite Jest passing. | `type:old-gap` | #145 | CI `pnpm build:all` gate. |
 | #141 | Export route/docs mismatch and export omitted user-portal `document_events`. | `type:old-gap` | #145 | Export route integration test and export service document-event tests. |
 | #170 | Together Kimi quick actions could return empty rewrites because the provider spent the response budget in reasoning unless thinking was disabled. | `type:provider` | #171 | Backend quick-action tests assert Together Kimi sends `chat_template_kwargs.enable_thinking=false`; post-deploy four-action quick-action canary. |
+| #192 | Enrolled-task AI chat with no linked PDF could expose provider gibberish instead of a clear no-reference-files answer. | `type:provider` | current QA batch | No-reference chat preflight tests for REST and streaming paths. |
 
 ## How To Use
 

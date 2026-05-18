@@ -55,7 +55,6 @@ export function DocumentCard({ document, onDelete }: DocumentCardProps) {
   };
 
   const wordCount = document.wordCount || 0;
-  const isTrivial = wordCount < 10;
   const showPreview = wordCount > 20;
   const displayTitle = document.displayTitle || document.title || 'Untitled Document';
 
@@ -125,7 +124,7 @@ export function DocumentCard({ document, onDelete }: DocumentCardProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Document</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{document.title || 'this document'}"?
+              Are you sure you want to delete &quot;{document.title || 'this document'}&quot;?
               This action cannot be undone and will also delete all associated tracking events.
             </AlertDialogDescription>
           </AlertDialogHeader>

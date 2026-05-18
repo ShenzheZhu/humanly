@@ -1,8 +1,8 @@
-import fs from 'node:fs/promises';
-import path from 'node:path';
-import { performance } from 'node:perf_hooks';
+import fs from "node:fs/promises";
+import path from "node:path";
+import { performance } from "node:perf_hooks";
 
-export const REPORT_SCHEMA_VERSION = 'humanly.qa.report.v1';
+export const REPORT_SCHEMA_VERSION = "humanly.qa.report.v1";
 
 export function arg(name, fallback = undefined) {
   const prefix = `--${name}=`;
@@ -15,13 +15,18 @@ export function boolArg(name, envName, fallback = false) {
   if (process.argv.includes(`--${name}`)) return true;
   const value = arg(name, process.env[envName]);
   if (value === undefined) return fallback;
-  return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase());
+  return ["1", "true", "yes", "on"].includes(String(value).toLowerCase());
 }
 
 export function intArg(name, envName, fallback) {
   const value = arg(name, process.env[envName]);
-  const parsed = Number.parseInt(value ?? '', 10);
+  const parsed = Number.parseInt(value ?? "", 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+export function timeoutMsArg(name, envName, fallback) {
+  const parsed = intArg(name, envName, fallback);
+  return Math.max(1000, parsed);
 }
 
 export function hasFlag(name) {
@@ -30,26 +35,36 @@ export function hasFlag(name) {
 
 export function normalizeApiBaseUrl(rawBaseUrl, defaultBaseUrl) {
   const url = new URL(rawBaseUrl || defaultBaseUrl);
-  url.hash = '';
-  url.search = '';
-  url.pathname = url.pathname.replace(/\/+$/, '');
-  if (!url.pathname.endsWith('/api/v1')) {
-    url.pathname = `${url.pathname}/api/v1`.replace(/\/+/g, '/');
+  url.hash = "";
+  url.search = "";
+  url.pathname = url.pathname.replace(/\/+$/, "");
+  if (!url.pathname.endsWith("/api/v1")) {
+    url.pathname = `${url.pathname}/api/v1`.replace(/\/+/g, "/");
   }
-  return url.toString().replace(/\/$/, '');
+  return url.toString().replace(/\/$/, "");
 }
 
-export function joinUrl(baseUrl, pathname = '') {
-  const cleanBase = String(baseUrl).replace(/\/+$/, '');
+export function joinUrl(baseUrl, pathname = "") {
+  const cleanBase = String(baseUrl).replace(/\/+$/, "");
   if (!pathname) return cleanBase;
-  return `${cleanBase}${pathname.startsWith('/') ? pathname : `/${pathname}`}`;
+  return `${cleanBase}${pathname.startsWith("/") ? pathname : `/${pathname}`}`;
 }
 
-export function createQaRun({ layer, title, outputRoot = 'tmp/qa-runs', config = {} }) {
+export function createQaRun({
+  layer,
+  title,
+  outputRoot = "tmp/qa-runs",
+  config = {},
+}) {
   const runId =
     process.env.QA_RUN_ID ||
-    `${layer}-${new Date().toISOString().replace(/[-:.]/g, '')}-${process.pid}`;
-  const outputDir = path.resolve(arg('output-dir', process.env.QA_OUTPUT_DIR || path.join(outputRoot, layer, runId)));
+    `${layer}-${new Date().toISOString().replace(/[-:.]/g, "")}-${process.pid}`;
+  const outputDir = path.resolve(
+    arg(
+      "output-dir",
+      process.env.QA_OUTPUT_DIR || path.join(outputRoot, layer, runId),
+    ),
+  );
 
   return {
     schemaVersion: REPORT_SCHEMA_VERSION,
@@ -65,13 +80,17 @@ export function createQaRun({ layer, title, outputRoot = 'tmp/qa-runs', config =
     summary: null,
     artifacts: {
       outputDir,
-      json: path.join(outputDir, 'report.json'),
-      markdown: path.join(outputDir, 'report.md'),
+      json: path.join(outputDir, "report.json"),
+      markdown: path.join(outputDir, "report.md"),
     },
   };
 }
 
-export async function runCheck(report, { id, title, target, critical = true }, fn) {
+export async function runCheck(
+  report,
+  { id, title, target, critical = true },
+  fn,
+) {
   const startedAt = new Date().toISOString();
   const started = performance.now();
   const check = {
@@ -79,7 +98,7 @@ export async function runCheck(report, { id, title, target, critical = true }, f
     title,
     target,
     critical,
-    status: 'fail',
+    status: "fail",
     startedAt,
     durationMs: 0,
     details: {},
@@ -88,11 +107,11 @@ export async function runCheck(report, { id, title, target, critical = true }, f
 
   try {
     const result = await fn();
-    check.status = result?.status || 'pass';
+    check.status = result?.status || "pass";
     check.details = result?.details || {};
     check.error = result?.error || null;
   } catch (error) {
-    check.status = 'fail';
+    check.status = "fail";
     check.error = error instanceof Error ? error.message : String(error);
   } finally {
     check.durationMs = Math.round(performance.now() - started);
@@ -102,7 +121,18 @@ export async function runCheck(report, { id, title, target, critical = true }, f
   return check;
 }
 
-export function addCheck(report, { id, title, target, status = 'skip', critical = false, details = {}, error = null }) {
+export function addCheck(
+  report,
+  {
+    id,
+    title,
+    target,
+    status = "skip",
+    critical = false,
+    details = {},
+    error = null,
+  },
+) {
   const check = {
     id,
     title,
@@ -118,8 +148,31 @@ export function addCheck(report, { id, title, target, status = 'skip', critical 
   return check;
 }
 
+export async function fetchWithTimeout(url, options = {}) {
+  const timeoutMs = timeoutMsArg(
+    "fetch-timeout-ms",
+    "QA_FETCH_TIMEOUT_MS",
+    options.timeoutMs || 30000,
+  );
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: options.signal || controller.signal,
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error(`Request timed out after ${timeoutMs}ms: ${url}`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function fetchJson(url, options = {}) {
-  const response = await fetch(url, options);
+  const response = await fetchWithTimeout(url, options);
   const text = await response.text();
   let body = null;
   if (text) {
@@ -137,9 +190,18 @@ export function summarize(report) {
   for (const check of report.checks) {
     counts[check.status] = (counts[check.status] || 0) + 1;
   }
-  const failedCritical = report.checks.filter((check) => check.status === 'fail' && check.critical).length;
-  const failedNonCritical = report.checks.filter((check) => check.status === 'fail' && !check.critical).length;
-  const status = failedCritical > 0 ? 'fail' : counts.warn > 0 || failedNonCritical > 0 ? 'warn' : 'pass';
+  const failedCritical = report.checks.filter(
+    (check) => check.status === "fail" && check.critical,
+  ).length;
+  const failedNonCritical = report.checks.filter(
+    (check) => check.status === "fail" && !check.critical,
+  ).length;
+  const status =
+    failedCritical > 0
+      ? "fail"
+      : counts.warn > 0 || failedNonCritical > 0
+        ? "warn"
+        : "pass";
 
   return {
     status,
@@ -157,28 +219,28 @@ export function renderMarkdown(report) {
   const summary = report.summary || summarize(report);
   const lines = [
     `# ${report.run.title}`,
-    '',
+    "",
     `Run ID: \`${report.run.id}\``,
     `Layer: \`${report.run.layer}\``,
     `Started: ${report.run.startedAt}`,
     `Completed: ${report.run.completedAt}`,
     `Status: **${summary.status.toUpperCase()}**`,
-    '',
-    '## Summary',
-    '',
-    '| Total | Pass | Fail | Warn | Skip | Critical Failures |',
-    '| ---: | ---: | ---: | ---: | ---: | ---: |',
+    "",
+    "## Summary",
+    "",
+    "| Total | Pass | Fail | Warn | Skip | Critical Failures |",
+    "| ---: | ---: | ---: | ---: | ---: | ---: |",
     `| ${summary.total} | ${summary.passed} | ${summary.failed} | ${summary.warned} | ${summary.skipped} | ${summary.failedCritical} |`,
-    '',
-    '## Checks',
-    '',
-    '| Status | Critical | Check | Target | Duration |',
-    '| --- | --- | --- | --- | ---: |',
+    "",
+    "## Checks",
+    "",
+    "| Status | Critical | Check | Target | Duration |",
+    "| --- | --- | --- | --- | ---: |",
   ];
 
   for (const check of report.checks) {
     lines.push(
-      `| ${check.status} | ${check.critical ? 'yes' : 'no'} | ${check.title} | ${check.target || ''} | ${check.durationMs}ms |`,
+      `| ${check.status} | ${check.critical ? "yes" : "no"} | ${check.title} | ${check.target || ""} | ${check.durationMs}ms |`,
     );
   }
 
@@ -186,28 +248,31 @@ export function renderMarkdown(report) {
     (check) => check.error || Object.keys(check.details || {}).length > 0,
   );
   if (detailChecks.length > 0) {
-    lines.push('', '## Details');
+    lines.push("", "## Details");
     for (const check of detailChecks) {
-      lines.push('', `### ${check.id}: ${check.title}`, '');
+      lines.push("", `### ${check.id}: ${check.title}`, "");
       if (check.error) {
-        lines.push(`Error: \`${check.error}\``, '');
+        lines.push(`Error: \`${check.error}\``, "");
       }
       if (Object.keys(check.details || {}).length > 0) {
-        lines.push('```json');
+        lines.push("```json");
         lines.push(JSON.stringify(check.details, null, 2));
-        lines.push('```');
+        lines.push("```");
       }
     }
   }
 
-  return `${lines.join('\n')}\n`;
+  return `${lines.join("\n")}\n`;
 }
 
 export async function writeReport(report) {
   report.run.completedAt = new Date().toISOString();
   report.summary = summarize(report);
   await fs.mkdir(report.artifacts.outputDir, { recursive: true });
-  await fs.writeFile(report.artifacts.json, `${JSON.stringify(report, null, 2)}\n`);
+  await fs.writeFile(
+    report.artifacts.json,
+    `${JSON.stringify(report, null, 2)}\n`,
+  );
   await fs.writeFile(report.artifacts.markdown, renderMarkdown(report));
   return report;
 }

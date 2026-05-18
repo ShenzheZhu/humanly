@@ -1,5 +1,9 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 
+export type HumanlyAxiosRequestConfig = AxiosRequestConfig & {
+  skipAuthRedirect?: boolean;
+};
+
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   (process.env.NODE_ENV === 'production' ? '/api/v1' : 'http://localhost:3001/api/v1');
@@ -88,7 +92,7 @@ const createApiClient = (): AxiosInstance => {
   client.interceptors.response.use(
     (response: AxiosResponse) => response,
     async (error: AxiosError) => {
-      const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
+      const originalRequest = error.config as HumanlyAxiosRequestConfig & { _retry?: boolean };
 
       // Handle 401 errors (unauthorized) — but skip token refresh for AI endpoints
       // because a 401 from /ai/chat means invalid AI API key, not expired JWT
@@ -115,9 +119,12 @@ const createApiClient = (): AxiosInstance => {
           }
           return client(originalRequest);
         } catch (refreshError) {
-          // Refresh failed, clear tokens and redirect to login
-          TokenManager.clearTokens();
-          if (typeof window !== 'undefined') {
+          // Refresh failed. Best-effort background calls such as editor event
+          // tracking should fail quietly instead of ejecting an active writer.
+          if (!originalRequest.skipAuthRedirect) {
+            TokenManager.clearTokens();
+          }
+          if (!originalRequest.skipAuthRedirect && typeof window !== 'undefined') {
             window.location.href = '/login';
           }
           return Promise.reject(refreshError);
@@ -155,35 +162,35 @@ export const api = {
   /**
    * GET request
    */
-  get: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> => {
+  get: <T = any>(url: string, config?: HumanlyAxiosRequestConfig): Promise<T> => {
     return apiClient.get<T>(url, config).then((res) => res.data);
   },
 
   /**
    * POST request
    */
-  post: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
+  post: <T = any>(url: string, data?: any, config?: HumanlyAxiosRequestConfig): Promise<T> => {
     return apiClient.post<T>(url, data, config).then((res) => res.data);
   },
 
   /**
    * PUT request
    */
-  put: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
+  put: <T = any>(url: string, data?: any, config?: HumanlyAxiosRequestConfig): Promise<T> => {
     return apiClient.put<T>(url, data, config).then((res) => res.data);
   },
 
   /**
    * PATCH request
    */
-  patch: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> => {
+  patch: <T = any>(url: string, data?: any, config?: HumanlyAxiosRequestConfig): Promise<T> => {
     return apiClient.patch<T>(url, data, config).then((res) => res.data);
   },
 
   /**
    * DELETE request
    */
-  delete: <T = any>(url: string, config?: AxiosRequestConfig): Promise<T> => {
+  delete: <T = any>(url: string, config?: HumanlyAxiosRequestConfig): Promise<T> => {
     return apiClient.delete<T>(url, config).then((res) => res.data);
   },
 };

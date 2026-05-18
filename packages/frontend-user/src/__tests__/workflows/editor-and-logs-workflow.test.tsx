@@ -10,6 +10,7 @@ const mockTrackEvents = jest.fn();
 const mockApiGet = jest.fn();
 const mockApiPost = jest.fn();
 const mockUpdateDocument = jest.fn();
+let mockLatestEditorProps: any;
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -103,22 +104,29 @@ jest.mock('@/lib/api-client', () => ({
 }));
 
 jest.mock('@humanly/editor', () => ({
-  LexicalEditor: ({ onContentChange, onEventsBuffer, placeholder }: any) => (
-    <textarea
-      aria-label="Document editor"
-      placeholder={placeholder}
-      onChange={(event) => {
-        onContentChange?.({}, event.currentTarget.value);
-        onEventsBuffer?.([
-          {
-            eventType: 'input',
-            timestamp: new Date().toISOString(),
-            keyChar: event.currentTarget.value.at(-1) || '',
-          },
-        ]);
-      }}
-    />
-  ),
+  LexicalEditor: (props: any) => {
+    mockLatestEditorProps = props;
+    const { onContentChange, onEventsBuffer, onAutoSave, placeholder } = props;
+    return (
+      <textarea
+        aria-label="Document editor"
+        placeholder={placeholder}
+        onChange={(event) => {
+          const plainText = event.currentTarget.value;
+          const content = { root: { children: [{ text: plainText }] } };
+          onContentChange?.(content, plainText);
+          onAutoSave?.(content, plainText);
+          onEventsBuffer?.([
+            {
+              eventType: 'input',
+              timestamp: new Date().toISOString(),
+              keyChar: plainText.at(-1) || '',
+            },
+          ]);
+        }}
+      />
+    );
+  },
 }));
 
 describe('editor and logs workflows', () => {
@@ -127,6 +135,8 @@ describe('editor and logs workflows', () => {
     mockToast.mockClear();
     mockTrackEvents.mockClear();
     mockUpdateDocument.mockReset();
+    mockUpdateDocument.mockResolvedValue(undefined);
+    mockLatestEditorProps = undefined;
     mockApiGet.mockReset();
     mockApiPost.mockReset();
     mockUseParams.mockReturnValue({ id: 'doc-1' });
@@ -175,6 +185,24 @@ describe('editor and logs workflows', () => {
       );
     });
     expect(screen.queryByText(/failed to fetch|document not found|application error/i)).not.toBeInTheDocument();
+  });
+
+  it('uses a short editor autosave window and persists changed content', async () => {
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/document editor/i), {
+      target: { value: 'Short autosave QA text' },
+    });
+
+    expect(mockLatestEditorProps.autoSaveEnabled).toBe(true);
+    expect(mockLatestEditorProps.autoSaveInterval).toBeLessThanOrEqual(2000);
+    await waitFor(() => {
+      expect(mockUpdateDocument).toHaveBeenCalledWith(
+        expect.objectContaining({ root: expect.any(Object) }),
+        'Short autosave QA text'
+      );
+    });
   });
 
   it('shows persisted document event count in the logs view', async () => {

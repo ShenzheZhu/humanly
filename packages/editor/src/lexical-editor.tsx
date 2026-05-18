@@ -125,7 +125,7 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
     trackingEnabled = true,
     copyPastePolicy = 'allowed',
     autoSaveEnabled = false,
-    autoSaveInterval = 30000,
+    autoSaveInterval = 2000,
     onContentChange,
     onEventTracked,
     onEventsBuffer,

@@ -7,15 +7,16 @@ import {
   createQaRun,
   exitForReport,
   fetchJson,
+  fetchWithTimeout,
   joinUrl,
   printReportLocation,
   runCheck,
   writeReport,
-} from './lib/qa-report.mjs';
+} from "./lib/qa-report.mjs";
 
-const DEFAULT_APP_BASE = 'https://app.writehumanly.net';
-const DEFAULT_ADMIN_BASE = 'https://admin.writehumanly.net';
-const DEFAULT_API_BASE = 'https://api.writehumanly.net/api/v1';
+const DEFAULT_APP_BASE = "https://app.writehumanly.net";
+const DEFAULT_ADMIN_BASE = "https://admin.writehumanly.net";
+const DEFAULT_API_BASE = "https://api.writehumanly.net/api/v1";
 
 function showHelp() {
   console.log(`Humanly deploy/ops smoke harness
@@ -36,19 +37,32 @@ behavior.
 `);
 }
 
-if (process.argv.includes('--help') || process.argv.includes('-h')) {
+if (process.argv.includes("--help") || process.argv.includes("-h")) {
   showHelp();
   process.exit(0);
 }
 
-const appBase = arg('app-base', process.env.QA_APP_BASE || DEFAULT_APP_BASE).replace(/\/+$/, '');
-const adminBase = arg('admin-base', process.env.QA_ADMIN_BASE || DEFAULT_ADMIN_BASE).replace(/\/+$/, '');
-const apiBase = arg('api-base', process.env.QA_DIRECT_API_BASE || DEFAULT_API_BASE).replace(/\/+$/, '');
-const requireDirectApi = boolArg('require-direct-api', 'QA_DEPLOY_REQUIRE_DIRECT_API', true);
+const appBase = arg(
+  "app-base",
+  process.env.QA_APP_BASE || DEFAULT_APP_BASE,
+).replace(/\/+$/, "");
+const adminBase = arg(
+  "admin-base",
+  process.env.QA_ADMIN_BASE || DEFAULT_ADMIN_BASE,
+).replace(/\/+$/, "");
+const apiBase = arg(
+  "api-base",
+  process.env.QA_DIRECT_API_BASE || DEFAULT_API_BASE,
+).replace(/\/+$/, "");
+const requireDirectApi = boolArg(
+  "require-direct-api",
+  "QA_DEPLOY_REQUIRE_DIRECT_API",
+  true,
+);
 
 const report = createQaRun({
-  layer: 'deploy-smoke',
-  title: 'Deploy/Ops Smoke Harness',
+  layer: "deploy-smoke",
+  title: "Deploy/Ops Smoke Harness",
   config: {
     appBase,
     adminBase,
@@ -58,7 +72,7 @@ const report = createQaRun({
 });
 
 async function htmlCheck(id, title, url) {
-  let html = '';
+  let html = "";
   await runCheck(
     report,
     {
@@ -67,9 +81,9 @@ async function htmlCheck(id, title, url) {
       target: url,
     },
     async () => {
-      const response = await fetch(url, { redirect: 'manual' });
+      const response = await fetchWithTimeout(url, { redirect: "manual" });
       html = await response.text();
-      const contentType = response.headers.get('content-type') || '';
+      const contentType = response.headers.get("content-type") || "";
       if (![200, 307, 308].includes(response.status)) {
         throw new Error(`Expected 200 or redirect, got ${response.status}`);
       }
@@ -77,8 +91,9 @@ async function htmlCheck(id, title, url) {
         details: {
           status: response.status,
           contentType,
-          location: response.headers.get('location'),
-          hasNextData: html.includes('/_next/static/') || html.includes('__NEXT_DATA__'),
+          location: response.headers.get("location"),
+          hasNextData:
+            html.includes("/_next/static/") || html.includes("__NEXT_DATA__"),
         },
       };
     },
@@ -92,12 +107,12 @@ async function healthCheck(id, title, baseUrl, critical = true) {
     {
       id,
       title,
-      target: joinUrl(baseUrl, '/health'),
+      target: joinUrl(baseUrl, "/health"),
       critical,
     },
     async () => {
-      const { response, body } = await fetchJson(joinUrl(baseUrl, '/health'));
-      if (response.status !== 200 || body?.status !== 'ok') {
+      const { response, body } = await fetchJson(joinUrl(baseUrl, "/health"));
+      if (response.status !== 200 || body?.status !== "ok") {
         throw new Error(`Expected 200 ok health, got ${response.status}`);
       }
       return { details: { status: response.status, body } };
@@ -116,7 +131,7 @@ async function apiRootCheck(id, title, baseUrl, critical = true) {
     },
     async () => {
       const { response, body } = await fetchJson(baseUrl);
-      if (response.status !== 200 || body?.name !== 'humanly API') {
+      if (response.status !== 200 || body?.name !== "humanly API") {
         throw new Error(`Expected API metadata, got ${response.status}`);
       }
       return { details: { status: response.status, body } };
@@ -130,11 +145,11 @@ async function authGuardCheck(id, title, baseUrl, critical = true) {
     {
       id,
       title,
-      target: joinUrl(baseUrl, '/auth/me'),
+      target: joinUrl(baseUrl, "/auth/me"),
       critical,
     },
     async () => {
-      const { response, body } = await fetchJson(joinUrl(baseUrl, '/auth/me'));
+      const { response, body } = await fetchJson(joinUrl(baseUrl, "/auth/me"));
       if (![401, 403].includes(response.status)) {
         throw new Error(`Expected 401/403 auth guard, got ${response.status}`);
       }
@@ -155,15 +170,17 @@ async function staticAssetCheck(id, title, baseUrl, html) {
       id,
       title,
       target: baseUrl,
-      status: 'warn',
+      status: "warn",
       details: {
-        reason: 'No Next.js static script reference found in root HTML.',
+        reason: "No Next.js static script reference found in root HTML.",
       },
     });
     return;
   }
 
-  const assetUrl = assetPath.startsWith('http') ? assetPath : joinUrl(baseUrl, assetPath);
+  const assetUrl = assetPath.startsWith("http")
+    ? assetPath
+    : joinUrl(baseUrl, assetPath);
   await runCheck(
     report,
     {
@@ -172,43 +189,100 @@ async function staticAssetCheck(id, title, baseUrl, html) {
       target: assetUrl,
     },
     async () => {
-      const response = await fetch(assetUrl);
+      const response = await fetchWithTimeout(assetUrl);
       if (response.status !== 200) {
         throw new Error(`Expected static asset 200, got ${response.status}`);
       }
       return {
         details: {
           status: response.status,
-          contentType: response.headers.get('content-type'),
-          cacheControl: response.headers.get('cache-control'),
+          contentType: response.headers.get("content-type"),
+          cacheControl: response.headers.get("cache-control"),
         },
       };
     },
   );
 }
 
-const appHtml = await htmlCheck('app-root', 'User portal root is reachable', appBase);
-const adminHtml = await htmlCheck('admin-root', 'Admin portal root is reachable', adminBase);
-await staticAssetCheck('app-static-asset', 'User portal static asset is reachable', appBase, appHtml);
-await staticAssetCheck('admin-static-asset', 'Admin portal static asset is reachable', adminBase, adminHtml);
-await healthCheck('app-proxy-health', 'User portal API proxy health is ok', joinUrl(appBase, '/api/v1'));
-await healthCheck('admin-proxy-health', 'Admin portal API proxy health is ok', joinUrl(adminBase, '/api/v1'));
-await healthCheck('direct-api-health', 'Direct API health and TLS are ok', apiBase, requireDirectApi);
-await apiRootCheck('app-proxy-api-root', 'User portal API proxy root exposes metadata', joinUrl(appBase, '/api/v1'));
-await apiRootCheck('admin-proxy-api-root', 'Admin portal API proxy root exposes metadata', joinUrl(adminBase, '/api/v1'));
-await apiRootCheck('direct-api-root', 'Direct API root exposes metadata', apiBase, requireDirectApi);
-await authGuardCheck('app-proxy-auth-guard', 'User portal API proxy auth guard is active', joinUrl(appBase, '/api/v1'));
-await authGuardCheck('admin-proxy-auth-guard', 'Admin portal API proxy auth guard is active', joinUrl(adminBase, '/api/v1'));
-await authGuardCheck('direct-api-auth-guard', 'Direct API auth guard is active', apiBase, requireDirectApi);
+const appHtml = await htmlCheck(
+  "app-root",
+  "User portal root is reachable",
+  appBase,
+);
+const adminHtml = await htmlCheck(
+  "admin-root",
+  "Admin portal root is reachable",
+  adminBase,
+);
+await staticAssetCheck(
+  "app-static-asset",
+  "User portal static asset is reachable",
+  appBase,
+  appHtml,
+);
+await staticAssetCheck(
+  "admin-static-asset",
+  "Admin portal static asset is reachable",
+  adminBase,
+  adminHtml,
+);
+await healthCheck(
+  "app-proxy-health",
+  "User portal API proxy health is ok",
+  joinUrl(appBase, "/api/v1"),
+);
+await healthCheck(
+  "admin-proxy-health",
+  "Admin portal API proxy health is ok",
+  joinUrl(adminBase, "/api/v1"),
+);
+await healthCheck(
+  "direct-api-health",
+  "Direct API health and TLS are ok",
+  apiBase,
+  requireDirectApi,
+);
+await apiRootCheck(
+  "app-proxy-api-root",
+  "User portal API proxy root exposes metadata",
+  joinUrl(appBase, "/api/v1"),
+);
+await apiRootCheck(
+  "admin-proxy-api-root",
+  "Admin portal API proxy root exposes metadata",
+  joinUrl(adminBase, "/api/v1"),
+);
+await apiRootCheck(
+  "direct-api-root",
+  "Direct API root exposes metadata",
+  apiBase,
+  requireDirectApi,
+);
+await authGuardCheck(
+  "app-proxy-auth-guard",
+  "User portal API proxy auth guard is active",
+  joinUrl(appBase, "/api/v1"),
+);
+await authGuardCheck(
+  "admin-proxy-auth-guard",
+  "Admin portal API proxy auth guard is active",
+  joinUrl(adminBase, "/api/v1"),
+);
+await authGuardCheck(
+  "direct-api-auth-guard",
+  "Direct API auth guard is active",
+  apiBase,
+  requireDirectApi,
+);
 
 addCheck(report, {
-  id: 'socket-io-authenticated',
-  title: 'Authenticated Socket.IO connect',
+  id: "socket-io-authenticated",
+  title: "Authenticated Socket.IO connect",
   target: appBase,
-  status: 'skip',
+  status: "skip",
   details: {
     reason:
-      'Socket.IO requires a fresh authenticated user token; cover it in backend-contract mutating mode or browser E2E.',
+      "Socket.IO requires a fresh authenticated user token; cover it in backend-contract mutating mode or browser E2E.",
   },
 });
 

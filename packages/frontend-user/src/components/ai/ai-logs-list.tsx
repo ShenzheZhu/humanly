@@ -228,7 +228,7 @@ function LogEntry({ log }: LogEntryProps) {
                   Selection Context
                 </p>
                 <p className="text-xs bg-muted rounded p-2 italic truncate">
-                  "{log.contextSnapshot.selection.text}"
+                  &quot;{log.contextSnapshot.selection.text}&quot;
                 </p>
               </div>
             )}

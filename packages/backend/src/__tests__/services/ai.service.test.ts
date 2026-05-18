@@ -616,7 +616,7 @@ describe('AIService.silentChat', () => {
     jest.spyOn(AIRetrievalService, 'buildCompactReferenceContext').mockResolvedValue(null);
     MockTaskModel.findBySubmissionDocument.mockResolvedValue(null);
     MockUserAISettings.getByUserId.mockResolvedValue(makeSettings());
-    mockFetch.mockResolvedValue(mockResponsesResponse('Grammar fixed.'));
+    mockFetch.mockResolvedValue(mockChatCompletionStream('Grammar fixed.'));
   });
 
   it('returns assistant message without creating session/log', async () => {
@@ -665,7 +665,7 @@ describe('AIService.silentChat', () => {
         status: 503,
         headers: { 'content-type': 'application/json' },
       }))
-      .mockResolvedValueOnce(mockResponsesResponse('Recovered after retry.'));
+      .mockResolvedValueOnce(mockChatCompletionStream('Recovered after retry.'));
 
     const result = await AIService.silentChat('user-1', request as any);
 
@@ -709,14 +709,25 @@ describe('AIService.silentChat', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
-  it('uses retrieval-capable Responses API for silent chat', async () => {
+  it('uses direct chat completion path for silent chat without retrieval tools', async () => {
     await AIService.silentChat('user-1', request as any);
 
     const url = String(mockFetch.mock.calls[0][0]);
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(url).toContain('/responses');
-    expect(body).toHaveProperty('tools');
-    expect(body.tools.map((tool: any) => tool.name)).toEqual(expect.arrayContaining(['ls', 'grep', 'read']));
+    expect(url).toContain('/chat/completions');
+    expect(body.stream).toBe(true);
+    expect(body.tools).toBeUndefined();
+  });
+
+  it('rejects unusable silent chat fallback text', async () => {
+    mockFetch.mockResolvedValue(mockChatCompletionStream(
+      "I can only read reference files you've uploaded. For your own writing, use the selection-menu Quick Actions."
+    ));
+
+    await expect(AIService.silentChat('user-1', request as any)).rejects.toMatchObject({
+      statusCode: 502,
+      message: expect.stringContaining('usable rewrite'),
+    });
   });
 });
 
@@ -873,6 +884,78 @@ describe('AIService.chat', () => {
     expect(result.sessionId).toBe('session-1');
     expect(result.message.content).toBe('Fixed.');
     expect(result.logId).toBe('log-1');
+  });
+
+  it('answers no-reference context questions without dispatching to the provider', async () => {
+    const listSpy = jest.spyOn(AIRetrievalService, 'listReferenceFiles')
+      .mockResolvedValueOnce({ files: [] });
+    const fetchCallsBefore = mockFetch.mock.calls.length;
+    const messageCallsBefore = MockAIModel.addMessage.mock.calls.length;
+
+    try {
+      await AIService.chat('user-1', {
+        ...request,
+        message: 'This task has no linked PDF. What can you use as context?',
+      } as any);
+
+      expect(mockFetch.mock.calls.length).toBe(fetchCallsBefore);
+      expect(MockAIModel.addMessage.mock.calls[messageCallsBefore + 1][2])
+        .toContain('does not have any linked reference files');
+      expect(MockAIModel.updateLogWithResponse).toHaveBeenLastCalledWith(
+        'log-1',
+        expect.objectContaining({
+          status: 'success',
+          response: expect.stringContaining('does not have any linked reference files'),
+        })
+      );
+    } finally {
+      listSpy.mockRestore();
+    }
+  });
+
+  it('keeps grounded questions on the normal provider path when references exist', async () => {
+    const listSpy = jest.spyOn(AIRetrievalService, 'listReferenceFiles')
+      .mockResolvedValueOnce({ files: [{ id: 'file-1', filename: 'syllabus.pdf' }] });
+    const fetchCallsBefore = mockFetch.mock.calls.length;
+
+    try {
+      await AIService.chat('user-1', {
+        ...request,
+        message: 'What is the grading breakdown in the syllabus?',
+      } as any);
+
+      expect(mockFetch.mock.calls.length).toBe(fetchCallsBefore + 1);
+    } finally {
+      listSpy.mockRestore();
+    }
+  });
+
+  it('streams no-reference context answers without exposing provider garbage', async () => {
+    const listSpy = jest.spyOn(AIRetrievalService, 'listReferenceFiles')
+      .mockResolvedValueOnce({ files: [] });
+    const fetchCallsBefore = mockFetch.mock.calls.length;
+    const chunks: string[] = [];
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        AIService.streamChat(
+          'user-1',
+          {
+            ...request,
+            message: 'This task has no linked PDF. Please explain what context is available.',
+          } as any,
+          chunk => chunks.push(chunk),
+          () => resolve(),
+          error => reject(error),
+        );
+      });
+
+      expect(mockFetch.mock.calls.length).toBe(fetchCallsBefore);
+      expect(chunks.join('')).toContain('does not have any linked reference files');
+      expect(chunks.join('')).not.toContain('旺公');
+    } finally {
+      listSpy.mockRestore();
+    }
   });
 
   it('keeps normal agent dispatch tool-first instead of injecting compact snapshots', async () => {

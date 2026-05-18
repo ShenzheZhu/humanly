@@ -170,7 +170,7 @@ export class AIRetrievalService {
   ): Promise<string> {
     switch (name) {
       case 'ls':
-        return JSON.stringify(await this.ls(userId, scopedDocumentId));
+        return JSON.stringify(await this.listReferenceFiles(userId, scopedDocumentId));
       case 'grep':
         return JSON.stringify(
           await this.grep(userId, scopedDocumentId, args.file, args.pattern, args.context_before, args.context_after)
@@ -194,7 +194,7 @@ export class AIRetrievalService {
     scopedDocumentId: string,
     maxChars = COMPACT_CONTEXT_MAX_CHARS
   ): Promise<string | null> {
-    const listing = await this.ls(userId, scopedDocumentId);
+    const listing = await this.listReferenceFiles(userId, scopedDocumentId);
     if (listing.files.length === 0) {
       return null;
     }
@@ -328,7 +328,9 @@ export class AIRetrievalService {
   // ── ls / grep / read implementation ────────────────────────────────────
 
   /** List uploaded references attached to the current document. */
-  private static async ls(userId: string, documentId: string) {
+  static async listReferenceFiles(userId: string, documentId: string): Promise<{
+    files: Array<{ id: string; filename: string }>;
+  }> {
     await this.getOwnedDocument(userId, documentId);
     const files = await query<any>(
       `SELECT DISTINCT files.id,

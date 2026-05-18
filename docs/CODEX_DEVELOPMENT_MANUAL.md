@@ -78,6 +78,13 @@ a deploy.
 - Commit messages reference the issue, for example:
   `docs: #153 consolidate Codex development manual`.
 - Do not mix unrelated cleanup into product fixes.
+- Do not open a PR for every small local change. Accumulate closely related
+  changes on one branch and open a PR only at a coherent review/deploy
+  boundary. Each merge to `main` can rebuild and redeploy production, so
+  unnecessary PR churn wastes time and adds deployment noise.
+- Exception: a direct hotfix may open and merge a tiny PR when production CI,
+  deploy, or a user-blocking bug is already broken and needs an immediate
+  isolated fix.
 - PR body must include `Closes #<issue>` unless the PR intentionally only
   references or partially addresses an issue.
 - If one PR closes multiple issues, list each issue and explain why one PR is
