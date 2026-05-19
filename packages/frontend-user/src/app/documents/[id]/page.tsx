@@ -85,6 +85,26 @@ function formatTimerDuration(totalSeconds: number): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
+function formatCountdownDuration(totalSeconds: number): string {
+  const safeSeconds = Math.max(0, Math.floor(totalSeconds));
+  const days = Math.floor(safeSeconds / 86400);
+  const hours = Math.floor((safeSeconds % 86400) / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const seconds = safeSeconds % 60;
+
+  if (days > 0) {
+    return `${days}d ${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  return formatTimerDuration(safeSeconds);
+}
+
+const getTimestampMs = (value?: string): number | null => {
+  if (!value) return null;
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+};
+
 interface EditorAIBridgeCaptureProps {
   insertAtCursor: EditorAIBridgeAPI['insertAtCursor'];
   onInsertAtCursorChange: (insertAtCursor: EditorAIBridgeAPI['insertAtCursor'] | null) => void;
@@ -138,6 +158,7 @@ export default function DocumentEditorPage() {
   const submissionSessionRef = useRef<{ taskId: string; sessionId: string } | null>(null);
   const lastSubmissionSessionRef = useRef<{ taskId: string; sessionId: string } | null>(null);
   const quickActionTriggerRef = useRef<((type: ActionType) => void) | null>(null);
+  const latestEditorSnapshotRef = useRef<{ content: Record<string, any>; plainText: string } | null>(null);
 
   // AI Assistant
   const {
@@ -148,18 +169,49 @@ export default function DocumentEditorPage() {
 
   // Store document metrics for the editor UI. AI full-document retrieval happens server-side.
   const [wordCount, setWordCount] = useState<number>(0);
+  const [characterCount, setCharacterCount] = useState<number>(0);
   const [timerStartedAtMs, setTimerStartedAtMs] = useState(() => Date.now());
   const [timerNowMs, setTimerNowMs] = useState(() => Date.now());
 
-  const currentEnvironmentConfig = useMemo(() => ({
-    ...DEFAULT_WRITING_ENVIRONMENT_CONFIG,
-    ...(taskEnrollment?.environmentConfig || {}),
-    ...(document?.environmentConfig || {}),
-    copyPastePolicy: normalizeCopyPastePolicy(
-      document?.environmentConfig?.copyPastePolicy ||
-      taskEnrollment?.environmentConfig?.copyPastePolicy
-    ),
-  }), [document?.environmentConfig, taskEnrollment?.environmentConfig]);
+  const currentEnvironmentConfig = useMemo(() => {
+    const taskConfig = taskEnrollment?.environmentConfig || {};
+    const documentConfig = document?.environmentConfig || {};
+
+    return {
+      ...DEFAULT_WRITING_ENVIRONMENT_CONFIG,
+      ...taskConfig,
+      ...documentConfig,
+      instructions: {
+        ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.instructions,
+        ...(taskEnrollment?.environmentConfig?.instructions || {}),
+        ...(document?.environmentConfig?.instructions || {}),
+      },
+      aiUsageLimit: {
+        ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.aiUsageLimit,
+        ...(taskEnrollment?.environmentConfig?.aiUsageLimit || {}),
+        ...(document?.environmentConfig?.aiUsageLimit || {}),
+      },
+      time: {
+        ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.time,
+        ...(taskEnrollment?.environmentConfig?.time || {}),
+        ...(document?.environmentConfig?.time || {}),
+      },
+      submission: {
+        ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.submission,
+        ...(!taskEnrollment ? document?.environmentConfig?.submission || {} : {}),
+        ...(taskEnrollment?.environmentConfig?.submission || {}),
+      },
+      traceability: {
+        ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.traceability,
+        ...(taskEnrollment?.environmentConfig?.traceability || {}),
+        ...(document?.environmentConfig?.traceability || {}),
+      },
+      copyPastePolicy: normalizeCopyPastePolicy(
+        document?.environmentConfig?.copyPastePolicy ||
+        taskEnrollment?.environmentConfig?.copyPastePolicy
+      ),
+    };
+  }, [document?.environmentConfig, taskEnrollment?.environmentConfig]);
 
   const activeTimeLimitSeconds =
     currentEnvironmentConfig.aiUsageLimit.mode === 'time_restricted' &&
@@ -170,6 +222,31 @@ export default function DocumentEditorPage() {
   const timeLimitRemainingSeconds = activeTimeLimitSeconds === null
     ? null
     : Math.max(0, activeTimeLimitSeconds - Math.floor((timerNowMs - timerStartedAtMs) / 1000));
+  const taskDeadlineMs = taskEnrollment ? getTimestampMs(taskEnrollment.endDate) : null;
+  const taskDeadlineRemainingSeconds = taskDeadlineMs === null
+    ? null
+    : Math.max(0, Math.floor((taskDeadlineMs - timerNowMs) / 1000));
+  const visibleCountdown = timeLimitRemainingSeconds !== null
+    ? {
+        label: timeLimitRemainingSeconds === 0 ? 'Writing time limit reached' : 'Writing time left',
+        value: formatCountdownDuration(timeLimitRemainingSeconds),
+        variant: timeLimitRemainingSeconds === 0 ? 'destructive' as const : 'outline' as const,
+        title: `Writing time limit: ${formatCountdownDuration(activeTimeLimitSeconds || 0)}`,
+      }
+    : taskDeadlineRemainingSeconds !== null
+      ? {
+          label: taskDeadlineRemainingSeconds === 0 ? 'Task deadline reached' : 'Task deadline in',
+          value: formatCountdownDuration(taskDeadlineRemainingSeconds),
+          variant: taskDeadlineRemainingSeconds === 0 ? 'destructive' as const : 'outline' as const,
+          title: taskEnrollment?.endDate ? `Task deadline: ${formatDateTime(taskEnrollment.endDate)}` : 'Task deadline',
+        }
+      : null;
+  const minimumSubmissionCharacters =
+    taskEnrollment && currentEnvironmentConfig.submission.minCharacters
+      ? Math.max(1, Math.floor(currentEnvironmentConfig.submission.minCharacters))
+      : null;
+  const isBelowMinimumCharacters =
+    minimumSubmissionCharacters !== null && characterCount < minimumSubmissionCharacters;
 
   const calculateWordCount = useCallback((text: string): number => {
     if (!text || typeof text !== 'string') return 0;
@@ -181,6 +258,11 @@ export default function DocumentEditorPage() {
     if (document) {
       setTitle(document.title || '');
       setWordCount(document.wordCount || 0);
+      setCharacterCount(document.characterCount ?? (document.plainText || '').length);
+      latestEditorSnapshotRef.current = {
+        content: document.content,
+        plainText: document.plainText || '',
+      };
     }
   }, [document]);
 
@@ -190,10 +272,10 @@ export default function DocumentEditorPage() {
   }, [documentId, activeTimeLimitSeconds]);
 
   useEffect(() => {
-    if (!activeTimeLimitSeconds) return;
+    if (!activeTimeLimitSeconds && taskDeadlineMs === null) return;
     const interval = window.setInterval(() => setTimerNowMs(Date.now()), 1000);
     return () => window.clearInterval(interval);
-  }, [activeTimeLimitSeconds]);
+  }, [activeTimeLimitSeconds, taskDeadlineMs]);
 
   useEffect(() => {
     const quickActionByKey: Record<string, ActionType> = {
@@ -421,12 +503,15 @@ export default function DocumentEditorPage() {
     }
   };
 
-  const handleContentChange = async (_content: Record<string, any>, plainText: string) => {
+  const handleContentChange = async (content: Record<string, any>, plainText: string) => {
+    latestEditorSnapshotRef.current = { content, plainText };
     setWordCount(calculateWordCount(plainText));
+    setCharacterCount(plainText.length);
   };
 
   const handleAutoSave = async (content: Record<string, any>, plainText: string) => {
     try {
+      latestEditorSnapshotRef.current = { content, plainText };
       await updateDocument(content, plainText);
     } catch (err) {
       console.error('Auto-save failed:', err);
@@ -558,8 +643,23 @@ export default function DocumentEditorPage() {
   const handleSubmitTask = async () => {
     if (!taskEnrollment) return;
 
+    if (minimumSubmissionCharacters && characterCount < minimumSubmissionCharacters) {
+      toast({
+        title: 'Minimum length required',
+        description: `Write at least ${minimumSubmissionCharacters.toLocaleString()} characters before submitting. Current length: ${characterCount.toLocaleString()} characters.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       setIsSubmittingTask(true);
+      if (latestEditorSnapshotRef.current) {
+        await updateDocument(
+          latestEditorSnapshotRef.current.content,
+          latestEditorSnapshotRef.current.plainText
+        );
+      }
       const response = await apiClient.post(`/tasks/enrollments/${taskEnrollment.id}/submissions`, {
         documentId,
       });
@@ -700,6 +800,17 @@ export default function DocumentEditorPage() {
                     )}
                   </div>
                 )}
+                {visibleCountdown && (
+                  <Badge
+                    variant={visibleCountdown.variant}
+                    className="mt-2 inline-flex max-w-full items-center gap-1.5"
+                    title={visibleCountdown.title}
+                  >
+                    <Clock className="h-3.5 w-3.5 shrink-0" />
+                    <span>{visibleCountdown.label}</span>
+                    <span className="font-mono font-semibold">{visibleCountdown.value}</span>
+                  </Badge>
+                )}
               </div>
             </div>
 
@@ -749,23 +860,16 @@ export default function DocumentEditorPage() {
                 </Badge>
               )}
 
-              {timeLimitRemainingSeconds !== null && (
+              <div className="hidden sm:block text-sm text-muted-foreground">{wordCount} words</div>
+
+              {minimumSubmissionCharacters !== null && (
                 <Badge
-                  variant={timeLimitRemainingSeconds === 0 ? 'destructive' : 'outline'}
-                  className="flex items-center gap-1"
-                  title={`Time limit: ${formatTimerDuration(activeTimeLimitSeconds || 0)}`}
+                  variant={isBelowMinimumCharacters ? 'destructive' : 'outline'}
+                  title={`Minimum characters: ${minimumSubmissionCharacters.toLocaleString()}`}
                 >
-                  <Clock className="h-3 w-3" />
-                  <span className="hidden sm:inline">
-                    {timeLimitRemainingSeconds === 0
-                      ? 'Time limit reached'
-                      : `${formatTimerDuration(timeLimitRemainingSeconds)} left`}
-                  </span>
-                  <span className="sm:hidden">{formatTimerDuration(timeLimitRemainingSeconds)}</span>
+                  {characterCount.toLocaleString()}/{minimumSubmissionCharacters.toLocaleString()} chars
                 </Badge>
               )}
-
-              <div className="hidden sm:block text-sm text-muted-foreground">{wordCount} words</div>
 
               {aiEnabled && (
                 <AIAssistantButton isOpen={isAIPanelOpen} onClick={toggleAIPanel} />

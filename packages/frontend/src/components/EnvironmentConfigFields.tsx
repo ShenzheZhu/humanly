@@ -6,6 +6,7 @@ import {
   AI_MAX_TOKENS_MIN,
   AI_SHORTCUT_MAX_TOKENS_DEFAULT,
   DEFAULT_WRITING_ENVIRONMENT_CONFIG,
+  SUBMISSION_MIN_CHARACTERS_MAX,
   WRITING_AI_MODELS,
   normalizeCopyPastePolicy,
   WritingEnvironmentConfig,
@@ -28,6 +29,16 @@ const setNested = (
   ...config,
   ...patch,
 });
+
+const parseOptionalMinCharacters = (value: string): number | undefined => {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed < 1) return undefined;
+
+  return Math.min(Math.floor(parsed), SUBMISSION_MIN_CHARACTERS_MAX);
+};
 
 export default function EnvironmentConfigFields({
   value,
@@ -271,6 +282,25 @@ export default function EnvironmentConfigFields({
             <option value="allowed">Allowed</option>
             <option value="not_allowed">Not allowed</option>
           </select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="minimum-characters">Minimum Characters</Label>
+          <Input
+            id="minimum-characters"
+            type="number"
+            min={1}
+            max={SUBMISSION_MIN_CHARACTERS_MAX}
+            value={config.submission.minCharacters ?? ''}
+            disabled={disabled}
+            placeholder="No minimum"
+            onChange={(event) => onChange(setNested(config, {
+              submission: {
+                ...config.submission,
+                minCharacters: parseOptionalMinCharacters(event.target.value),
+              },
+            }))}
+          />
         </div>
 
         <div className="space-y-2">

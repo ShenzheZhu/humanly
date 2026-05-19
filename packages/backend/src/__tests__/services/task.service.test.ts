@@ -98,6 +98,7 @@ function makeDocument(overrides: Partial<any> = {}): any {
     title: 'Submission',
     content: { root: { children: [] } },
     plainText: 'Submission text',
+    characterCount: 'Submission text'.length,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -136,6 +137,36 @@ function makeCertificate(overrides: Partial<any> = {}): any {
 }
 
 describe('TaskService.submitTaskDocument', () => {
+  it('rejects task submissions below the configured minimum character count', async () => {
+    const task = makeTask({
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 60_000),
+      environmentConfig: {
+        submission: {
+          mode: 'multiple',
+          minCharacters: 1000,
+        },
+      },
+    });
+
+    MockTaskModel.findById.mockResolvedValue(task);
+    MockTaskModel.hasEnrollment.mockResolvedValue(true);
+    MockDocumentModel.findByIdAndUserId.mockResolvedValue(makeDocument({
+      plainText: 'Too short',
+      characterCount: 9,
+    }));
+
+    await expect(
+      TaskService.submitTaskDocument('task-1', 'user-1', 'doc-1', 'student@example.com')
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: 'Submission must be at least 1,000 characters. Current length is 9 characters.',
+    });
+
+    expect(MockTaskModel.linkSubmissionDocument).not.toHaveBeenCalled();
+    expect(MockSubmissionModel.create).not.toHaveBeenCalled();
+  });
+
   it('marks the latest user submission session as submitted', async () => {
     const task = makeTask({
       startDate: new Date(Date.now() - 60_000),

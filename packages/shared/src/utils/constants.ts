@@ -5,6 +5,7 @@ export const PASSWORD_MIN_LENGTH = 8;
 export const PASSWORD_MAX_LENGTH = 128;
 
 export const TASK_TOKEN_LENGTH = 64; // 32 bytes hex
+export const SUBMISSION_MIN_CHARACTERS_MAX = 1_000_000;
 
 export const EVENT_BATCH_SIZE = 100;
 export const EVENT_MAX_PAYLOAD_SIZE = 10240; // 10KB

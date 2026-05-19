@@ -11,6 +11,7 @@ const mockApiGet = jest.fn();
 const mockApiPost = jest.fn();
 const mockUpdateDocument = jest.fn();
 let mockDocumentEnvironmentConfig: any = { aiAccess: 'off', copyPastePolicy: 'allowed' };
+let mockTaskEnrollments: any[] = [];
 let mockLatestEditorProps: any;
 
 jest.mock('next/navigation', () => ({
@@ -138,6 +139,7 @@ describe('editor and logs workflows', () => {
     mockUpdateDocument.mockReset();
     mockUpdateDocument.mockResolvedValue(undefined);
     mockDocumentEnvironmentConfig = { aiAccess: 'off', copyPastePolicy: 'allowed' };
+    mockTaskEnrollments = [];
     mockLatestEditorProps = undefined;
     mockApiGet.mockReset();
     mockApiPost.mockReset();
@@ -145,7 +147,10 @@ describe('editor and logs workflows', () => {
 
     mockApiGet.mockImplementation(async (path: string) => {
       if (path === '/tasks/my-enrollments') {
-        return { data: { data: { enrollments: [] } } };
+        return { data: { data: { enrollments: mockTaskEnrollments } } };
+      }
+      if (path === '/tasks/enrollments/enroll-1/instruction-files') {
+        return { data: { data: { files: [], file: null } } };
       }
       if (path === '/documents/doc-1') {
         return { data: { data: { document: { title: 'Workflow Document' } } } };
@@ -169,6 +174,15 @@ describe('editor and logs workflows', () => {
         return { data: { data: [] } };
       }
       throw new Error(`Unexpected GET ${path}`);
+    });
+    mockApiPost.mockImplementation(async (path: string) => {
+      if (path === '/tasks/enrollments/enroll-1/submission-sessions') {
+        return { data: { data: { sessionId: 'session-1' } } };
+      }
+      if (path === '/tasks/enrollments/enroll-1/submissions') {
+        return { data: { data: { certificate: { id: 'certificate-1' } } } };
+      }
+      throw new Error(`Unexpected POST ${path}`);
     });
   });
 
@@ -221,7 +235,63 @@ describe('editor and logs workflows', () => {
     render(<DocumentEditorPage />);
 
     expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
-    expect(screen.getByTitle('Time limit: 1:00')).toBeInTheDocument();
+    expect(screen.getByText('Writing time left')).toBeInTheDocument();
+    expect(screen.getByTitle('Writing time limit: 1:00')).toBeInTheDocument();
+  });
+
+  it('shows an enrolled task deadline countdown in the editor header', async () => {
+    mockTaskEnrollments = [{
+      id: 'enroll-1',
+      documentId: 'doc-1',
+      name: 'Timed Task',
+      inviteCode: 'ABC123',
+      joinedAt: '2026-05-19T12:00:00.000Z',
+      endDate: '2099-01-01T00:00:00.000Z',
+      environmentConfig: {
+        aiAccess: 'off',
+        copyPastePolicy: 'allowed',
+      },
+    }];
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    expect(screen.getByText('Task deadline in')).toBeInTheDocument();
+    expect(screen.getByTitle(/Task deadline:/)).toBeInTheDocument();
+  });
+
+  it('blocks enrolled task submission below the configured minimum character count', async () => {
+    mockTaskEnrollments = [{
+      id: 'enroll-1',
+      documentId: 'doc-1',
+      name: 'Minimum Character Task',
+      inviteCode: 'ABC123',
+      joinedAt: '2026-05-19T12:00:00.000Z',
+      environmentConfig: {
+        aiAccess: 'off',
+        copyPastePolicy: 'allowed',
+        submission: {
+          mode: 'multiple',
+          minCharacters: 1000,
+        },
+      },
+    }];
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    expect(screen.getByText('0/1,000 chars')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /submit/i }));
+
+    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Minimum length required',
+      variant: 'destructive',
+    }));
+    expect(mockApiPost).not.toHaveBeenCalledWith(
+      '/tasks/enrollments/enroll-1/submissions',
+      expect.anything()
+    );
   });
 
   it('shows persisted document event count in the logs view', async () => {
