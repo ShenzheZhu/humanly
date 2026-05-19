@@ -7,6 +7,7 @@
  */
 
 import {
+  getModelWhitelist,
   getModelCapabilities,
   modelSupportsImage,
   resolveCapabilitiesOrSafeDefault,
@@ -43,6 +44,20 @@ describe('backend ai-model-capabilities', () => {
     vision('openrouter.ai', 'anthropic/claude-sonnet-4.6');
     vision('openrouter.ai', 'openai/gpt-5.4-mini');
     vision('openrouter.ai', 'google/gemini-3.1-flash-lite');
+  });
+
+  it('exposes curated ids for known providers and null for unknown providers', () => {
+    expect(getModelWhitelist('https://openrouter.ai/api/v1')).toEqual([
+      'qwen/qwen3.5-397b-a17b',
+      'qwen/qwen3.5-9b',
+      'moonshotai/kimi-k2.6',
+      'deepseek/deepseek-v4-pro',
+      'z-ai/glm-5.1',
+      'anthropic/claude-sonnet-4.6',
+      'openai/gpt-5.4-mini',
+      'google/gemini-3.1-flash-lite',
+    ]);
+    expect(getModelWhitelist('https://example.com/v1')).toBeNull();
   });
 
   it('flags DeepSeek direct as text-only', () => {

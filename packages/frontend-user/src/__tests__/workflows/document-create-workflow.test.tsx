@@ -7,6 +7,7 @@ const mockPush = jest.fn();
 const mockToast = jest.fn();
 const mockCreateDocument = jest.fn();
 const mockApiGet = jest.fn();
+const mockApiPost = jest.fn();
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -30,7 +31,7 @@ jest.mock('@/lib/api-client', () => ({
   apiClient: {
     get: (...args: any[]) => mockApiGet(...args),
     put: jest.fn(),
-    post: jest.fn(),
+    post: (...args: any[]) => mockApiPost(...args),
   },
 }));
 
@@ -59,6 +60,7 @@ describe('document creation workflow', () => {
     mockToast.mockClear();
     mockCreateDocument.mockReset();
     mockApiGet.mockReset();
+    mockApiPost.mockReset();
     mockApiGet.mockResolvedValue({ data: { data: null } });
   });
 
@@ -120,5 +122,34 @@ describe('document creation workflow', () => {
     expect(screen.getByText('Time Limitation')).toBeInTheDocument();
     expect(screen.getByText('AI Off')).toBeInTheDocument();
     expect(screen.queryByText('Choose Custom to configure AI access, copy-paste rules, or a time limit.')).not.toBeInTheDocument();
+  });
+
+  it('keeps known-provider model choices on the curated whitelist after testing connection', async () => {
+    const user = userEvent.setup();
+    mockApiPost.mockResolvedValueOnce({
+      data: {
+        success: true,
+        models: [
+          'qwen/qwen-plus-2025-07-28',
+          'qwen/qwen3-30b-a3b-thinking-2507',
+        ],
+      },
+    });
+
+    render(<NewDocumentPage />);
+
+    await screen.findByRole('heading', { name: /new document/i });
+    await user.click(screen.getByRole('combobox'));
+    await user.click(await screen.findByRole('option', { name: 'Custom' }));
+    await user.click(screen.getAllByRole('combobox')[1]);
+    await user.click(await screen.findByRole('option', { name: 'AI On' }));
+
+    await user.type(screen.getByLabelText(/ai api key/i), 'sk-or-test');
+    await user.clear(screen.getByLabelText(/base url/i));
+    await user.type(screen.getByLabelText(/base url/i), 'https://openrouter.ai/api/v1');
+    await user.click(screen.getByRole('button', { name: /test connection/i }));
+
+    expect(await screen.findByText('qwen/qwen3.5-397b-a17b')).toBeInTheDocument();
+    expect(screen.queryByText('qwen/qwen-plus-2025-07-28')).not.toBeInTheDocument();
   });
 });

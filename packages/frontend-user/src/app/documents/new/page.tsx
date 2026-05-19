@@ -248,10 +248,10 @@ export default function NewDocumentPage() {
   const aiModelOptions = useMemo(() => {
     const whitelist = getWhitelist(aiBaseUrl);
     let options: string[];
-    if (testedAiModels.length) {
-      options = testedAiModels;
-    } else if (whitelist?.length) {
+    if (whitelist?.length) {
       options = whitelist;
+    } else if (testedAiModels.length) {
+      options = testedAiModels;
     } else {
       options = WRITING_AI_MODELS.filter((model) => model !== 'Custom models');
     }
@@ -427,9 +427,9 @@ export default function NewDocumentPage() {
       });
 
       if (result.success) {
-        const fallbackModels = getWhitelist(aiBaseUrl.trim() || DEFAULT_AI_BASE_URL) || [];
+        const curatedModels = getWhitelist(aiBaseUrl.trim() || DEFAULT_AI_BASE_URL) || [];
         const modelsFromApi = Array.isArray(result.models) ? result.models.filter(Boolean) : [];
-        const nextModels = modelsFromApi.length ? modelsFromApi : fallbackModels;
+        const nextModels = curatedModels.length ? curatedModels : modelsFromApi;
 
         setTestedAiModels(nextModels);
 

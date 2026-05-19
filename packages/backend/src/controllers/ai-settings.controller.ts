@@ -7,6 +7,7 @@ import {
   AI_MAX_TOKENS_MIN,
   AI_SHORTCUT_MAX_TOKENS_DEFAULT,
 } from '@humanly/shared';
+import { getModelWhitelist } from '../services/ai-model-capabilities';
 
 type ProviderModelsResponse =
   | Array<{ id?: unknown }>
@@ -67,6 +68,15 @@ export async function saveSettings(req: Request, res: Response): Promise<void> {
     res.status(400).json({
       success: false,
       error: 'Invalid base URL format',
+    });
+    return;
+  }
+
+  const whitelistedModels = getModelWhitelist(baseUrl);
+  if (whitelistedModels && !whitelistedModels.includes(model)) {
+    res.status(400).json({
+      success: false,
+      error: `Model is not available for this provider. Choose one of: ${whitelistedModels.join(', ')}`,
     });
     return;
   }
@@ -233,10 +243,14 @@ export async function testConnection(req: Request, res: Response): Promise<void>
         .sort();
     }
 
+    const whitelistedModels = getModelWhitelist(baseUrl);
+    const returnedModels = whitelistedModels || models;
+    const modelSource = whitelistedModels ? 'supported' : 'available';
+
     res.json({
       success: true,
-      message: `Connection successful. Found ${models.length} models.`,
-      models,
+      message: `Connection successful. Found ${returnedModels.length} ${modelSource} models.`,
+      models: returnedModels,
     });
   } catch (error: any) {
     const message = error.name === 'TimeoutError'
