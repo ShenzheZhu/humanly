@@ -115,6 +115,18 @@ migration_presence() {
     027_analytics_query_indexes.sql)
       psql_scalar -c "SELECT to_regclass('public.idx_sessions_task_user_start') IS NOT NULL AND to_regclass('public.idx_sessions_task_start') IS NOT NULL AND to_regclass('public.idx_document_events_session_timestamp') IS NOT NULL AND to_regclass('public.idx_document_events_unlinked_doc_user_created') IS NOT NULL AND to_regclass('public.idx_task_enrollments_task_user') IS NOT NULL AND to_regclass('public.idx_submissions_task_submitted_at') IS NOT NULL;"
       ;;
+    028_user_ai_token_budget.sql)
+      psql_scalar -c "SELECT (
+        EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'user_ai_settings' AND column_name = 'response_max_tokens')
+        AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'user_ai_settings' AND column_name = 'agent_max_tokens')
+      ) OR (
+        EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'user_ai_settings' AND column_name = 'shortcut_max_tokens')
+        AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'user_ai_settings' AND column_name = 'chat_max_tokens')
+      );"
+      ;;
+    029_rename_ai_token_budget_columns.sql)
+      psql_scalar -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'user_ai_settings' AND column_name = 'shortcut_max_tokens') AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'user_ai_settings' AND column_name = 'chat_max_tokens');"
+      ;;
     *)
       echo "unknown"
       ;;
@@ -140,7 +152,10 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 );
 SQL
 
-mapfile -t migration_files < <(find "$MIGRATIONS_DIR" -maxdepth 1 -type f -name '*.sql' | sort)
+migration_files=()
+while IFS= read -r file; do
+  migration_files+=("$file")
+done < <(find "$MIGRATIONS_DIR" -maxdepth 1 -type f -name '*.sql' | sort)
 
 if [[ "${#migration_files[@]}" -eq 0 ]]; then
   echo "==> No migration files found"

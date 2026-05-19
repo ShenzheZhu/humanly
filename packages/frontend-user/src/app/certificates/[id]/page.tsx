@@ -5,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { useCertificate } from '@/hooks/use-certificates';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/components/ui/use-toast';
 import { Switch } from '@/components/ui/switch';
@@ -35,6 +34,7 @@ import {
 import { format } from 'date-fns';
 import QRCode from 'qrcode';
 import { Input } from '@/components/ui/input';
+import { copyTextToClipboard } from '@/lib/clipboard';
 
 export default function CertificateDetailPage() {
   const params = useParams();
@@ -65,13 +65,29 @@ export default function CertificateDetailPage() {
     }
   }, [certificate]);
 
+  const showDownloadToast = (label: string, outcome: 'saved' | 'downloaded' | 'canceled') => {
+    if (outcome === 'canceled') {
+      return;
+    }
+
+    if (outcome === 'saved') {
+      toast({
+        title: 'Saved',
+        description: `${label} saved to the selected location`,
+      });
+      return;
+    }
+
+    toast({
+      title: 'Download started',
+      description: `${label} was sent to your browser downloads. If no picker appeared, check the browser download list.`,
+    });
+  };
+
   const handleDownloadJSON = async () => {
     try {
-      await downloadJSON();
-      toast({
-        title: 'Success',
-        description: 'JSON certificate downloaded successfully',
-      });
+      const outcome = await downloadJSON();
+      showDownloadToast('JSON certificate', outcome);
     } catch (err: any) {
       toast({
         title: 'Error',
@@ -83,11 +99,8 @@ export default function CertificateDetailPage() {
 
   const handleDownloadPDF = async () => {
     try {
-      await downloadPDF();
-      toast({
-        title: 'Success',
-        description: 'PDF certificate downloaded successfully',
-      });
+      const outcome = await downloadPDF();
+      showDownloadToast('PDF certificate', outcome);
     } catch (err: any) {
       toast({
         title: 'Error',
@@ -97,26 +110,42 @@ export default function CertificateDetailPage() {
     }
   };
 
-  const handleCopyVerificationToken = () => {
+  const showCopyUnavailableToast = (label: string) => {
+    toast({
+      title: 'Copy unavailable',
+      description: `${label} could not be copied automatically. Select it manually instead.`,
+      variant: 'destructive',
+    });
+  };
+
+  const handleCopyVerificationToken = async () => {
     if (certificate) {
-      navigator.clipboard.writeText(certificate.verificationToken);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-      toast({
-        title: 'Copied',
-        description: 'Verification token copied to clipboard',
-      });
+      const didCopy = await copyTextToClipboard(certificate.verificationToken);
+      if (didCopy) {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        toast({
+          title: 'Copied',
+          description: 'Verification token copied to clipboard',
+        });
+      } else {
+        showCopyUnavailableToast('Verification token');
+      }
     }
   };
 
-  const handleShareVerificationLink = () => {
+  const handleShareVerificationLink = async () => {
     if (certificate) {
       const verifyUrl = `${window.location.origin}/verify/${certificate.verificationToken}`;
-      navigator.clipboard.writeText(verifyUrl);
-      toast({
-        title: 'Link Copied',
-        description: 'Verification link copied to clipboard',
-      });
+      const didCopy = await copyTextToClipboard(verifyUrl);
+      if (didCopy) {
+        toast({
+          title: 'Link Copied',
+          description: 'Verification link copied to clipboard',
+        });
+      } else {
+        showCopyUnavailableToast('Verification link');
+      }
     }
   };
 
@@ -253,9 +282,9 @@ export default function CertificateDetailPage() {
       <div className="mb-8">
         <Button
           onClick={() => router.push('/certificates')}
-          variant="ghost"
+          variant="outline"
           size="sm"
-          className="mb-4"
+          className="mb-6"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Certificates
@@ -271,12 +300,6 @@ export default function CertificateDetailPage() {
               Generated on {format(new Date(certificate.generatedAt), 'MMMM dd, yyyy')}
             </p>
           </div>
-          <Badge
-            variant={certificate.certificateType === 'full_authorship' ? 'default' : 'secondary'}
-            className="text-sm sm:text-base px-3 py-1 sm:px-4 sm:py-2 self-start"
-          >
-            {certificate.certificateType === 'full_authorship' ? 'Full Authorship' : 'Partial Authorship'}
-          </Badge>
         </div>
       </div>
 
@@ -570,9 +593,13 @@ export default function CertificateDetailPage() {
                             {certificate.accessCode}
                           </div>
                           <Button
-                            onClick={() => {
-                              navigator.clipboard.writeText(certificate.accessCode!);
-                              toast({ title: 'Copied', description: 'Access code copied' });
+                            onClick={async () => {
+                              const didCopy = await copyTextToClipboard(certificate.accessCode!);
+                              if (didCopy) {
+                                toast({ title: 'Copied', description: 'Access code copied' });
+                              } else {
+                                showCopyUnavailableToast('Access code');
+                              }
                             }}
                             variant="ghost"
                             size="sm"
