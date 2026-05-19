@@ -41,11 +41,12 @@ describe('testConnection', () => {
     MockUserAISettingsModel.getByUserId.mockReset();
   });
 
-  it('extracts model ids from OpenAI-style data arrays', async () => {
+  it('returns curated model ids for known OpenAI-compatible providers', async () => {
     mockFetchJson({
       data: [
         { id: 'gpt-4o' },
         { id: 'gpt-4.1' },
+        { id: 'untested-provider-model' },
       ],
     });
 
@@ -58,11 +59,12 @@ describe('testConnection', () => {
 
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       success: true,
-      models: ['gpt-4.1', 'gpt-4o'],
+      message: 'Connection successful. Found 5 supported models.',
+      models: ['gpt-4.1', 'gpt-4o', 'gpt-4o-mini', 'gpt-4.1-nano', 'o3'],
     }));
   });
 
-  it('extracts model ids from Together top-level arrays', async () => {
+  it('returns the curated Together list instead of raw provider catalog entries', async () => {
     mockFetchJson([
       { id: 'moonshotai/Kimi-K2.6' },
       { id: 'Qwen/Qwen3.5-397B-A17B' },
@@ -78,8 +80,34 @@ describe('testConnection', () => {
 
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       success: true,
-      message: 'Connection successful. Found 2 models.',
-      models: ['Qwen/Qwen3.5-397B-A17B', 'moonshotai/Kimi-K2.6'],
+      message: 'Connection successful. Found 3 supported models.',
+      models: [
+        'moonshotai/Kimi-K2.6',
+        'deepseek-ai/DeepSeek-V4-Pro',
+        'zai-org/GLM-5.1',
+      ],
+    }));
+  });
+
+  it('uses raw provider models only for unknown OpenAI-compatible providers', async () => {
+    mockFetchJson({
+      data: [
+        { id: 'custom/model-b' },
+        { id: 'custom/model-a' },
+      ],
+    });
+
+    const req = makeReq({
+      body: { apiKey: 'sk-test', baseUrl: 'https://llm.example.com/v1' },
+    });
+    const res = makeRes();
+
+    await testConnection(req, res);
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: true,
+      message: 'Connection successful. Found 2 available models.',
+      models: ['custom/model-a', 'custom/model-b'],
     }));
   });
 });
@@ -126,6 +154,36 @@ describe('saveSettings', () => {
       },
     );
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+  });
+
+  it('rejects non-whitelisted models for known providers', async () => {
+    MockUserAISettingsModel.getByUserId.mockResolvedValue({
+      apiKey: 'sk-existing',
+      baseUrl: 'https://openrouter.ai/api/v1',
+      model: 'moonshotai/kimi-k2.6',
+      shortcutMaxTokens: 1024,
+      chatMaxTokens: 4096,
+      maskedApiKey: 'sk-ex...ing',
+      updatedAt: new Date().toISOString(),
+    });
+
+    const req = makeReq({
+      body: {
+        apiKey: '__use_existing__',
+        baseUrl: 'https://openrouter.ai/api/v1',
+        model: 'qwen/qwen-plus-2025-07-28',
+      },
+    });
+    const res = makeRes();
+
+    await saveSettings(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: false,
+      error: expect.stringContaining('Model is not available for this provider'),
+    }));
+    expect(MockUserAISettingsModel.upsert).not.toHaveBeenCalled();
   });
 
   it('accepts legacy response/agent token budget fields during deploy rollover', async () => {

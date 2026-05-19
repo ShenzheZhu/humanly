@@ -80,6 +80,21 @@ export function getModelCapabilities(
 }
 
 /**
+ * Return the curated model ids for a known provider, or null for unknown
+ * OpenAI-compatible hosts where we intentionally allow the provider catalog.
+ */
+export function getModelWhitelist(baseUrl: string): string[] | null {
+  let host: string;
+  try {
+    host = new URL(baseUrl).hostname;
+  } catch {
+    return null;
+  }
+  const perProvider = MATRIX[host];
+  return perProvider ? Object.keys(perProvider) : null;
+}
+
+/**
  * Best-effort capability lookup with the safe default applied: anything
  * unknown is treated as text-only so the gating logic never accidentally
  * lets an image attachment through to a model whose modality we cannot
