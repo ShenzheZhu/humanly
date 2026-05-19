@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
   CheckCircle,
+  Download,
   FileText,
   Key,
   Loader2,
@@ -32,6 +33,7 @@ import {
 
 import { api } from '@/lib/api-client';
 import { getWhitelist } from '@/lib/ai-models';
+import { downloadBlob } from '@/lib/download';
 import {
   getLocalTimeZoneLabel,
   localDateTimeInputToISOString,
@@ -103,6 +105,15 @@ const fallbackWritingModels = () => (
 const modelBelongsToOptions = (model: string, options: string[]) => (
   !!model && model !== CUSTOM_MODEL_VALUE && options.includes(model)
 );
+
+const buildConfigFilename = (name?: string | null) => {
+  const normalized = (name || 'task')
+    .trim()
+    .replace(/[^a-z0-9_-]+/gi, '_')
+    .replace(/^_+|_+$/g, '');
+
+  return `${normalized || 'task'}-environment-config.json`;
+};
 
 type AiConnectionResult = {
   success: boolean;
@@ -518,6 +529,55 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
     return failed;
   };
 
+  const buildCurrentEnvironmentConfig = (data: TaskSettingsFormData): WritingEnvironmentConfig => {
+    const allowedModels = aiAccess === 'off' ? [] : selectedAiModel ? [selectedAiModel] : [];
+    const startTime = timeLimitEnabled && data.startDate
+      ? localDateTimeInputToISOString(data.startDate)
+      : undefined;
+    const endTime = timeLimitEnabled && data.endDate
+      ? localDateTimeInputToISOString(data.endDate)
+      : undefined;
+    const hasInstructionPdf = currentInstructionFiles.length > 0 || instructionFiles.length > 0;
+
+    return {
+      ...environmentConfig,
+      taskType: 'admin_assigned',
+      preset: 'custom',
+      aiAccess,
+      allowedModels,
+      customModels: aiModel === CUSTOM_MODEL_VALUE && selectedAiModel ? [selectedAiModel] : [],
+      instructions: {
+        ...environmentConfig.instructions,
+        hasInstructionPdf,
+      },
+      aiUsageLimit: {
+        mode: 'max_requests',
+        maxRequests: Number(data.aiUsageLimit) || 100,
+      },
+      time: {
+        ...environmentConfig.time,
+        startTime,
+        endTime,
+        lateSubmission: timeLimitEnabled ? 'not_allowed' : 'allowed',
+      },
+      traceability: {
+        ...environmentConfig.traceability,
+        trackAiUsage: aiAccess !== 'off',
+        trackCopyPaste: normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) === 'allowed',
+      },
+    };
+  };
+
+  const handleExportConfig = () => {
+    const config = buildCurrentEnvironmentConfig(form.getValues());
+    const blob = new Blob(
+      [JSON.stringify(config, null, 2)],
+      { type: 'application/json' }
+    );
+
+    downloadBlob(blob, buildConfigFilename(form.getValues('name') || task?.name));
+  };
+
   const onSubmit = async (data: TaskSettingsFormData) => {
     try {
       setIsSaving(true);
@@ -541,7 +601,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
         });
       }
 
-      const allowedModels = aiAccess === 'off' ? [] : [selectedAiModel];
       if (timeLimitEnabled && (!data.startDate || !data.endDate)) {
         throw new Error('Select both start and end time when Time is on.');
       }
@@ -558,32 +617,14 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
         : fallbackEnd.toISOString();
       const configStartTime = timeLimitEnabled ? startTime : undefined;
       const configEndTime = timeLimitEnabled ? endTime : undefined;
-      const hasInstructionPdf = currentInstructionFiles.length > 0 || instructionFiles.length > 0;
+      const allowedModels = aiAccess === 'off' ? [] : [selectedAiModel];
       const nextEnvironmentConfig: WritingEnvironmentConfig = {
-        ...environmentConfig,
-        taskType: 'admin_assigned',
-        preset: 'custom',
-        aiAccess,
-        allowedModels,
-        customModels: aiModel === CUSTOM_MODEL_VALUE && selectedAiModel ? [selectedAiModel] : [],
-        instructions: {
-          ...environmentConfig.instructions,
-          hasInstructionPdf,
-        },
-        aiUsageLimit: {
-          mode: 'max_requests',
-          maxRequests: data.aiUsageLimit,
-        },
+        ...buildCurrentEnvironmentConfig(data),
         time: {
           ...environmentConfig.time,
           startTime: configStartTime,
           endTime: configEndTime,
           lateSubmission: timeLimitEnabled ? 'not_allowed' : 'allowed',
-        },
-        traceability: {
-          ...environmentConfig.traceability,
-          trackAiUsage: aiAccess !== 'off',
-          trackCopyPaste: normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) === 'allowed',
         },
       };
 
@@ -697,11 +738,17 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Task Settings</h2>
-        <p className="mt-2 text-muted-foreground">
-          Inspect and edit the same configuration used when this task was created.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">Task Settings</h2>
+          <p className="mt-2 text-muted-foreground">
+            Inspect and edit the same configuration used when this task was created.
+          </p>
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={handleExportConfig}>
+          <Download className="mr-2 h-4 w-4" />
+          Export Config
+        </Button>
       </div>
 
       <Card>
