@@ -390,8 +390,8 @@ describe('admin task overview invite code copy button', () => {
       },
     }));
     expect(exportedConfig.time).toEqual(expect.objectContaining({
-      startTime: new Date('2026-05-01T08:00:00').toISOString(),
-      endTime: new Date('2026-05-20T09:30:00').toISOString(),
+      startTime: taskFixture.environmentConfig.time.startTime,
+      endTime: new Date(2026, 4, 20, 9, 30).toISOString(),
       lateSubmission: 'not_allowed',
     }));
     expect(exportedConfig.traceability).toEqual(expect.objectContaining({
