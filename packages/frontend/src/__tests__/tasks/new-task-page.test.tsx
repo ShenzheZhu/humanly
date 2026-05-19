@@ -1,0 +1,213 @@
+import React from 'react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+
+import NewTaskPage from '@/app/tasks/new/page';
+
+const mockPush = jest.fn();
+const mockToast = jest.fn();
+const mockApiGet = jest.fn();
+const mockApiPost = jest.fn();
+const mockApiPut = jest.fn();
+
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: mockPush,
+  }),
+}));
+
+jest.mock('@/components/ui/use-toast', () => ({
+  useToast: () => ({
+    toast: mockToast,
+  }),
+}));
+
+jest.mock('@/lib/api-client', () => ({
+  api: {
+    get: (...args: any[]) => mockApiGet(...args),
+    post: (...args: any[]) => mockApiPost(...args),
+    put: (...args: any[]) => mockApiPut(...args),
+  },
+}));
+
+jest.mock('@/components/ui/select', () => {
+  const SelectContext = React.createContext<{
+    value?: string;
+    onValueChange?: (value: string) => void;
+  }>({});
+
+  return {
+    Select: ({ value, onValueChange, children }: any) => (
+      <SelectContext.Provider value={{ value, onValueChange }}>
+        <div>{children}</div>
+      </SelectContext.Provider>
+    ),
+    SelectTrigger: ({ children }: any) => <div>{children}</div>,
+    SelectValue: ({ placeholder }: any) => <span>{placeholder}</span>,
+    SelectContent: ({ children }: any) => <div>{children}</div>,
+    SelectItem: ({ value, children }: any) => {
+      const context = React.useContext(SelectContext);
+      return (
+        <button
+          type="button"
+          role="option"
+          aria-selected={context.value === value}
+          onClick={() => context.onValueChange?.(value)}
+        >
+          {children}
+        </button>
+      );
+    },
+  };
+});
+
+describe('admin new task page', () => {
+  beforeEach(() => {
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+    jest.setSystemTime(new Date('2026-05-19T16:00:00.000Z'));
+    mockPush.mockClear();
+    mockToast.mockClear();
+    mockApiGet.mockReset();
+    mockApiPost.mockReset();
+    mockApiPut.mockReset();
+
+    mockApiGet.mockResolvedValue({ data: null });
+    mockApiPost.mockImplementation(async (url: string) => {
+      if (url === '/api/v1/tasks') {
+        return {
+          success: true,
+          data: { id: 'created-task-1' },
+          message: 'Task created',
+        };
+      }
+      throw new Error(`Unexpected POST ${url}`);
+    });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('uses the document-style layout and creates default tasks with a two-week window', async () => {
+    render(<NewTaskPage />);
+
+    expect(await screen.findByRole('heading', { name: 'New Task' })).toBeInTheDocument();
+    expect(screen.getByText('Basic Information')).toBeInTheDocument();
+    expect(screen.getAllByText('Environment').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Default Environment').length).toBeGreaterThan(0);
+    expect(screen.getByText('Two-week window')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/AI Usage Limit/i)).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Task Name/i), {
+        target: { value: 'Two Week Draft' },
+      });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Create Task$/i }));
+    });
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith(
+        '/api/v1/tasks',
+        expect.objectContaining({
+          name: 'Two Week Draft',
+          environmentConfig: expect.objectContaining({
+            taskType: 'admin_assigned',
+            aiAccess: 'off',
+            time: expect.objectContaining({
+              lateSubmission: 'not_allowed',
+            }),
+          }),
+        })
+      );
+    });
+
+    const payload = mockApiPost.mock.calls.find(([url]) => url === '/api/v1/tasks')?.[1];
+    expect(payload).toBeTruthy();
+    const startDate = new Date(payload.startDate);
+    const endDate = new Date(payload.endDate);
+    expect(endDate.getTime() - startDate.getTime()).toBe(14 * 24 * 60 * 60 * 1000);
+    expect(payload.environmentConfig.time.startTime).toBe(payload.startDate);
+    expect(payload.environmentConfig.time.endTime).toBe(payload.endDate);
+  });
+
+  it('imports environment JSON and shows AI usage limit only when AI is on', async () => {
+    mockApiGet.mockResolvedValue({
+      data: {
+        hasApiKey: true,
+        maskedApiKey: 'sk-****1234',
+        baseUrl: 'https://api.together.xyz/v1',
+        model: 'GPT-5',
+      },
+    });
+    mockApiPut.mockResolvedValue({ success: true });
+    render(<NewTaskPage />);
+
+    const importOption = await screen.findByRole('option', { name: 'Import Environment' });
+    await act(async () => {
+      fireEvent.click(importOption);
+    });
+
+    const jsonInput = document.querySelector('input[accept="application/json,.json"]') as HTMLInputElement;
+    expect(jsonInput).not.toBeNull();
+
+    const environmentJson = JSON.stringify({
+      aiAccess: 'full',
+      allowedModels: ['GPT-5'],
+      aiUsageLimit: { mode: 'max_requests', maxRequests: 42 },
+      copyPastePolicy: 'blocked',
+      traceability: { trackTyping: true, trackFocusBlur: true },
+    });
+    const environmentFile = new File([environmentJson], 'environment.json', { type: 'application/json' });
+    Object.defineProperty(environmentFile, 'text', {
+      value: async () => environmentJson,
+    });
+
+    await act(async () => {
+      fireEvent.change(jsonInput, { target: { files: [environmentFile] } });
+    });
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'Environment imported',
+      }));
+    });
+
+    expect(screen.getByLabelText(/AI Usage Limit/i)).toHaveValue(42);
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Task Name/i), {
+        target: { value: 'Imported Environment Task' },
+      });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Create Task$/i }));
+    });
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith(
+        '/api/v1/tasks',
+        expect.objectContaining({
+          environmentConfig: expect.objectContaining({
+            taskType: 'admin_assigned',
+            aiAccess: 'full',
+            allowedModels: ['GPT-5'],
+            copyPastePolicy: 'blocked',
+            aiUsageLimit: {
+              mode: 'max_requests',
+              maxRequests: 42,
+            },
+          }),
+        })
+      );
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('option', { name: 'AI Off' }));
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText(/AI Usage Limit/i)).not.toBeInTheDocument();
+    });
+  });
+});

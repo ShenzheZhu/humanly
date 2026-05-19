@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
+  ArrowLeft,
   CheckCircle,
   FileText,
   Loader2,
@@ -35,6 +36,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { api } from '@/lib/api-client';
 import { getWhitelist } from '@/lib/ai-models';
@@ -48,13 +56,14 @@ import {
   AI_MAX_TOKENS_MAX,
   AI_MAX_TOKENS_MIN,
   AI_SHORTCUT_MAX_TOKENS_DEFAULT,
-  DEFAULT_WRITING_ENVIRONMENT_CONFIG,
   WRITING_AI_MODELS,
+  WRITING_ENVIRONMENT_PRESETS,
   normalizeCopyPastePolicy,
   type Task,
   type UserAISettings,
   type WritingAiAccess,
   type WritingEnvironmentConfig,
+  type WritingEnvironmentPreset,
 } from '@humanly/shared';
 
 // Zod schema for form validation
@@ -84,6 +93,8 @@ type TaskFormValues = z.infer<typeof taskFormSchema>;
 const DEFAULT_AI_BASE_URL = 'https://api.together.xyz/v1';
 const CUSTOM_MODEL_VALUE = '__custom_model__';
 const USE_EXISTING_AI_KEY = '__use_existing__';
+const IMPORT_ENVIRONMENT_VALUE = 'import_environment';
+const DEFAULT_TASK_WINDOW_DAYS = 14;
 const UNLIMITED_TASK_WINDOW_YEARS = 100;
 
 const fallbackWritingModels = () => (
@@ -98,6 +109,136 @@ type AiConnectionResult = {
   success: boolean;
   message: string;
 };
+
+type EnvironmentSelection = 'default_writing' | 'custom' | typeof IMPORT_ENVIRONMENT_VALUE;
+
+function SectionHeading({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div>
+      <h3 className="font-semibold">{title}</h3>
+      <p className="text-sm text-muted-foreground">{description}</p>
+    </div>
+  );
+}
+
+const getAdminEnvironmentConfig = (preset: WritingEnvironmentPreset = 'default_writing'): WritingEnvironmentConfig => ({
+  ...WRITING_ENVIRONMENT_PRESETS[preset],
+  taskType: 'admin_assigned',
+  preset,
+  copyPastePolicy: normalizeCopyPastePolicy(WRITING_ENVIRONMENT_PRESETS[preset].copyPastePolicy),
+  aiAccess: preset === 'default_writing' ? 'off' : WRITING_ENVIRONMENT_PRESETS[preset].aiAccess,
+  allowedModels: preset === 'default_writing' ? [] : WRITING_ENVIRONMENT_PRESETS[preset].allowedModels,
+  customModels: preset === 'default_writing' ? [] : WRITING_ENVIRONMENT_PRESETS[preset].customModels,
+  aiUsageLimit: {
+    mode: 'max_requests',
+    maxRequests: 100,
+  },
+});
+
+const isRecord = (value: unknown): value is Record<string, unknown> => (
+  !!value && typeof value === 'object' && !Array.isArray(value)
+);
+
+const normalizeAiAccessForForm = (value: unknown, fallback: WritingAiAccess): WritingAiAccess => (
+  value === 'off' ? 'off' : value === 'full' || value === 'readonly' ? 'full' : fallback
+);
+
+const isPositiveNumber = (value: unknown): value is number => (
+  typeof value === 'number' && Number.isFinite(value) && value > 0
+);
+
+const normalizeStringArray = (value: unknown, fallback: string[] = []) => (
+  Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    : fallback
+);
+
+const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentConfig => {
+  if (!isRecord(value)) {
+    throw new Error('Environment configuration must be a JSON object.');
+  }
+
+  const base = getAdminEnvironmentConfig('default_writing');
+  const imported = value;
+  const instructions = isRecord(imported.instructions) ? imported.instructions : {};
+  const aiUsageLimit = isRecord(imported.aiUsageLimit) ? imported.aiUsageLimit : {};
+  const aiTokenBudget = isRecord(imported.aiTokenBudget) ? imported.aiTokenBudget : {};
+  const time = isRecord(imported.time) ? imported.time : {};
+  const submission = isRecord(imported.submission) ? imported.submission : {};
+  const traceability = isRecord(imported.traceability) ? imported.traceability : {};
+  const aiAccess = normalizeAiAccessForForm(imported.aiAccess, base.aiAccess);
+  const copyPastePolicy = normalizeCopyPastePolicy(
+    typeof imported.copyPastePolicy === 'string'
+      ? imported.copyPastePolicy
+      : base.copyPastePolicy
+  );
+
+  return {
+    ...base,
+    description: typeof imported.description === 'string' ? imported.description : base.description,
+    preset: 'custom',
+    taskType: 'admin_assigned',
+    aiAccess,
+    allowedModels: aiAccess === 'off' ? [] : normalizeStringArray(imported.allowedModels, base.allowedModels),
+    customModels: aiAccess === 'off' ? [] : normalizeStringArray(imported.customModels, base.customModels),
+    instructions: {
+      ...base.instructions,
+      hasInstructionPdf: typeof instructions.hasInstructionPdf === 'boolean'
+        ? instructions.hasInstructionPdf
+        : base.instructions.hasInstructionPdf,
+      editableAfterSubmission: typeof instructions.editableAfterSubmission === 'boolean'
+        ? instructions.editableAfterSubmission
+        : base.instructions.editableAfterSubmission,
+    },
+    aiUsageLimit: {
+      mode: 'max_requests',
+      maxRequests: isPositiveNumber(aiUsageLimit.maxRequests)
+        ? aiUsageLimit.maxRequests
+        : base.aiUsageLimit.maxRequests || 100,
+    },
+    aiTokenBudget: {
+      shortcutMaxTokens: isPositiveNumber(aiTokenBudget.shortcutMaxTokens)
+        ? aiTokenBudget.shortcutMaxTokens
+        : base.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+      chatMaxTokens: isPositiveNumber(aiTokenBudget.chatMaxTokens)
+        ? aiTokenBudget.chatMaxTokens
+        : base.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT,
+    },
+    time: {
+      ...base.time,
+      lateSubmission: time.lateSubmission === 'not_allowed' ? 'not_allowed' : base.time.lateSubmission,
+      timeLimitSeconds: isPositiveNumber(time.timeLimitSeconds) ? time.timeLimitSeconds : undefined,
+    },
+    submission: {
+      ...base.submission,
+      mode: submission.mode === 'single' || submission.mode === 'multiple'
+        ? submission.mode
+        : base.submission.mode,
+    },
+    traceability: {
+      ...base.traceability,
+      trackAiUsage: typeof traceability.trackAiUsage === 'boolean'
+        ? traceability.trackAiUsage
+        : aiAccess !== 'off',
+      trackTyping: typeof traceability.trackTyping === 'boolean'
+        ? traceability.trackTyping
+        : base.traceability.trackTyping,
+      trackCopyPaste: copyPastePolicy === 'allowed',
+      trackFocusBlur: typeof traceability.trackFocusBlur === 'boolean'
+        ? traceability.trackFocusBlur
+        : base.traceability.trackFocusBlur,
+    },
+    copyPastePolicy,
+  };
+};
+
+const getDefaultEndDate = () => new Date(Date.now() + DEFAULT_TASK_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
 export default function NewTaskPage() {
   const router = useRouter();
@@ -114,18 +255,11 @@ export default function NewTaskPage() {
   const [isTestingAiConnection, setIsTestingAiConnection] = useState(false);
   const [aiConnectionResult, setAiConnectionResult] = useState<AiConnectionResult | null>(null);
   const [testedAiModels, setTestedAiModels] = useState<string[]>([]);
-  const [timeLimitEnabled, setTimeLimitEnabled] = useState(false);
-  const [environmentConfig, setEnvironmentConfig] = useState<WritingEnvironmentConfig>({
-    ...DEFAULT_WRITING_ENVIRONMENT_CONFIG,
-    taskType: 'admin_assigned',
-    preset: 'custom',
-    aiAccess: 'off',
-    allowedModels: [],
-    aiUsageLimit: {
-      mode: 'max_requests',
-      maxRequests: 100,
-    },
-  });
+  const [timeLimitEnabled, setTimeLimitEnabled] = useState(true);
+  const [environmentSelection, setEnvironmentSelection] = useState<EnvironmentSelection>('default_writing');
+  const [environmentConfig, setEnvironmentConfig] = useState<WritingEnvironmentConfig>(
+    getAdminEnvironmentConfig('default_writing')
+  );
 
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
@@ -134,7 +268,7 @@ export default function NewTaskPage() {
       description: '',
       aiUsageLimit: 100,
       startDate: toLocalDateTimeInputValue(new Date()),
-      endDate: toLocalDateTimeInputValue(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)),
+      endDate: toLocalDateTimeInputValue(getDefaultEndDate()),
     },
   });
 
@@ -185,51 +319,123 @@ export default function NewTaskPage() {
   const aiModelOptions = useMemo(() => {
     const whitelist = getWhitelist(aiBaseUrl);
     let options: string[];
-    if (whitelist?.length) {
-      options = whitelist;
-    } else if (testedAiModels.length) {
+    if (testedAiModels.length) {
       options = testedAiModels;
+    } else if (whitelist?.length) {
+      options = whitelist;
     } else {
       options = fallbackWritingModels();
     }
 
-    return !whitelist?.length && aiModel && aiModel !== CUSTOM_MODEL_VALUE && !options.includes(aiModel)
+    return aiModel && aiModel !== CUSTOM_MODEL_VALUE && !options.includes(aiModel)
       ? [aiModel, ...options]
       : options;
   }, [aiBaseUrl, aiModel, testedAiModels]);
 
   const selectedAiModel = aiModel === CUSTOM_MODEL_VALUE ? customAiModel.trim() : aiModel.trim();
 
-  const updateEnvironment = (patch: Partial<WritingEnvironmentConfig>) => {
+  const markCustom = (updater: (current: WritingEnvironmentConfig) => WritingEnvironmentConfig) => {
+    setEnvironmentSelection('custom');
     setEnvironmentConfig((current) => ({
+      ...updater(current),
+      preset: 'custom',
+    }));
+  };
+
+  const updateEnvironment = (patch: Partial<WritingEnvironmentConfig>) => {
+    markCustom((current) => ({
       ...current,
       ...patch,
     }));
   };
 
   const setEnvironmentAiModel = (model: string, isCustomModel = false) => {
-    setEnvironmentConfig((current) => ({
+    markCustom((current) => ({
       ...current,
       allowedModels: model ? [model] : [],
       customModels: isCustomModel && model ? [model] : [],
     }));
   };
 
-  useEffect(() => {
-    const whitelist = getWhitelist(aiBaseUrl);
-    if (
-      aiAccess !== 'off' &&
-      whitelist?.length &&
-      aiModel !== CUSTOM_MODEL_VALUE &&
-      !whitelist.includes(aiModel)
-    ) {
-      setAiModel(whitelist[0]);
-      setEnvironmentAiModel(whitelist[0]);
+  const syncAiModelFromEnvironment = (config: WritingEnvironmentConfig) => {
+    if (config.aiAccess === 'off') {
+      setAiModel('');
+      setCustomAiModel('');
+      return;
     }
-  }, [aiAccess, aiBaseUrl, aiModel]);
+
+    const customModel = config.customModels?.[0] || '';
+    const firstAllowedModel = config.allowedModels[0] || '';
+    setAiModel(firstAllowedModel || (customModel ? CUSTOM_MODEL_VALUE : ''));
+    setCustomAiModel(customModel);
+  };
+
+  const applyEnvironmentPreset = (preset: Extract<EnvironmentSelection, WritingEnvironmentPreset>) => {
+    const config = getAdminEnvironmentConfig(preset);
+    setEnvironmentSelection(preset);
+    setEnvironmentConfig(config);
+    setAiAccessState(config.aiAccess);
+    syncAiModelFromEnvironment(config);
+    setAiConnectionResult(null);
+    setTestedAiModels([]);
+    form.setValue('aiUsageLimit', config.aiUsageLimit.maxRequests || 100);
+    if (preset === 'default_writing') {
+      setTimeLimitEnabled(true);
+      form.setValue('startDate', toLocalDateTimeInputValue(new Date()));
+      form.setValue('endDate', toLocalDateTimeInputValue(getDefaultEndDate()));
+    }
+  };
+
+  const handleEnvironmentSelectionChange = (value: EnvironmentSelection) => {
+    if (value === IMPORT_ENVIRONMENT_VALUE) {
+      setEnvironmentSelection(value);
+      return;
+    }
+
+    applyEnvironmentPreset(value);
+  };
+
+  const handleEnvironmentImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.json')) {
+      toast({
+        title: 'Invalid environment file',
+        description: 'Import Environment currently supports JSON files only.',
+        variant: 'destructive',
+      });
+      event.target.value = '';
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(await file.text());
+      const config = normalizeImportedEnvironmentConfig(parsed);
+      setEnvironmentSelection(IMPORT_ENVIRONMENT_VALUE);
+      setEnvironmentConfig(config);
+      setAiAccessState(config.aiAccess);
+      syncAiModelFromEnvironment(config);
+      setAiConnectionResult(null);
+      setTestedAiModels([]);
+      form.setValue('aiUsageLimit', config.aiUsageLimit.maxRequests || 100);
+      toast({
+        title: 'Environment imported',
+        description: 'The JSON configuration was applied to this task.',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Import failed',
+        description: err.message || 'Unable to import the environment JSON file.',
+        variant: 'destructive',
+      });
+    } finally {
+      event.target.value = '';
+    }
+  };
 
   const setAiTokenBudget = (patch: NonNullable<WritingEnvironmentConfig['aiTokenBudget']>) => {
-    setEnvironmentConfig((current) => ({
+    markCustom((current) => ({
       ...current,
       aiTokenBudget: {
         shortcutMaxTokens: current.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
@@ -249,7 +455,7 @@ export default function NewTaskPage() {
       setAiModel(defaultModel);
     }
 
-    setEnvironmentConfig((current) => ({
+    markCustom((current) => ({
       ...current,
       aiAccess: nextAccess,
       allowedModels: nextAccess === 'off'
@@ -469,13 +675,26 @@ export default function NewTaskPage() {
     setInstructionFiles(files);
   };
 
+  const showDetailedEnvironmentControls = environmentSelection !== 'default_writing';
+
   return (
-    <div className="container max-w-2xl py-8">
+    <div className="container mx-auto max-w-2xl px-4 py-8">
+      <div className="mb-6">
+        <Button variant="ghost" className="mb-4" onClick={() => router.push('/tasks')}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Tasks
+        </Button>
+        <h1 className="text-3xl font-bold">New Task</h1>
+        <p className="mt-2 text-muted-foreground">
+          Create an admin-managed writing task and configure its writing environment.
+        </p>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Create Writing Task</CardTitle>
+          <CardTitle>Task Configuration</CardTitle>
           <CardDescription>
-            Set up an admin-managed writing task with invite-code enrollment, AI permissions, and optional instruction files.
+            Set up the task details, instruction files, timing, and environment before enrollment starts.
           </CardDescription>
         </CardHeader>
 
@@ -488,367 +707,453 @@ export default function NewTaskPage() {
                 </Alert>
               )}
 
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      Task Name <span className="text-destructive">*</span>
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Research Reflection Assignment"
-                        {...field}
-                        disabled={isSubmitting}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      A user-facing title shown on the admin dashboard and task detail pages.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Describe the writing task, deadline, evaluation criteria, or class context..."
-                        className="resize-none"
-                        {...field}
-                        disabled={isSubmitting}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      This description is visible to admins and can be reused for user-facing instructions.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="rounded-md border border-dashed p-4">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <Upload className="h-4 w-4 text-muted-foreground" />
-                  Files
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Upload one or more PDF instruction files for this task.
-                </p>
-                <Input
-                  type="file"
-                  accept="application/pdf"
-                  multiple
-                  className="mt-3"
-                  onChange={handleInstructionFilesChange}
-                  disabled={isSubmitting}
+              <section className="space-y-4">
+                <SectionHeading
+                  title="Basic Information"
+                  description="Name the task and attach optional PDF instructions for enrolled users."
                 />
-                {instructionFiles.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    {instructionFiles.map((file) => (
-                      <div key={`${file.name}-${file.size}`} className="flex items-center gap-3 rounded-md border bg-muted/40 p-3">
-                        <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium" title={file.name}>
-                            {file.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {(file.size / 1024 / 1024).toFixed(2)} MB
-                          </p>
+
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Task Name <span className="text-destructive">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Research Reflection Assignment"
+                          {...field}
+                          disabled={isSubmitting}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Describe the writing task, deadline, evaluation criteria, or class context..."
+                          className="resize-none"
+                          {...field}
+                          disabled={isSubmitting}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="rounded-md border border-dashed p-4">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <Upload className="h-4 w-4 text-muted-foreground" />
+                    Files
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Upload one or more PDF instruction files for this task.
+                  </p>
+                  <Input
+                    type="file"
+                    accept="application/pdf"
+                    multiple
+                    className="mt-3"
+                    onChange={handleInstructionFilesChange}
+                    disabled={isSubmitting}
+                  />
+                  {instructionFiles.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      {instructionFiles.map((file) => (
+                        <div key={`${file.name}-${file.size}`} className="flex items-center gap-3 rounded-md border bg-muted/40 p-3">
+                          <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium" title={file.name}>
+                              {file.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {(file.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setInstructionFiles((current) => current.filter((item) => item !== file))}
+                            disabled={isSubmitting}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setInstructionFiles((current) => current.filter((item) => item !== file))}
-                          disabled={isSubmitting}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-4 rounded-md border p-4">
-                <div>
-                  <h3 className="font-semibold">AI Access</h3>
-                  <p className="text-sm text-muted-foreground">
-                    When AI is on, save a provider key and choose the model allowed for this task.
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <FormLabel>AI</FormLabel>
-                  <select
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={aiAccess}
-                    disabled={isSubmitting}
-                    onChange={(event) => setAiAccess(event.target.value as WritingAiAccess)}
-                  >
-                    <option value="off">Off</option>
-                    <option value="full">On</option>
-                  </select>
-                </div>
-
-                {aiAccess !== 'off' && (
-                  <div className="space-y-4 rounded-md border bg-muted/30 p-3">
-                    <div className="space-y-2">
-                      <FormLabel htmlFor="ai-api-key">AI API Key</FormLabel>
-                      <Input
-                        id="ai-api-key"
-                        type="password"
-                        value={aiApiKey}
-                        disabled={isSubmitting}
-                        onChange={(event) => {
-                          setAiApiKey(event.target.value);
-                          setAiConnectionResult(null);
-                          setTestedAiModels([]);
-                        }}
-                        placeholder={hasExistingAiKey ? `Current: ${maskedAiKey || 'saved key'}` : 'Enter API key'}
-                      />
-                      {hasExistingAiKey && !aiApiKey && (
-                        <p className="text-xs text-muted-foreground">
-                          Leave empty to use the saved key.
-                        </p>
-                      )}
+                      ))}
                     </div>
+                  )}
+                </div>
+              </section>
 
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleTestAiConnection}
-                      disabled={isSubmitting || isTestingAiConnection || (!aiApiKey.trim() && !hasExistingAiKey)}
-                    >
-                      {isTestingAiConnection ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Testing...
-                        </>
-                      ) : (
-                        'Test Connection'
-                      )}
-                    </Button>
+              <div className="space-y-5 rounded-md border p-4">
+                <SectionHeading
+                  title="Environment"
+                  description="Choose a default, customize task controls, or import a JSON environment."
+                />
 
-                    {aiConnectionResult && (
-                      <div className="flex items-start gap-2 text-xs">
-                        {aiConnectionResult.success ? (
-                          <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                        ) : (
-                          <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                        )}
-                        <p className={aiConnectionResult.success ? 'text-emerald-700' : 'text-destructive'}>
-                          {aiConnectionResult.message}
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <FormLabel>Model</FormLabel>
-                        <select
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          value={aiModel}
-                          disabled={isSubmitting}
-                          onChange={(event) => {
-                            const value = event.target.value;
-                            setAiModel(value);
-                            if (value !== CUSTOM_MODEL_VALUE) {
-                              setCustomAiModel('');
-                              setEnvironmentAiModel(value);
-                            } else {
-                              setEnvironmentAiModel(customAiModel.trim(), true);
-                            }
-                          }}
-                        >
-                          <option value="">Select model</option>
-                          {aiModelOptions.map((model) => (
-                            <option key={model} value={model}>
-                              {model}
-                            </option>
-                          ))}
-                          <option value={CUSTOM_MODEL_VALUE}>Custom model</option>
-                        </select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <FormLabel htmlFor="ai-base-url">Base URL</FormLabel>
-                        <Input
-                          id="ai-base-url"
-                          value={aiBaseUrl}
-                          disabled={isSubmitting}
-                          onChange={(event) => {
-                            setAiBaseUrl(event.target.value);
-                            setAiConnectionResult(null);
-                            setTestedAiModels([]);
-                          }}
-                          placeholder={DEFAULT_AI_BASE_URL}
-                        />
-                      </div>
-                    </div>
-
-                    {aiModel === CUSTOM_MODEL_VALUE && (
-                      <div className="space-y-2">
-                        <FormLabel htmlFor="custom-ai-model">Custom Model</FormLabel>
-                        <Input
-                          id="custom-ai-model"
-                          value={customAiModel}
-                          disabled={isSubmitting}
-                          onChange={(event) => {
-                            setCustomAiModel(event.target.value);
-                            setEnvironmentAiModel(event.target.value.trim(), true);
-                          }}
-                          placeholder="provider/model-name"
-                        />
-                      </div>
-                    )}
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <FormLabel htmlFor="ai-shortcut-max-tokens">Shortcut Tokens</FormLabel>
-                        <Input
-                          id="ai-shortcut-max-tokens"
-                          type="number"
-                          min={AI_MAX_TOKENS_MIN}
-                          max={AI_MAX_TOKENS_MAX}
-                          value={environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT}
-                          disabled={isSubmitting}
-                          onChange={(event) => setAiTokenBudget({
-                            shortcutMaxTokens: Number(event.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
-                          })}
-                        />
-                        <FormDescription>Shortcut actions and fallback answers.</FormDescription>
-                      </div>
-
-                      <div className="space-y-2">
-                        <FormLabel htmlFor="ai-chat-max-tokens">Chat Tokens</FormLabel>
-                        <Input
-                          id="ai-chat-max-tokens"
-                          type="number"
-                          min={AI_MAX_TOKENS_MIN}
-                          max={AI_MAX_TOKENS_MAX}
-                          value={environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT}
-                          disabled={isSubmitting}
-                          onChange={(event) => setAiTokenBudget({
-                            chatMaxTokens: Number(event.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT,
-                          })}
-                        />
-                        <FormDescription>Chat and retrieval tool turns, per model call.</FormDescription>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-4 rounded-md border p-4">
-                <div>
-                  <h3 className="font-semibold">Time</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Turn time on only when this task needs a start window and deadline.
-                  </p>
+                <div className="grid gap-2">
+                  <FormLabel>Environment</FormLabel>
+                  <Select value={environmentSelection} onValueChange={(value) => handleEnvironmentSelectionChange(value as EnvironmentSelection)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select environment" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="default_writing">Default Environment</SelectItem>
+                      <SelectItem value="custom">Custom</SelectItem>
+                      <SelectItem value={IMPORT_ENVIRONMENT_VALUE}>Import Environment</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <FormLabel>Time</FormLabel>
-                  <select
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={timeLimitEnabled ? 'on' : 'off'}
-                    disabled={isSubmitting}
-                    onChange={(event) => setTimeLimitEnabled(event.target.value === 'on')}
-                  >
-                    <option value="off">Off</option>
-                    <option value="on">On</option>
-                  </select>
-                </div>
-
-                {timeLimitEnabled && (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <FormField
-                      control={form.control}
-                      name="startDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>
-                            Task Start Date <span className="text-destructive">*</span>
-                          </FormLabel>
-                          <FormControl>
-                            <Input type="datetime-local" {...field} disabled={isSubmitting} />
-                          </FormControl>
-                          <FormDescription>
-                            Users see this in their own timezone. Yours is {getLocalTimeZoneLabel()}.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="endDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>
-                            Task End Date <span className="text-destructive">*</span>
-                          </FormLabel>
-                          <FormControl>
-                            <Input type="datetime-local" {...field} disabled={isSubmitting} />
-                          </FormControl>
-                          <FormDescription>
-                            Saved as one absolute deadline and localized for each user.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                {environmentSelection === IMPORT_ENVIRONMENT_VALUE && (
+                  <div className="rounded-md border border-dashed p-4">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Upload className="h-4 w-4 text-muted-foreground" />
+                      Import JSON Configuration
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Upload a JSON file that matches the writing environment configuration shape.
+                    </p>
+                    <Input
+                      type="file"
+                      accept="application/json,.json"
+                      className="mt-3"
+                      onChange={handleEnvironmentImport}
+                      disabled={isSubmitting}
                     />
                   </div>
                 )}
-              </div>
 
-              <FormField
-                control={form.control}
-                name="aiUsageLimit"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      AI Usage Limit <span className="text-destructive">*</span>
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={1}
-                        placeholder="100"
-                        {...field}
-                        disabled={isSubmitting}
+                {!showDetailedEnvironmentControls ? (
+                  <div className="rounded-md border bg-muted/30 p-4">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                      <div>
+                        <p className="font-medium">Default Environment</p>
+                        <p className="text-sm text-muted-foreground">
+                          A standard task setup with authorship tracking, no AI assistant, and a two-week writing window.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-md bg-background p-3">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">AI</p>
+                        <p className="mt-1 text-sm font-medium">Off</p>
+                      </div>
+                      <div className="rounded-md bg-background p-3">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Writing</p>
+                        <p className="mt-1 text-sm font-medium">Copy & paste allowed</p>
+                      </div>
+                      <div className="rounded-md bg-background p-3">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Time</p>
+                        <p className="mt-1 text-sm font-medium">Two-week window</p>
+                      </div>
+                    </div>
+
+                    <p className="mt-4 text-sm text-muted-foreground">
+                      Choose Custom to configure AI access, copy-paste rules, or task timing.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-4 rounded-md border p-4">
+                      <SectionHeading
+                        title="AI"
+                        description="Control whether enrolled users can use assistant support."
                       />
-                    </FormControl>
-                    <FormDescription>
-                      Maximum AI requests allowed per enrolled user for this task.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
-              <div className="space-y-2">
-                <FormLabel>Copy-Paste Policy</FormLabel>
-                <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={normalizeCopyPastePolicy(environmentConfig.copyPastePolicy)}
-                  disabled={isSubmitting}
-                  onChange={(event) => updateEnvironment({
-                    copyPastePolicy: normalizeCopyPastePolicy(event.target.value),
-                  })}
-                >
-                  <option value="allowed">Allowed</option>
-                  <option value="blocked">Blocked</option>
-                </select>
+                      <div className="grid gap-2">
+                        <FormLabel>AI</FormLabel>
+                        <Select value={aiAccess} onValueChange={(value) => setAiAccess(value as WritingAiAccess)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="AI access" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="off">AI Off</SelectItem>
+                            <SelectItem value="full">AI On</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {aiAccess !== 'off' && (
+                        <div className="grid gap-4 rounded-md border bg-muted/30 p-3">
+                          <div className="grid gap-2">
+                            <FormLabel htmlFor="ai-api-key">AI API Key</FormLabel>
+                            <Input
+                              id="ai-api-key"
+                              type="password"
+                              value={aiApiKey}
+                              disabled={isSubmitting}
+                              onChange={(event) => {
+                                setAiApiKey(event.target.value);
+                                setAiConnectionResult(null);
+                                setTestedAiModels([]);
+                              }}
+                              placeholder={hasExistingAiKey ? `Current: ${maskedAiKey || 'saved key'}` : 'Enter API key'}
+                            />
+                            {hasExistingAiKey && !aiApiKey && (
+                              <p className="text-xs text-muted-foreground">
+                                Leave empty to use the saved key.
+                              </p>
+                            )}
+                          </div>
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleTestAiConnection}
+                            disabled={isSubmitting || isTestingAiConnection || (!aiApiKey.trim() && !hasExistingAiKey)}
+                          >
+                            {isTestingAiConnection ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Testing...
+                              </>
+                            ) : (
+                              'Test Connection'
+                            )}
+                          </Button>
+
+                          {aiConnectionResult && (
+                            <div className="flex items-start gap-2 text-xs">
+                              {aiConnectionResult.success ? (
+                                <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                              ) : (
+                                <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                              )}
+                              <p className={aiConnectionResult.success ? 'text-emerald-700' : 'text-destructive'}>
+                                {aiConnectionResult.message}
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="grid gap-2">
+                              <FormLabel>Model</FormLabel>
+                              <Select
+                                value={aiModel}
+                                onValueChange={(value) => {
+                                  setAiModel(value);
+                                  if (value !== CUSTOM_MODEL_VALUE) {
+                                    setCustomAiModel('');
+                                    setEnvironmentAiModel(value);
+                                  } else {
+                                    setEnvironmentAiModel(customAiModel.trim(), true);
+                                  }
+                                }}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select model" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {aiModelOptions.map((model) => (
+                                    <SelectItem key={model} value={model}>
+                                      {model}
+                                    </SelectItem>
+                                  ))}
+                                  <SelectItem value={CUSTOM_MODEL_VALUE}>Custom model</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="grid gap-2">
+                              <FormLabel htmlFor="ai-base-url">Base URL</FormLabel>
+                              <Input
+                                id="ai-base-url"
+                                value={aiBaseUrl}
+                                disabled={isSubmitting}
+                                onChange={(event) => {
+                                  setAiBaseUrl(event.target.value);
+                                  setAiConnectionResult(null);
+                                  setTestedAiModels([]);
+                                }}
+                                placeholder={DEFAULT_AI_BASE_URL}
+                              />
+                            </div>
+                          </div>
+
+                          {aiModel === CUSTOM_MODEL_VALUE && (
+                            <div className="grid gap-2">
+                              <FormLabel htmlFor="custom-ai-model">Custom Model</FormLabel>
+                              <Input
+                                id="custom-ai-model"
+                                value={customAiModel}
+                                disabled={isSubmitting}
+                                onChange={(event) => {
+                                  setCustomAiModel(event.target.value);
+                                  setEnvironmentAiModel(event.target.value.trim(), true);
+                                }}
+                                placeholder="provider/model-name"
+                              />
+                            </div>
+                          )}
+
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="grid gap-2">
+                              <FormLabel htmlFor="ai-shortcut-max-tokens">Shortcut Tokens</FormLabel>
+                              <Input
+                                id="ai-shortcut-max-tokens"
+                                type="number"
+                                min={AI_MAX_TOKENS_MIN}
+                                max={AI_MAX_TOKENS_MAX}
+                                value={environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT}
+                                disabled={isSubmitting}
+                                onChange={(event) => setAiTokenBudget({
+                                  shortcutMaxTokens: Number(event.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+                                })}
+                              />
+                              <FormDescription>Shortcut actions and fallback answers.</FormDescription>
+                            </div>
+
+                            <div className="grid gap-2">
+                              <FormLabel htmlFor="ai-chat-max-tokens">Chat Tokens</FormLabel>
+                              <Input
+                                id="ai-chat-max-tokens"
+                                type="number"
+                                min={AI_MAX_TOKENS_MIN}
+                                max={AI_MAX_TOKENS_MAX}
+                                value={environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT}
+                                disabled={isSubmitting}
+                                onChange={(event) => setAiTokenBudget({
+                                  chatMaxTokens: Number(event.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT,
+                                })}
+                              />
+                              <FormDescription>Chat and retrieval tool turns, per model call.</FormDescription>
+                            </div>
+                          </div>
+
+                          <FormField
+                            control={form.control}
+                            name="aiUsageLimit"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>
+                                  AI Usage Limit <span className="text-destructive">*</span>
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    placeholder="100"
+                                    {...field}
+                                    disabled={isSubmitting}
+                                  />
+                                </FormControl>
+                                <FormDescription>
+                                  Maximum AI requests allowed per enrolled user for this task.
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-4 rounded-md border p-4">
+                      <SectionHeading
+                        title="Writing Control"
+                        description="Set rules for editing behavior during writing."
+                      />
+
+                      <div className="grid gap-2">
+                        <FormLabel>Copy & Paste</FormLabel>
+                        <Select
+                          value={normalizeCopyPastePolicy(environmentConfig.copyPastePolicy)}
+                          onValueChange={(value) => updateEnvironment({
+                            copyPastePolicy: normalizeCopyPastePolicy(value),
+                          })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Copy-paste policy" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="allowed">Allowed</SelectItem>
+                            <SelectItem value="blocked">Blocked</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 rounded-md border p-4">
+                      <SectionHeading
+                        title="Time"
+                        description="Set the task availability window shown to enrolled users."
+                      />
+
+                      <div className="grid gap-2">
+                        <FormLabel>Time</FormLabel>
+                        <Select
+                          value={timeLimitEnabled ? 'on' : 'off'}
+                          onValueChange={(value) => setTimeLimitEnabled(value === 'on')}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Time policy" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="off">Off</SelectItem>
+                            <SelectItem value="on">On</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {timeLimitEnabled && (
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <FormField
+                            control={form.control}
+                            name="startDate"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>
+                                  Task Start Date <span className="text-destructive">*</span>
+                                </FormLabel>
+                                <FormControl>
+                                  <Input type="datetime-local" {...field} disabled={isSubmitting} />
+                                </FormControl>
+                                <FormDescription>
+                                  Users see this in their own timezone. Yours is {getLocalTimeZoneLabel()}.
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="endDate"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>
+                                  Task End Date <span className="text-destructive">*</span>
+                                </FormLabel>
+                                <FormControl>
+                                  <Input type="datetime-local" {...field} disabled={isSubmitting} />
+                                </FormControl>
+                                <FormDescription>
+                                  Defaults to two weeks after the start time.
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </CardContent>
 

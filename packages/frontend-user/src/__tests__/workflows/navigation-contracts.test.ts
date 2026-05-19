@@ -27,7 +27,7 @@ describe('navigation workflow contracts', () => {
     const adminRoutes = [
       ['packages/frontend/src/app/(auth)/login/page.tsx', 'Welcome back'],
       ['packages/frontend/src/app/tasks/page.tsx', 'Admin Tasks'],
-      ['packages/frontend/src/app/tasks/new/page.tsx', 'Create Writing Task'],
+      ['packages/frontend/src/app/tasks/new/page.tsx', 'New Task'],
       ['packages/frontend/src/app/tasks/[id]/page.tsx', 'TASK_DETAIL_TABS'],
       ['packages/frontend/src/app/tasks/[id]/_components/OverviewPanel.tsx', 'Task Overview'],
       ['packages/frontend/src/app/tasks/[id]/_components/SettingsPanel.tsx', 'Task Settings'],
