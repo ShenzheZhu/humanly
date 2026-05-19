@@ -5,9 +5,13 @@ import TaskDetailPage from '@/app/tasks/[id]/page';
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
 const mockApiGet = jest.fn();
+const mockApiPut = jest.fn();
+const mockApiPost = jest.fn();
+const mockApiDelete = jest.fn();
 const mockClipboardWriteText = jest.fn();
 const mockDownloadBlob = jest.fn();
 let mockSearchParams = new URLSearchParams();
+let mockAiSettings: any = null;
 
 jest.mock('next/navigation', () => ({
   useParams: () => ({
@@ -27,6 +31,9 @@ jest.mock('@/lib/api-client', () => ({
   },
   api: {
     get: (...args: any[]) => mockApiGet(...args),
+    put: (...args: any[]) => mockApiPut(...args),
+    post: (...args: any[]) => mockApiPost(...args),
+    delete: (...args: any[]) => mockApiDelete(...args),
   },
   ApiError: class ApiError extends Error {
     constructor(message: string, public statusCode?: number) {
@@ -167,7 +174,7 @@ const adminLocalTimeFormatter = new Intl.DateTimeFormat('en-US', {
 function mockTaskOverviewResponses() {
   mockApiGet.mockImplementation((url: string) => {
     if (url === '/api/v1/ai/settings') {
-      return Promise.resolve({ success: true, data: null });
+      return Promise.resolve({ success: true, data: mockAiSettings });
     }
 
     if (url.endsWith('/files')) {
@@ -204,10 +211,35 @@ describe('admin task overview invite code copy button', () => {
     mockPush.mockClear();
     mockReplace.mockClear();
     mockApiGet.mockReset();
+    mockApiPut.mockReset();
+    mockApiPost.mockReset();
+    mockApiDelete.mockReset();
     mockClipboardWriteText.mockReset();
     mockDownloadBlob.mockReset();
     mockSearchParams = new URLSearchParams();
+    mockAiSettings = {
+      hasApiKey: true,
+      maskedApiKey: 'sk-...1234',
+      baseUrl: 'https://api.together.xyz/v1',
+    };
     mockTaskOverviewResponses();
+    mockApiPut.mockImplementation((url: string) => {
+      if (url === '/api/v1/ai/settings') {
+        return Promise.resolve({ success: true });
+      }
+
+      if (url === '/api/v1/tasks/task-123') {
+        return Promise.resolve({
+          success: true,
+          data: taskFixture,
+          message: 'Task updated',
+        });
+      }
+
+      return Promise.resolve({ success: true });
+    });
+    mockApiPost.mockResolvedValue({ success: true, message: 'Connection successful.', models: ['moonshotai/Kimi-K2.6'] });
+    mockApiDelete.mockResolvedValue({ success: true });
 
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
@@ -370,6 +402,13 @@ describe('admin task overview invite code copy button', () => {
     await screen.findByRole('heading', { name: 'Clipboard Task' });
     expect(await screen.findByRole('heading', { name: 'Task Settings' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /export config/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Task Details' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'AI' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Environment' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Advanced AI Settings' })).toBeInTheDocument();
+    expect(screen.getByTestId('settings-sticky-actions')).toHaveClass('sticky');
+    expect(screen.getByRole('button', { name: /save settings/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/AI API Key/i)).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/AI Usage Limit/i), {
       target: { value: '17' },
@@ -377,9 +416,7 @@ describe('admin task overview invite code copy button', () => {
     fireEvent.change(screen.getByLabelText(/Task End Date/i), {
       target: { value: '2026-05-20T09:30' },
     });
-    fireEvent.change(screen.getByDisplayValue('Allowed'), {
-      target: { value: 'blocked' },
-    });
+    fireEvent.click(screen.getByRole('radio', { name: 'Blocked' }));
 
     fireEvent.click(screen.getByRole('button', { name: /export config/i }));
 
@@ -418,5 +455,77 @@ describe('admin task overview invite code copy button', () => {
     expect(serializedConfig).not.toContain('apiKey');
     expect(serializedConfig).not.toContain('sk-');
     expect(serializedConfig).not.toContain('task_instruction_pdf');
+  });
+
+  it('expands advanced AI settings when no saved key exists', async () => {
+    mockSearchParams = new URLSearchParams('tab=setting');
+    mockAiSettings = null;
+
+    render(<TaskDetailPage />);
+
+    await screen.findByRole('heading', { name: 'Clipboard Task' });
+    expect(await screen.findByRole('heading', { name: 'Advanced AI Settings' })).toBeInTheDocument();
+    expect(screen.getByLabelText(/AI API Key/i)).toBeInTheDocument();
+  });
+
+  it('keeps advanced AI settings open after a connection failure', async () => {
+    mockSearchParams = new URLSearchParams('tab=setting');
+    mockApiPost.mockRejectedValueOnce(new Error('Connection test failed.'));
+
+    render(<TaskDetailPage />);
+
+    await screen.findByRole('heading', { name: 'Clipboard Task' });
+    expect(screen.queryByLabelText(/AI API Key/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /test connection/i }));
+
+    expect(await screen.findByText('Connection test failed.')).toBeInTheDocument();
+    expect(screen.getByLabelText(/AI API Key/i)).toBeInTheDocument();
+  });
+
+  it('saves grouped setting changes with the existing task payload shape', async () => {
+    mockSearchParams = new URLSearchParams('tab=setting');
+
+    render(<TaskDetailPage />);
+
+    await screen.findByRole('heading', { name: 'Clipboard Task' });
+    fireEvent.change(screen.getByLabelText(/AI Usage Limit/i), {
+      target: { value: '17' },
+    });
+    fireEvent.change(screen.getByLabelText(/Task End Date/i), {
+      target: { value: '2026-05-20T09:30' },
+    });
+    fireEvent.click(screen.getByRole('radio', { name: 'Blocked' }));
+    fireEvent.click(screen.getByRole('button', { name: /save settings/i }));
+
+    await waitFor(() => {
+      expect(mockApiPut).toHaveBeenCalledWith('/api/v1/tasks/task-123', expect.objectContaining({
+        name: 'Clipboard Task',
+        description: 'Task details',
+        allowedLlmModels: ['moonshotai/Kimi-K2.6'],
+        aiUsageLimit: 17,
+      }));
+    });
+
+    const taskUpdateCall = mockApiPut.mock.calls.find(([url]) => url === '/api/v1/tasks/task-123');
+    const payload = taskUpdateCall?.[1];
+    expect(payload.environmentConfig).toEqual(expect.objectContaining({
+      aiAccess: 'full',
+      allowedModels: ['moonshotai/Kimi-K2.6'],
+      copyPastePolicy: 'blocked',
+      aiUsageLimit: {
+        mode: 'max_requests',
+        maxRequests: 17,
+      },
+    }));
+    expect(payload.environmentConfig.time).toEqual(expect.objectContaining({
+      startTime: taskFixture.environmentConfig.time.startTime,
+      endTime: new Date(2026, 4, 20, 9, 30).toISOString(),
+      lateSubmission: 'not_allowed',
+    }));
+    expect(payload.environmentConfig.traceability).toEqual(expect.objectContaining({
+      trackAiUsage: true,
+      trackCopyPaste: false,
+    }));
   });
 });
