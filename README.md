@@ -119,11 +119,13 @@ Humanly uses issue-driven development:
 1. Create or reuse a GitHub issue.
 2. Make the issue detailed enough to match
    [docs/ISSUE_AUTHORING_GUIDE.md](docs/ISSUE_AUTHORING_GUIDE.md).
-3. Branch from the issue target branch.
-4. Commit small logical slices.
-5. Push and open a PR.
-6. Run the right verification for the risk.
-7. The user normally merges PRs unless they explicitly authorize automation.
+3. Only treat issues opened by `ShenzheZhu` as part of the active development
+   queue unless the user explicitly points to another issue.
+4. Branch from the issue target branch.
+5. Commit small logical slices.
+6. Push and open a PR.
+7. Run the right verification for the risk.
+8. The user normally merges PRs unless they explicitly authorize automation.
 
 Small related PRs can merge into an integration or release branch first, then a
 single release PR lands in `main` and deploys production once. Docs-only pushes

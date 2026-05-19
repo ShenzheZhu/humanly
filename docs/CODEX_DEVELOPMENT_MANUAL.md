@@ -11,6 +11,8 @@ Before coding:
 1. Confirm the current branch and worktree state.
 2. Read `docs/README.md` to choose the smallest relevant reference set.
 3. Inspect open GitHub issues and PRs when the task touches active work.
+   Treat only issues opened by `ShenzheZhu` as part of the active Humanly
+   development queue unless the user explicitly points to another issue.
 4. Create or reuse a GitHub issue unless the user explicitly says the change is
    a quick coordination/doc note that does not need one.
 5. Upgrade thin issues to the `ISSUE_AUTHORING_GUIDE.md` quality bar before
@@ -36,6 +38,9 @@ Default loop:
 
 Issue granularity:
 
+- Issue triage is author-filtered: only issues authored by `ShenzheZhu` should
+  drive Codex planning, bug fixing, or QA follow-up by default. Issues opened by
+  other accounts are ignored unless the user explicitly asks to consider one.
 - One coherent feature or bug = one issue.
 - Closely coupled UI/backend changes in the same user flow should stay in one
   issue with internal tasks.
