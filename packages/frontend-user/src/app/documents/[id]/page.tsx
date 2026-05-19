@@ -138,6 +138,7 @@ export default function DocumentEditorPage() {
   const submissionSessionRef = useRef<{ taskId: string; sessionId: string } | null>(null);
   const lastSubmissionSessionRef = useRef<{ taskId: string; sessionId: string } | null>(null);
   const quickActionTriggerRef = useRef<((type: ActionType) => void) | null>(null);
+  const latestEditorSnapshotRef = useRef<{ content: Record<string, any>; plainText: string } | null>(null);
 
   // AI Assistant
   const {
@@ -148,18 +149,49 @@ export default function DocumentEditorPage() {
 
   // Store document metrics for the editor UI. AI full-document retrieval happens server-side.
   const [wordCount, setWordCount] = useState<number>(0);
+  const [characterCount, setCharacterCount] = useState<number>(0);
   const [timerStartedAtMs, setTimerStartedAtMs] = useState(() => Date.now());
   const [timerNowMs, setTimerNowMs] = useState(() => Date.now());
 
-  const currentEnvironmentConfig = useMemo(() => ({
-    ...DEFAULT_WRITING_ENVIRONMENT_CONFIG,
-    ...(taskEnrollment?.environmentConfig || {}),
-    ...(document?.environmentConfig || {}),
-    copyPastePolicy: normalizeCopyPastePolicy(
-      document?.environmentConfig?.copyPastePolicy ||
-      taskEnrollment?.environmentConfig?.copyPastePolicy
-    ),
-  }), [document?.environmentConfig, taskEnrollment?.environmentConfig]);
+  const currentEnvironmentConfig = useMemo(() => {
+    const taskConfig = taskEnrollment?.environmentConfig || {};
+    const documentConfig = document?.environmentConfig || {};
+
+    return {
+      ...DEFAULT_WRITING_ENVIRONMENT_CONFIG,
+      ...taskConfig,
+      ...documentConfig,
+      instructions: {
+        ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.instructions,
+        ...(taskEnrollment?.environmentConfig?.instructions || {}),
+        ...(document?.environmentConfig?.instructions || {}),
+      },
+      aiUsageLimit: {
+        ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.aiUsageLimit,
+        ...(taskEnrollment?.environmentConfig?.aiUsageLimit || {}),
+        ...(document?.environmentConfig?.aiUsageLimit || {}),
+      },
+      time: {
+        ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.time,
+        ...(taskEnrollment?.environmentConfig?.time || {}),
+        ...(document?.environmentConfig?.time || {}),
+      },
+      submission: {
+        ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.submission,
+        ...(!taskEnrollment ? document?.environmentConfig?.submission || {} : {}),
+        ...(taskEnrollment?.environmentConfig?.submission || {}),
+      },
+      traceability: {
+        ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.traceability,
+        ...(taskEnrollment?.environmentConfig?.traceability || {}),
+        ...(document?.environmentConfig?.traceability || {}),
+      },
+      copyPastePolicy: normalizeCopyPastePolicy(
+        document?.environmentConfig?.copyPastePolicy ||
+        taskEnrollment?.environmentConfig?.copyPastePolicy
+      ),
+    };
+  }, [document?.environmentConfig, taskEnrollment?.environmentConfig]);
 
   const activeTimeLimitSeconds =
     currentEnvironmentConfig.aiUsageLimit.mode === 'time_restricted' &&
@@ -170,6 +202,12 @@ export default function DocumentEditorPage() {
   const timeLimitRemainingSeconds = activeTimeLimitSeconds === null
     ? null
     : Math.max(0, activeTimeLimitSeconds - Math.floor((timerNowMs - timerStartedAtMs) / 1000));
+  const minimumSubmissionCharacters =
+    taskEnrollment && currentEnvironmentConfig.submission.minCharacters
+      ? Math.max(1, Math.floor(currentEnvironmentConfig.submission.minCharacters))
+      : null;
+  const isBelowMinimumCharacters =
+    minimumSubmissionCharacters !== null && characterCount < minimumSubmissionCharacters;
 
   const calculateWordCount = useCallback((text: string): number => {
     if (!text || typeof text !== 'string') return 0;
@@ -181,6 +219,11 @@ export default function DocumentEditorPage() {
     if (document) {
       setTitle(document.title || '');
       setWordCount(document.wordCount || 0);
+      setCharacterCount(document.characterCount ?? (document.plainText || '').length);
+      latestEditorSnapshotRef.current = {
+        content: document.content,
+        plainText: document.plainText || '',
+      };
     }
   }, [document]);
 
@@ -421,12 +464,15 @@ export default function DocumentEditorPage() {
     }
   };
 
-  const handleContentChange = async (_content: Record<string, any>, plainText: string) => {
+  const handleContentChange = async (content: Record<string, any>, plainText: string) => {
+    latestEditorSnapshotRef.current = { content, plainText };
     setWordCount(calculateWordCount(plainText));
+    setCharacterCount(plainText.length);
   };
 
   const handleAutoSave = async (content: Record<string, any>, plainText: string) => {
     try {
+      latestEditorSnapshotRef.current = { content, plainText };
       await updateDocument(content, plainText);
     } catch (err) {
       console.error('Auto-save failed:', err);
@@ -558,8 +604,23 @@ export default function DocumentEditorPage() {
   const handleSubmitTask = async () => {
     if (!taskEnrollment) return;
 
+    if (minimumSubmissionCharacters && characterCount < minimumSubmissionCharacters) {
+      toast({
+        title: 'Minimum length required',
+        description: `Write at least ${minimumSubmissionCharacters.toLocaleString()} characters before submitting. Current length: ${characterCount.toLocaleString()} characters.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       setIsSubmittingTask(true);
+      if (latestEditorSnapshotRef.current) {
+        await updateDocument(
+          latestEditorSnapshotRef.current.content,
+          latestEditorSnapshotRef.current.plainText
+        );
+      }
       const response = await apiClient.post(`/tasks/enrollments/${taskEnrollment.id}/submissions`, {
         documentId,
       });
@@ -766,6 +827,15 @@ export default function DocumentEditorPage() {
               )}
 
               <div className="hidden sm:block text-sm text-muted-foreground">{wordCount} words</div>
+
+              {minimumSubmissionCharacters !== null && (
+                <Badge
+                  variant={isBelowMinimumCharacters ? 'destructive' : 'outline'}
+                  title={`Minimum characters: ${minimumSubmissionCharacters.toLocaleString()}`}
+                >
+                  {characterCount.toLocaleString()}/{minimumSubmissionCharacters.toLocaleString()} chars
+                </Badge>
+              )}
 
               {aiEnabled && (
                 <AIAssistantButton isOpen={isAIPanelOpen} onClick={toggleAIPanel} />

@@ -56,6 +56,7 @@ import {
   AI_MAX_TOKENS_MAX,
   AI_MAX_TOKENS_MIN,
   AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+  SUBMISSION_MIN_CHARACTERS_MAX,
   WRITING_AI_MODELS,
   WRITING_ENVIRONMENT_PRESETS,
   normalizeCopyPastePolicy,
@@ -153,6 +154,16 @@ const isPositiveNumber = (value: unknown): value is number => (
   typeof value === 'number' && Number.isFinite(value) && value > 0
 );
 
+const parseOptionalMinCharacters = (value: string): number | undefined => {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed < 1) return undefined;
+
+  return Math.min(Math.floor(parsed), SUBMISSION_MIN_CHARACTERS_MAX);
+};
+
 const normalizeStringArray = (value: unknown, fallback: string[] = []) => (
   Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
@@ -220,6 +231,9 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
       mode: submission.mode === 'single' || submission.mode === 'multiple'
         ? submission.mode
         : base.submission.mode,
+      minCharacters: isPositiveNumber(submission.minCharacters)
+        ? Math.min(Math.floor(submission.minCharacters), SUBMISSION_MIN_CHARACTERS_MAX)
+        : undefined,
     },
     traceability: {
       ...base.traceability,
@@ -441,6 +455,17 @@ export default function NewTaskPage() {
         shortcutMaxTokens: current.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
         chatMaxTokens: current.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT,
         ...patch,
+      },
+    }));
+  };
+
+  const setSubmissionMinimumCharacters = (value: string) => {
+    const minCharacters = parseOptionalMinCharacters(value);
+    markCustom((current) => ({
+      ...current,
+      submission: {
+        ...current.submission,
+        minCharacters,
       },
     }));
   };
@@ -1085,6 +1110,23 @@ export default function NewTaskPage() {
                             <SelectItem value="blocked">Blocked</SelectItem>
                           </SelectContent>
                         </Select>
+                      </div>
+
+                      <div className="grid gap-2">
+                        <FormLabel htmlFor="minimum-characters">Minimum Characters</FormLabel>
+                        <Input
+                          id="minimum-characters"
+                          type="number"
+                          min={1}
+                          max={SUBMISSION_MIN_CHARACTERS_MAX}
+                          value={environmentConfig.submission.minCharacters ?? ''}
+                          onChange={(event) => setSubmissionMinimumCharacters(event.target.value)}
+                          placeholder="No minimum"
+                          disabled={isSubmitting}
+                        />
+                        <FormDescription>
+                          Leave blank when submissions do not need a minimum length.
+                        </FormDescription>
                       </div>
                     </div>
 

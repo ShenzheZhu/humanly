@@ -12,13 +12,28 @@ import { CertificateModel } from '../models/certificate.model';
 import { DocumentEventModel } from '../models/document-event.model';
 import { FileModel } from '../models/file.model';
 import { CertificateService } from './certificate.service';
-import type { AppFile, Task, TaskWithSnippets } from '@humanly/shared';
+import type { AppFile, Document, Task, TaskWithSnippets } from '@humanly/shared';
 import { BRAND, getTrackerComment, getIframeComment } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { cacheDelPattern } from '../config/redis';
 import { FileStorageService } from './file-storage.service';
+
+const getMinimumSubmissionCharacters = (task: Task): number | null => {
+  const configuredMinimum = task.environmentConfig?.submission?.minCharacters;
+  if (!Number.isFinite(configuredMinimum) || !configuredMinimum) return null;
+
+  return Math.max(1, Math.floor(configuredMinimum));
+};
+
+const getDocumentCharacterCount = (document: Document): number => {
+  if (Number.isFinite(document.characterCount) && document.characterCount >= 0) {
+    return document.characterCount;
+  }
+
+  return (document.plainText || '').length;
+};
 
 export class TaskService {
   private static async invalidateAnalytics(taskId: string): Promise<void> {
@@ -324,6 +339,17 @@ export class TaskService {
     const document = await DocumentModel.findByIdAndUserId(documentId, userId);
     if (!document) {
       throw new AppError(404, 'Document not found or unauthorized');
+    }
+
+    const minimumCharacters = getMinimumSubmissionCharacters(task);
+    if (minimumCharacters) {
+      const actualCharacters = getDocumentCharacterCount(document);
+      if (actualCharacters < minimumCharacters) {
+        throw new AppError(
+          400,
+          `Submission must be at least ${minimumCharacters.toLocaleString()} characters. Current length is ${actualCharacters.toLocaleString()} characters.`
+        );
+      }
     }
 
     await TaskModel.linkSubmissionDocument(task.id, userId, documentId);

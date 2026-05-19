@@ -155,6 +155,7 @@ describe('admin new task page', () => {
       aiAccess: 'full',
       allowedModels: ['GPT-5'],
       aiUsageLimit: { mode: 'max_requests', maxRequests: 42 },
+      submission: { mode: 'multiple', minCharacters: 1000 },
       copyPastePolicy: 'blocked',
       traceability: { trackTyping: true, trackFocusBlur: true },
     });
@@ -197,6 +198,10 @@ describe('admin new task page', () => {
               mode: 'max_requests',
               maxRequests: 42,
             },
+            submission: expect.objectContaining({
+              mode: 'multiple',
+              minCharacters: 1000,
+            }),
           }),
         })
       );

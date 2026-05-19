@@ -5,9 +5,10 @@ import {
   EXTERNAL_SERVICE_TYPES,
   EVENT_TYPES,
   PAGINATION,
+  SUBMISSION_MIN_CHARACTERS_MAX,
 } from './constants';
 
-const writingEnvironmentConfigSchema = z.object({
+export const writingEnvironmentConfigSchema = z.object({
   preset: z.enum(['default_writing', 'no_ai', 'ai_assisted', 'timed_writing', 'custom']).optional(),
   taskType: z.enum(['personal', 'admin_assigned']),
   description: z.string().max(1000).optional(),
@@ -35,6 +36,7 @@ const writingEnvironmentConfigSchema = z.object({
   }),
   submission: z.object({
     mode: z.enum(['single', 'multiple']),
+    minCharacters: z.number().int().min(1).max(SUBMISSION_MIN_CHARACTERS_MAX).optional(),
   }),
   traceability: z.object({
     trackAiUsage: z.boolean(),
