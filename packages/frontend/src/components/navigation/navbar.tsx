@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { FolderKanban, LogOut, User, Menu } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { LogOut, User, Menu } from 'lucide-react';
 import { BRAND } from '@humanly/shared';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,6 +17,7 @@ import {
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -24,7 +25,6 @@ import {
 import { useAuthStore } from '@/stores/auth-store';
 
 export function Navbar() {
-  const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -33,14 +33,6 @@ export function Navbar() {
     await logout();
     router.push('/login');
   };
-
-  const navItems = [
-    {
-      name: 'Tasks',
-      href: '/tasks',
-      icon: FolderKanban,
-    },
-  ];
 
   return (
     <nav className="border-b bg-background">
@@ -51,27 +43,6 @@ export function Navbar() {
               <img src="/humanly.svg" alt={BRAND.name} className="h-8 w-8" />
               {BRAND.name} Admin
             </Link>
-            {/* Desktop Navigation */}
-            <div className="ml-10 hidden md:flex items-baseline space-x-4">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname.startsWith(item.href);
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.name}
-                  </Link>
-                );
-              })}
-            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -106,29 +77,13 @@ export function Navbar() {
                 </SheetTrigger>
                 <SheetContent side="right">
                   <SheetHeader>
-                    <SheetTitle>Menu</SheetTitle>
+                    <SheetTitle>Account</SheetTitle>
+                    <SheetDescription className="sr-only">
+                      Account options
+                    </SheetDescription>
                   </SheetHeader>
                   <div className="mt-6 flex flex-col space-y-4">
-                    {navItems.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = pathname.startsWith(item.href);
-                      return (
-                        <Link
-                          key={item.name}
-                          href={item.href}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className={`flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium transition-colors ${
-                            isActive
-                              ? 'bg-primary text-primary-foreground'
-                              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                          }`}
-                        >
-                          <Icon className="h-5 w-5" />
-                          {item.name}
-                        </Link>
-                      );
-                    })}
-                    <div className="border-t pt-4">
+                    <div>
                       <div className="px-3 py-2 text-sm text-muted-foreground">
                         {user?.email}
                       </div>
