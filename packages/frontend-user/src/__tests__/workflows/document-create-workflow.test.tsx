@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import NewDocumentPage from '@/app/documents/new/page';
@@ -151,5 +151,25 @@ describe('document creation workflow', () => {
 
     expect(await screen.findByText('qwen/qwen3.5-397b-a17b')).toBeInTheDocument();
     expect(screen.queryByText('qwen/qwen-plus-2025-07-28')).not.toBeInTheDocument();
+  });
+
+  it('allows the time-limit minutes field to be cleared while editing', async () => {
+    const user = userEvent.setup();
+
+    render(<NewDocumentPage />);
+
+    await screen.findByRole('heading', { name: /new document/i });
+    await user.click(screen.getByRole('combobox'));
+    await user.click(await screen.findByRole('option', { name: 'Custom' }));
+    await user.click(screen.getByRole('combobox', { name: /time policy/i }));
+    await user.click(await screen.findByRole('option', { name: 'Time limited' }));
+
+    const timeLimitInput = await screen.findByLabelText(/time limit \(minutes\)/i);
+    await user.clear(timeLimitInput);
+
+    expect(timeLimitInput).toHaveDisplayValue('');
+
+    fireEvent.blur(timeLimitInput);
+    expect(timeLimitInput).toHaveValue(1);
   });
 });

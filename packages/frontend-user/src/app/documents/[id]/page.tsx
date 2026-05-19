@@ -20,7 +20,7 @@ import { AIAssistantButton, AIAssistantPanel, AISelectionMenu, type ActionType }
 import { useAI } from '@/hooks/use-ai';
 import { useAIStore } from '@/stores/ai-store';
 import type { TrackedEvent } from '@humanly/editor';
-import { useState, useEffect, useCallback, useRef, type ChangeEvent } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, type ChangeEvent } from 'react';
 import dynamic from 'next/dynamic';
 import { apiClient, TokenManager } from '@/lib/api-client';
 import { formatDateTime } from '@/lib/utils';
@@ -71,6 +71,19 @@ const API_URL =
   (process.env.NODE_ENV === 'production' ? '/api/v1' : 'http://localhost:3001/api/v1');
 const SUBMISSION_SESSION_START_DELAY_MS = 250;
 const EDITOR_AUTO_SAVE_INTERVAL_MS = 1500;
+
+function formatTimerDuration(totalSeconds: number): string {
+  const safeSeconds = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const seconds = safeSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
 
 interface EditorAIBridgeCaptureProps {
   insertAtCursor: EditorAIBridgeAPI['insertAtCursor'];
@@ -135,6 +148,28 @@ export default function DocumentEditorPage() {
 
   // Store document metrics for the editor UI. AI full-document retrieval happens server-side.
   const [wordCount, setWordCount] = useState<number>(0);
+  const [timerStartedAtMs, setTimerStartedAtMs] = useState(() => Date.now());
+  const [timerNowMs, setTimerNowMs] = useState(() => Date.now());
+
+  const currentEnvironmentConfig = useMemo(() => ({
+    ...DEFAULT_WRITING_ENVIRONMENT_CONFIG,
+    ...(taskEnrollment?.environmentConfig || {}),
+    ...(document?.environmentConfig || {}),
+    copyPastePolicy: normalizeCopyPastePolicy(
+      document?.environmentConfig?.copyPastePolicy ||
+      taskEnrollment?.environmentConfig?.copyPastePolicy
+    ),
+  }), [document?.environmentConfig, taskEnrollment?.environmentConfig]);
+
+  const activeTimeLimitSeconds =
+    currentEnvironmentConfig.aiUsageLimit.mode === 'time_restricted' &&
+    currentEnvironmentConfig.time.timeLimitSeconds
+      ? Math.max(1, Math.floor(currentEnvironmentConfig.time.timeLimitSeconds))
+      : null;
+
+  const timeLimitRemainingSeconds = activeTimeLimitSeconds === null
+    ? null
+    : Math.max(0, activeTimeLimitSeconds - Math.floor((timerNowMs - timerStartedAtMs) / 1000));
 
   const calculateWordCount = useCallback((text: string): number => {
     if (!text || typeof text !== 'string') return 0;
@@ -148,6 +183,17 @@ export default function DocumentEditorPage() {
       setWordCount(document.wordCount || 0);
     }
   }, [document]);
+
+  useEffect(() => {
+    setTimerStartedAtMs(Date.now());
+    setTimerNowMs(Date.now());
+  }, [documentId, activeTimeLimitSeconds]);
+
+  useEffect(() => {
+    if (!activeTimeLimitSeconds) return;
+    const interval = window.setInterval(() => setTimerNowMs(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [activeTimeLimitSeconds]);
 
   useEffect(() => {
     const quickActionByKey: Record<string, ActionType> = {
@@ -588,15 +634,6 @@ export default function DocumentEditorPage() {
     taskInstructionFiles.find((file) => file.id === selectedInstructionFileId) ||
     taskInstructionFile;
   const displayFile = selectedInstructionFile || linkedFile;
-  const currentEnvironmentConfig = {
-    ...DEFAULT_WRITING_ENVIRONMENT_CONFIG,
-    ...(taskEnrollment?.environmentConfig || {}),
-    ...(document.environmentConfig || {}),
-    copyPastePolicy: normalizeCopyPastePolicy(
-      document.environmentConfig?.copyPastePolicy ||
-      taskEnrollment?.environmentConfig?.copyPastePolicy
-    ),
-  };
   const aiEnabled = currentEnvironmentConfig.aiAccess !== 'off';
   const lockedTaskModel = taskEnrollment
     ? currentEnvironmentConfig.allowedModels?.[0] || 'Task model'
@@ -709,6 +746,22 @@ export default function DocumentEditorPage() {
                 <Badge variant="secondary" className="flex items-center gap-1">
                   <Clock className="h-3 w-3 animate-spin" />
                   <span className="hidden sm:inline">Saving...</span>
+                </Badge>
+              )}
+
+              {timeLimitRemainingSeconds !== null && (
+                <Badge
+                  variant={timeLimitRemainingSeconds === 0 ? 'destructive' : 'outline'}
+                  className="flex items-center gap-1"
+                  title={`Time limit: ${formatTimerDuration(activeTimeLimitSeconds || 0)}`}
+                >
+                  <Clock className="h-3 w-3" />
+                  <span className="hidden sm:inline">
+                    {timeLimitRemainingSeconds === 0
+                      ? 'Time limit reached'
+                      : `${formatTimerDuration(timeLimitRemainingSeconds)} left`}
+                  </span>
+                  <span className="sm:hidden">{formatTimerDuration(timeLimitRemainingSeconds)}</span>
                 </Badge>
               )}
 

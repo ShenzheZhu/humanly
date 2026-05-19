@@ -100,6 +100,16 @@ const isPositiveNumber = (value: unknown): value is number => (
   typeof value === 'number' && Number.isFinite(value) && value > 0
 );
 
+const getTimeLimitMinutesValue = (seconds?: number): string => (
+  String(Math.max(1, Math.round((seconds || 3600) / 60)))
+);
+
+const parseTimeLimitMinutes = (value: string, fallback = 1): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return Math.max(1, Math.round(parsed));
+};
+
 const normalizeStringArray = (value: unknown, fallback: string[] = []) => (
   Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
@@ -208,6 +218,7 @@ export default function NewDocumentPage() {
   const [isTestingAiConnection, setIsTestingAiConnection] = useState(false);
   const [aiConnectionResult, setAiConnectionResult] = useState<AiConnectionResult | null>(null);
   const [testedAiModels, setTestedAiModels] = useState<string[]>([]);
+  const [timeLimitMinutesInput, setTimeLimitMinutesInput] = useState('60');
 
   useEffect(() => {
     let cancelled = false;
@@ -268,6 +279,13 @@ export default function NewDocumentPage() {
   }, [aiBaseUrl, aiModel, testedAiModels]);
 
   const selectedAiModel = aiModel === CUSTOM_MODEL_VALUE ? customAiModel.trim() : aiModel.trim();
+  const timeMode = environmentConfig.aiUsageLimit.mode === 'time_restricted' ? 'time_restricted' : 'unlimited';
+
+  useEffect(() => {
+    if (timeMode === 'time_restricted') {
+      setTimeLimitMinutesInput(getTimeLimitMinutesValue(environmentConfig.time.timeLimitSeconds));
+    }
+  }, [timeMode, environmentConfig.time.timeLimitSeconds]);
 
   const markCustom = (updater: (current: WritingEnvironmentConfig) => WritingEnvironmentConfig) => {
     setEnvironmentSelection('custom');
@@ -501,6 +519,17 @@ export default function NewDocumentPage() {
         },
       };
 
+      if (configToCreate.aiUsageLimit.mode === 'time_restricted') {
+        const minutes = parseTimeLimitMinutes(timeLimitMinutesInput, 1);
+        configToCreate = {
+          ...configToCreate,
+          time: {
+            ...configToCreate.time,
+            timeLimitSeconds: minutes * 60,
+          },
+        };
+      }
+
       if (environmentConfig.aiAccess !== 'off') {
         if (!aiApiKey.trim() && !hasExistingAiKey) {
           toast({
@@ -575,6 +604,7 @@ export default function NewDocumentPage() {
     description,
     pdfFile,
     environmentConfig,
+    timeLimitMinutesInput,
     aiApiKey,
     aiBaseUrl,
     aiModel,
@@ -585,7 +615,6 @@ export default function NewDocumentPage() {
     router,
   ]);
 
-  const timeMode = environmentConfig.aiUsageLimit.mode === 'time_restricted' ? 'time_restricted' : 'unlimited';
   const showDetailedEnvironmentControls = environmentSelection !== 'default_writing';
 
   return (
@@ -995,9 +1024,12 @@ export default function NewDocumentPage() {
                               : undefined,
                           },
                         }));
+                        if (value === 'time_restricted') {
+                          setTimeLimitMinutesInput(getTimeLimitMinutesValue(environmentConfig.time.timeLimitSeconds));
+                        }
                       }}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger aria-label="Time policy">
                         <SelectValue placeholder="Time policy" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1009,14 +1041,29 @@ export default function NewDocumentPage() {
 
                   {timeMode === 'time_restricted' && (
                     <div className="grid gap-2">
-                      <Label>Time Limit (minutes)</Label>
+                      <Label htmlFor="time-limit-minutes">Time Limit (minutes)</Label>
                       <Input
+                        id="time-limit-minutes"
                         type="number"
                         min={1}
-                        value={Math.round((environmentConfig.time.timeLimitSeconds || 3600) / 60)}
+                        value={timeLimitMinutesInput}
                         disabled={isCreating}
                         onChange={(event) => {
-                          const minutes = Number(event.target.value) || 1;
+                          const nextValue = event.target.value;
+                          setTimeLimitMinutesInput(nextValue);
+                          if (!nextValue) return;
+                          const minutes = parseTimeLimitMinutes(nextValue, 1);
+                          markCustom((current) => ({
+                            ...current,
+                            time: {
+                              ...current.time,
+                              timeLimitSeconds: minutes * 60,
+                            },
+                          }));
+                        }}
+                        onBlur={() => {
+                          const minutes = parseTimeLimitMinutes(timeLimitMinutesInput, 1);
+                          setTimeLimitMinutesInput(String(minutes));
                           markCustom((current) => ({
                             ...current,
                             time: {
