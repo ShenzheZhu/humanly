@@ -6,6 +6,7 @@ const mockPush = jest.fn();
 const mockReplace = jest.fn();
 const mockApiGet = jest.fn();
 const mockClipboardWriteText = jest.fn();
+const mockDownloadBlob = jest.fn();
 let mockSearchParams = new URLSearchParams();
 
 jest.mock('next/navigation', () => ({
@@ -24,11 +25,18 @@ jest.mock('@/lib/api-client', () => ({
   default: {
     get: (...args: any[]) => mockApiGet(...args),
   },
+  api: {
+    get: (...args: any[]) => mockApiGet(...args),
+  },
   ApiError: class ApiError extends Error {
     constructor(message: string, public statusCode?: number) {
       super(message);
     }
   },
+}));
+
+jest.mock('@/lib/download', () => ({
+  downloadBlob: (...args: any[]) => mockDownloadBlob(...args),
 }));
 
 const taskFixture = {
@@ -44,7 +52,41 @@ const taskFixture = {
   aiUsageLimit: 100,
   startDate: new Date('2026-05-01T12:00:00.000Z'),
   endDate: new Date('2026-05-02T12:00:00.000Z'),
-  environmentConfig: null,
+  environmentConfig: {
+    taskType: 'admin_assigned',
+    preset: 'custom',
+    description: undefined,
+    aiAccess: 'full',
+    allowedModels: ['moonshotai/Kimi-K2.6'],
+    customModels: [],
+    instructions: {
+      hasInstructionPdf: false,
+      editableAfterSubmission: true,
+    },
+    aiUsageLimit: {
+      mode: 'max_requests',
+      maxRequests: 100,
+    },
+    aiTokenBudget: {
+      shortcutMaxTokens: 1024,
+      chatMaxTokens: 4096,
+    },
+    time: {
+      startTime: '2026-05-01T12:00:00.000Z',
+      endTime: '2026-05-02T12:00:00.000Z',
+      lateSubmission: 'not_allowed',
+    },
+    submission: {
+      mode: 'multiple',
+    },
+    traceability: {
+      trackAiUsage: true,
+      trackTyping: true,
+      trackCopyPaste: true,
+      trackFocusBlur: true,
+    },
+    copyPastePolicy: 'allowed',
+  },
   isActive: true,
   enrolledUserCount: 2,
   createdAt: new Date('2026-05-01T11:00:00.000Z'),
@@ -116,6 +158,14 @@ const submissionsFixture = [
 
 function mockTaskOverviewResponses() {
   mockApiGet.mockImplementation((url: string) => {
+    if (url === '/api/v1/ai/settings') {
+      return Promise.resolve({ success: true, data: null });
+    }
+
+    if (url.endsWith('/files')) {
+      return Promise.resolve({ success: true, data: [] });
+    }
+
     if (url.endsWith('/analytics/summary')) {
       return Promise.resolve({ success: true, data: statsFixture });
     }
@@ -132,12 +182,22 @@ function mockTaskOverviewResponses() {
   });
 }
 
+function readBlobAsText(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(blob);
+  });
+}
+
 describe('admin task overview invite code copy button', () => {
   beforeEach(() => {
     mockPush.mockClear();
     mockReplace.mockClear();
     mockApiGet.mockReset();
     mockClipboardWriteText.mockReset();
+    mockDownloadBlob.mockReset();
     mockSearchParams = new URLSearchParams();
     mockTaskOverviewResponses();
 
@@ -287,5 +347,63 @@ describe('admin task overview invite code copy button', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Analytics' }));
 
     expect(mockReplace).toHaveBeenCalledWith('/tasks/task-123?tab=analytics', { scroll: false });
+  });
+
+  it('exports the current setting form state as environment config JSON', async () => {
+    mockSearchParams = new URLSearchParams('tab=setting');
+
+    render(<TaskDetailPage />);
+
+    await screen.findByRole('heading', { name: 'Clipboard Task' });
+    expect(await screen.findByRole('heading', { name: 'Task Settings' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /export config/i })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/AI Usage Limit/i), {
+      target: { value: '17' },
+    });
+    fireEvent.change(screen.getByLabelText(/Task End Date/i), {
+      target: { value: '2026-05-20T09:30' },
+    });
+    fireEvent.change(screen.getByDisplayValue('Allowed'), {
+      target: { value: 'blocked' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /export config/i }));
+
+    await waitFor(() => {
+      expect(mockDownloadBlob).toHaveBeenCalledTimes(1);
+    });
+
+    const [blob, filename] = mockDownloadBlob.mock.calls[0] as [Blob, string];
+    const exportedConfig = JSON.parse(await readBlobAsText(blob));
+
+    expect(filename).toBe('Clipboard_Task-environment-config.json');
+    expect(exportedConfig).toEqual(expect.objectContaining({
+      taskType: 'admin_assigned',
+      aiAccess: 'full',
+      allowedModels: ['moonshotai/Kimi-K2.6'],
+      customModels: [],
+      copyPastePolicy: 'blocked',
+      aiUsageLimit: {
+        mode: 'max_requests',
+        maxRequests: 17,
+      },
+    }));
+    expect(exportedConfig.time).toEqual(expect.objectContaining({
+      startTime: taskFixture.environmentConfig.time.startTime,
+      endTime: new Date(2026, 4, 20, 9, 30).toISOString(),
+      lateSubmission: 'not_allowed',
+    }));
+    expect(exportedConfig.traceability).toEqual(expect.objectContaining({
+      trackAiUsage: true,
+      trackCopyPaste: false,
+    }));
+
+    const serializedConfig = JSON.stringify(exportedConfig);
+    expect(serializedConfig).not.toContain('taskToken');
+    expect(serializedConfig).not.toContain('9b0f63d3');
+    expect(serializedConfig).not.toContain('apiKey');
+    expect(serializedConfig).not.toContain('sk-');
+    expect(serializedConfig).not.toContain('task_instruction_pdf');
   });
 });
