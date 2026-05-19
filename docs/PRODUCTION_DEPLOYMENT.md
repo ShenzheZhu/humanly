@@ -244,47 +244,6 @@ Add these repository secrets:
 The VM still uses its production `.env` file for backend runtime configuration,
 including database, Redis, JWT, email, CORS, and other server-side values.
 
-## Production Email
-
-Password reset and account verification require a real transactional email
-provider in production. Humanly uses SendGrid as the default production path
-because the backend already supports SendGrid through SMTP and Google Cloud
-Compute Engine recommends third-party providers such as SendGrid, Mailgun, or
-Mailjet for VM email delivery.
-
-Configure these values in the production VM `.env` file:
-
-```bash
-EMAIL_SERVICE=sendgrid
-EMAIL_API_KEY=SENDGRID_API_KEY_VALUE
-EMAIL_FROM="Humanly <no-reply@writehumanly.net>"
-FRONTEND_USER_URL=https://app.writehumanly.net
-```
-
-Before deploying, verify the sender or domain in SendGrid. Prefer a domain
-sender such as `writehumanly.net` with SPF/DKIM records configured, rather than
-a personal mailbox.
-
-`EMAIL_SERVICE=console` is allowed only for local development and tests. In
-production, the backend fails fast if console mode is configured, or if
-SendGrid is selected without `EMAIL_API_KEY`. This prevents the UI from showing
-password-reset success while the backend only logs the email instead of sending
-it.
-
-Manual production check from the VM:
-
-```bash
-cd /home/humanly/humanly
-
-docker compose -f docker-compose.prod.yml exec backend printenv | \
-  grep -E '^EMAIL_SERVICE=|^EMAIL_FROM=|^FRONTEND_USER_URL='
-
-docker compose -f docker-compose.prod.yml logs --tail=200 backend | \
-  grep -Ei 'email service|password reset|failed to send email'
-```
-
-Do not print or paste `EMAIL_API_KEY` into issue comments, PRs, or chat logs.
-
 ## Database Migrations
 
 Production deploys run `scripts/run-migrations.sh` before restarting the

@@ -3,42 +3,6 @@ import { getBrandText } from '@humanly/shared';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 
-export interface EmailRuntimeConfig {
-  nodeEnv: string;
-  emailService: 'console' | 'sendgrid' | 'ses' | 'smtp';
-  emailApiKey?: string;
-  emailFrom?: string;
-  emailHost?: string;
-}
-
-export function validateEmailServiceConfig(config: EmailRuntimeConfig): void {
-  if (config.nodeEnv !== 'production') {
-    return;
-  }
-
-  if (!config.emailFrom) {
-    throw new Error('EMAIL_FROM is required in production');
-  }
-
-  if (config.emailService === 'console') {
-    throw new Error(
-      'EMAIL_SERVICE=console is not allowed in production. Configure EMAIL_SERVICE=sendgrid or EMAIL_SERVICE=smtp.'
-    );
-  }
-
-  if (config.emailService === 'sendgrid' && !config.emailApiKey) {
-    throw new Error('EMAIL_API_KEY is required when EMAIL_SERVICE=sendgrid in production');
-  }
-
-  if (config.emailService === 'smtp' && !config.emailHost) {
-    throw new Error('EMAIL_HOST is required when EMAIL_SERVICE=smtp in production');
-  }
-
-  if (config.emailService === 'ses') {
-    throw new Error('EMAIL_SERVICE=ses is not implemented for production');
-  }
-}
-
 class EmailService {
   private transporter: Transporter | null = null;
 
@@ -47,8 +11,6 @@ class EmailService {
   }
 
   private initialize(): void {
-    validateEmailServiceConfig(env);
-
     logger.info('Initializing email service', {
       emailService: env.emailService,
       emailHost: env.emailHost,
@@ -78,7 +40,6 @@ class EmailService {
         },
       });
     } else if (env.emailService === 'sendgrid' && env.emailApiKey) {
-      logger.info('Email service: Using SendGrid SMTP mode');
       // SendGrid configuration
       this.transporter = nodemailer.createTransport({
         host: 'smtp.sendgrid.net',
