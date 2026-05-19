@@ -10,6 +10,7 @@ const mockTrackEvents = jest.fn();
 const mockApiGet = jest.fn();
 const mockApiPost = jest.fn();
 const mockUpdateDocument = jest.fn();
+let mockDocumentEnvironmentConfig: any = { aiAccess: 'off', copyPastePolicy: 'allowed' };
 let mockLatestEditorProps: any;
 
 jest.mock('next/navigation', () => ({
@@ -39,7 +40,7 @@ jest.mock('@/hooks/use-document', () => ({
       status: 'draft',
       wordCount: 0,
       characterCount: 0,
-      environmentConfig: { aiAccess: 'off', copyPastePolicy: 'allowed' },
+      environmentConfig: mockDocumentEnvironmentConfig,
     },
     linkedFile: null,
     isLoading: false,
@@ -136,6 +137,7 @@ describe('editor and logs workflows', () => {
     mockTrackEvents.mockClear();
     mockUpdateDocument.mockReset();
     mockUpdateDocument.mockResolvedValue(undefined);
+    mockDocumentEnvironmentConfig = { aiAccess: 'off', copyPastePolicy: 'allowed' };
     mockLatestEditorProps = undefined;
     mockApiGet.mockReset();
     mockApiPost.mockReset();
@@ -203,6 +205,23 @@ describe('editor and logs workflows', () => {
         'Short autosave QA text'
       );
     });
+  });
+
+  it('shows a configured writing time limit in the editor header', async () => {
+    mockDocumentEnvironmentConfig = {
+      aiAccess: 'off',
+      copyPastePolicy: 'allowed',
+      aiUsageLimit: { mode: 'time_restricted' },
+      time: {
+        lateSubmission: 'allowed',
+        timeLimitSeconds: 60,
+      },
+    };
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    expect(screen.getByTitle('Time limit: 1:00')).toBeInTheDocument();
   });
 
   it('shows persisted document event count in the logs view', async () => {
