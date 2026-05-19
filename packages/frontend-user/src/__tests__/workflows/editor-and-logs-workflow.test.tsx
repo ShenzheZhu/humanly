@@ -235,7 +235,29 @@ describe('editor and logs workflows', () => {
     render(<DocumentEditorPage />);
 
     expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
-    expect(screen.getByTitle('Time limit: 1:00')).toBeInTheDocument();
+    expect(screen.getByText('Writing time left')).toBeInTheDocument();
+    expect(screen.getByTitle('Writing time limit: 1:00')).toBeInTheDocument();
+  });
+
+  it('shows an enrolled task deadline countdown in the editor header', async () => {
+    mockTaskEnrollments = [{
+      id: 'enroll-1',
+      documentId: 'doc-1',
+      name: 'Timed Task',
+      inviteCode: 'ABC123',
+      joinedAt: '2026-05-19T12:00:00.000Z',
+      endDate: '2099-01-01T00:00:00.000Z',
+      environmentConfig: {
+        aiAccess: 'off',
+        copyPastePolicy: 'allowed',
+      },
+    }];
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    expect(screen.getByText('Task deadline in')).toBeInTheDocument();
+    expect(screen.getByTitle(/Task deadline:/)).toBeInTheDocument();
   });
 
   it('blocks enrolled task submission below the configured minimum character count', async () => {

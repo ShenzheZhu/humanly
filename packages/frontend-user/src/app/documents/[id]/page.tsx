@@ -85,6 +85,26 @@ function formatTimerDuration(totalSeconds: number): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
+function formatCountdownDuration(totalSeconds: number): string {
+  const safeSeconds = Math.max(0, Math.floor(totalSeconds));
+  const days = Math.floor(safeSeconds / 86400);
+  const hours = Math.floor((safeSeconds % 86400) / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const seconds = safeSeconds % 60;
+
+  if (days > 0) {
+    return `${days}d ${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  return formatTimerDuration(safeSeconds);
+}
+
+const getTimestampMs = (value?: string): number | null => {
+  if (!value) return null;
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+};
+
 interface EditorAIBridgeCaptureProps {
   insertAtCursor: EditorAIBridgeAPI['insertAtCursor'];
   onInsertAtCursorChange: (insertAtCursor: EditorAIBridgeAPI['insertAtCursor'] | null) => void;
@@ -202,6 +222,25 @@ export default function DocumentEditorPage() {
   const timeLimitRemainingSeconds = activeTimeLimitSeconds === null
     ? null
     : Math.max(0, activeTimeLimitSeconds - Math.floor((timerNowMs - timerStartedAtMs) / 1000));
+  const taskDeadlineMs = taskEnrollment ? getTimestampMs(taskEnrollment.endDate) : null;
+  const taskDeadlineRemainingSeconds = taskDeadlineMs === null
+    ? null
+    : Math.max(0, Math.floor((taskDeadlineMs - timerNowMs) / 1000));
+  const visibleCountdown = timeLimitRemainingSeconds !== null
+    ? {
+        label: timeLimitRemainingSeconds === 0 ? 'Writing time limit reached' : 'Writing time left',
+        value: formatCountdownDuration(timeLimitRemainingSeconds),
+        variant: timeLimitRemainingSeconds === 0 ? 'destructive' as const : 'outline' as const,
+        title: `Writing time limit: ${formatCountdownDuration(activeTimeLimitSeconds || 0)}`,
+      }
+    : taskDeadlineRemainingSeconds !== null
+      ? {
+          label: taskDeadlineRemainingSeconds === 0 ? 'Task deadline reached' : 'Task deadline in',
+          value: formatCountdownDuration(taskDeadlineRemainingSeconds),
+          variant: taskDeadlineRemainingSeconds === 0 ? 'destructive' as const : 'outline' as const,
+          title: taskEnrollment?.endDate ? `Task deadline: ${formatDateTime(taskEnrollment.endDate)}` : 'Task deadline',
+        }
+      : null;
   const minimumSubmissionCharacters =
     taskEnrollment && currentEnvironmentConfig.submission.minCharacters
       ? Math.max(1, Math.floor(currentEnvironmentConfig.submission.minCharacters))
@@ -233,10 +272,10 @@ export default function DocumentEditorPage() {
   }, [documentId, activeTimeLimitSeconds]);
 
   useEffect(() => {
-    if (!activeTimeLimitSeconds) return;
+    if (!activeTimeLimitSeconds && taskDeadlineMs === null) return;
     const interval = window.setInterval(() => setTimerNowMs(Date.now()), 1000);
     return () => window.clearInterval(interval);
-  }, [activeTimeLimitSeconds]);
+  }, [activeTimeLimitSeconds, taskDeadlineMs]);
 
   useEffect(() => {
     const quickActionByKey: Record<string, ActionType> = {
@@ -761,6 +800,17 @@ export default function DocumentEditorPage() {
                     )}
                   </div>
                 )}
+                {visibleCountdown && (
+                  <Badge
+                    variant={visibleCountdown.variant}
+                    className="mt-2 inline-flex max-w-full items-center gap-1.5"
+                    title={visibleCountdown.title}
+                  >
+                    <Clock className="h-3.5 w-3.5 shrink-0" />
+                    <span>{visibleCountdown.label}</span>
+                    <span className="font-mono font-semibold">{visibleCountdown.value}</span>
+                  </Badge>
+                )}
               </div>
             </div>
 
@@ -807,22 +857,6 @@ export default function DocumentEditorPage() {
                 <Badge variant="secondary" className="flex items-center gap-1">
                   <Clock className="h-3 w-3 animate-spin" />
                   <span className="hidden sm:inline">Saving...</span>
-                </Badge>
-              )}
-
-              {timeLimitRemainingSeconds !== null && (
-                <Badge
-                  variant={timeLimitRemainingSeconds === 0 ? 'destructive' : 'outline'}
-                  className="flex items-center gap-1"
-                  title={`Time limit: ${formatTimerDuration(activeTimeLimitSeconds || 0)}`}
-                >
-                  <Clock className="h-3 w-3" />
-                  <span className="hidden sm:inline">
-                    {timeLimitRemainingSeconds === 0
-                      ? 'Time limit reached'
-                      : `${formatTimerDuration(timeLimitRemainingSeconds)} left`}
-                  </span>
-                  <span className="sm:hidden">{formatTimerDuration(timeLimitRemainingSeconds)}</span>
                 </Badge>
               )}
 
