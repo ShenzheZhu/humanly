@@ -1,12 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
   CheckCircle,
+  ChevronDown,
   Download,
   FileText,
   Key,
@@ -35,6 +36,7 @@ import { api } from '@/lib/api-client';
 import { getWhitelist } from '@/lib/ai-models';
 import { downloadBlob } from '@/lib/download';
 import {
+  cn,
   getLocalTimeZoneLabel,
   localDateTimeInputToISOString,
   toLocalDateTimeInputValue,
@@ -45,7 +47,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -67,6 +68,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { RadioGroup } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -119,6 +121,69 @@ type AiConnectionResult = {
   success: boolean;
   message: string;
 };
+
+type SegmentedOption = {
+  value: string;
+  label: string;
+};
+
+function SegmentedControl({
+  ariaLabel,
+  disabled,
+  onValueChange,
+  options,
+  value,
+}: {
+  ariaLabel: string;
+  disabled?: boolean;
+  onValueChange: (value: string) => void;
+  options: SegmentedOption[];
+  value: string;
+}) {
+  return (
+    <RadioGroup
+      aria-label={ariaLabel}
+      className="inline-flex rounded-md border border-input bg-muted/30 p-0.5"
+      value={value}
+      onValueChange={onValueChange}
+    >
+      {options.map((option) => {
+        const selected = value === option.value;
+
+        return (
+          <button
+            key={option.value}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            disabled={disabled}
+            className={cn(
+              'h-8 min-w-16 rounded-[5px] px-3 text-sm font-medium transition-colors',
+              selected
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground',
+              disabled && 'cursor-not-allowed opacity-50'
+            )}
+            onClick={() => onValueChange(option.value)}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </RadioGroup>
+  );
+}
+
+function SettingRow({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <FormLabel className="text-sm font-medium">{label}</FormLabel>
+      <div className="sm:flex sm:min-w-[220px] sm:justify-end">
+        {children}
+      </div>
+    </div>
+  );
+}
 
 type TaskInstructionFile = {
   id: string;
@@ -202,6 +267,8 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
   const [aiConnectionResult, setAiConnectionResult] = useState<AiConnectionResult | null>(null);
   const [testedAiModels, setTestedAiModels] = useState<string[]>([]);
   const [timeLimitEnabled, setTimeLimitEnabled] = useState(false);
+  const [advancedAiSettingsOpen, setAdvancedAiSettingsOpen] = useState(false);
+  const [advancedAiSettingsTouched, setAdvancedAiSettingsTouched] = useState(false);
 
   const form = useForm<TaskSettingsFormData>({
     resolver: zodResolver(taskSettingsSchema),
@@ -232,6 +299,12 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
       ? [aiModel, ...options]
       : options;
   }, [aiBaseUrl, aiModel, testedAiModels]);
+
+  useEffect(() => {
+    if (advancedAiSettingsTouched) return;
+
+    setAdvancedAiSettingsOpen(aiAccess !== 'off' && !hasExistingAiKey);
+  }, [advancedAiSettingsTouched, aiAccess, hasExistingAiKey]);
 
   const fetchInstructionFiles = useCallback(async () => {
     const response = await api.get<{
@@ -425,6 +498,8 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
 
   const handleTestAiConnection = async () => {
     if (!aiApiKey.trim() && !hasExistingAiKey) {
+      setAdvancedAiSettingsTouched(true);
+      setAdvancedAiSettingsOpen(true);
       setAiConnectionResult({
         success: false,
         message: 'Enter an AI API key before testing the connection.',
@@ -460,6 +535,8 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
         }
       }
     } catch (err: any) {
+      setAdvancedAiSettingsTouched(true);
+      setAdvancedAiSettingsOpen(true);
       setAiConnectionResult({
         success: false,
         message: err.message || 'Connection test failed.',
@@ -585,6 +662,8 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
 
       if (aiAccess !== 'off') {
         if (!aiApiKey.trim() && !hasExistingAiKey) {
+          setAdvancedAiSettingsTouched(true);
+          setAdvancedAiSettingsOpen(true);
           throw new Error('Enter an AI API key before saving an AI-enabled task.');
         }
 
@@ -736,14 +815,13 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
     return null;
   }
 
+  const isSubmitting = isSaving || isUploadingFiles;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">Task Settings</h2>
-          <p className="mt-2 text-muted-foreground">
-            Inspect and edit the same configuration used when this task was created.
-          </p>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={handleExportConfig}>
           <Download className="mr-2 h-4 w-4" />
@@ -751,22 +829,19 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Writing Task Configuration</CardTitle>
-          <CardDescription>
-            Changes here update the task config imported by future enrolled documents.
-          </CardDescription>
-        </CardHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
-            <CardContent className="space-y-6">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pb-24">
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
+          <Card>
+            <CardHeader>
+              <CardTitle>Task Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
               <FormField
                 control={form.control}
                 name="name"
@@ -883,49 +958,55 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                   </div>
                 )}
               </div>
+            </CardContent>
+          </Card>
 
-              <div className="space-y-4 rounded-md border p-4">
-                <div>
-                  <h3 className="font-semibold">AI Access</h3>
-                  <p className="text-sm text-muted-foreground">
-                    The same AI access setting from task creation. API keys are saved to the admin AI settings, not task JSON.
-                  </p>
-                </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>AI</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <SettingRow label="Access">
+                <SegmentedControl
+                  ariaLabel="AI"
+                  value={aiAccess}
+                  disabled={isSaving}
+                  options={[
+                    { value: 'off', label: 'Off' },
+                    { value: 'full', label: 'On' },
+                  ]}
+                  onValueChange={(value) => setAiAccess(value as WritingAiAccess)}
+                />
+              </SettingRow>
 
-                <div className="space-y-2">
-                  <FormLabel>AI</FormLabel>
-                  <select
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={aiAccess}
-                    disabled={isSaving}
-                    onChange={(event) => setAiAccess(event.target.value as WritingAiAccess)}
-                  >
-                    <option value="off">Off</option>
-                    <option value="full">On</option>
-                  </select>
-                </div>
-
-                {aiAccess !== 'off' && (
-                  <div className="space-y-4 rounded-md border bg-muted/30 p-3">
+              {aiAccess !== 'off' && (
+                <div className="space-y-5 border-t pt-5">
+                  <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
                     <div className="space-y-2">
-                      <FormLabel htmlFor="ai-api-key">AI API Key</FormLabel>
-                      <Input
-                        id="ai-api-key"
-                        type="password"
-                        value={aiApiKey}
+                      <FormLabel>Model</FormLabel>
+                      <select
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        value={aiModel}
                         disabled={isSaving}
                         onChange={(event) => {
-                          setAiApiKey(event.target.value);
-                          setAiConnectionResult(null);
-                          setTestedAiModels([]);
+                          const value = event.target.value;
+                          setAiModel(value);
+                          if (value !== CUSTOM_MODEL_VALUE) {
+                            setCustomAiModel('');
+                            setEnvironmentAiModel(value);
+                          } else {
+                            setEnvironmentAiModel(customAiModel.trim(), true);
+                          }
                         }}
-                        placeholder={hasExistingAiKey ? `Current: ${maskedAiKey || 'saved key'}` : 'Enter API key'}
-                      />
-                      {hasExistingAiKey && !aiApiKey && (
-                        <p className="text-xs text-muted-foreground">
-                          Leave empty to use the saved key.
-                        </p>
-                      )}
+                      >
+                        <option value="">Select model</option>
+                        {aiModelOptions.map((model) => (
+                          <option key={model} value={model}>
+                            {model}
+                          </option>
+                        ))}
+                        <option value={CUSTOM_MODEL_VALUE}>Custom model</option>
+                      </select>
                     </div>
 
                     <Button
@@ -943,185 +1024,212 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                         'Test Connection'
                       )}
                     </Button>
+                  </div>
 
-                    {aiConnectionResult && (
-                      <div className="flex items-start gap-2 text-xs">
-                        {aiConnectionResult.success ? (
-                          <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                        ) : (
-                          <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                        )}
-                        <p className={aiConnectionResult.success ? 'text-emerald-700' : 'text-destructive'}>
-                          {aiConnectionResult.message}
-                        </p>
-                      </div>
-                    )}
+                  {aiModel === CUSTOM_MODEL_VALUE && (
+                    <div className="space-y-2">
+                      <FormLabel htmlFor="custom-ai-model">Custom Model</FormLabel>
+                      <Input
+                        id="custom-ai-model"
+                        value={customAiModel}
+                        disabled={isSaving}
+                        onChange={(event) => {
+                          setCustomAiModel(event.target.value);
+                          setEnvironmentAiModel(event.target.value.trim(), true);
+                        }}
+                        placeholder="provider/model-name"
+                      />
+                    </div>
+                  )}
 
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <FormLabel>Model</FormLabel>
-                        <select
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          value={aiModel}
-                          disabled={isSaving}
-                          onChange={(event) => {
-                            const value = event.target.value;
-                            setAiModel(value);
-                            if (value !== CUSTOM_MODEL_VALUE) {
-                              setCustomAiModel('');
-                              setEnvironmentAiModel(value);
-                            } else {
-                              setEnvironmentAiModel(customAiModel.trim(), true);
-                            }
-                          }}
-                        >
-                          <option value="">Select model</option>
-                          {aiModelOptions.map((model) => (
-                            <option key={model} value={model}>
-                              {model}
-                            </option>
-                          ))}
-                          <option value={CUSTOM_MODEL_VALUE}>Custom model</option>
-                        </select>
-                      </div>
+                  {aiConnectionResult && (
+                    <div className="flex items-start gap-2 text-xs">
+                      {aiConnectionResult.success ? (
+                        <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                      ) : (
+                        <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                      )}
+                      <p className={aiConnectionResult.success ? 'text-emerald-700' : 'text-destructive'}>
+                        {aiConnectionResult.message}
+                      </p>
+                    </div>
+                  )}
 
-                      <div className="space-y-2">
-                        <FormLabel htmlFor="ai-base-url">Base URL</FormLabel>
-                        <Input
-                          id="ai-base-url"
-                          value={aiBaseUrl}
-                          disabled={isSaving}
-                          onChange={(event) => {
-                            setAiBaseUrl(event.target.value);
-                            setAiConnectionResult(null);
-                            setTestedAiModels([]);
-                          }}
-                          placeholder={DEFAULT_AI_BASE_URL}
+                  <div className="rounded-md border">
+                    <div className="flex items-center justify-between gap-4 p-4">
+                      <h3 className="text-sm font-semibold">Advanced AI Settings</h3>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        aria-expanded={advancedAiSettingsOpen}
+                        onClick={() => {
+                          setAdvancedAiSettingsTouched(true);
+                          setAdvancedAiSettingsOpen((open) => !open);
+                        }}
+                      >
+                        {advancedAiSettingsOpen ? 'Hide' : 'Show'}
+                        <ChevronDown
+                          className={cn(
+                            'ml-2 h-4 w-4 transition-transform',
+                            advancedAiSettingsOpen && 'rotate-180'
+                          )}
                         />
-                      </div>
+                      </Button>
                     </div>
 
-                    {aiModel === CUSTOM_MODEL_VALUE && (
-                      <div className="space-y-2">
-                        <FormLabel htmlFor="custom-ai-model">Custom Model</FormLabel>
-                        <Input
-                          id="custom-ai-model"
-                          value={customAiModel}
-                          disabled={isSaving}
-                          onChange={(event) => {
-                            setCustomAiModel(event.target.value);
-                            setEnvironmentAiModel(event.target.value.trim(), true);
-                          }}
-                          placeholder="provider/model-name"
-                        />
+                    {advancedAiSettingsOpen && (
+                      <div className="space-y-4 border-t p-4">
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <FormLabel htmlFor="ai-api-key">AI API Key</FormLabel>
+                            <Input
+                              id="ai-api-key"
+                              type="password"
+                              value={aiApiKey}
+                              disabled={isSaving}
+                              onChange={(event) => {
+                                setAiApiKey(event.target.value);
+                                setAiConnectionResult(null);
+                                setTestedAiModels([]);
+                              }}
+                              placeholder={hasExistingAiKey ? `Current: ${maskedAiKey || 'saved key'}` : 'Enter API key'}
+                            />
+                            {hasExistingAiKey && !aiApiKey && (
+                              <p className="text-xs text-muted-foreground">
+                                Leave empty to use the saved key.
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="space-y-2">
+                            <FormLabel htmlFor="ai-base-url">Base URL</FormLabel>
+                            <Input
+                              id="ai-base-url"
+                              value={aiBaseUrl}
+                              disabled={isSaving}
+                              onChange={(event) => {
+                                setAiBaseUrl(event.target.value);
+                                setAiConnectionResult(null);
+                                setTestedAiModels([]);
+                              }}
+                              placeholder={DEFAULT_AI_BASE_URL}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <FormLabel htmlFor="ai-shortcut-max-tokens">Shortcut Tokens</FormLabel>
+                            <Input
+                              id="ai-shortcut-max-tokens"
+                              type="number"
+                              min={AI_MAX_TOKENS_MIN}
+                              max={AI_MAX_TOKENS_MAX}
+                              value={environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT}
+                              disabled={isSaving}
+                              onChange={(event) => setAiTokenBudget({
+                                shortcutMaxTokens: Number(event.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+                              })}
+                            />
+                            <FormDescription>Shortcut actions and fallback answers.</FormDescription>
+                          </div>
+
+                          <div className="space-y-2">
+                            <FormLabel htmlFor="ai-chat-max-tokens">Chat Tokens</FormLabel>
+                            <Input
+                              id="ai-chat-max-tokens"
+                              type="number"
+                              min={AI_MAX_TOKENS_MIN}
+                              max={AI_MAX_TOKENS_MAX}
+                              value={environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT}
+                              disabled={isSaving}
+                              onChange={(event) => setAiTokenBudget({
+                                chatMaxTokens: Number(event.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT,
+                              })}
+                            />
+                            <FormDescription>Chat and retrieval tool turns, per model call.</FormDescription>
+                          </div>
+                        </div>
                       </div>
                     )}
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <FormLabel htmlFor="ai-shortcut-max-tokens">Shortcut Tokens</FormLabel>
-                        <Input
-                          id="ai-shortcut-max-tokens"
-                          type="number"
-                          min={AI_MAX_TOKENS_MIN}
-                          max={AI_MAX_TOKENS_MAX}
-                          value={environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT}
-                          disabled={isSaving}
-                          onChange={(event) => setAiTokenBudget({
-                            shortcutMaxTokens: Number(event.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
-                          })}
-                        />
-                        <FormDescription>Shortcut actions and fallback answers.</FormDescription>
-                      </div>
-
-                      <div className="space-y-2">
-                        <FormLabel htmlFor="ai-chat-max-tokens">Chat Tokens</FormLabel>
-                        <Input
-                          id="ai-chat-max-tokens"
-                          type="number"
-                          min={AI_MAX_TOKENS_MIN}
-                          max={AI_MAX_TOKENS_MAX}
-                          value={environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT}
-                          disabled={isSaving}
-                          onChange={(event) => setAiTokenBudget({
-                            chatMaxTokens: Number(event.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT,
-                          })}
-                        />
-                        <FormDescription>Chat and retrieval tool turns, per model call.</FormDescription>
-                      </div>
-                    </div>
                   </div>
-                )}
-              </div>
-
-              <div className="space-y-4 rounded-md border p-4">
-                <div>
-                  <h3 className="font-semibold">Time</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Turn time on only when this task needs a start window and deadline.
-                  </p>
                 </div>
+              )}
+            </CardContent>
+          </Card>
 
-                <div className="space-y-2">
-                  <FormLabel>Time</FormLabel>
-                  <select
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={timeLimitEnabled ? 'on' : 'off'}
-                    disabled={isSaving}
-                    onChange={(event) => setTimeLimitEnabled(event.target.value === 'on')}
-                  >
-                    <option value="off">Off</option>
-                    <option value="on">On</option>
-                  </select>
+          <Card>
+            <CardHeader>
+              <CardTitle>Environment</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <SettingRow label="Time">
+                <SegmentedControl
+                  ariaLabel="Time"
+                  value={timeLimitEnabled ? 'on' : 'off'}
+                  disabled={isSaving}
+                  options={[
+                    { value: 'off', label: 'Off' },
+                    { value: 'on', label: 'On' },
+                  ]}
+                  onValueChange={(value) => setTimeLimitEnabled(value === 'on')}
+                />
+              </SettingRow>
+
+              {timeLimitEnabled && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="startDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Task Start Date</FormLabel>
+                        <FormControl>
+                          <Input type="datetime-local" {...field} disabled={isSaving} />
+                        </FormControl>
+                        <FormDescription>
+                          Users see this in their own timezone. Yours is {getLocalTimeZoneLabel()}.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="endDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Task End Date</FormLabel>
+                        <FormControl>
+                          <Input type="datetime-local" {...field} disabled={isSaving} />
+                        </FormControl>
+                        <FormDescription>
+                          Saved as one absolute deadline and localized for each user.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-
-                {timeLimitEnabled && (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <FormField
-                      control={form.control}
-                      name="startDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Task Start Date</FormLabel>
-                          <FormControl>
-                            <Input type="datetime-local" {...field} disabled={isSaving} />
-                          </FormControl>
-                          <FormDescription>
-                            Users see this in their own timezone. Yours is {getLocalTimeZoneLabel()}.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="endDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Task End Date</FormLabel>
-                          <FormControl>
-                            <Input type="datetime-local" {...field} disabled={isSaving} />
-                          </FormControl>
-                          <FormDescription>
-                            Saved as one absolute deadline and localized for each user.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                )}
-              </div>
+              )}
 
               <FormField
                 control={form.control}
                 name="aiUsageLimit"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>AI Usage Limit</FormLabel>
+                  <FormItem className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="space-y-1">
+                      <FormLabel>AI Usage Limit</FormLabel>
+                      <FormDescription>
+                        Maximum AI requests allowed per enrolled user for this task.
+                      </FormDescription>
+                      <FormMessage />
+                    </div>
                     <FormControl>
                       <Input
+                        className="sm:w-[220px]"
                         type="number"
                         min={1}
                         placeholder="100"
@@ -1129,48 +1237,50 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                         disabled={isSaving}
                       />
                     </FormControl>
-                    <FormDescription>
-                      Maximum AI requests allowed per enrolled user for this task.
-                    </FormDescription>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <div className="space-y-2">
-                <FormLabel>Copy-Paste Policy</FormLabel>
-                <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              <SettingRow label="Copy-Paste Policy">
+                <SegmentedControl
+                  ariaLabel="Copy-Paste Policy"
                   value={normalizeCopyPastePolicy(environmentConfig.copyPastePolicy)}
                   disabled={isSaving}
-                  onChange={(event) => updateEnvironment({
-                    copyPastePolicy: normalizeCopyPastePolicy(event.target.value),
+                  options={[
+                    { value: 'allowed', label: 'Allowed' },
+                    { value: 'blocked', label: 'Blocked' },
+                  ]}
+                  onValueChange={(value) => updateEnvironment({
+                    copyPastePolicy: normalizeCopyPastePolicy(value),
                   })}
-                >
-                  <option value="allowed">Allowed</option>
-                  <option value="blocked">Blocked</option>
-                </select>
-              </div>
+                />
+              </SettingRow>
             </CardContent>
-            <CardFooter className="flex justify-between">
+          </Card>
+
+          <div
+            data-testid="settings-sticky-actions"
+            className="sticky bottom-0 z-20 border-t bg-background/95 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+          >
+            <div className="flex justify-between gap-3">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => router.push(`/tasks/${taskId}`)}
-                disabled={isSaving || isUploadingFiles}
+                disabled={isSubmitting}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSaving || isUploadingFiles}>
-                {(isSaving || isUploadingFiles) && (
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                {isSaving || isUploadingFiles ? 'Saving...' : 'Save Settings'}
+                {isSubmitting ? 'Saving...' : 'Save Settings'}
               </Button>
-            </CardFooter>
-          </form>
-        </Form>
-      </Card>
+            </div>
+          </div>
+        </form>
+      </Form>
 
       <Card>
         <CardHeader>
