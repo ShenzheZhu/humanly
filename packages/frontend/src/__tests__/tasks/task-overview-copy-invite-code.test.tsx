@@ -261,6 +261,20 @@ describe('admin task overview invite code copy button', () => {
     expect(activeUserRow).not.toBeNull();
     expect(within(activeUserRow!).getByText('2')).toBeInTheDocument();
     expect(within(activeUserRow!).getByText('42')).toBeInTheDocument();
+    const adminLocalTimeFormatter = new Intl.DateTimeFormat(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+    expect(within(activeUserRow!).getByText(
+      adminLocalTimeFormatter.format(new Date('2026-05-01T12:00:00.000Z'))
+    )).toBeInTheDocument();
+    expect(within(activeUserRow!).getByText(
+      adminLocalTimeFormatter.format(new Date('2026-05-15T01:58:00.000Z'))
+    )).toBeInTheDocument();
+    expect(activeUserRow!).not.toHaveTextContent(/GMT|UTC/);
 
     fireEvent.click(activeUserRow!);
     expect(mockPush).not.toHaveBeenCalled();
