@@ -81,6 +81,7 @@ const taskFixture = {
     time: {
       startTime: '2026-05-01T12:00:00.000Z',
       endTime: '2026-05-02T12:00:00.000Z',
+      timeLimitSeconds: 30 * 60,
       lateSubmission: 'not_allowed',
     },
     submission: {
@@ -441,6 +442,10 @@ describe('admin task overview invite code copy button', () => {
     fireEvent.change(screen.getByLabelText(/Task End Date/i), {
       target: { value: '2026-05-20T09:30' },
     });
+    expect(screen.getByLabelText(/Time Limit \(minutes\)/i)).toHaveValue(30);
+    fireEvent.change(screen.getByLabelText(/Time Limit \(minutes\)/i), {
+      target: { value: '45' },
+    });
     fireEvent.click(screen.getByRole('radio', { name: 'Blocked' }));
 
     fireEvent.click(screen.getByRole('button', { name: /export config/i }));
@@ -467,6 +472,7 @@ describe('admin task overview invite code copy button', () => {
     expect(exportedConfig.time).toEqual(expect.objectContaining({
       startTime: taskFixture.environmentConfig.time.startTime,
       endTime: new Date(2026, 4, 20, 9, 30).toISOString(),
+      timeLimitSeconds: 45 * 60,
       lateSubmission: 'not_allowed',
     }));
     expect(exportedConfig.traceability).toEqual(expect.objectContaining({
@@ -520,6 +526,9 @@ describe('admin task overview invite code copy button', () => {
     fireEvent.change(screen.getByLabelText(/Task End Date/i), {
       target: { value: '2026-05-20T09:30' },
     });
+    fireEvent.change(screen.getByLabelText(/Time Limit \(minutes\)/i), {
+      target: { value: '20' },
+    });
     fireEvent.click(screen.getByRole('radio', { name: 'Blocked' }));
     fireEvent.click(screen.getByRole('button', { name: /save settings/i }));
 
@@ -546,6 +555,7 @@ describe('admin task overview invite code copy button', () => {
     expect(payload.environmentConfig.time).toEqual(expect.objectContaining({
       startTime: taskFixture.environmentConfig.time.startTime,
       endTime: new Date(2026, 4, 20, 9, 30).toISOString(),
+      timeLimitSeconds: 20 * 60,
       lateSubmission: 'not_allowed',
     }));
     expect(payload.environmentConfig.traceability).toEqual(expect.objectContaining({

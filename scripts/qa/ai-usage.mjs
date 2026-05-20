@@ -168,6 +168,13 @@ const EMPTY_FINAL_PATTERNS = [
   /can only read reference files/i,
   /use the selection-menu quick action/i,
 ];
+const SELECTED_TEXT_MISSING_PATTERNS = [
+  /please provide (?:the )?selected text/i,
+  /i (?:don't|do not) see (?:any )?selected text/i,
+  /no selected text/i,
+  /without (?:the )?selected text/i,
+];
+const RED_FAMILY_COLOR_PATTERN = /\b(?:red|maroon|crimson|scarlet|burgundy|ruby)\b/i;
 
 function parseList(value) {
   const parsed = String(value || "")
@@ -687,9 +694,9 @@ if (!execute) {
                 `Expected non-empty image response, got ${response.status}`,
               );
             }
-            if (!/red/i.test(content)) {
+            if (!RED_FAMILY_COLOR_PATTERN.test(content)) {
               throw new Error(
-                `Expected image response to identify red square, got: ${content.slice(0, 120)}`,
+                `Expected image response to identify a red-family square, got: ${content.slice(0, 120)}`,
               );
             }
             if (PSEUDO_TOOL_MARKUP.test(content)) {
@@ -954,7 +961,7 @@ if (!appExecute) {
             body: JSON.stringify({
               documentId,
               silent: true,
-              message: "Fix the grammar of the selected text.",
+              message: `Fix the grammar of the selected text.\n\n"${originalText}"`,
               context: {
                 selectedText: originalText,
                 selection: { text: originalText },
@@ -972,6 +979,19 @@ if (!appExecute) {
         if (EMPTY_FINAL_PATTERNS.some((pattern) => pattern.test(content))) {
           throw new Error(
             "Shortcut response returned an empty/fallback final-answer message.",
+          );
+        }
+        if (SELECTED_TEXT_MISSING_PATTERNS.some((pattern) => pattern.test(content))) {
+          throw new Error(
+            "Shortcut response asked for selected text instead of rewriting the provided selection.",
+          );
+        }
+        if (
+          !/\bsentence\b/i.test(content) ||
+          /\bthis sentence need better grammar\b/i.test(content)
+        ) {
+          throw new Error(
+            `Shortcut response did not appear to rewrite the selected text: ${content.slice(0, 120)}`,
           );
         }
         return {

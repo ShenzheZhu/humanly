@@ -101,6 +101,16 @@ const CUSTOM_MODEL_VALUE = '__custom_model__';
 const USE_EXISTING_AI_KEY = '__use_existing__';
 const UNLIMITED_TASK_WINDOW_YEARS = 100;
 
+const getTimeLimitMinutesValue = (seconds?: number): string => (
+  String(Math.max(1, Math.round((seconds || 3600) / 60)))
+);
+
+const parseTimeLimitMinutes = (value: string, fallback = 1): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return Math.max(1, Math.round(parsed));
+};
+
 const fallbackWritingModels = () => (
   WRITING_AI_MODELS.filter((model) => model !== 'Custom models')
 );
@@ -278,6 +288,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
   const [aiConnectionResult, setAiConnectionResult] = useState<AiConnectionResult | null>(null);
   const [testedAiModels, setTestedAiModels] = useState<string[]>([]);
   const [timeLimitEnabled, setTimeLimitEnabled] = useState(false);
+  const [writingTimeLimitMinutesInput, setWritingTimeLimitMinutesInput] = useState('60');
   const [advancedAiSettingsOpen, setAdvancedAiSettingsOpen] = useState(false);
   const [advancedAiSettingsTouched, setAdvancedAiSettingsTouched] = useState(false);
 
@@ -402,6 +413,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
         setAiAccessState(existingAiAccess);
         setAiModel(existingModel);
         setTimeLimitEnabled(hasTimeLimit);
+        setWritingTimeLimitMinutesInput(getTimeLimitMinutesValue(mergedConfig.time.timeLimitSeconds));
 
         form.reset({
           name: taskFromApi.name,
@@ -488,6 +500,62 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
       submission: {
         ...current.submission,
         minCharacters,
+      },
+    }));
+  };
+
+  const setWritingSessionTimerEnabled = (enabled: boolean) => {
+    const minutes = parseTimeLimitMinutes(
+      writingTimeLimitMinutesInput,
+      Number(getTimeLimitMinutesValue(environmentConfig.time.timeLimitSeconds))
+    );
+    if (enabled) {
+      setWritingTimeLimitMinutesInput(String(minutes));
+    }
+
+    setEnvironmentConfig((current) => {
+      if (!enabled) {
+        return {
+          ...current,
+          time: {
+            ...current.time,
+            timeLimitSeconds: undefined,
+          },
+        };
+      }
+
+      return {
+        ...current,
+        time: {
+          ...current.time,
+          timeLimitSeconds: minutes * 60,
+        },
+      };
+    });
+  };
+
+  const setWritingSessionTimerMinutes = (value: string) => {
+    setWritingTimeLimitMinutesInput(value);
+    if (!value) return;
+
+    const minutes = parseTimeLimitMinutes(value, 1);
+    setEnvironmentConfig((current) => ({
+      ...current,
+      time: {
+        ...current.time,
+        timeLimitSeconds: minutes * 60,
+      },
+    }));
+  };
+
+  const commitWritingSessionTimerMinutes = () => {
+    const minutes = parseTimeLimitMinutes(writingTimeLimitMinutesInput, 1);
+    setWritingTimeLimitMinutesInput(String(minutes));
+    setEnvironmentConfig((current) => ({
+      ...current,
+      time: {
+        ...current.time,
+        timeLimitSeconds: minutes * 60,
       },
     }));
   };
@@ -636,6 +704,12 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
     const endTime = timeLimitEnabled && data.endDate
       ? localDateTimeInputToISOString(data.endDate)
       : undefined;
+    const writingTimeLimitSeconds = environmentConfig.time.timeLimitSeconds
+      ? parseTimeLimitMinutes(
+          writingTimeLimitMinutesInput,
+          Number(getTimeLimitMinutesValue(environmentConfig.time.timeLimitSeconds))
+        ) * 60
+      : undefined;
     const hasInstructionPdf = currentInstructionFiles.length > 0 || instructionFiles.length > 0;
 
     return {
@@ -657,6 +731,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
         ...environmentConfig.time,
         startTime,
         endTime,
+        timeLimitSeconds: writingTimeLimitSeconds,
         lateSubmission: timeLimitEnabled ? 'not_allowed' : 'allowed',
       },
       traceability: {
@@ -719,10 +794,11 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
       const configStartTime = timeLimitEnabled ? startTime : undefined;
       const configEndTime = timeLimitEnabled ? endTime : undefined;
       const allowedModels = aiAccess === 'off' ? [] : [selectedAiModel];
+      const currentEnvironmentConfig = buildCurrentEnvironmentConfig(data);
       const nextEnvironmentConfig: WritingEnvironmentConfig = {
-        ...buildCurrentEnvironmentConfig(data),
+        ...currentEnvironmentConfig,
         time: {
-          ...environmentConfig.time,
+          ...currentEnvironmentConfig.time,
           startTime: configStartTime,
           endTime: configEndTime,
           lateSubmission: timeLimitEnabled ? 'not_allowed' : 'allowed',
@@ -1234,6 +1310,37 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                       </FormItem>
                     )}
                   />
+                </div>
+              )}
+
+              <SettingRow label="Writing Session Timer">
+                <SegmentedControl
+                  ariaLabel="Writing Session Timer"
+                  value={environmentConfig.time.timeLimitSeconds ? 'on' : 'off'}
+                  disabled={isSaving}
+                  options={[
+                    { value: 'off', label: 'Off' },
+                    { value: 'on', label: 'On' },
+                  ]}
+                  onValueChange={(value) => setWritingSessionTimerEnabled(value === 'on')}
+                />
+              </SettingRow>
+
+              {environmentConfig.time.timeLimitSeconds && (
+                <div className="grid gap-2 sm:max-w-[360px]">
+                  <FormLabel htmlFor="writing-time-limit-minutes">Time Limit (minutes)</FormLabel>
+                  <Input
+                    id="writing-time-limit-minutes"
+                    type="number"
+                    min={1}
+                    value={writingTimeLimitMinutesInput}
+                    onChange={(event) => setWritingSessionTimerMinutes(event.target.value)}
+                    onBlur={commitWritingSessionTimerMinutes}
+                    disabled={isSaving}
+                  />
+                  <FormDescription>
+                    The editor shows this countdown while each enrolled user writes.
+                  </FormDescription>
                 </div>
               )}
 
