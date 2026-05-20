@@ -168,7 +168,6 @@ export default function DocumentEditorPage() {
   } = useAI(documentId);
 
   // Store document metrics for the editor UI. AI full-document retrieval happens server-side.
-  const [wordCount, setWordCount] = useState<number>(0);
   const [characterCount, setCharacterCount] = useState<number>(0);
   const [timerStartedAtMs, setTimerStartedAtMs] = useState(() => Date.now());
   const [timerNowMs, setTimerNowMs] = useState(() => Date.now());
@@ -239,11 +238,11 @@ export default function DocumentEditorPage() {
         }
       : null;
   const minimumSubmissionCharacters =
-    taskEnrollment && currentEnvironmentConfig.submission.minCharacters
+    currentEnvironmentConfig.submission.minCharacters
       ? Math.max(1, Math.floor(currentEnvironmentConfig.submission.minCharacters))
       : null;
   const maximumSubmissionCharacters =
-    taskEnrollment && currentEnvironmentConfig.submission.maxCharacters
+    currentEnvironmentConfig.submission.maxCharacters
       ? Math.max(1, Math.floor(currentEnvironmentConfig.submission.maxCharacters))
       : null;
   const isBelowMinimumCharacters =
@@ -252,31 +251,24 @@ export default function DocumentEditorPage() {
     maximumSubmissionCharacters !== null && characterCount > maximumSubmissionCharacters;
   const characterBoundsTitle =
     minimumSubmissionCharacters !== null && maximumSubmissionCharacters !== null
-      ? `Characters: ${minimumSubmissionCharacters.toLocaleString()}-${maximumSubmissionCharacters.toLocaleString()}`
+      ? `Character count includes letters, spaces, punctuation, and symbols. Required range: ${minimumSubmissionCharacters.toLocaleString()}-${maximumSubmissionCharacters.toLocaleString()} characters.`
       : minimumSubmissionCharacters !== null
-        ? `Minimum characters: ${minimumSubmissionCharacters.toLocaleString()}`
+        ? `Character count includes letters, spaces, punctuation, and symbols. Minimum: ${minimumSubmissionCharacters.toLocaleString()} characters.`
         : maximumSubmissionCharacters !== null
-          ? `Maximum characters: ${maximumSubmissionCharacters.toLocaleString()}`
+          ? `Character count includes letters, spaces, punctuation, and symbols. Maximum: ${maximumSubmissionCharacters.toLocaleString()} characters.`
           : '';
   const characterBoundsLabel =
     minimumSubmissionCharacters !== null && maximumSubmissionCharacters !== null
-      ? `${characterCount.toLocaleString()}/${minimumSubmissionCharacters.toLocaleString()}-${maximumSubmissionCharacters.toLocaleString()} chars`
+      ? `${characterCount.toLocaleString()}/${maximumSubmissionCharacters.toLocaleString()}, min ${minimumSubmissionCharacters.toLocaleString()} characters`
       : minimumSubmissionCharacters !== null
-        ? `${characterCount.toLocaleString()}/${minimumSubmissionCharacters.toLocaleString()} chars min`
+        ? `${characterCount.toLocaleString()} characters · min ${minimumSubmissionCharacters.toLocaleString()}`
         : maximumSubmissionCharacters !== null
-          ? `${characterCount.toLocaleString()}/${maximumSubmissionCharacters.toLocaleString()} chars max`
+          ? `${characterCount.toLocaleString()}/${maximumSubmissionCharacters.toLocaleString()} characters`
           : '';
-
-  const calculateWordCount = useCallback((text: string): number => {
-    if (!text || typeof text !== 'string') return 0;
-    const words = text.trim().replace(/\s+/g, ' ').split(' ').filter((w) => w.length > 0);
-    return words.length;
-  }, []);
 
   useEffect(() => {
     if (document) {
       setTitle(document.title || '');
-      setWordCount(document.wordCount || 0);
       setCharacterCount(document.characterCount ?? (document.plainText || '').length);
       latestEditorSnapshotRef.current = {
         content: document.content,
@@ -524,7 +516,6 @@ export default function DocumentEditorPage() {
 
   const handleContentChange = async (content: Record<string, any>, plainText: string) => {
     latestEditorSnapshotRef.current = { content, plainText };
-    setWordCount(calculateWordCount(plainText));
     setCharacterCount(plainText.length);
   };
 
@@ -637,7 +628,31 @@ export default function DocumentEditorPage() {
     [submissionSessionId, trackEvents]
   );
 
+  const validateCharacterBounds = (actionLabel: string): boolean => {
+    if (minimumSubmissionCharacters && characterCount < minimumSubmissionCharacters) {
+      toast({
+        title: 'Minimum length required',
+        description: `Write at least ${minimumSubmissionCharacters.toLocaleString()} characters before ${actionLabel}. Current length: ${characterCount.toLocaleString()} characters.`,
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    if (maximumSubmissionCharacters && characterCount > maximumSubmissionCharacters) {
+      toast({
+        title: 'Maximum length exceeded',
+        description: `Keep the submission at most ${maximumSubmissionCharacters.toLocaleString()} characters before ${actionLabel}. Current length: ${characterCount.toLocaleString()} characters.`,
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    return true;
+  };
+
   const handleGenerateCertificate = async (options: CertificateGenerationOptions) => {
+    if (!validateCharacterBounds('generating a certificate')) return;
+
     try {
       setIsGeneratingCertificate(true);
       const certificate = await generateCertificate(documentId, {
@@ -662,23 +677,7 @@ export default function DocumentEditorPage() {
   const handleSubmitTask = async () => {
     if (!taskEnrollment) return;
 
-    if (minimumSubmissionCharacters && characterCount < minimumSubmissionCharacters) {
-      toast({
-        title: 'Minimum length required',
-        description: `Write at least ${minimumSubmissionCharacters.toLocaleString()} characters before submitting. Current length: ${characterCount.toLocaleString()} characters.`,
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    if (maximumSubmissionCharacters && characterCount > maximumSubmissionCharacters) {
-      toast({
-        title: 'Maximum length exceeded',
-        description: `Keep the submission at most ${maximumSubmissionCharacters.toLocaleString()} characters. Current length: ${characterCount.toLocaleString()} characters.`,
-        variant: 'destructive',
-      });
-      return;
-    }
+    if (!validateCharacterBounds('submitting')) return;
 
     try {
       setIsSubmittingTask(true);
@@ -888,7 +887,12 @@ export default function DocumentEditorPage() {
                 </Badge>
               )}
 
-              <div className="hidden sm:block text-sm text-muted-foreground">{wordCount} words</div>
+              <div
+                className="hidden sm:block text-sm text-muted-foreground"
+                title="Character count includes letters, spaces, punctuation, and symbols."
+              >
+                {characterCount.toLocaleString()} characters
+              </div>
 
               {(minimumSubmissionCharacters !== null || maximumSubmissionCharacters !== null) && (
                 <Badge
