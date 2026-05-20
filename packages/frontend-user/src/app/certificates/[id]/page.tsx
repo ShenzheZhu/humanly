@@ -43,7 +43,7 @@ export default function CertificateDetailPage() {
   const router = useRouter();
   const { toast } = useToast();
   const certificateId = params.id as string;
-  const { certificate, aiStats, isLoading, isLoadingAiStats, error, downloadJSON, downloadPDF, openPDF, updateAccessCode, updateDisplayOptions } = useCertificate(certificateId);
+  const { certificate, aiStats, isLoading, isLoadingAiStats, error, downloadJSON, openPDF, updateAccessCode, updateDisplayOptions } = useCertificate(certificateId);
   const [qrCodeDataURL, setQrCodeDataURL] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [isEditingAccessCode, setIsEditingAccessCode] = useState(false);
@@ -95,19 +95,6 @@ export default function CertificateDetailPage() {
       toast({
         title: 'Error',
         description: err.message || 'Failed to download JSON',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleDownloadPDF = async () => {
-    try {
-      const outcome = await downloadPDF();
-      showDownloadToast('PDF certificate', outcome);
-    } catch (err: any) {
-      toast({
-        title: 'Error',
-        description: err.message || 'Failed to download PDF',
         variant: 'destructive',
       });
     }
@@ -296,22 +283,39 @@ export default function CertificateDetailPage() {
   const aiChatTotal = aiStats?.aiQuestions.total || 0;
 
   return (
-    <div className="container mx-auto max-w-4xl px-4 py-8">
-      <div className="mb-5">
+    <div className="mx-auto max-w-5xl pb-6">
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <Button
           onClick={() => router.push('/certificates')}
           variant="outline"
           size="sm"
-          className="mb-5"
+          className="w-fit"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Certificates
         </Button>
 
+        <div className="grid grid-cols-3 gap-2 sm:w-auto">
+          <Button onClick={handleShareVerificationLink} variant="outline" size="sm" className="w-full sm:w-36">
+            <Share2 className="mr-2 h-4 w-4" />
+            Share Link
+          </Button>
+          <Button onClick={handleOpenPDF} size="sm" className="w-full sm:w-36">
+            <FileText className="mr-2 h-4 w-4" />
+            Open PDF
+          </Button>
+          <Button onClick={handleDownloadJSON} variant="outline" size="sm" className="w-full sm:w-36">
+            <FileJson className="mr-2 h-4 w-4" />
+            JSON Data
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-4">
         <Card>
-          <CardContent className="p-5 sm:p-6">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0 flex-1 space-y-3">
+          <CardContent className="space-y-4 p-4 sm:p-5">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-start gap-3">
                   <Award className="mt-1 h-6 w-6 shrink-0 text-primary" />
                   <div className="min-w-0">
@@ -322,34 +326,15 @@ export default function CertificateDetailPage() {
                     </p>
                   </div>
                 </div>
-                <p className="max-w-2xl text-sm text-muted-foreground">
-                  A verifiable snapshot of how this document was written, including typing activity, pasted text, and AI assistance.
-                </p>
               </div>
-
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:w-72">
-                <Button onClick={handleShareVerificationLink} variant="outline" size="sm" className="w-full">
-                  <Share2 className="mr-2 h-4 w-4" />
-                  Share Link
-                </Button>
-                <Button onClick={handleOpenPDF} size="sm" className="w-full">
-                  <FileText className="mr-2 h-4 w-4" />
-                  Open PDF
-                </Button>
-              </div>
+              <p className="max-w-sm text-sm text-muted-foreground lg:text-right">
+                A verifiable snapshot of typing activity, pasted text, and AI assistance.
+              </p>
             </div>
-          </CardContent>
-        </Card>
-      </div>
 
-      <div className="space-y-5">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Writing Process</CardTitle>
-            <CardDescription>Core authorship signals for this certificate.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="grid gap-3 sm:grid-cols-4">
+            <Separator />
+
+            <div className="grid gap-2 sm:grid-cols-4">
               <div className="rounded-lg bg-muted/50 p-3">
                 <p className="text-xs text-muted-foreground">Typed</p>
                 <p className="mt-1 text-2xl font-semibold">{typedPercentage.toFixed(0)}%</p>
@@ -456,7 +441,7 @@ export default function CertificateDetailPage() {
               <button className="flex w-full items-center justify-between px-5 py-4 text-left">
                 <div>
                   <p className="font-medium">More details</p>
-                  <p className="text-sm text-muted-foreground">Downloads, verification data, and sharing settings.</p>
+                  <p className="text-sm text-muted-foreground">Verification, access controls, display settings, and certificate identifiers.</p>
                 </div>
                 <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${detailsOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -488,79 +473,6 @@ export default function CertificateDetailPage() {
                       <Share2 className="mr-2 h-4 w-4" />
                       Copy Link
                     </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-sm font-medium">Downloads</h3>
-                    <p className="text-xs text-muted-foreground">Open PDF to preview and save manually; download uses the browser's default folder.</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Button onClick={handleOpenPDF} className="w-full" size="sm">
-                      <FileText className="mr-2 h-4 w-4" />
-                      Open PDF
-                    </Button>
-                    <Button onClick={handleDownloadPDF} className="w-full" size="sm">
-                      <FileText className="mr-2 h-4 w-4" />
-                      Download PDF
-                    </Button>
-                    <Button onClick={handleDownloadJSON} variant="outline" className="w-full" size="sm">
-                      <FileJson className="mr-2 h-4 w-4" />
-                      JSON Data
-                    </Button>
-                  </div>
-
-                  <div className="space-y-2 text-xs">
-                    <div>
-                      <p className="text-muted-foreground">Technical Activity</p>
-                      <div className="mt-1 space-y-1 rounded-md border p-2">
-                        <div className="flex items-center justify-between gap-3">
-                          <span>Tracked actions</span>
-                          <span className="font-medium">{certificate.totalEvents.toLocaleString()}</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-3">
-                          <span>Typing updates</span>
-                          <span className="font-medium">{certificate.typingEvents.toLocaleString()}</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-3">
-                          <span>Pastes</span>
-                          <span className="font-medium">{certificate.pasteEvents.toLocaleString()}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Certificate ID</p>
-                      <p className="truncate font-mono">{certificate.id}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Document ID</p>
-                      <p className="truncate font-mono">{certificate.documentId}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Verification Token</p>
-                      <div className="mt-1 max-h-20 overflow-y-auto rounded-md bg-muted p-2 font-mono text-[10px] break-all">
-                        {certificate.verificationToken}
-                      </div>
-                      <Button
-                        onClick={handleCopyVerificationToken}
-                        variant="outline"
-                        size="sm"
-                        className="mt-2 w-full"
-                      >
-                        {copied ? (
-                          <>
-                            <Check className="mr-2 h-4 w-4" />
-                            Copied
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="mr-2 h-4 w-4" />
-                            Copy Token
-                          </>
-                        )}
-                      </Button>
-                    </div>
                   </div>
                 </div>
 
@@ -676,6 +588,45 @@ export default function CertificateDetailPage() {
                         />
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <h3 className="text-sm font-medium">Identifiers</h3>
+                    <p className="text-xs text-muted-foreground">Technical identifiers for audit and support.</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Certificate ID</p>
+                    <p className="truncate font-mono">{certificate.id}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Document ID</p>
+                    <p className="truncate font-mono">{certificate.documentId}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Verification Token</p>
+                    <div className="mt-1 max-h-20 overflow-y-auto rounded-md bg-muted p-2 font-mono text-[10px] break-all">
+                      {certificate.verificationToken}
+                    </div>
+                    <Button
+                      onClick={handleCopyVerificationToken}
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 w-full"
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="mr-2 h-4 w-4" />
+                          Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="mr-2 h-4 w-4" />
+                          Copy Token
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </div>
               </CardContent>

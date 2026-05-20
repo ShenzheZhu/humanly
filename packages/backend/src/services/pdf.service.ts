@@ -86,9 +86,6 @@ export class PDFService {
     const questions = aiStats?.aiQuestions;
     const aiSelectionTotal = selection?.total ?? 0;
     const aiQuestionsTotal = questions?.total ?? 0;
-    const aiAccepted = selection?.accepted ?? 0;
-    const aiRejected = selection?.rejected ?? 0;
-    const aiAcceptanceRate = selection?.acceptanceRate ?? 0;
 
     const formatNumber = (value: number) => value.toLocaleString('en-US');
     const formatDate = (value: Date | string) => new Date(value).toLocaleDateString('en-US', {
@@ -308,18 +305,18 @@ export class PDFService {
       .font('Helvetica-Bold')
       .fontSize(13)
       .fillColor(ink)
-      .text('AI assistance', margin + 18, panelY + 18);
+      .text('Activity record', margin + 18, panelY + 18);
     doc
       .font('Helvetica')
       .fontSize(9)
       .fillColor(muted)
-      .text('In-platform AI activity recorded with this document.', margin + 18, panelY + 37, {
+      .text('Write-time tracking and in-platform AI activity.', margin + 18, panelY + 37, {
         width: leftPanelWidth - 36,
       });
     drawSmallRow('AI chat', formatNumber(aiQuestionsTotal), margin + 18, panelY + 68, leftPanelWidth - 36);
     drawSmallRow('Text improvements', formatNumber(aiSelectionTotal), margin + 18, panelY + 88, leftPanelWidth - 36);
-    drawSmallRow('Accepted / discarded', `${formatNumber(aiAccepted)} / ${formatNumber(aiRejected)}`, margin + 18, panelY + 108, leftPanelWidth - 36);
-    drawSmallRow('Acceptance rate', `${Number(aiAcceptanceRate).toFixed(0)}%`, margin + 18, panelY + 128, leftPanelWidth - 36);
+    drawSmallRow('Tracked actions', formatNumber(certificate.totalEvents), margin + 18, panelY + 108, leftPanelWidth - 36);
+    drawSmallRow('Typing updates / pastes', `${formatNumber(certificate.typingEvents)} / ${formatNumber(certificate.pasteEvents)}`, margin + 18, panelY + 128, leftPanelWidth - 36);
 
     const verificationX = margin + leftPanelWidth + panelGap;
     doc
