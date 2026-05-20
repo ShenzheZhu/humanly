@@ -474,7 +474,7 @@ export default function CertificateDetailPage() {
                     </div>
                   </div>
 
-                  <div className="flex min-h-full flex-col">
+                  <div className="space-y-8">
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <Lock className={`h-4 w-4 ${certificate.isProtected ? 'text-yellow-600' : 'text-muted-foreground'}`} />
@@ -555,9 +555,9 @@ export default function CertificateDetailPage() {
                       )}
                     </div>
 
-                    <Separator className="mt-auto" />
+                    <Separator />
 
-                    <div className="space-y-2.5 pt-4">
+                    <div className="space-y-2.5">
                       <div className="flex items-center gap-2">
                         <Settings className="h-4 w-4 text-muted-foreground" />
                         <h3 className="text-sm font-medium">Public Display</h3>
