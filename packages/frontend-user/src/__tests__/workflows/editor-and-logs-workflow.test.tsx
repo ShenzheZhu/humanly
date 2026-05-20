@@ -372,7 +372,7 @@ describe('editor and logs workflows', () => {
 
     expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
     expect(screen.queryByText('4 characters')).not.toBeInTheDocument();
-    expect(screen.getByText('4/50, min 10 characters')).toBeInTheDocument();
+    expect(screen.getByText('4/50 characters · min 10')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /generate certificate/i }));
     fireEvent.click(screen.getByRole('button', { name: /confirm generate certificate/i }));

@@ -257,7 +257,7 @@ export default function DocumentEditorPage() {
           : '';
   const characterBoundsLabel =
     minimumSubmissionCharacters !== null && maximumSubmissionCharacters !== null
-      ? `${characterCount.toLocaleString()}/${maximumSubmissionCharacters.toLocaleString()}, min ${minimumSubmissionCharacters.toLocaleString()} characters`
+      ? `${characterCount.toLocaleString()}/${maximumSubmissionCharacters.toLocaleString()} characters · min ${minimumSubmissionCharacters.toLocaleString()}`
       : minimumSubmissionCharacters !== null
         ? `${characterCount.toLocaleString()} characters · min ${minimumSubmissionCharacters.toLocaleString()}`
         : maximumSubmissionCharacters !== null
