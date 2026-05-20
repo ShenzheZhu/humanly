@@ -6,6 +6,7 @@ import {
   Clock,
   FileText,
   Gauge,
+  HelpCircle,
   Loader2,
   Users,
 } from 'lucide-react';
@@ -39,6 +40,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Tooltip as UiTooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 import type { AdminSubmission, TaskEnrollment } from './types';
 
@@ -70,6 +77,7 @@ const EVENT_TYPE_COLORS = [
 
 const EXPECTED_EDITING_SPAN_SECONDS = 60 * 60;
 const MAX_DAILY_SUBMISSION_TIMELINE_DAYS = 120;
+const COMPLETION_DIFFICULTY_HELP = 'Calculated from non-submitters, average editing time, and resubmissions; more of any raises difficulty.';
 
 const formatDuration = (secondsValue: number) => {
   const seconds = Math.max(0, Math.floor(secondsValue || 0));
@@ -415,6 +423,7 @@ export function AnalyticsPanel({
       detail: difficultyScore === null
         ? 'Needs enrolled users'
         : `${difficultyScore}/100 · ${formatPercent(completionRate * 100)} completed`,
+      helpText: COMPLETION_DIFFICULTY_HELP,
       icon: Gauge,
       isLoading: isLoadingEnrollments || isLoadingSubmissions || isLoadingSummary,
     },
@@ -442,7 +451,28 @@ export function AnalyticsPanel({
           return (
             <Card key={metric.title}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{metric.title}</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  {'helpText' in metric && metric.helpText ? (
+                    <TooltipProvider delayDuration={0}>
+                      <UiTooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1.5 rounded-sm text-left outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          >
+                            <span>{metric.title}</span>
+                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-[260px] text-xs">
+                          {metric.helpText}
+                        </TooltipContent>
+                      </UiTooltip>
+                    </TooltipProvider>
+                  ) : (
+                    metric.title
+                  )}
+                </CardTitle>
                 <Icon className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>

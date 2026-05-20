@@ -456,6 +456,7 @@ describe('admin task overview invite code copy button', () => {
     expect(screen.getByText('Total submissions')).toBeInTheDocument();
     expect(screen.getByText('Avg editing time')).toBeInTheDocument();
     expect(screen.getByText('Completion Difficulty')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Completion Difficulty' })).toBeInTheDocument();
     expect(screen.getByText('Moderate')).toBeInTheDocument();
     expect(screen.getByText('43/100 · 50% completed')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Submission Timeline' })).toBeInTheDocument();
