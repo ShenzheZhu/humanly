@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import tls from "node:tls";
+
 import {
   addCheck,
   arg,
@@ -158,6 +160,76 @@ async function authGuardCheck(id, title, baseUrl, critical = true) {
   );
 }
 
+function readTlsCertificate(hostname) {
+  return new Promise((resolve, reject) => {
+    const socket = tls.connect(
+      {
+        host: hostname,
+        port: 443,
+        servername: hostname,
+        rejectUnauthorized: true,
+      },
+      () => {
+        const certificate = socket.getPeerCertificate();
+        const result = {
+          authorized: socket.authorized,
+          authorizationError: socket.authorizationError,
+          subject: certificate.subject,
+          issuer: certificate.issuer,
+          validFrom: certificate.valid_from,
+          validTo: certificate.valid_to,
+          subjectAltName: certificate.subjectaltname,
+        };
+        socket.end();
+        resolve(result);
+      },
+    );
+
+    socket.setTimeout(10_000, () => {
+      socket.destroy(new Error(`Timed out reading TLS certificate for ${hostname}`));
+    });
+    socket.on("error", reject);
+  });
+}
+
+async function tlsCertificateCheck(id, title, url) {
+  const { hostname } = new URL(url);
+  await runCheck(
+    report,
+    {
+      id,
+      title,
+      target: `https://${hostname}:443`,
+    },
+    async () => {
+      const certificate = await readTlsCertificate(hostname);
+      if (!certificate.authorized) {
+        throw new Error(
+          `TLS certificate is not authorized: ${certificate.authorizationError}`,
+        );
+      }
+      if (!certificate.subjectAltName?.includes(`DNS:${hostname}`)) {
+        throw new Error(`TLS certificate SAN does not include ${hostname}`);
+      }
+      const expiresAt = Date.parse(certificate.validTo);
+      if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+        throw new Error(`TLS certificate is expired: ${certificate.validTo}`);
+      }
+
+      return {
+        details: {
+          hostname,
+          validTo: certificate.validTo,
+          daysRemaining: Math.floor(
+            (expiresAt - Date.now()) / (24 * 60 * 60 * 1000),
+          ),
+          subjectAltName: certificate.subjectAltName,
+        },
+      };
+    },
+  );
+}
+
 function findFirstNextAsset(html) {
   const match = html.match(/src="([^"]*\/_next\/static\/[^"]+\.js)"/);
   return match?.[1] || null;
@@ -273,6 +345,21 @@ await authGuardCheck(
   "Direct API auth guard is active",
   apiBase,
   requireDirectApi,
+);
+await tlsCertificateCheck(
+  "app-tls-certificate",
+  "User portal TLS certificate covers host",
+  appBase,
+);
+await tlsCertificateCheck(
+  "admin-tls-certificate",
+  "Admin portal TLS certificate covers host",
+  adminBase,
+);
+await tlsCertificateCheck(
+  "direct-api-tls-certificate",
+  "Direct API TLS certificate covers host",
+  apiBase,
 );
 
 addCheck(report, {
