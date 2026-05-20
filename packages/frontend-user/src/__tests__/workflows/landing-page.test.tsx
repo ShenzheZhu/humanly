@@ -11,8 +11,8 @@ describe('landing page', () => {
     expect(screen.getByText(
       'Humanly lets writers collaborate with AI in a tracked workspace and generate verifiable authorship certificates.'
     )).toBeInTheDocument();
-    expect(screen.getByText('Human-AI collaboration')).toBeInTheDocument();
-    expect(screen.getByText('Tracked writing process')).toBeInTheDocument();
-    expect(screen.getByText('Verifiable certificates')).toBeInTheDocument();
+    expect(screen.queryByText('Human-AI collaboration')).not.toBeInTheDocument();
+    expect(screen.queryByText('Tracked writing process')).not.toBeInTheDocument();
+    expect(screen.queryByText('Verifiable certificates')).not.toBeInTheDocument();
   });
 });

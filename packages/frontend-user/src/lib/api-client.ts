@@ -4,9 +4,14 @@ export type HumanlyAxiosRequestConfig = AxiosRequestConfig & {
   skipAuthRedirect?: boolean;
 };
 
-const API_URL =
+export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   (process.env.NODE_ENV === 'production' ? '/api/v1' : 'http://localhost:3001/api/v1');
+
+export function getApiUrl(path: string): string {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${API_URL}${normalizedPath}`;
+}
 
 /**
  * Custom error class for API errors
