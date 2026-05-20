@@ -1,4 +1,4 @@
-import { downloadBlobWithSavePicker } from '@/lib/download';
+import { downloadBlobWithSavePicker, openDownloadUrl } from '@/lib/download';
 
 describe('downloadBlobWithSavePicker', () => {
   const originalCreateObjectURL = window.URL.createObjectURL;
@@ -110,6 +110,31 @@ describe('downloadBlobWithSavePicker', () => {
 
     expect(window.URL.createObjectURL).toHaveBeenCalled();
     expect(click).toHaveBeenCalled();
+  });
+
+  it('starts direct download URLs in the current tab', () => {
+    const originalLocation = window.location;
+    const hrefSetter = jest.fn();
+    delete (window as any).location;
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { href: '', set assignHref(value: string) { hrefSetter(value); } },
+    });
+    Object.defineProperty(window.location, 'href', {
+      configurable: true,
+      set: hrefSetter,
+      get: () => '',
+    });
+
+    expect(openDownloadUrl('http://localhost:3001/api/v1/certificates/cert-1/pdf')).toBe('downloaded');
+
+    expect(hrefSetter).toHaveBeenCalledWith('http://localhost:3001/api/v1/certificates/cert-1/pdf');
+
+    delete (window as any).location;
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: originalLocation,
+    });
   });
 
 });

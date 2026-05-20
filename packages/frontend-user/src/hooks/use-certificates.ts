@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { apiClient } from '@/lib/api-client';
-import { downloadBlobWithSavePicker, type DownloadOutcome } from '@/lib/download';
+import { apiClient, getApiUrl } from '@/lib/api-client';
+import { downloadBlobWithSavePicker, openDownloadUrl, type DownloadOutcome } from '@/lib/download';
 import type { Certificate, AIAuthorshipStats } from '@humanly/shared';
 
 export interface CertificatesFilters {
@@ -169,7 +169,7 @@ export function useCertificate(certificateId: string) {
         extensions: ['.json'],
       });
     } catch (err: any) {
-      throw new Error(err.response?.data?.message || 'Failed to download JSON');
+      throw new Error(err.response?.data?.message || err.message || 'Failed to download JSON');
     }
   }, [certificateId]);  
 
@@ -182,20 +182,9 @@ export function useCertificate(certificateId: string) {
         .toLowerCase() || certificateId;
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
 
-      return await downloadBlobWithSavePicker(async () => {
-        const response = await apiClient.get<ArrayBuffer>(`/certificates/${certificateId}/pdf`, {
-          responseType: 'arraybuffer',
-        });
-
-        return new Blob([response.data], { type: 'application/pdf' });
-      }, {
-        filename: `certificate-${safeTitle}-${stamp}.pdf`,
-        description: 'PDF certificate',
-        mimeType: 'application/pdf',
-        extensions: ['.pdf'],
-      });
+      return openDownloadUrl(getApiUrl(`/certificates/${certificateId}/pdf?filename=certificate-${safeTitle}-${stamp}.pdf`));
     } catch (err: any) {
-      throw new Error(err.response?.data?.message || 'Failed to download PDF');
+      throw new Error(err.response?.data?.message || err.message || 'Failed to download PDF');
     }
   }, [certificate?.title, certificateId]);
 

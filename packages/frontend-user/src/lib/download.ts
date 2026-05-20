@@ -107,6 +107,11 @@ export function downloadBlob(blob: Blob, filename: string): DownloadOutcome {
   return 'downloaded';
 }
 
+export function openDownloadUrl(url: string): DownloadOutcome {
+  window.location.href = url;
+  return 'downloaded';
+}
+
 export async function downloadBlobWithSavePicker(
   loadBlob: () => Promise<Blob>,
   options: {
