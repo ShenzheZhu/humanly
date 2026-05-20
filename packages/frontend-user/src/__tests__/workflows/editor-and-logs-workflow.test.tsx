@@ -11,7 +11,9 @@ const mockApiGet = jest.fn();
 const mockApiPost = jest.fn();
 const mockUpdateDocument = jest.fn();
 let mockDocumentEnvironmentConfig: any = { aiAccess: 'off', copyPastePolicy: 'allowed' };
+let mockDocumentContent: any = {};
 let mockTaskEnrollments: any[] = [];
+let mockAiLogs: any[] = [];
 let mockLatestEditorProps: any;
 
 jest.mock('next/navigation', () => ({
@@ -36,7 +38,7 @@ jest.mock('@/hooks/use-document', () => ({
     document: {
       id: 'doc-1',
       title: 'Workflow Document',
-      content: {},
+      content: mockDocumentContent,
       plainText: '',
       status: 'draft',
       wordCount: 0,
@@ -141,7 +143,9 @@ describe('editor and logs workflows', () => {
     mockUpdateDocument.mockReset();
     mockUpdateDocument.mockResolvedValue(undefined);
     mockDocumentEnvironmentConfig = { aiAccess: 'off', copyPastePolicy: 'allowed' };
+    mockDocumentContent = {};
     mockTaskEnrollments = [];
+    mockAiLogs = [];
     mockLatestEditorProps = undefined;
     mockApiGet.mockReset();
     mockApiPost.mockReset();
@@ -157,23 +161,51 @@ describe('editor and logs workflows', () => {
       if (path === '/documents/doc-1') {
         return { data: { data: { document: { title: 'Workflow Document' } } } };
       }
-      if (path === '/documents/doc-1/events?limit=100&offset=0') {
+      if (path === '/documents/doc-1/events/timeline?limit=10000') {
         return {
           data: {
-            count: 40,
             data: {
-              events: [{
-                id: 'event-1',
-                eventType: 'input',
-                timestamp: '2026-05-14T12:00:00.000Z',
-                keyChar: 'Q',
-              }],
+              summary: {
+                rawEventTotal: 40,
+                timelineItemTotal: 1,
+                typingBursts: 1,
+                typedCharacters: 11,
+                typedWords: 2,
+                pasteCharacters: 0,
+                deletedCharacters: 0,
+              },
+              items: [
+                {
+                  id: 'typing-event-1',
+                  kind: 'typing_burst',
+                  label: 'Typed text',
+                  timestamp: '2026-05-14T12:00:01.000Z',
+                  startTimestamp: '2026-05-14T12:00:00.000Z',
+                  endTimestamp: '2026-05-14T12:00:01.000Z',
+                  text: 'hello world',
+                  charCount: 11,
+                  wordCount: 2,
+                  cursorStart: 0,
+                  cursorEnd: 11,
+                  rawEventCount: 11,
+                  rawEvents: [
+                    {
+                      id: 'event-raw-1',
+                      eventType: 'input',
+                      timestamp: '2026-05-14T12:00:00.000Z',
+                      keyChar: 'h',
+                      insertedText: 'h',
+                      cursorPosition: 1,
+                    },
+                  ],
+                },
+              ],
             },
           },
         };
       }
       if (path === '/ai/logs?documentId=doc-1&limit=50&offset=0') {
-        return { data: { data: [] } };
+        return { data: { data: mockAiLogs } };
       }
       throw new Error(`Unexpected GET ${path}`);
     });
@@ -221,6 +253,16 @@ describe('editor and logs workflows', () => {
         'Short autosave QA text'
       );
     });
+  });
+
+  it('opens a document with an empty Lexical root without passing invalid editor state', async () => {
+    mockDocumentContent = { root: { children: [] } };
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    expect(mockLatestEditorProps.initialContent).toBeUndefined();
+    expect(screen.queryByText(/application error|setEditorState/i)).not.toBeInTheDocument();
   });
 
   it('shows a configured writing time limit in the editor header', async () => {
@@ -408,12 +450,45 @@ describe('editor and logs workflows', () => {
     );
   });
 
-  it('shows persisted document event count in the logs view', async () => {
+  it('shows grouped document events and expandable raw details in the logs view', async () => {
     render(<DocumentLogsPage />);
 
-    expect(await screen.findByText('Event Summary')).toBeInTheDocument();
-    expect(await screen.findByText('40')).toBeInTheDocument();
-    expect(await screen.findByText('input')).toBeInTheDocument();
+    expect(await screen.findByText('Activity Summary')).toBeInTheDocument();
+    expect(await screen.findByText('Typed "hello world"')).toBeInTheDocument();
+    expect(screen.getByText('Raw events')).toBeInTheDocument();
+    expect(screen.getByText('40')).toBeInTheDocument();
+    expect(screen.getByText('Typing bursts')).toBeInTheDocument();
+    expect(screen.queryByText('input')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /typed text/i }));
+
+    await screen.findByText('Inserted "h"');
+    expect(screen.getAllByText('Raw events')).toHaveLength(2);
+    expect(await screen.findByText('Inserted "h"')).toBeInTheDocument();
     expect(screen.queryByText(/failed to load logs/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps AI logs in the grouped logs timeline', async () => {
+    mockAiLogs = [
+      {
+        id: 'ai-log-1',
+        queryType: 'other',
+        query: 'What does this paragraph mean?',
+        response: 'It explains the core argument.',
+        timestamp: '2026-05-14T12:00:02.000Z',
+        status: 'success',
+        modificationsApplied: false,
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByText('Chat')).toBeInTheDocument();
+    expect(screen.getByText('AI actions')).toBeInTheDocument();
+    expect(screen.getByText('What does this paragraph mean?')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /chat/i }));
+
+    expect(await screen.findByText('It explains the core argument.')).toBeInTheDocument();
   });
 });
