@@ -346,7 +346,7 @@ describe('editor and logs workflows', () => {
     await waitFor(() => {
       expect(mockApiPost).toHaveBeenCalledWith(
         '/tasks/enrollments/enroll-1/submissions',
-        { documentId: 'doc-1' }
+        { documentId: 'doc-1', automatic: true }
       );
     });
     expect(mockPush).not.toHaveBeenCalledWith('/certificates/certificate-1');

@@ -716,7 +716,7 @@ export default function DocumentEditorPage() {
   const handleSubmitTask = useCallback(async (options: { automatic?: boolean } = {}) => {
     if (!taskEnrollment) return;
 
-    if (!validateCharacterBounds(options.automatic ? 'auto-submitting' : 'submitting')) return;
+    if (!options.automatic && !validateCharacterBounds('submitting')) return;
 
     try {
       setIsSubmittingTask(true);
@@ -728,6 +728,7 @@ export default function DocumentEditorPage() {
       }
       const response = await apiClient.post(`/tasks/enrollments/${taskEnrollment.id}/submissions`, {
         documentId,
+        ...(options.automatic ? { automatic: true } : {}),
       });
       const certificate = response.data.data?.certificate;
       toast({

@@ -240,6 +240,101 @@ describe('TaskService.submitTaskDocument', () => {
   });
 });
 
+describe('TaskService.autoSubmitExpiredTimedTaskEnrollments', () => {
+  it('claims expired timed enrollments and submits them from the backend', async () => {
+    const task = makeTask({
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() - 1_000),
+      environmentConfig: {
+        submission: {
+          mode: 'multiple',
+          minCharacters: 1000,
+        },
+      },
+    });
+    const shortDocument = makeDocument({
+      plainText: 'short',
+      characterCount: 5,
+    });
+    const submission = makeSubmission();
+    const certificate = makeCertificate();
+
+    MockTaskModel.claimExpiredTimedEnrollments.mockResolvedValue([{
+      enrollmentId: 'enrollment-1',
+      taskId: 'task-1',
+      userId: 'user-1',
+      userEmail: 'student@example.com',
+      documentId: 'doc-1',
+      writingStartedAt: new Date(Date.now() - 120_000),
+      timeLimitSeconds: 60,
+    }]);
+    MockTaskModel.findById.mockResolvedValue(task);
+    MockTaskModel.hasEnrollment.mockResolvedValue(true);
+    MockDocumentModel.findByIdAndUserId.mockResolvedValue(shortDocument);
+    MockSubmissionModel.findActiveForUserTask.mockResolvedValue(null);
+    MockTaskModel.linkSubmissionDocument.mockResolvedValue(true);
+    MockSubmissionModel.findLatestForUserTask.mockResolvedValue(null);
+    MockSubmissionModel.markHistoricalForUserTask.mockResolvedValue(undefined);
+    MockSubmissionModel.create.mockResolvedValue(submission);
+    MockSubmissionModel.attachCertificate.mockResolvedValue({
+      ...submission,
+      certificateId: certificate.id,
+    });
+    MockCertificateModel.markSupersededForDocument.mockResolvedValue(undefined);
+    MockCertificateService.generateCertificate.mockResolvedValue(certificate);
+    MockSessionModel.markLatestSubmittedForTaskUser.mockResolvedValue(undefined);
+    MockTaskModel.markTimedEnrollmentAutoSubmitComplete.mockResolvedValue(undefined);
+
+    const result = await TaskService.autoSubmitExpiredTimedTaskEnrollments(10);
+
+    expect(MockTaskModel.claimExpiredTimedEnrollments).toHaveBeenCalledWith(10);
+    expect(MockSubmissionModel.create).toHaveBeenCalledWith(expect.objectContaining({
+      taskId: 'task-1',
+      userId: 'user-1',
+      documentId: 'doc-1',
+    }));
+    expect(MockTaskModel.markTimedEnrollmentAutoSubmitComplete).toHaveBeenCalledWith('enrollment-1');
+    expect(MockTaskModel.markTimedEnrollmentAutoSubmitFailed).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      claimed: 1,
+      submitted: 1,
+      skipped: 0,
+      failed: 0,
+    });
+  });
+
+  it('marks claimed enrollments complete when an active submission already exists', async () => {
+    MockTaskModel.claimExpiredTimedEnrollments.mockResolvedValue([{
+      enrollmentId: 'enrollment-1',
+      taskId: 'task-1',
+      userId: 'user-1',
+      userEmail: 'student@example.com',
+      documentId: 'doc-1',
+      writingStartedAt: new Date(Date.now() - 120_000),
+      timeLimitSeconds: 60,
+    }]);
+    MockTaskModel.findById.mockResolvedValue(makeTask({
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() - 1_000),
+    }));
+    MockTaskModel.hasEnrollment.mockResolvedValue(true);
+    MockSubmissionModel.findActiveForUserTask.mockResolvedValue(makeSubmission());
+    MockTaskModel.markTimedEnrollmentAutoSubmitComplete.mockResolvedValue(undefined);
+
+    const result = await TaskService.autoSubmitExpiredTimedTaskEnrollments(10);
+
+    expect(MockDocumentModel.findByIdAndUserId).not.toHaveBeenCalled();
+    expect(MockSubmissionModel.create).not.toHaveBeenCalled();
+    expect(MockTaskModel.markTimedEnrollmentAutoSubmitComplete).toHaveBeenCalledWith('enrollment-1');
+    expect(result).toEqual({
+      claimed: 1,
+      submitted: 0,
+      skipped: 1,
+      failed: 0,
+    });
+  });
+});
+
 describe('TaskService.startPublicTaskDocument', () => {
   it('creates a guest draft document and returns auth for the normal editor', async () => {
     const task = makeTask({
