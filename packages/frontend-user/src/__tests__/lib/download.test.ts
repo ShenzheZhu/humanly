@@ -81,4 +81,22 @@ describe('downloadBlobWithSavePicker', () => {
     expect(window.URL.createObjectURL).toHaveBeenCalled();
     expect(click).toHaveBeenCalled();
   });
+
+  it('falls back to browser download when native save writing is denied', async () => {
+    const createWritable = jest.fn().mockRejectedValue(new DOMException('denied', 'NotAllowedError'));
+    Object.defineProperty(window, 'showSaveFilePicker', {
+      configurable: true,
+      value: jest.fn().mockResolvedValue({ createWritable }),
+    });
+    jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const click = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
+    await expect(downloadBlobWithSavePicker(
+      () => Promise.resolve(new Blob(['pdf'], { type: 'application/pdf' })),
+      options
+    )).resolves.toBe('downloaded');
+
+    expect(window.URL.createObjectURL).toHaveBeenCalled();
+    expect(click).toHaveBeenCalled();
+  });
 });

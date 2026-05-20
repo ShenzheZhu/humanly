@@ -92,10 +92,17 @@ export async function downloadBlobWithSavePicker(
   const blob = await loadBlob();
 
   if (saveHandle) {
-    const writable = await saveHandle.createWritable();
-    await writable.write(blob);
-    await writable.close();
-    return 'saved';
+    try {
+      const writable = await saveHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return 'saved';
+    } catch (error) {
+      if (isAbortError(error)) {
+        return 'canceled';
+      }
+      console.warn('Native file save failed; falling back to browser download.', error);
+    }
   }
 
   return downloadBlob(blob, options.filename);

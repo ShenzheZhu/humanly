@@ -34,11 +34,14 @@ export class PDFService {
           reject(err);
         });
 
-        // Start building PDF
-        this.buildCertificatePDF(doc, certificate);
-
-        // Finalize PDF
-        doc.end();
+        // Build any async assets, such as the verification QR code, before
+        // closing the stream so the PDF is complete and deterministic.
+        this.buildCertificatePDF(doc, certificate)
+          .then(() => doc.end())
+          .catch((error) => {
+            logger.error('Error in PDF generation', { error });
+            reject(error);
+          });
       } catch (error) {
         logger.error('Error in PDF generation', { error });
         reject(error);
@@ -185,9 +188,6 @@ export class PDFService {
     const aiAcceptanceRate = selection?.acceptanceRate ?? 0;
 
     const aiQuestionsTotal = questions?.total ?? 0;
-    const aiUnderstanding = questions?.understanding ?? 0;
-    const aiGeneration = questions?.generation ?? 0;
-    const aiOther = questions?.other ?? 0;
 
     // Check page space
     if (currentY > pageHeight - margin - 260) {
@@ -205,11 +205,8 @@ export class PDFService {
     currentY += 30;
 
     const aiData = [
-      { label: 'AI Questions:', value: aiQuestionsTotal.toString() },
-      { label: '• Understanding:', value: aiUnderstanding.toString() },
-      { label: '• Generation:', value: aiGeneration.toString() },
-      { label: '• Other:', value: aiOther.toString() },
-      { label: 'AI Selection Actions:', value: aiSelectionTotal.toString() },
+      { label: 'AI Chat:', value: aiQuestionsTotal.toString() },
+      { label: 'Text Improvements:', value: aiSelectionTotal.toString() },
       { label: '• Accepted:', value: aiAccepted.toString() },
       { label: '• Rejected:', value: aiRejected.toString() },
       { label: '• Acceptance Rate:', value: `${Number(aiAcceptanceRate).toFixed(1)}%` },

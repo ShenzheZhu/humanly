@@ -369,20 +369,6 @@ export default function CertificateDetailPage() {
               </div>
             </div>
 
-            <div className="grid gap-3 text-sm sm:grid-cols-3">
-              <div className="flex items-center justify-between rounded-md border px-3 py-2">
-                <span className="text-muted-foreground">Recorded Actions</span>
-                <span className="font-medium">{certificate.totalEvents.toLocaleString()}</span>
-              </div>
-              <div className="flex items-center justify-between rounded-md border px-3 py-2">
-                <span className="text-muted-foreground">Keystrokes</span>
-                <span className="font-medium">{certificate.typingEvents.toLocaleString()}</span>
-              </div>
-              <div className="flex items-center justify-between rounded-md border px-3 py-2">
-                <span className="text-muted-foreground">Paste Events</span>
-                <span className="font-medium">{certificate.pasteEvents.toLocaleString()}</span>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
@@ -510,6 +496,23 @@ export default function CertificateDetailPage() {
                   </div>
 
                   <div className="space-y-2 text-xs">
+                    <div>
+                      <p className="text-muted-foreground">Technical Activity</p>
+                      <div className="mt-1 space-y-1 rounded-md border p-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <span>Tracked actions</span>
+                          <span className="font-medium">{certificate.totalEvents.toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span>Typing updates</span>
+                          <span className="font-medium">{certificate.typingEvents.toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span>Pastes</span>
+                          <span className="font-medium">{certificate.pasteEvents.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
                     <div>
                       <p className="text-muted-foreground">Certificate ID</p>
                       <p className="truncate font-mono">{certificate.id}</p>
