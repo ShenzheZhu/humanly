@@ -736,7 +736,7 @@ export default function DocumentEditorPage() {
           ? 'Time expired, so your task submission and certificate were created automatically.'
           : 'Your task submission and certificate were created.',
       });
-      if (certificate?.id) {
+      if (certificate?.id && !options.automatic) {
         router.push(`/certificates/${certificate.id}`);
       }
     } catch (err: any) {

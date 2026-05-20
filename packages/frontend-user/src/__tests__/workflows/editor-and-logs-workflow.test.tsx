@@ -349,6 +349,7 @@ describe('editor and logs workflows', () => {
         { documentId: 'doc-1' }
       );
     });
+    expect(mockPush).not.toHaveBeenCalledWith('/certificates/certificate-1');
   });
 
   it('uses enrolled task AI settings over stale document AI settings', async () => {
