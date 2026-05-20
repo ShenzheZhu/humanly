@@ -438,7 +438,7 @@ export default function CertificateDetailPage() {
               <button className="flex w-full items-center justify-between px-5 py-4 text-left">
                 <div>
                   <p className="font-medium">More details</p>
-                  <p className="text-sm text-muted-foreground">Verification, access controls, display settings, and certificate identifiers.</p>
+                  <p className="text-sm text-muted-foreground">Verify, share, and manage access.</p>
                 </div>
                 <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${detailsOpen ? 'rotate-180' : ''}`} />
               </button>
@@ -446,27 +446,27 @@ export default function CertificateDetailPage() {
             <CollapsibleContent>
               <Separator />
               <CardContent className="grid gap-5 p-5 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
-                <div className="grid gap-5 rounded-lg border p-4 lg:grid-cols-[minmax(220px,0.9fr)_minmax(280px,1.1fr)]">
+                <div className="grid gap-4 rounded-lg border p-4 lg:grid-cols-[minmax(190px,0.8fr)_minmax(280px,1.2fr)]">
                   <div className="space-y-3">
                     <div>
                       <h3 className="text-sm font-medium">Verification</h3>
                       <p className="text-xs text-muted-foreground">Share or scan this link to verify the certificate.</p>
                     </div>
-                    <div className="flex flex-col items-center rounded-lg bg-muted/30 p-3">
+                    <div className="flex flex-col items-center rounded-lg bg-muted/30 p-2.5">
                       {qrCodeDataURL ? (
                         <img
                           src={qrCodeDataURL}
                           alt="Verification QR Code"
-                          className="h-36 w-36 rounded border bg-background"
+                          className="h-28 w-28 rounded border bg-background"
                         />
                       ) : (
-                        <div className="h-36 w-36 animate-pulse rounded bg-muted" />
+                        <div className="h-28 w-28 animate-pulse rounded bg-muted" />
                       )}
                       <Button
                         onClick={handleShareVerificationLink}
                         variant="outline"
                         size="sm"
-                        className="mt-3 w-full bg-background"
+                        className="mt-2 w-full bg-background"
                       >
                         <Share2 className="mr-2 h-4 w-4" />
                         Copy Link
@@ -474,7 +474,7 @@ export default function CertificateDetailPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-5">
+                  <div className="space-y-4">
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <Lock className={`h-4 w-4 ${certificate.isProtected ? 'text-yellow-600' : 'text-muted-foreground'}`} />
@@ -557,12 +557,12 @@ export default function CertificateDetailPage() {
 
                     <Separator />
 
-                    <div className="space-y-3">
+                    <div className="space-y-2.5">
                       <div className="flex items-center gap-2">
                         <Settings className="h-4 w-4 text-muted-foreground" />
                         <h3 className="text-sm font-medium">Public Display</h3>
                       </div>
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         <div className="flex items-center justify-between gap-3">
                           <Label htmlFor="includeFullText" className="cursor-pointer text-xs">
                             Show full text
