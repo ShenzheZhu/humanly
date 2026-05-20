@@ -414,7 +414,7 @@ export default function CertificateDetailPage() {
 
                   <div className="rounded-lg border p-4">
                     <p className="flex items-center gap-2 text-sm font-medium">
-                      <MessageSquare className="h-4 w-4 text-blue-500" />
+                      <MessageSquare className="h-4 w-4 text-orange-500" />
                       AI Chat
                     </p>
                     <p className="mt-3 text-3xl font-semibold">{aiChatTotal}</p>
