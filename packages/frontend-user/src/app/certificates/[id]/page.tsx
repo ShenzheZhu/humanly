@@ -505,12 +505,12 @@ export default function CertificateDetailPage() {
                       <h3 className="text-sm font-medium">Verification</h3>
                       <p className="text-xs text-muted-foreground">Share or scan this link to verify the certificate.</p>
                     </div>
-                    <div className="flex flex-col items-center rounded-lg border bg-white p-3">
+                    <div className="flex flex-col items-center">
                       {qrCodeDataURL ? (
                         <img
                           src={qrCodeDataURL}
                           alt="Verification QR Code"
-                          className="h-36 w-36 rounded bg-white"
+                          className="h-36 w-36 bg-white"
                         />
                       ) : (
                         <div className="h-36 w-36 animate-pulse rounded bg-muted" />
@@ -519,7 +519,7 @@ export default function CertificateDetailPage() {
                         onClick={handleShareVerificationLink}
                         variant="outline"
                         size="sm"
-                        className="mt-3 w-full bg-background"
+                        className="mt-3 w-full max-w-56 bg-background"
                       >
                         <Share2 className="mr-2 h-4 w-4" />
                         Copy Link
