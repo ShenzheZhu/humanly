@@ -8,6 +8,31 @@ REPO_DIR="${VM_DEPLOY_PATH:-${REPO_DIR:-/home/humanly/humanly}}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 IMAGE_ENV_FILE="${IMAGE_ENV_FILE:-.env.production-images}"
 
+disable_conflicting_host_certbot() {
+  if [[ "${DISABLE_HOST_CERTBOT:-1}" != "1" ]]; then
+    return 0
+  fi
+
+  if ! command -v systemctl >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if ! systemctl list-unit-files --type=service --type=timer 2>/dev/null | grep -Eq '^certbot\.(service|timer)'; then
+    return 0
+  fi
+
+  echo "==> Disable host certbot units; Docker nginx owns ports 80/443"
+  if [[ "$(id -u)" == "0" ]]; then
+    systemctl disable --now certbot.timer certbot.service >/dev/null 2>&1 || true
+    systemctl reset-failed certbot.service >/dev/null 2>&1 || true
+  elif command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+    sudo systemctl disable --now certbot.timer certbot.service >/dev/null 2>&1 || true
+    sudo systemctl reset-failed certbot.service >/dev/null 2>&1 || true
+  else
+    echo "WARN: host certbot units exist, but this user cannot run passwordless sudo to disable them." >&2
+  fi
+}
+
 echo "==> [1/8] Enter deployment directory"
 cd "$REPO_DIR"
 
@@ -64,6 +89,7 @@ docker compose -f "$COMPOSE_FILE" up -d --no-deps --wait backend frontend-user f
 docker compose -f "$COMPOSE_FILE" up -d --no-deps --force-recreate nginx
 
 echo "==> Ensure production TLS certificate covers supported hostnames"
+disable_conflicting_host_certbot
 bash scripts/ensure-production-cert.sh
 docker compose -f "$COMPOSE_FILE" up -d --no-deps --force-recreate nginx
 
