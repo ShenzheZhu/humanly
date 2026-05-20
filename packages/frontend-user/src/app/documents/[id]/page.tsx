@@ -242,8 +242,30 @@ export default function DocumentEditorPage() {
     taskEnrollment && currentEnvironmentConfig.submission.minCharacters
       ? Math.max(1, Math.floor(currentEnvironmentConfig.submission.minCharacters))
       : null;
+  const maximumSubmissionCharacters =
+    taskEnrollment && currentEnvironmentConfig.submission.maxCharacters
+      ? Math.max(1, Math.floor(currentEnvironmentConfig.submission.maxCharacters))
+      : null;
   const isBelowMinimumCharacters =
     minimumSubmissionCharacters !== null && characterCount < minimumSubmissionCharacters;
+  const isAboveMaximumCharacters =
+    maximumSubmissionCharacters !== null && characterCount > maximumSubmissionCharacters;
+  const characterBoundsTitle =
+    minimumSubmissionCharacters !== null && maximumSubmissionCharacters !== null
+      ? `Characters: ${minimumSubmissionCharacters.toLocaleString()}-${maximumSubmissionCharacters.toLocaleString()}`
+      : minimumSubmissionCharacters !== null
+        ? `Minimum characters: ${minimumSubmissionCharacters.toLocaleString()}`
+        : maximumSubmissionCharacters !== null
+          ? `Maximum characters: ${maximumSubmissionCharacters.toLocaleString()}`
+          : '';
+  const characterBoundsLabel =
+    minimumSubmissionCharacters !== null && maximumSubmissionCharacters !== null
+      ? `${characterCount.toLocaleString()}/${minimumSubmissionCharacters.toLocaleString()}-${maximumSubmissionCharacters.toLocaleString()} chars`
+      : minimumSubmissionCharacters !== null
+        ? `${characterCount.toLocaleString()}/${minimumSubmissionCharacters.toLocaleString()} chars min`
+        : maximumSubmissionCharacters !== null
+          ? `${characterCount.toLocaleString()}/${maximumSubmissionCharacters.toLocaleString()} chars max`
+          : '';
 
   const calculateWordCount = useCallback((text: string): number => {
     if (!text || typeof text !== 'string') return 0;
@@ -649,6 +671,15 @@ export default function DocumentEditorPage() {
       return;
     }
 
+    if (maximumSubmissionCharacters && characterCount > maximumSubmissionCharacters) {
+      toast({
+        title: 'Maximum length exceeded',
+        description: `Keep the submission at most ${maximumSubmissionCharacters.toLocaleString()} characters. Current length: ${characterCount.toLocaleString()} characters.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       setIsSubmittingTask(true);
       if (latestEditorSnapshotRef.current) {
@@ -859,12 +890,12 @@ export default function DocumentEditorPage() {
 
               <div className="hidden sm:block text-sm text-muted-foreground">{wordCount} words</div>
 
-              {minimumSubmissionCharacters !== null && (
+              {(minimumSubmissionCharacters !== null || maximumSubmissionCharacters !== null) && (
                 <Badge
-                  variant={isBelowMinimumCharacters ? 'destructive' : 'outline'}
-                  title={`Minimum characters: ${minimumSubmissionCharacters.toLocaleString()}`}
+                  variant={isBelowMinimumCharacters || isAboveMaximumCharacters ? 'destructive' : 'outline'}
+                  title={characterBoundsTitle}
                 >
-                  {characterCount.toLocaleString()}/{minimumSubmissionCharacters.toLocaleString()} chars
+                  {characterBoundsLabel}
                 </Badge>
               )}
 
