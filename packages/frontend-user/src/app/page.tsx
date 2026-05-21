@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { BRAND } from '@humanly/shared';
 
 const ink = '#1a1c20';
 const muted = '#6e7176';
@@ -27,24 +28,49 @@ const toolRows = [
   ['read', '49ms'],
 ];
 
+const problemCards = [
+  'AI detectors guess after the fact.',
+  'Readers cannot see the writing process.',
+  'Writers defend the work instead of doing it.',
+];
+
+const steps = [
+  [
+    '01',
+    'Configure',
+    'Choose AI access, paste rules, character limits, and time limits before writing begins.',
+  ],
+  [
+    '02',
+    'Write',
+    'Type, paste, revise, and use AI inside one tracked workspace.',
+  ],
+  [
+    '03',
+    'Record',
+    'Humanly captures the writing timeline without interrupting the drafting surface.',
+  ],
+  [
+    '04',
+    'Sign',
+    'Publish a verifiable PDF and JSON record of how the draft came together.',
+  ],
+] as const;
+
 const faqs = [
   [
-    'Does Humanly slow my writing down?',
-    'No. The tracker runs at the keystroke layer with no UI overhead — the editor feels like a normal editor.',
+    'Does Humanly slow down writing?',
+    'No. The editor stays familiar while provenance is recorded in the background.',
   ],
   [
-    "What's in the certificate?",
-    'A signed record of your writing session and a hash of the final text. Anyone can verify it without signing up.',
+    'What does a certificate prove?',
+    'It binds the final text to a signed record of typing, paste, timing, and AI assistance.',
   ],
   [
-    'Is my draft private?',
-    'Always. Only the signature and metadata leave your workspace — your content never does.',
+    'Can writers still use AI?',
+    'Yes. Humanly is built for transparent human-AI collaboration, not hidden policing.',
   ],
-  [
-    'Which AI models work?',
-    'Bring your own. GPT, Claude, Gemini, or any model via our API.',
-  ],
-];
+] as const;
 
 export default function HomePage() {
   return (
@@ -53,19 +79,22 @@ export default function HomePage() {
 
       <section id="product" className="relative px-5 pb-14 pt-24 sm:px-8 sm:pb-16 sm:pt-28 lg:px-14 lg:pt-[120px]">
         <div className="mx-auto max-w-[940px] text-center">
-          <Eyebrow className="mb-7">Humanly</Eyebrow>
+          <Eyebrow className="mb-7">{BRAND.name}</Eyebrow>
           <h1 className="text-[44px] font-semibold leading-[1.04] tracking-[-0.025em] sm:text-[64px] lg:text-[72px]">
             <span>Write with AI.</span>
             <br />
             <span className="text-[#a0a2a7]">Prove your process.</span>
           </h1>
           <p className="mx-auto mt-8 max-w-[560px] text-[15px] leading-[1.7] text-muted-foreground sm:text-[19px] sm:leading-[1.55]">
-            A writing workspace that quietly records how a draft came together —
+            A writing workspace that quietly records how a draft came together,
             then signs it with a certificate any reader can verify.
           </p>
-          <div className="mt-9 flex justify-center">
+          <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link href="/register" className="humanly-landing-btn">
               Start writing <Arrow />
+            </Link>
+            <Link href="/login" className="humanly-landing-btn-ghost">
+              Sign in
             </Link>
           </div>
         </div>
@@ -87,7 +116,7 @@ function NavBar() {
     <header className="grid grid-cols-[1fr_auto] items-center border-b border-[rgba(20,22,26,0.05)] px-5 py-5 sm:px-8 lg:grid-cols-[1fr_auto_1fr] lg:px-14 lg:py-[26px]">
       <Link href="/" className="flex items-center gap-2.5 text-sm font-bold tracking-[-0.02em]">
         <span className="text-lg leading-none">–</span>
-        <span>Humanly</span>
+        <span>{BRAND.name}</span>
       </Link>
 
       <nav className="hidden items-center gap-9 text-sm font-medium text-muted-foreground lg:flex">
@@ -102,14 +131,13 @@ function NavBar() {
           className="hidden items-center gap-2 rounded-full border border-[rgba(20,22,26,0.10)] px-3 py-1.5 text-[13px] font-medium text-muted-foreground sm:inline-flex"
         >
           <GitHubMark />
-          <span>Star</span>
-          <span className="font-semibold text-foreground">1.2k</span>
+          <span>Open source</span>
         </a>
         <Link href="/login" className="hidden text-sm font-medium text-muted-foreground hover:text-foreground sm:inline">
           Log in
         </Link>
-        <Link href="/login" className="humanly-landing-btn px-[18px] py-[9px] text-[13px]">
-          Sign in
+        <Link href="/register" className="humanly-landing-btn px-[18px] py-[9px] text-[13px]">
+          Start
         </Link>
       </div>
     </header>
@@ -128,7 +156,7 @@ function HeroComposition() {
         }}
       />
 
-      <div className="absolute left-1/2 top-5 z-20 w-[min(680px,78vw)] -translate-x-1/2 rotate-[0.4deg] sm:top-7 lg:left-[210px] lg:top-[30px] lg:w-[680px] lg:translate-x-0">
+      <div className="absolute left-1/2 top-5 z-20 w-[min(680px,78vw)] -translate-x-1/2 rotate-[0.4deg] sm:top-7 lg:left-[19.1%] lg:top-[4.2%] lg:w-[61.8%] lg:translate-x-0">
         <HeroDocCalm />
       </div>
 
@@ -230,7 +258,7 @@ function HeroDocCalm() {
 
 function AIAssistCard() {
   return (
-    <div className="absolute left-7 top-[240px] z-30 hidden w-[200px] rotate-[-2deg] rounded-[10px] border border-[rgba(20,22,26,0.10)] bg-white px-3.5 py-3 shadow-[0_24px_60px_-18px_rgba(20,22,26,0.40)] lg:block">
+    <div className="absolute left-[2.5%] top-[33.3%] z-30 hidden w-[18.2%] min-w-[176px] rotate-[-2deg] rounded-[10px] border border-[rgba(20,22,26,0.10)] bg-white px-3.5 py-3 shadow-[0_24px_60px_-18px_rgba(20,22,26,0.40)] lg:block">
       <div className="mb-2 flex items-center gap-1.5">
         <span className="grid h-[18px] w-[18px] place-items-center rounded-[5px] bg-foreground text-[10px] font-bold text-white">✦</span>
         <span className="text-[11px] font-bold">AI Assistant</span>
@@ -256,7 +284,7 @@ function AIAssistCard() {
 
 function TrackingCard() {
   return (
-    <div className="absolute right-7 top-[70px] z-40 hidden w-[200px] rotate-[2deg] rounded-[10px] border border-[rgba(20,22,26,0.10)] bg-white px-3.5 py-3 shadow-[0_24px_50px_-18px_rgba(20,22,26,0.40)] lg:block">
+    <div className="absolute right-[2.5%] top-[9.7%] z-40 hidden w-[18.2%] min-w-[176px] rotate-[2deg] rounded-[10px] border border-[rgba(20,22,26,0.10)] bg-white px-3.5 py-3 shadow-[0_24px_50px_-18px_rgba(20,22,26,0.40)] lg:block">
       <div className="mb-2.5 flex justify-between">
         <span className="text-[11px] font-bold">Tracking log</span>
         <span className="text-[9px] text-muted-foreground">live</span>
@@ -282,7 +310,7 @@ function TrackingCard() {
 
 function CertificateCard() {
   return (
-    <div className="absolute right-7 top-[600px] z-30 hidden h-[100px] w-[460px] rotate-[-0.8deg] grid-cols-[1fr_auto] items-center gap-[18px] rounded-[10px] border border-[rgba(20,22,26,0.10)] bg-[#fdfcf7] px-[18px] py-3.5 shadow-[0_24px_50px_-18px_rgba(20,22,26,0.40)] lg:grid">
+    <div className="absolute right-[2.5%] top-[83.3%] z-30 hidden min-h-[92px] w-[41.8%] rotate-[-0.8deg] grid-cols-[1fr_auto] items-center gap-[18px] rounded-[10px] border border-[rgba(20,22,26,0.10)] bg-[#fdfcf7] px-[18px] py-3.5 shadow-[0_24px_50px_-18px_rgba(20,22,26,0.40)] lg:grid">
       <div>
         <div className="mb-1.5 flex items-center gap-1.5">
           <CertBadge />
@@ -317,20 +345,24 @@ function ProblemSection() {
         <div className="mb-16 text-center">
           <Eyebrow className="mb-[22px]">Problem</Eyebrow>
           <h2 className="text-[34px] font-semibold leading-[1.08] tracking-[-0.02em] sm:text-[44px]">
-            <span>“Did you write this,</span>
+            <span>Did you write this,</span>
             <br />
-            <span className="text-[#a0a2a7]">or did AI?”</span>
+            <span className="text-[#a0a2a7]">or did AI?</span>
           </h2>
           <p className="mx-auto mt-[22px] max-w-[560px] text-[15px] leading-[1.7] text-muted-foreground sm:text-[17px]">
-            Every reader, editor, and reviewer asks the same question. The answer
-            shouldn&apos;t be a defense — it should be a receipt.
+            The answer should not be a defense. It should be a receipt.
           </p>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
-          <ProblemCard n="01" illo={<ProblemIllo1 />} caption="Detectors return false positives on your own writing." />
-          <ProblemCard n="02" illo={<ProblemIllo2 />} caption="No one can see how the draft actually came together." />
-          <ProblemCard n="03" illo={<ProblemIllo3 />} caption="You end up defending the work instead of doing it." />
+          {problemCards.map((caption, index) => (
+            <ProblemCard
+              key={caption}
+              n={`0${index + 1}`}
+              illo={[<ProblemIllo1 key="1" />, <ProblemIllo2 key="2" />, <ProblemIllo3 key="3" />][index]}
+              caption={caption}
+            />
+          ))}
         </div>
       </div>
     </section>
@@ -363,10 +395,21 @@ function HowItWorksSection() {
         </div>
 
         <div className="grid gap-10 md:grid-cols-4 md:gap-0">
-          <Step n="01" t="Configure the environment" d="Set the rules before writing — AI on or off, paste allowed or not, character cap, time limit. Every setting is in your hands." illo={<StepIllo0 />} />
-          <Step n="02" t="Write in the editor" d="Type, paste, or invite AI in. The editor feels normal — Humanly captures the timeline in the background." illo={<StepIllo1 />} divider />
-          <Step n="03" t="Every action, fully logged" d="Type, paste, focus, AI assist — every event is captured with a timestamp and stored alongside the draft." illo={<StepIllo2 />} divider />
-          <Step n="04" t="Sign the certificate" d="When you publish, Humanly emits a signed receipt of how the draft was made." illo={<StepIllo3 />} divider />
+          {steps.map(([number, title, description], index) => (
+            <Step
+              key={number}
+              n={number}
+              t={title}
+              d={description}
+              illo={[
+                <StepIllo0 key="0" />,
+                <StepIllo1 key="1" />,
+                <StepIllo2 key="2" />,
+                <StepIllo3 key="3" />,
+              ][index]}
+              divider={index > 0}
+            />
+          ))}
         </div>
       </div>
     </section>
@@ -433,11 +476,8 @@ function CTASection() {
         <Link href="/register" className="humanly-landing-btn">
           Open the editor <Arrow />
         </Link>
-        <Link href="https://github.com/ShenzheZhu/humanly" className="humanly-landing-btn-ghost">
-          Read the docs
-        </Link>
       </div>
-      <p className="mt-6 text-[13px] text-muted-foreground">Open source · self-host or sign in · MIT licensed</p>
+      <p className="mt-6 text-[13px] text-muted-foreground">Open source under MIT</p>
     </section>
   );
 }
@@ -448,12 +488,12 @@ function Footer() {
       <div className="mx-auto flex max-w-[1168px] flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <Link href="/" className="flex items-center gap-2.5 text-sm font-bold tracking-[-0.02em]">
           <span className="text-lg leading-none">–</span>
-          <span>Humanly</span>
+          <span>{BRAND.name}</span>
         </Link>
         <div className="flex flex-wrap gap-5 text-xs font-medium text-muted-foreground">
           <Link href="/privacy" className="hover:text-foreground">Privacy</Link>
           <Link href="/terms" className="hover:text-foreground">Terms</Link>
-          <span>© 2026 Humanly · Open source under MIT</span>
+          <span>Open source under MIT</span>
         </div>
       </div>
     </footer>
