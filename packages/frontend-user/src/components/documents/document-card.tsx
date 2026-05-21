@@ -72,65 +72,59 @@ export function DocumentCard({ document, timerState, onDelete, variant = 'card' 
     return (
       <>
         <Link href={documentHref} className="block">
-          <Card className="group cursor-pointer transition-colors hover:border-foreground/30">
-            <CardContent className="flex min-h-[7rem] flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-5">
-              <div className="min-w-0 flex-1">
-                <div className="flex min-w-0 items-start gap-2">
-                  <h3 className="min-w-0 flex-1 truncate text-base font-semibold text-foreground sm:text-lg">
-                    {displayTitle}
-                  </h3>
-                  {timerState?.expired && (
-                    <Badge variant="secondary" className="shrink-0 rounded-md">
-                      Read-only
-                    </Badge>
-                  )}
-                </div>
-
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Last edited {formatDate(document.updatedAt || document.createdAt)} · {characterCount.toLocaleString()} characters
-                </div>
-
-                <p className="mt-2 min-h-[1.5rem] truncate text-sm leading-6 text-muted-foreground/80">
-                  {showPreview && document.plainText ? document.plainText : ''}
-                </p>
-
-                {timerState && (
-                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                    <CalendarClock className="h-3.5 w-3.5 shrink-0 text-accent" />
-                    <span className="font-medium text-foreground">{timerState.value}</span>
-                    <span>{timerState.detail}</span>
-                  </div>
+          <div className="group flex min-h-[4.75rem] cursor-pointer flex-col gap-3 border-b border-border/70 px-1 py-3 transition-colors hover:bg-muted/35 sm:flex-row sm:items-center sm:gap-5 sm:px-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 items-start gap-2">
+                <h3 className="min-w-0 flex-1 truncate text-base font-semibold text-foreground sm:text-lg">
+                  {displayTitle}
+                </h3>
+                {timerState?.expired && (
+                  <Badge variant="secondary" className="shrink-0 rounded-md">
+                    Read-only
+                  </Badge>
                 )}
               </div>
 
-              <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border/60 pt-3 sm:border-t-0 sm:pt-0">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    router.push(documentHref);
-                  }}
-                >
-                  {timerState?.expired ? 'Open Read-only' : 'Open'}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 text-xs text-muted-foreground hover:text-foreground"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setShowDeleteDialog(true);
-                  }}
-                >
-                  <Trash2 className="h-3 w-3 mr-1" />
-                  Delete
-                </Button>
+              <div className="mt-1 text-xs text-muted-foreground">
+                Last edited {formatDate(document.updatedAt || document.createdAt)} · {characterCount.toLocaleString()} characters
               </div>
-            </CardContent>
-          </Card>
+
+              {timerState && (
+                <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                  <CalendarClock className="h-3.5 w-3.5 shrink-0 text-accent" />
+                  <span className="font-medium text-foreground">{timerState.value}</span>
+                  <span>{timerState.detail}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border/60 pt-3 sm:border-t-0 sm:pt-0">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={(e) => {
+                  e.preventDefault();
+                  router.push(documentHref);
+                }}
+              >
+                {timerState?.expired ? 'Open Read-only' : 'Open'}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShowDeleteDialog(true);
+                }}
+              >
+                <Trash2 className="h-3 w-3 mr-1" />
+                Delete
+              </Button>
+            </div>
+          </div>
         </Link>
 
         <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

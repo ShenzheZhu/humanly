@@ -271,6 +271,7 @@ describe('task enrollment workflow', () => {
     expect(listViewButton).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText('First Personal Writing')).toBeInTheDocument();
     expect(screen.getByText('Second Personal Writing')).toBeInTheDocument();
+    expect(screen.queryByText('This document has enough preview text to exercise the list layout without changing row controls.')).not.toBeInTheDocument();
   });
 
   it('marks expired timed personal writing cards as read-only while preserving access', async () => {
