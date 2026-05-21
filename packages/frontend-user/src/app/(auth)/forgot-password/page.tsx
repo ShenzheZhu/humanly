@@ -45,7 +45,6 @@ export default function ForgotPasswordPage() {
 
   return (
     <AuthCard
-      eyebrow="Recovery"
       title={success ? 'Check your email' : 'Reset your password'}
       description={
         success

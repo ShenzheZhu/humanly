@@ -79,7 +79,6 @@ function ResetPasswordContent() {
 
   return (
     <AuthCard
-      eyebrow="Recovery"
       title={success ? 'Password updated' : 'Set a new password'}
       description={
         success

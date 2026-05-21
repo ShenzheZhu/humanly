@@ -90,9 +90,7 @@ export default function LoginPage() {
 
   return (
     <AuthCard
-      eyebrow="Account"
       title="Welcome back"
-      description="Sign in to keep writing, tracking, and certifying your drafts."
       footer={
         <>
           <p className="text-sm text-muted-foreground">
@@ -113,7 +111,6 @@ export default function LoginPage() {
         </>
       }
     >
-        <OAuthButtons className="mb-5" />
         <form method="post" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {error && (
             <Alert variant={resendSuccess ? "default" : "destructive"}>
@@ -224,6 +221,7 @@ export default function LoginPage() {
             )}
           </Button>
         </form>
+        <OAuthButtons className="mt-5" />
     </AuthCard>
   );
 }

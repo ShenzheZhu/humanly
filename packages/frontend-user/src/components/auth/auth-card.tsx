@@ -14,7 +14,6 @@ import {
 import { cn } from '@/lib/utils';
 
 type AuthCardProps = {
-  eyebrow?: string;
   title: string;
   description?: string;
   children: React.ReactNode;
@@ -23,7 +22,6 @@ type AuthCardProps = {
 };
 
 export function AuthCard({
-  eyebrow,
   title,
   description,
   children,
@@ -38,11 +36,6 @@ export function AuthCard({
       )}
     >
       <CardHeader className="space-y-3 pb-5 text-center">
-        {eyebrow && (
-          <p className="humanly-eyebrow mx-auto rounded-full bg-muted/70 px-3 py-1">
-            {eyebrow}
-          </p>
-        )}
         <CardTitle className="text-2xl font-bold leading-tight tracking-normal">
           {title}
         </CardTitle>

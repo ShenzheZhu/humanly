@@ -66,9 +66,11 @@ export function OAuthButtons({
 
   return (
     <div className={cn('space-y-3', className)}>
-      <p className="text-center text-xs font-medium uppercase text-muted-foreground">
-        Quick access
-      </p>
+      <div className="flex items-center gap-3">
+        <div className="h-px flex-1 bg-border/80" />
+        <span className="text-xs text-muted-foreground">or continue with</span>
+        <div className="h-px flex-1 bg-border/80" />
+      </div>
       <div className="grid gap-2 sm:grid-cols-2">
         {providers.google && (
           <Button
@@ -103,11 +105,6 @@ export function OAuthButtons({
             GitHub
           </Button>
         )}
-      </div>
-      <div className="flex items-center gap-3 pt-1">
-        <div className="h-px flex-1 bg-border/80" />
-        <span className="text-xs text-muted-foreground">or use email</span>
-        <div className="h-px flex-1 bg-border/80" />
       </div>
     </div>
   );

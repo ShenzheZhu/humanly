@@ -37,8 +37,8 @@ const registerSchema = z
   .object({
     name: z
       .string()
-      .min(1, 'Name is required')
-      .max(100, 'Name must be less than 100 characters'),
+      .min(1, 'User name is required')
+      .max(100, 'User name must be less than 100 characters'),
     email: z
       .string()
       .min(1, 'Email is required')
@@ -184,16 +184,15 @@ export default function RegisterPage() {
 
   return (
     <Card className="border-border bg-white shadow-none humanly-panel-shadow">
-      <CardHeader className="text-center">
+      <CardHeader className="space-y-2 pb-2 text-center">
         <CardTitle className="text-2xl font-bold tracking-normal">
           Create an account
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="mx-auto max-w-sm text-sm leading-5">
           Enter your information to {getBrandText().createAccount}
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <OAuthButtons className="mb-5" />
         <Form {...form}>
           <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {error && (
@@ -209,7 +208,7 @@ export default function RegisterPage() {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>User name</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="John Doe"
@@ -387,6 +386,7 @@ export default function RegisterPage() {
             </Button>
           </form>
         </Form>
+        <OAuthButtons className="mt-5" />
       </CardContent>
       <CardFooter className="flex flex-col space-y-4">
         <div className="text-sm text-center text-muted-foreground">
