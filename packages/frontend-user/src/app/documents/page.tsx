@@ -63,11 +63,17 @@ type SortOption = 'lastEdited' | 'title' | 'characterCount';
 type WorkspaceTab = 'documents' | 'tasks';
 type DocumentViewMode = 'cards' | 'list';
 
+const DOCUMENT_VIEW_MODE_STORAGE_KEY = 'humanly:documents:view-mode';
+
 const SORT_LABELS: Record<SortOption, string> = {
   lastEdited: 'Last edited',
   title: 'Title',
   characterCount: 'Character count',
 };
+
+const isDocumentViewMode = (value: string | null): value is DocumentViewMode => (
+  value === 'cards' || value === 'list'
+);
 
 interface TaskEnrollment {
   id: string;
@@ -175,6 +181,18 @@ export default function DocumentsPage() {
   const [isLoadingTaskEnrollments, setIsLoadingTaskEnrollments] = useState(true);
   const [taskEnrollmentsError, setTaskEnrollmentsError] = useState<string | null>(null);
   const [dashboardNowMs, setDashboardNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const storedViewMode = window.localStorage.getItem(DOCUMENT_VIEW_MODE_STORAGE_KEY);
+    if (isDocumentViewMode(storedViewMode)) {
+      setDocumentViewMode(storedViewMode);
+    }
+  }, []);
+
+  const handleDocumentViewModeChange = useCallback((nextViewMode: DocumentViewMode) => {
+    setDocumentViewMode(nextViewMode);
+    window.localStorage.setItem(DOCUMENT_VIEW_MODE_STORAGE_KEY, nextViewMode);
+  }, []);
 
   const fetchTaskEnrollments = useCallback(async () => {
     try {
@@ -444,7 +462,7 @@ export default function DocumentsPage() {
                   size="icon"
                   className="h-10 w-10 text-muted-foreground hover:text-foreground"
                   aria-label={documentViewMode === 'cards' ? 'List view' : 'Card view'}
-                  onClick={() => setDocumentViewMode(documentViewMode === 'cards' ? 'list' : 'cards')}
+                  onClick={() => handleDocumentViewModeChange(documentViewMode === 'cards' ? 'list' : 'cards')}
                 >
                   {documentViewMode === 'cards' ? (
                     <List className="h-6 w-6" />

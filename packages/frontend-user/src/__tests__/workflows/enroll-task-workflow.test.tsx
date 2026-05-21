@@ -77,6 +77,7 @@ describe('task enrollment workflow', () => {
     mockApiPut.mockReset();
     mockCreateDocument.mockClear();
     mockDeleteDocument.mockClear();
+    window.localStorage.clear();
 
     mockApiGet.mockImplementation(async (path: string) => {
       if (path === '/tasks/my-enrollments') {
@@ -255,7 +256,7 @@ describe('task enrollment workflow', () => {
     ];
 
     const user = userEvent.setup();
-    render(<DocumentsPage />);
+    const { unmount } = render(<DocumentsPage />);
 
     expect(await screen.findByRole('heading', { name: /writing dashboard/i })).toBeInTheDocument();
     const cardViewButton = screen.getByRole('button', { name: /card view/i });
@@ -269,6 +270,15 @@ describe('task enrollment workflow', () => {
     await user.click(cardViewButton);
 
     expect(screen.getByRole('button', { name: /list view/i })).toBeInTheDocument();
+    expect(screen.getByText('This document has enough preview text to exercise the list layout without changing row controls.')).toBeInTheDocument();
+    expect(window.localStorage.getItem('humanly:documents:view-mode')).toBe('cards');
+
+    unmount();
+    render(<DocumentsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /list view/i })).toBeInTheDocument();
+    });
     expect(screen.getByText('This document has enough preview text to exercise the list layout without changing row controls.')).toBeInTheDocument();
   });
 
