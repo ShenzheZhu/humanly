@@ -89,6 +89,14 @@
   .humanly-focus {
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
+
+  .humanly-landing-btn {
+    @apply inline-flex items-center gap-2.5 rounded-full bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition-transform hover:-translate-y-0.5;
+  }
+
+  .humanly-landing-btn-ghost {
+    @apply inline-flex items-center gap-2 rounded-full border border-border bg-transparent px-[18px] py-3 text-sm font-medium text-foreground transition-colors hover:bg-white/60;
+  }
 }
 
 @layer utilities {
