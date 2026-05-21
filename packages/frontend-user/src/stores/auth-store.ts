@@ -37,6 +37,7 @@ interface AuthState {
   checkAuth: () => Promise<void>;
   fetchUser: () => Promise<void>;
   updateUser: (data: Partial<User>) => Promise<void>;
+  clearLocalSession: () => void;
   clearError: () => void;
   setLoading: (loading: boolean) => void;
 }
@@ -356,6 +357,20 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: false, error: errorMessage });
           throw error;
         }
+      },
+
+      /**
+       * Clear local auth state without calling the backend.
+       */
+      clearLocalSession: () => {
+        TokenManager.clearTokens();
+        disconnectSocket();
+        set({
+          user: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: null,
+        });
       },
 
       /**

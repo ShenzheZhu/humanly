@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
 import { Navbar } from '@/components/navigation/navbar';
+import { isGuestUserEmail } from '@/components/navigation/user-display';
 
 export default function DocumentsLayout({
   children,
@@ -11,9 +12,14 @@ export default function DocumentsLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
+  const pathname = usePathname();
+  const { user, isAuthenticated, isLoading, checkAuth, clearLocalSession } = useAuthStore();
   const [hasChecked, setHasChecked] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const isGuestWorkspaceRoute =
+    isAuthenticated &&
+    isGuestUserEmail(user?.email) &&
+    (pathname === '/documents' || pathname === '/documents/new');
 
   useEffect(() => {
     if (!hasChecked) {
@@ -31,6 +37,13 @@ export default function DocumentsLayout({
     }
   }, [isAuthenticated, isLoading, router, hasChecked, isCheckingAuth]);
 
+  useEffect(() => {
+    if (hasChecked && !isCheckingAuth && !isLoading && isGuestWorkspaceRoute) {
+      clearLocalSession();
+      router.replace('/login');
+    }
+  }, [clearLocalSession, hasChecked, isCheckingAuth, isGuestWorkspaceRoute, isLoading, router]);
+
   if (isCheckingAuth || isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -42,7 +55,7 @@ export default function DocumentsLayout({
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || isGuestWorkspaceRoute) {
     return null;
   }
 
