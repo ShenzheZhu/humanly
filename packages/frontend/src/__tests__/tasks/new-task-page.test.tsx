@@ -221,6 +221,9 @@ describe('admin new task page', () => {
       expect(mockApiPost).toHaveBeenCalledWith('/api/v1/ai/settings/test', expect.objectContaining({
         apiKey: 'sk-test',
       }));
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'AI key verified',
+      }));
       expect(mockApiPut).toHaveBeenCalledWith('/api/v1/ai/settings', expect.objectContaining({
         apiKey: 'sk-test',
       }));

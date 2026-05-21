@@ -532,6 +532,11 @@ export default function NewDocumentPage() {
       });
 
       if (success) {
+        toast({
+          title: 'AI key verified',
+          description: 'Connection test passed. This writing environment can use AI.',
+        });
+
         const fallbackModels = getWhitelist(baseUrlToTest) || [];
         const modelsFromApi = Array.isArray(result.models) ? result.models.filter(Boolean) : [];
         const nextModels = fallbackModels.length ? fallbackModels : modelsFromApi;
@@ -1232,6 +1237,9 @@ export default function NewDocumentPage() {
                         <p className="mt-1 text-sm font-medium">
                           {environmentConfig.aiAccess === 'off' ? 'Off' : 'On'}
                         </p>
+                        {environmentConfig.aiAccess !== 'off' && aiConnectionResult?.success === true && (
+                          <p className="mt-1 text-xs text-muted-foreground">Key verified</p>
+                        )}
                       </div>
                       <div className="rounded-lg border border-border/60 bg-background p-2.5">
                         <p className="humanly-eyebrow">Writing</p>

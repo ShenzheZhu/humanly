@@ -297,8 +297,12 @@ describe('document creation workflow', () => {
       expect(mockApiPost).toHaveBeenCalledWith('/ai/settings/test', expect.objectContaining({
         apiKey: 'sk-test',
       }));
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'AI key verified',
+      }));
       expect(screen.queryByRole('dialog', { name: /custom environment/i })).not.toBeInTheDocument();
     });
+    expect(screen.getByText('Key verified')).toBeInTheDocument();
   });
 
   it('reverts unvalidated AI-on settings when the custom dialog is dismissed', async () => {

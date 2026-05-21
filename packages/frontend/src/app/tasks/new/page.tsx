@@ -634,6 +634,11 @@ export default function NewTaskPage() {
       });
 
       if (result.success) {
+        toast({
+          title: 'AI key verified',
+          description: 'Connection test passed. This task can use AI.',
+        });
+
         const fallbackModels = getWhitelist(aiBaseUrl.trim() || DEFAULT_AI_BASE_URL) || [];
         const modelsFromApi = Array.isArray(result.models) ? result.models.filter(Boolean) : [];
         const nextModels = fallbackModels.length ? fallbackModels : modelsFromApi;
