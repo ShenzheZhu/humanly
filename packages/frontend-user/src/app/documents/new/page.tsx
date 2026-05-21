@@ -996,8 +996,8 @@ export default function NewDocumentPage() {
             Set up the document details, AI access, and writing controls before you start.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)] xl:items-start">
-          <section className="space-y-4 rounded-lg border border-border/70 bg-background p-4">
+        <CardContent className="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)] xl:items-stretch">
+          <section className="h-full space-y-4 rounded-lg border border-border/70 bg-background p-4">
             <SectionHeading
               title="Basic Information"
               description="Name the document and attach an optional source PDF for side-by-side writing."
@@ -1069,7 +1069,7 @@ export default function NewDocumentPage() {
             </div>
           </section>
 
-          <div className="space-y-5 rounded-lg border border-border/70 bg-background p-4">
+          <div className="h-full space-y-5 rounded-lg border border-border/70 bg-background p-4">
             <SectionHeading
               title="Environment"
               description="Choose a default, customize the modules below, or import a JSON configuration."
@@ -1192,7 +1192,7 @@ export default function NewDocumentPage() {
             )}
           </div>
         </CardContent>
-        <CardFooter className="mt-6 flex justify-end gap-3 border-t border-border/70 bg-muted/20 px-6 py-6">
+        <CardFooter className="mt-8 flex justify-end gap-3 border-t border-border/70 bg-muted/20 px-6 pb-6 pt-10 sm:pt-10">
           <Button variant="outline" onClick={() => router.push('/documents')} disabled={isCreating}>
             Cancel
           </Button>
