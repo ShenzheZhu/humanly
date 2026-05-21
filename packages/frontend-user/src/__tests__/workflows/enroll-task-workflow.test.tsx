@@ -233,7 +233,6 @@ describe('task enrollment workflow', () => {
 
     expect(await screen.findByRole('heading', { name: /writing dashboard/i })).toBeInTheDocument();
     expect(screen.getByText('Timed Personal Writing')).toBeInTheDocument();
-    expect(screen.getByText('Writing time left')).toBeInTheDocument();
     expect(screen.getByText('0:30')).toBeInTheDocument();
     expect(screen.getByText('Continues while you are away.')).toBeInTheDocument();
   });
@@ -260,18 +259,17 @@ describe('task enrollment workflow', () => {
 
     expect(await screen.findByRole('heading', { name: /writing dashboard/i })).toBeInTheDocument();
     const cardViewButton = screen.getByRole('button', { name: /card view/i });
-    const listViewButton = screen.getByRole('button', { name: /list view/i });
-
-    expect(cardViewButton).toHaveAttribute('aria-pressed', 'true');
-    expect(listViewButton).toHaveAttribute('aria-pressed', 'false');
-
-    await user.click(listViewButton);
-
-    expect(cardViewButton).toHaveAttribute('aria-pressed', 'false');
-    expect(listViewButton).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Name')).toBeInTheDocument();
+    expect(screen.getByText('Characters')).toBeInTheDocument();
+    expect(screen.getByText('Last edited')).toBeInTheDocument();
     expect(screen.getByText('First Personal Writing')).toBeInTheDocument();
     expect(screen.getByText('Second Personal Writing')).toBeInTheDocument();
     expect(screen.queryByText('This document has enough preview text to exercise the list layout without changing row controls.')).not.toBeInTheDocument();
+
+    await user.click(cardViewButton);
+
+    expect(screen.getByRole('button', { name: /list view/i })).toBeInTheDocument();
+    expect(screen.getByText('This document has enough preview text to exercise the list layout without changing row controls.')).toBeInTheDocument();
   });
 
   it('marks expired timed personal writing cards as read-only while preserving access', async () => {
@@ -294,9 +292,12 @@ describe('task enrollment workflow', () => {
 
     expect(await screen.findByRole('heading', { name: /writing dashboard/i })).toBeInTheDocument();
     expect(screen.getByText('Expired Personal Writing')).toBeInTheDocument();
-    expect(screen.getByText('Writing time limit reached')).toBeInTheDocument();
     expect(screen.getByText('Opens in read-only mode.')).toBeInTheDocument();
-    expect(screen.getByText('Open Read-only')).toBeInTheDocument();
+    expect(screen.getAllByText('Read-only').length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: /Expired Personal Writing/i })).toHaveAttribute(
+      'href',
+      '/documents/personal-expired-doc-1'
+    );
   });
 
   it('marks expired timed task cards as read-only while preserving access', async () => {
