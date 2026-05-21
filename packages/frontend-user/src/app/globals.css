@@ -97,6 +97,10 @@
   .humanly-landing-btn-ghost {
     @apply inline-flex items-center gap-2 rounded-full border border-border bg-transparent px-[18px] py-3 text-sm font-medium text-foreground transition-colors hover:bg-white/60;
   }
+
+  .humanly-hover-pop {
+    @apply transition-[transform,box-shadow,border-color] duration-200 ease-out hover:-translate-y-1.5 hover:scale-[1.012] hover:border-foreground/20 motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:hover:scale-100;
+  }
 }
 
 @layer utilities {

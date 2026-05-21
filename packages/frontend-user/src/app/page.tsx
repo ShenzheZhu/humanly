@@ -159,7 +159,7 @@ function HeroComposition() {
 
 function HeroDocCalm() {
   return (
-    <div className="overflow-hidden rounded-[14px] border border-[rgba(20,22,26,0.10)] bg-white shadow-[0_30px_80px_-30px_rgba(10,10,10,0.18)]">
+    <div className="humanly-hover-pop overflow-hidden rounded-[14px] border border-[rgba(20,22,26,0.10)] bg-white shadow-[0_30px_80px_-30px_rgba(10,10,10,0.18)] hover:shadow-[0_38px_96px_-32px_rgba(10,10,10,0.30)]">
       <div className="flex items-center justify-between border-b border-[rgba(20,22,26,0.05)] px-4 py-3 sm:px-[22px] sm:py-[14px]">
         <div className="flex gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-[#e9e6df]" />
@@ -248,7 +248,7 @@ function HeroDocCalm() {
 
 function AIAssistCard() {
   return (
-    <div className="absolute left-[2.5%] top-[33.3%] z-30 hidden w-[18.2%] min-w-[176px] rotate-[-2deg] rounded-[10px] border border-[rgba(20,22,26,0.10)] bg-white px-3.5 py-3 shadow-[0_24px_60px_-18px_rgba(20,22,26,0.40)] lg:block">
+    <div className="humanly-hover-pop absolute left-[2.5%] top-[33.3%] z-30 hidden w-[18.2%] min-w-[176px] rotate-[-2deg] rounded-[10px] border border-[rgba(20,22,26,0.10)] bg-white px-3.5 py-3 shadow-[0_24px_60px_-18px_rgba(20,22,26,0.40)] hover:z-50 hover:shadow-[0_32px_70px_-18px_rgba(20,22,26,0.48)] lg:block">
       <div className="mb-2 flex items-center gap-1.5">
         <span className="grid h-[18px] w-[18px] place-items-center rounded-[5px] bg-foreground text-[10px] font-bold text-white">✦</span>
         <span className="text-[11px] font-bold">AI Assistant</span>
@@ -274,7 +274,7 @@ function AIAssistCard() {
 
 function TrackingCard() {
   return (
-    <div className="absolute right-[2.5%] top-[9.7%] z-40 hidden w-[18.2%] min-w-[176px] rotate-[2deg] rounded-[10px] border border-[rgba(20,22,26,0.10)] bg-white px-3.5 py-3 shadow-[0_24px_50px_-18px_rgba(20,22,26,0.40)] lg:block">
+    <div className="humanly-hover-pop absolute right-[2.5%] top-[9.7%] z-40 hidden w-[18.2%] min-w-[176px] rotate-[2deg] rounded-[10px] border border-[rgba(20,22,26,0.10)] bg-white px-3.5 py-3 shadow-[0_24px_50px_-18px_rgba(20,22,26,0.40)] hover:z-50 hover:shadow-[0_32px_70px_-18px_rgba(20,22,26,0.48)] lg:block">
       <div className="mb-2.5 flex justify-between">
         <span className="text-[11px] font-bold">Tracking log</span>
         <span className="text-[9px] text-muted-foreground">live</span>
@@ -300,7 +300,7 @@ function TrackingCard() {
 
 function CertificateCard() {
   return (
-    <div className="absolute right-[2.5%] top-[83.3%] z-30 hidden min-h-[92px] w-[41.8%] rotate-[-0.8deg] grid-cols-[1fr_auto] items-center gap-[18px] rounded-[10px] border border-[rgba(20,22,26,0.10)] bg-[#fdfcf7] px-[18px] py-3.5 shadow-[0_24px_50px_-18px_rgba(20,22,26,0.40)] lg:grid">
+    <div className="humanly-hover-pop absolute right-[2.5%] top-[83.3%] z-30 hidden min-h-[92px] w-[41.8%] rotate-[-0.8deg] grid-cols-[1fr_auto] items-center gap-[18px] rounded-[10px] border border-[rgba(20,22,26,0.10)] bg-[#fdfcf7] px-[18px] py-3.5 shadow-[0_24px_50px_-18px_rgba(20,22,26,0.40)] hover:z-50 hover:shadow-[0_32px_70px_-18px_rgba(20,22,26,0.48)] lg:grid">
       <div>
         <div className="mb-1.5 flex items-center gap-1.5">
           <CertBadge />
@@ -361,7 +361,7 @@ function ProblemSection() {
 
 function ProblemCard({ n, illo, caption }: { n: string; illo: ReactNode; caption: string }) {
   return (
-    <div className="flex min-h-[300px] flex-col gap-6 rounded-[14px] border border-[rgba(20,22,26,0.10)] bg-white p-7">
+    <div className="humanly-hover-pop flex min-h-[300px] flex-col gap-6 rounded-[14px] border border-[rgba(20,22,26,0.10)] bg-white p-7 hover:shadow-[0_28px_70px_-42px_rgba(20,22,26,0.60)]">
       <div className="flex items-center justify-between">
         <span className="text-[11px] text-muted-foreground">· {n}</span>
         <span className="h-1 w-1 rounded-full bg-foreground" />
