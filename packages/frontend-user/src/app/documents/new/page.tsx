@@ -368,7 +368,7 @@ export default function NewDocumentPage() {
     try {
       const parsed = JSON.parse(await file.text());
       const config = normalizeImportedEnvironmentConfig(parsed);
-      setEnvironmentSelection(IMPORT_ENVIRONMENT_VALUE);
+      setEnvironmentSelection('custom');
       setEnvironmentConfig(config);
       syncAiModelFromEnvironment(config);
       setAiConnectionResult(null);
@@ -655,7 +655,8 @@ export default function NewDocumentPage() {
     router,
   ]);
 
-  const showDetailedEnvironmentControls = environmentSelection !== 'default_writing';
+  const isImportingEnvironment = environmentSelection === IMPORT_ENVIRONMENT_VALUE;
+  const showCustomEnvironmentSummary = environmentSelection === 'custom';
   const customEnvironmentControls = (
     <div className="grid gap-4 lg:grid-cols-2">
       <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4 lg:col-span-2">
@@ -978,7 +979,12 @@ export default function NewDocumentPage() {
   return (
     <div className="humanly-page">
       <div className="mb-4">
-        <Button variant="outline" size="sm" className="mb-3" onClick={() => router.push('/documents')}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mb-3 -ml-2 h-auto px-2 py-1 text-muted-foreground hover:bg-transparent hover:text-foreground"
+          onClick={() => router.push('/documents')}
+        >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Workspace
         </Button>
@@ -1089,8 +1095,8 @@ export default function NewDocumentPage() {
               </Select>
             </div>
 
-            {environmentSelection === IMPORT_ENVIRONMENT_VALUE && (
-              <div className="rounded-lg border border-dashed border-border/80 bg-muted/25 p-4">
+            {isImportingEnvironment && (
+              <div className="rounded-lg border border-dashed border-border/80 bg-muted/25 p-3">
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <Upload className="h-4 w-4 text-accent" />
                   Import JSON Configuration
@@ -1101,14 +1107,14 @@ export default function NewDocumentPage() {
                 <Input
                   type="file"
                   accept="application/json,.json"
-                  className="mt-3"
+                  className="mt-2"
                   onChange={handleEnvironmentImport}
                   disabled={isCreating}
                 />
               </div>
             )}
 
-            {!showDetailedEnvironmentControls ? (
+            {!showCustomEnvironmentSummary && !isImportingEnvironment && (
               <div className="rounded-lg border border-border/70 bg-muted/35 p-3">
                 <div className="flex items-start gap-3">
                   <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#6f8a78]" />
@@ -1139,7 +1145,9 @@ export default function NewDocumentPage() {
                   Choose Custom to configure AI access, copy-paste rules, or a time limit.
                 </p>
               </div>
-            ) : (
+            )}
+
+            {showCustomEnvironmentSummary && (
               <div className="rounded-lg border border-border/70 bg-muted/35 p-3">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0 flex-1 space-y-4">

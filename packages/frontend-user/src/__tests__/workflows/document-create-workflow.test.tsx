@@ -126,6 +126,49 @@ describe('document creation workflow', () => {
     expect(screen.queryByText('Choose Custom to configure AI access, copy-paste rules, or a time limit.')).not.toBeInTheDocument();
   });
 
+  it('shows only the import box until a JSON environment is applied', async () => {
+    const user = userEvent.setup();
+    render(<NewDocumentPage />);
+
+    await screen.findByRole('heading', { name: /create writing/i });
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
+    await user.click(await screen.findByRole('option', { name: 'Import Environment' }));
+
+    expect(screen.getByText('Import JSON Configuration')).toBeInTheDocument();
+    expect(screen.queryByText('Custom Environment')).not.toBeInTheDocument();
+    expect(screen.queryByText('Default Environment')).not.toBeInTheDocument();
+
+    const fileInput = document.querySelector<HTMLInputElement>('input[type="file"][accept="application/json,.json"]');
+    expect(fileInput).toBeTruthy();
+
+    const environmentJson = JSON.stringify({
+      aiAccess: 'off',
+      copyPastePolicy: 'blocked',
+      submission: { maxCharacters: 123 },
+    });
+    const environmentFile = new File([environmentJson], 'environment.json', { type: 'application/json' });
+    Object.defineProperty(environmentFile, 'text', {
+      value: jest.fn().mockResolvedValue(environmentJson),
+    });
+
+    await user.upload(fileInput!, environmentFile);
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'Environment imported',
+      }));
+    });
+    expect(screen.getByText('Custom Environment')).toBeInTheDocument();
+    expect(screen.getByText('Paste blocked')).toBeInTheDocument();
+    expect(screen.queryByText('Import JSON Configuration')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
+    await user.click(await screen.findByRole('option', { name: 'Import Environment' }));
+
+    expect(screen.getByText('Import JSON Configuration')).toBeInTheDocument();
+    expect(screen.queryByText('Custom Environment')).not.toBeInTheDocument();
+  });
+
   it('does not expose or persist minimum character limits for personal writing', async () => {
     const user = userEvent.setup();
     mockCreateDocument.mockResolvedValueOnce({ id: 'doc-123', title: 'Personal Character Policy' });
