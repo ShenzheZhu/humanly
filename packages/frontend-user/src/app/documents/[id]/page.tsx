@@ -41,8 +41,8 @@ import {
 const PDFViewer = dynamic(() => import('@/components/pdf/PDFViewer'), {
   ssr: false,
   loading: () => (
-    <div className="flex items-center justify-center h-full bg-gray-100">
-      <p className="text-gray-600">Loading PDF viewer...</p>
+    <div className="flex h-full items-center justify-center bg-muted/40">
+      <p className="text-muted-foreground">Loading PDF viewer...</p>
     </div>
   ),
 });
@@ -99,7 +99,7 @@ function formatCountdownDuration(totalSeconds: number): string {
   return formatTimerDuration(safeSeconds);
 }
 
-const getTimestampMs = (value?: string): number | null => {
+const getTimestampMs = (value?: string | Date | null): number | null => {
   if (!value) return null;
   const timestamp = new Date(value).getTime();
   return Number.isFinite(timestamp) ? timestamp : null;
@@ -131,7 +131,7 @@ function normalizeEditorInitialContent(content: unknown): string | Record<string
 }
 
 interface EditorAIBridgeCaptureProps {
-  insertAtCursor: EditorAIBridgeAPI['insertAtCursor'];
+  insertAtCursor: EditorAIBridgeAPI['insertAtCursor'] | null;
   onInsertAtCursorChange: (insertAtCursor: EditorAIBridgeAPI['insertAtCursor'] | null) => void;
 }
 
@@ -160,6 +160,7 @@ export default function DocumentEditorPage() {
     error,
     isSaving,
     updateDocument,
+    startWritingSession,
     trackEvents,
     uploadPdf,
   } = useDocument(documentId);
@@ -182,8 +183,10 @@ export default function DocumentEditorPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const submissionSessionRef = useRef<{ taskId: string; sessionId: string } | null>(null);
   const lastSubmissionSessionRef = useRef<{ taskId: string; sessionId: string } | null>(null);
+  const autoSubmittedTimeLimitRef = useRef<string | null>(null);
   const quickActionTriggerRef = useRef<((type: ActionType) => void) | null>(null);
   const latestEditorSnapshotRef = useRef<{ content: Record<string, any>; plainText: string } | null>(null);
+  const lastCharacterLimitToastRef = useRef(0);
 
   // AI Assistant
   const {
@@ -193,9 +196,8 @@ export default function DocumentEditorPage() {
   } = useAI(documentId);
 
   // Store document metrics for the editor UI. AI full-document retrieval happens server-side.
-  const [wordCount, setWordCount] = useState<number>(0);
   const [characterCount, setCharacterCount] = useState<number>(0);
-  const [timerStartedAtMs, setTimerStartedAtMs] = useState(() => Date.now());
+  const [timerStartedAtMs, setTimerStartedAtMs] = useState<number | null>(null);
   const [timerNowMs, setTimerNowMs] = useState(() => Date.now());
   const isTaskDocument = Boolean(taskEnrollment);
   const taskEnvironmentConfig = taskEnrollment?.environmentConfig || null;
@@ -242,14 +244,22 @@ export default function DocumentEditorPage() {
   );
 
   const activeTimeLimitSeconds =
-    currentEnvironmentConfig.aiUsageLimit.mode === 'time_restricted' &&
     currentEnvironmentConfig.time.timeLimitSeconds
       ? Math.max(1, Math.floor(currentEnvironmentConfig.time.timeLimitSeconds))
       : null;
+  const hasLoadedDocument = Boolean(document?.id);
+  const documentWritingStartedAt = document?.writingStartedAt || null;
 
   const timeLimitRemainingSeconds = activeTimeLimitSeconds === null
     ? null
-    : Math.max(0, activeTimeLimitSeconds - Math.floor((timerNowMs - timerStartedAtMs) / 1000));
+    : timerStartedAtMs === null
+      ? activeTimeLimitSeconds
+      : Math.max(0, activeTimeLimitSeconds - Math.floor((timerNowMs - timerStartedAtMs) / 1000));
+  const isTimeLimitExpired =
+    activeTimeLimitSeconds !== null &&
+    timerStartedAtMs !== null &&
+    timeLimitRemainingSeconds === 0;
+  const isEditorReadOnly = isTimeLimitExpired;
   const taskDeadlineMs = taskEnrollment ? getTimestampMs(taskEnrollment.endDate) : null;
   const taskDeadlineRemainingSeconds = taskDeadlineMs === null
     ? null
@@ -270,23 +280,37 @@ export default function DocumentEditorPage() {
         }
       : null;
   const minimumSubmissionCharacters =
-    taskEnrollment && currentEnvironmentConfig.submission.minCharacters
+    isTaskDocument && currentEnvironmentConfig.submission.minCharacters
       ? Math.max(1, Math.floor(currentEnvironmentConfig.submission.minCharacters))
       : null;
-  const isBelowMinimumCharacters =
-    minimumSubmissionCharacters !== null && characterCount < minimumSubmissionCharacters;
-
-  const calculateWordCount = useCallback((text: string): number => {
-    if (!text || typeof text !== 'string') return 0;
-    const words = text.trim().replace(/\s+/g, ' ').split(' ').filter((w) => w.length > 0);
-    return words.length;
-  }, []);
+  const maximumSubmissionCharacters =
+    currentEnvironmentConfig.submission.maxCharacters
+      ? Math.max(1, Math.floor(currentEnvironmentConfig.submission.maxCharacters))
+      : null;
+  const hasCharacterBounds =
+    minimumSubmissionCharacters !== null || maximumSubmissionCharacters !== null;
+  const characterBoundsTitle =
+    minimumSubmissionCharacters !== null && maximumSubmissionCharacters !== null
+      ? `Character count includes letters, spaces, punctuation, and symbols. Required range: ${minimumSubmissionCharacters.toLocaleString()}-${maximumSubmissionCharacters.toLocaleString()} characters.`
+      : minimumSubmissionCharacters !== null
+        ? `Character count includes letters, spaces, punctuation, and symbols. Minimum: ${minimumSubmissionCharacters.toLocaleString()} characters.`
+        : maximumSubmissionCharacters !== null
+          ? `Character count includes letters, spaces, punctuation, and symbols. Maximum: ${maximumSubmissionCharacters.toLocaleString()} characters.`
+          : '';
+  const characterBoundsLabel =
+    minimumSubmissionCharacters !== null && maximumSubmissionCharacters !== null
+      ? `${characterCount.toLocaleString()}/${maximumSubmissionCharacters.toLocaleString()} characters · min ${minimumSubmissionCharacters.toLocaleString()}`
+      : minimumSubmissionCharacters !== null
+        ? `${characterCount.toLocaleString()} characters · min ${minimumSubmissionCharacters.toLocaleString()}`
+        : maximumSubmissionCharacters !== null
+          ? `${characterCount.toLocaleString()}/${maximumSubmissionCharacters.toLocaleString()} characters`
+          : '';
 
   useEffect(() => {
     if (document) {
       setTitle(document.title || '');
-      setWordCount(document.wordCount || 0);
       setCharacterCount(document.characterCount ?? (document.plainText || '').length);
+      setTimerStartedAtMs(getTimestampMs(document.writingStartedAt));
       latestEditorSnapshotRef.current = {
         content: document.content,
         plainText: document.plainText || '',
@@ -295,9 +319,37 @@ export default function DocumentEditorPage() {
   }, [document]);
 
   useEffect(() => {
-    setTimerStartedAtMs(Date.now());
     setTimerNowMs(Date.now());
   }, [documentId, activeTimeLimitSeconds]);
+
+  useEffect(() => {
+    if (!hasLoadedDocument || activeTimeLimitSeconds === null) return;
+
+    const existingStartMs = getTimestampMs(documentWritingStartedAt);
+    if (existingStartMs !== null) {
+      setTimerStartedAtMs(existingStartMs);
+      return;
+    }
+
+    let cancelled = false;
+
+    startWritingSession()
+      .then((startedDocument) => {
+        if (cancelled) return;
+        setTimerStartedAtMs(getTimestampMs(startedDocument?.writingStartedAt) ?? Date.now());
+        setTimerNowMs(Date.now());
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error('Failed to persist writing timer start:', err);
+        setTimerStartedAtMs(Date.now());
+        setTimerNowMs(Date.now());
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTimeLimitSeconds, documentWritingStartedAt, hasLoadedDocument, startWritingSession]);
 
   useEffect(() => {
     if (!activeTimeLimitSeconds && taskDeadlineMs === null) return;
@@ -327,6 +379,7 @@ export default function DocumentEditorPage() {
       Numpad4: 'formal',
     };
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (isEditorReadOnly) return;
       if (!(event.metaKey || event.ctrlKey) || !event.shiftKey) return;
       const actionType = quickActionByKey[event.key] || quickActionByCode[event.code];
       if (!actionType || !quickActionTriggerRef.current) return;
@@ -335,7 +388,7 @@ export default function DocumentEditorPage() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isEditorReadOnly]);
 
   // Keyboard shortcut for AI Assistant (Cmd/Ctrl + J)
   useEffect(() => {
@@ -533,7 +586,6 @@ export default function DocumentEditorPage() {
 
   const handleContentChange = async (content: Record<string, any>, plainText: string) => {
     latestEditorSnapshotRef.current = { content, plainText };
-    setWordCount(calculateWordCount(plainText));
     setCharacterCount(plainText.length);
   };
 
@@ -594,6 +646,7 @@ export default function DocumentEditorPage() {
       }
 
       const insertion = editorInsertAtCursor(text);
+      if (insertion.inserted === false) return;
       const currentSessionId =
         submissionSessionRef.current?.sessionId ||
         lastSubmissionSessionRef.current?.sessionId ||
@@ -621,6 +674,17 @@ export default function DocumentEditorPage() {
     [editorInsertAtCursor, submissionSessionId, toast, trackEvents]
   );
 
+  const handleCharacterLimitReached = useCallback((limit: number) => {
+    const now = Date.now();
+    if (now - lastCharacterLimitToastRef.current < 1200) return;
+    lastCharacterLimitToastRef.current = now;
+
+    toast({
+      title: 'Maximum length reached',
+      description: `This document is limited to ${limit.toLocaleString()} characters.`,
+    });
+  }, [toast]);
+
   const handleAISelectionAction = useCallback(
     async (
       actionType: ActionType,
@@ -646,7 +710,31 @@ export default function DocumentEditorPage() {
     [submissionSessionId, trackEvents]
   );
 
+  const validateCharacterBounds = useCallback((actionLabel: string): boolean => {
+    if (minimumSubmissionCharacters && characterCount < minimumSubmissionCharacters) {
+      toast({
+        title: 'Minimum length required',
+        description: `Write at least ${minimumSubmissionCharacters.toLocaleString()} characters before ${actionLabel}. Current length: ${characterCount.toLocaleString()} characters.`,
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    if (maximumSubmissionCharacters && characterCount > maximumSubmissionCharacters) {
+      toast({
+        title: 'Maximum length exceeded',
+        description: `Keep the submission at most ${maximumSubmissionCharacters.toLocaleString()} characters before ${actionLabel}. Current length: ${characterCount.toLocaleString()} characters.`,
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    return true;
+  }, [characterCount, maximumSubmissionCharacters, minimumSubmissionCharacters, toast]);
+
   const handleGenerateCertificate = async (options: CertificateGenerationOptions) => {
+    if (!validateCharacterBounds('generating a certificate')) return;
+
     try {
       setIsGeneratingCertificate(true);
       const certificate = await generateCertificate(documentId, {
@@ -668,17 +756,10 @@ export default function DocumentEditorPage() {
     }
   };
 
-  const handleSubmitTask = async () => {
+  const handleSubmitTask = useCallback(async (options: { automatic?: boolean } = {}) => {
     if (!taskEnrollment) return;
 
-    if (minimumSubmissionCharacters && characterCount < minimumSubmissionCharacters) {
-      toast({
-        title: 'Minimum length required',
-        description: `Write at least ${minimumSubmissionCharacters.toLocaleString()} characters before submitting. Current length: ${characterCount.toLocaleString()} characters.`,
-        variant: 'destructive',
-      });
-      return;
-    }
+    if (!options.automatic && !validateCharacterBounds('submitting')) return;
 
     try {
       setIsSubmittingTask(true);
@@ -690,10 +771,16 @@ export default function DocumentEditorPage() {
       }
       const response = await apiClient.post(`/tasks/enrollments/${taskEnrollment.id}/submissions`, {
         documentId,
+        ...(options.automatic ? { automatic: true } : {}),
       });
       const certificate = response.data.data?.certificate;
-      toast({ title: 'Submitted', description: 'Your task submission and certificate were created.' });
-      if (certificate?.id) {
+      toast({
+        title: options.automatic ? 'Auto-submitted' : 'Submitted',
+        description: options.automatic
+          ? 'Time expired, so your task submission and certificate were created automatically.'
+          : 'Your task submission and certificate were created.',
+      });
+      if (certificate?.id && !options.automatic) {
         router.push(`/certificates/${certificate.id}`);
       }
     } catch (err: any) {
@@ -705,7 +792,17 @@ export default function DocumentEditorPage() {
     } finally {
       setIsSubmittingTask(false);
     }
-  };
+  }, [documentId, router, taskEnrollment, toast, updateDocument, validateCharacterBounds]);
+
+  useEffect(() => {
+    if (!isTimeLimitExpired || !taskEnrollment || isSubmittingTask) return;
+
+    const autoSubmitKey = `${documentId}:${taskEnrollment.id}:${timerStartedAtMs}`;
+    if (autoSubmittedTimeLimitRef.current === autoSubmitKey) return;
+
+    autoSubmittedTimeLimitRef.current = autoSubmitKey;
+    void handleSubmitTask({ automatic: true });
+  }, [documentId, handleSubmitTask, isSubmittingTask, isTimeLimitExpired, taskEnrollment, timerStartedAtMs]);
 
   const handlePdfSelect = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -755,9 +852,7 @@ export default function DocumentEditorPage() {
     );
   }
 
-  // ✅ Overleaf-style canvas: nearly full-width with minimal padding
-  // px-2 gives a tiny gutter on edges for a more spacious panel layout
-  const CANVAS = 'mx-auto w-full max-w-[2400px] px-3';
+  const CANVAS = 'mx-auto w-full max-w-[2400px] px-3 sm:px-4';
   const selectedInstructionFile =
     taskInstructionFiles.find((file) => file.id === selectedInstructionFileId) ||
     taskInstructionFile;
@@ -779,17 +874,17 @@ export default function DocumentEditorPage() {
   };
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
       {/* Header */}
-      <div className="border-b bg-background shrink-0">
-        <div className={`${CANVAS} py-4`}>
+      <div className="shrink-0 border-b border-border/70 bg-card">
+        <div className={`${CANVAS} py-3`}>
           <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4 min-w-0">
-              <Button variant="ghost" size="icon" onClick={() => router.push('/documents')}>
+            <div className="flex min-w-0 items-center gap-3">
+              <Button variant="outline" size="icon" onClick={() => router.push('/documents')}>
                 <ArrowLeft className="h-4 w-4" />
               </Button>
 
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0 flex-1">
                 {isTitleEditing ? (
                   <div className="flex items-center gap-2">
                     <Input
@@ -811,7 +906,7 @@ export default function DocumentEditorPage() {
                   </div>
                 ) : (
                   <h1
-                    className="cursor-pointer text-lg font-semibold hover:text-muted-foreground truncate"
+                    className="cursor-pointer truncate text-lg font-semibold tracking-normal hover:text-muted-foreground"
                     onClick={() => setIsTitleEditing(true)}
                     title={title || 'Untitled Document'}
                   >
@@ -831,7 +926,7 @@ export default function DocumentEditorPage() {
                 {visibleCountdown && (
                   <Badge
                     variant={visibleCountdown.variant}
-                    className="mt-2 inline-flex max-w-full items-center gap-1.5"
+                    className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-md"
                     title={visibleCountdown.title}
                   >
                     <Clock className="h-3.5 w-3.5 shrink-0" />
@@ -882,20 +977,28 @@ export default function DocumentEditorPage() {
               )}
 
               {isSaving && (
-                <Badge variant="secondary" className="flex items-center gap-1">
+                <Badge variant="secondary" className="flex items-center gap-1 rounded-md">
                   <Clock className="h-3 w-3 animate-spin" />
                   <span className="hidden sm:inline">Saving...</span>
                 </Badge>
               )}
 
-              <div className="hidden sm:block text-sm text-muted-foreground">{wordCount} words</div>
-
-              {minimumSubmissionCharacters !== null && (
-                <Badge
-                  variant={isBelowMinimumCharacters ? 'destructive' : 'outline'}
-                  title={`Minimum characters: ${minimumSubmissionCharacters.toLocaleString()}`}
+              {!hasCharacterBounds && (
+                <div
+                  className="hidden sm:block text-sm text-muted-foreground"
+                  title="Character count includes letters, spaces, punctuation, and symbols."
                 >
-                  {characterCount.toLocaleString()}/{minimumSubmissionCharacters.toLocaleString()} chars
+                  {characterCount.toLocaleString()} characters
+                </div>
+              )}
+
+              {hasCharacterBounds && (
+                <Badge
+                  variant="secondary"
+                  className="rounded-md"
+                  title={characterBoundsTitle}
+                >
+                  {characterBoundsLabel}
                 </Badge>
               )}
 
@@ -928,7 +1031,7 @@ export default function DocumentEditorPage() {
               {taskEnrollment ? (
                 <Button
                   size="sm"
-                  onClick={handleSubmitTask}
+                  onClick={() => handleSubmitTask()}
                   disabled={isSubmittingTask}
                   className="sm:size-default"
                 >
@@ -973,13 +1076,13 @@ export default function DocumentEditorPage() {
       <div className="flex-1 overflow-hidden">
         <div className={`${CANVAS} h-full py-3`}>
           {/* ✅ Resizable like Overleaf */}
-          <ResizablePanelGroup direction="horizontal" className="h-full w-full rounded-md border bg-background">
+          <ResizablePanelGroup direction="horizontal" className="h-full w-full overflow-hidden rounded-lg border border-border/80 bg-card">
             {/* PDF */}
             {displayFile && showPdfPanel ? (
               <ResizablePanel defaultSize={38} minSize={22}>
-                <div className="h-full border-r bg-background overflow-hidden flex flex-col">
+                <div className="flex h-full flex-col overflow-hidden border-r border-border/70 bg-card">
                   {taskInstructionFiles.length > 1 ? (
-                    <div className="shrink-0 border-b bg-background px-3 py-2">
+                    <div className="shrink-0 border-b border-border/70 bg-muted/30 px-3 py-2">
                       <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
                         {taskInstructionFiles.map((file, index) => (
                           <Button
@@ -1015,10 +1118,10 @@ export default function DocumentEditorPage() {
               defaultSize={displayFile && showPdfPanel ? (isAIPanelOpen ? 37 : 62) : (isAIPanelOpen ? 70 : 100)}
               minSize={30}
             >
-              <div className="h-full overflow-auto">
+              <div className="h-full overflow-auto bg-background">
                 <div className={`${displayFile || isAIPanelOpen ? 'px-4 py-4' : 'px-6 py-6'} h-full`}>
                   {!displayFile && (
-                    <div className="mb-4 rounded-lg border border-dashed border-border bg-muted/30 p-4">
+                    <div className="mb-4 rounded-lg border border-dashed border-border/80 bg-muted/30 p-4">
                       <div>
                         <div>
                           <h2 className="text-sm font-semibold">No PDF linked</h2>
@@ -1029,20 +1132,29 @@ export default function DocumentEditorPage() {
                       </div>
                     </div>
                   )}
+                  {isEditorReadOnly && (
+                    <div className="mb-4 rounded-lg border border-border/70 bg-muted/40 p-4 text-sm text-muted-foreground">
+                      The writing time limit has ended. This document is now read-only.
+                      {taskEnrollment ? ' Humanly is submitting the task automatically.' : null}
+                    </div>
+                  )}
                   <LexicalEditor
                     documentId={documentId}
                     userId={user?.id}
                     initialContent={editorInitialContent}
                     placeholder={displayFile ? 'Start writing with your PDF open...' : 'Start typing your document...'}
-                    trackingEnabled={true}
+                    editable={!isEditorReadOnly}
+                    trackingEnabled={!isEditorReadOnly}
                     copyPastePolicy={currentEnvironmentConfig.copyPastePolicy}
-                    autoSaveEnabled={true}
+                    maxCharacters={maximumSubmissionCharacters}
+                    onCharacterLimitReached={handleCharacterLimitReached}
+                    autoSaveEnabled={!isEditorReadOnly}
                     autoSaveInterval={EDITOR_AUTO_SAVE_INTERVAL_MS}
                     onContentChange={handleContentChange}
                     onEventsBuffer={handleEventsBuffer}
                     onAutoSave={handleAutoSave}
                     className="h-full"
-                    renderSelectionPopup={aiEnabled ? ({ selection, onClose, replaceSelection, cancelAIAction, undoLastAction }) => (
+                    renderSelectionPopup={aiEnabled && !isEditorReadOnly ? ({ selection, onClose, replaceSelection, cancelAIAction, undoLastAction }) => (
                       <AISelectionMenu
                         documentId={documentId}
                         selection={selection}
@@ -1065,7 +1177,7 @@ export default function DocumentEditorPage() {
                     ) : undefined}
                     renderAIBridge={({ insertAtCursor }) => (
                       <EditorAIBridgeCapture
-                        insertAtCursor={insertAtCursor}
+                        insertAtCursor={isEditorReadOnly ? null : insertAtCursor}
                         onInsertAtCursorChange={handleEditorInsertAtCursorChange}
                       />
                     )}
@@ -1079,13 +1191,13 @@ export default function DocumentEditorPage() {
               <>
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={25} minSize={18}>
-                  <div className="h-full border-l bg-background overflow-hidden">
+                  <div className="h-full overflow-hidden border-l border-border/70 bg-card">
                     <AIAssistantPanel
                       documentId={documentId}
                       onClose={closeAIPanel}
                       taskManaged={!!taskEnrollment}
                       lockedModel={lockedTaskModel}
-                      insertAtCursor={editorInsertAtCursor ? handleInsertAssistantMessage : null}
+                      insertAtCursor={!isEditorReadOnly && editorInsertAtCursor ? handleInsertAssistantMessage : null}
                     />
                   </div>
                 </ResizablePanel>

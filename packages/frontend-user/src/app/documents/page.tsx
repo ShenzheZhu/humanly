@@ -12,6 +12,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -53,9 +54,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { apiClient } from '@/lib/api-client';
 import { formatDateTime } from '@/lib/utils';
-import type { WritingEnvironmentConfig } from '@humanly/shared';
+import type { Document, WritingEnvironmentConfig } from '@humanly/shared';
 
-type SortOption = 'lastEdited' | 'title' | 'wordCount';
+type SortOption = 'lastEdited' | 'title' | 'characterCount';
 type WorkspaceTab = 'documents' | 'tasks';
 
 interface TaskEnrollment {
@@ -65,6 +66,7 @@ interface TaskEnrollment {
   name: string;
   inviteCode: string;
   documentId: string | null;
+  writingStartedAt?: string | Date | null;
   joinedAt: string;
   description?: string;
   startDate?: string;
@@ -72,10 +74,80 @@ interface TaskEnrollment {
   environmentConfig?: WritingEnvironmentConfig | null;
 }
 
+interface TimedWritingSource {
+  environmentConfig?: WritingEnvironmentConfig | null;
+  writingStartedAt?: string | Date | null;
+}
+
+interface WritingTimerCardState {
+  expired: boolean;
+  label: string;
+  value: string;
+  detail: string;
+}
+
 const getDisplayTaskName = (task: TaskEnrollment) => {
   const name = task.name?.trim();
   if (!name || name === 'Task Name') return `Task ${task.inviteCode}`;
   return name;
+};
+
+const getTimestampMs = (value?: string | Date | null): number | null => {
+  if (!value) return null;
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+};
+
+const formatTaskCountdown = (totalSeconds: number): string => {
+  const safeSeconds = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const seconds = safeSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+};
+
+const getWritingTimeLimitSeconds = (source: TimedWritingSource): number | null => {
+  const configuredSeconds = source.environmentConfig?.time?.timeLimitSeconds;
+  if (!configuredSeconds) return null;
+
+  return Math.max(1, Math.floor(configuredSeconds));
+};
+
+const getWritingTimerState = (
+  source: TimedWritingSource,
+  nowMs: number,
+  options: { expiredDetail?: string } = {}
+): WritingTimerCardState | null => {
+  const timeLimitSeconds = getWritingTimeLimitSeconds(source);
+  if (timeLimitSeconds === null) return null;
+
+  const startedAtMs = getTimestampMs(source.writingStartedAt);
+  if (startedAtMs === null) {
+    return {
+      expired: false,
+      label: 'Writing time limit',
+      value: formatTaskCountdown(timeLimitSeconds),
+      detail: 'Timer starts when opened.',
+    };
+  }
+
+  const elapsedSeconds = Math.max(0, Math.floor((nowMs - startedAtMs) / 1000));
+  const remainingSeconds = Math.max(0, timeLimitSeconds - elapsedSeconds);
+  const expired = remainingSeconds === 0;
+
+  return {
+    expired,
+    label: expired ? 'Writing time limit reached' : 'Writing time left',
+    value: expired ? 'Read-only' : formatTaskCountdown(remainingSeconds),
+    detail: expired
+      ? options.expiredDetail || 'Opens in read-only mode.'
+      : 'Continues while you are away.',
+  };
 };
 
 export default function DocumentsPage() {
@@ -91,6 +163,7 @@ export default function DocumentsPage() {
   const [taskEnrollments, setTaskEnrollments] = useState<TaskEnrollment[]>([]);
   const [isLoadingTaskEnrollments, setIsLoadingTaskEnrollments] = useState(true);
   const [taskEnrollmentsError, setTaskEnrollmentsError] = useState<string | null>(null);
+  const [dashboardNowMs, setDashboardNowMs] = useState(() => Date.now());
 
   const fetchTaskEnrollments = useCallback(async () => {
     try {
@@ -237,19 +310,31 @@ export default function DocumentsPage() {
       if (sortBy === 'title') {
         return (a.title || '').localeCompare(b.title || '');
       }
-      if (sortBy === 'wordCount') {
-        return (b.wordCount || 0) - (a.wordCount || 0);
+      if (sortBy === 'characterCount') {
+        return (b.characterCount ?? (b.plainText || '').length) - (a.characterCount ?? (a.plainText || '').length);
       }
       return new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime();
     });
+  const hasStartedWritingTimer = [
+    ...validTaskEnrollments,
+    ...personalDocuments,
+  ].some((source) => (
+    getWritingTimeLimitSeconds(source) !== null && getTimestampMs(source.writingStartedAt) !== null
+  ));
 
-  // Container classes for centered content with max-width
-  const containerClass = "mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8";
+  const containerClass = 'humanly-page';
+
+  useEffect(() => {
+    if (!hasStartedWritingTimer) return;
+
+    const intervalId = window.setInterval(() => setDashboardNowMs(Date.now()), 1000);
+    return () => window.clearInterval(intervalId);
+  }, [hasStartedWritingTimer]);
 
   if (isLoading || isLoadingTaskEnrollments) {
     return (
       <main className={containerClass}>
-        <div className="mb-8">
+        <div className="mb-8 space-y-3">
           <Skeleton className="h-8 w-64 mb-2" />
           <Skeleton className="h-4 w-96" />
         </div>
@@ -291,17 +376,18 @@ export default function DocumentsPage() {
 
   return (
     <main className={containerClass}>
-      <div className="mb-6">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Workspace</h1>
-          <p className="text-sm sm:text-base text-muted-foreground mt-1">
-            Choose between personal writing and task submissions.
-          </p>
-        </div>
+      <div className="mb-6 flex flex-col gap-2">
+        <p className="humanly-eyebrow">Workspace</p>
+        <h1 className="text-2xl font-semibold tracking-normal sm:text-3xl">
+          Writing dashboard
+        </h1>
+        <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
+          Start your own tracked writing or complete an assigned task from an instructor.
+        </p>
       </div>
 
       <Tabs value={activeWorkspaceTab} onValueChange={(value) => setActiveWorkspaceTab(value as WorkspaceTab)}>
-        <TabsList className="mb-6 grid w-full grid-cols-2 sm:w-[420px]">
+        <TabsList className="mb-6 grid w-full grid-cols-2 border border-border/70 bg-muted/60 sm:w-[470px]">
           <TabsTrigger value="documents">Personal Writing</TabsTrigger>
           <TabsTrigger value="tasks">Task Submissions</TabsTrigger>
         </TabsList>
@@ -309,7 +395,7 @@ export default function DocumentsPage() {
         <TabsContent value="documents" className="mt-0 space-y-6">
           <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight">Personal Writing</h2>
+              <h2 className="text-xl font-semibold tracking-normal">Personal Writing</h2>
               <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
                 Create personal writing projects, track your process, and generate verifiable authorship certificates.
               </p>
@@ -321,21 +407,21 @@ export default function DocumentsPage() {
               </Button>
               <Button className="w-full sm:w-auto" onClick={() => router.push('/documents/new')}>
                 <Plus className="mr-2 h-4 w-4" />
-                New Document
+                Create Writing
               </Button>
             </div>
           </section>
 
           {personalDocuments.length === 0 ? (
-            <div className="flex min-h-[360px] flex-col items-center justify-center rounded-lg border-2 border-dashed">
-              <FileText className="h-12 w-12 text-muted-foreground" />
+            <div className="humanly-surface flex min-h-[360px] flex-col items-center justify-center bg-card px-6 text-center">
+              <FileText className="h-10 w-10 text-accent" />
               <h3 className="mt-4 text-lg font-semibold">No personal documents yet</h3>
               <p className="mt-2 max-w-sm text-center text-sm text-muted-foreground">
                 Start a personal writing document when you want authorship tracking and certificate generation.
               </p>
               <Button className="mt-4" onClick={() => router.push('/documents/new')}>
                 <Plus className="mr-2 h-4 w-4" />
-                Create Document
+                Create Writing
               </Button>
             </div>
           ) : (
@@ -348,16 +434,17 @@ export default function DocumentsPage() {
                   <SelectContent>
                     <SelectItem value="lastEdited">Last edited</SelectItem>
                     <SelectItem value="title">Title</SelectItem>
-                    <SelectItem value="wordCount">Word count</SelectItem>
+                    <SelectItem value="characterCount">Character count</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {personalDocuments.map((document) => (
+                {personalDocuments.map((document: Document) => (
                   <DocumentCard
                     key={document.id}
                     document={document}
+                    timerState={getWritingTimerState(document, dashboardNowMs)}
                     onDelete={handleDeleteDocument}
                   />
                 ))}
@@ -369,7 +456,7 @@ export default function DocumentsPage() {
         <TabsContent value="tasks" className="mt-0 space-y-6">
           <section className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight">Task Submissions</h2>
+              <h2 className="text-xl font-semibold tracking-normal">Task Submissions</h2>
               <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
                 Join tasks from an instructor or organization and complete the assigned submission workflow.
               </p>
@@ -395,7 +482,7 @@ export default function DocumentsPage() {
                     value={inviteCode}
                     maxLength={6}
                     placeholder="A7K2QX"
-                    className="font-mono uppercase tracking-widest"
+                    className="font-mono uppercase tracking-normal"
                     onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') {
@@ -417,8 +504,8 @@ export default function DocumentsPage() {
           </section>
 
           {validTaskEnrollments.length === 0 ? (
-            <div className="flex min-h-[360px] flex-col items-center justify-center rounded-lg border-2 border-dashed">
-              <BookOpen className="h-12 w-12 text-muted-foreground" />
+            <div className="humanly-surface flex min-h-[360px] flex-col items-center justify-center bg-card px-6 text-center">
+              <BookOpen className="h-10 w-10 text-accent" />
               <h3 className="mt-4 text-lg font-semibold">No assigned tasks yet</h3>
               <p className="mt-2 max-w-sm text-center text-sm text-muted-foreground">
                 Use an invite code when an instructor or organization asks you to complete a Humanly task.
@@ -428,35 +515,54 @@ export default function DocumentsPage() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {validTaskEnrollments.map((task) => {
                 const taskName = getDisplayTaskName(task);
+                const timerState = getWritingTimerState(task, dashboardNowMs, {
+                  expiredDetail: 'Submission opens in read-only mode.',
+                });
                 return (
-                  <Card key={`${task.id}-${task.documentId}`} className="transition-shadow hover:shadow-md">
+                  <Card key={`${task.id}-${task.documentId}`} className="transition-colors hover:border-foreground/30">
                     <CardContent className="flex h-full flex-col gap-3 p-5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          <p className="humanly-eyebrow">
                             Task
                           </p>
                           <h3 className="truncate text-lg font-semibold" title={taskName}>
                             {taskName}
                           </h3>
                         </div>
-                        <BookOpen className="h-5 w-5 shrink-0 text-muted-foreground" />
+                        {timerState?.expired ? (
+                          <Badge variant="secondary" className="shrink-0 rounded-md">Read-only</Badge>
+                        ) : (
+                          <BookOpen className="h-5 w-5 shrink-0 text-muted-foreground" />
+                        )}
                       </div>
                       <div>
-                        <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <p className="mb-1 humanly-eyebrow">
                           Invite Code
                         </p>
-                        <div className="rounded-md border bg-muted/30 px-3 py-2 font-mono text-sm font-semibold tracking-wider">
+                        <div className="rounded-lg border border-border/70 bg-muted/35 px-3 py-2 font-mono text-sm font-semibold tracking-normal">
                           {task.inviteCode}
                         </div>
                       </div>
-                      {(task.startDate || task.endDate) && (
-                        <div className="grid gap-2 rounded-md border bg-muted/20 p-3 text-sm">
+                      {(timerState || task.startDate || task.endDate) && (
+                        <div className="grid gap-2 rounded-lg border border-border/70 bg-muted/35 p-3 text-sm">
+                          {timerState && (
+                            <div className="flex items-start gap-2">
+                              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                              <div className="min-w-0">
+                                <p className="humanly-eyebrow">
+                                  {timerState.label}
+                                </p>
+                                <p className="font-semibold">{timerState.value}</p>
+                                <p className="text-xs text-muted-foreground">{timerState.detail}</p>
+                              </div>
+                            </div>
+                          )}
                           {task.startDate && (
                             <div className="flex items-start gap-2">
-                              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
                               <div className="min-w-0">
-                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                <p className="humanly-eyebrow">
                                   Starts
                                 </p>
                                 <p className="break-words">{formatDateTime(task.startDate)}</p>
@@ -465,9 +571,9 @@ export default function DocumentsPage() {
                           )}
                           {task.endDate && (
                             <div className="flex items-start gap-2">
-                              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
                               <div className="min-w-0">
-                                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                <p className="humanly-eyebrow">
                                   Deadline
                                 </p>
                                 <p className="break-words">{formatDateTime(task.endDate)}</p>
@@ -479,7 +585,7 @@ export default function DocumentsPage() {
                       <div className="flex-1" />
                       <div className="flex gap-2">
                         <Button className="flex-1" onClick={() => router.push(`/documents/${task.documentId}`)}>
-                          Open Submission
+                          {timerState?.expired ? 'Open Read-only' : 'Open Submission'}
                         </Button>
                         <Button
                           variant="outline"

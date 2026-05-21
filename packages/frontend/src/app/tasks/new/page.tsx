@@ -56,6 +56,7 @@ import {
   AI_MAX_TOKENS_MAX,
   AI_MAX_TOKENS_MIN,
   AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+  SUBMISSION_MAX_CHARACTERS_MAX,
   SUBMISSION_MIN_CHARACTERS_MAX,
   WRITING_AI_MODELS,
   WRITING_ENVIRONMENT_PRESETS,
@@ -154,6 +155,16 @@ const isPositiveNumber = (value: unknown): value is number => (
   typeof value === 'number' && Number.isFinite(value) && value > 0
 );
 
+const getTimeLimitMinutesValue = (seconds?: number): string => (
+  String(Math.max(1, Math.round((seconds || 3600) / 60)))
+);
+
+const parseTimeLimitMinutes = (value: string, fallback = 1): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return Math.max(1, Math.round(parsed));
+};
+
 const parseOptionalMinCharacters = (value: string): number | undefined => {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
@@ -162,6 +173,16 @@ const parseOptionalMinCharacters = (value: string): number | undefined => {
   if (!Number.isFinite(parsed) || parsed < 1) return undefined;
 
   return Math.min(Math.floor(parsed), SUBMISSION_MIN_CHARACTERS_MAX);
+};
+
+const parseOptionalMaxCharacters = (value: string): number | undefined => {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed < 1) return undefined;
+
+  return Math.min(Math.floor(parsed), SUBMISSION_MAX_CHARACTERS_MAX);
 };
 
 const normalizeStringArray = (value: unknown, fallback: string[] = []) => (
@@ -234,6 +255,9 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
       minCharacters: isPositiveNumber(submission.minCharacters)
         ? Math.min(Math.floor(submission.minCharacters), SUBMISSION_MIN_CHARACTERS_MAX)
         : undefined,
+      maxCharacters: isPositiveNumber(submission.maxCharacters)
+        ? Math.min(Math.floor(submission.maxCharacters), SUBMISSION_MAX_CHARACTERS_MAX)
+        : undefined,
     },
     traceability: {
       ...base.traceability,
@@ -270,6 +294,7 @@ export default function NewTaskPage() {
   const [aiConnectionResult, setAiConnectionResult] = useState<AiConnectionResult | null>(null);
   const [testedAiModels, setTestedAiModels] = useState<string[]>([]);
   const [timeLimitEnabled, setTimeLimitEnabled] = useState(true);
+  const [writingTimeLimitMinutesInput, setWritingTimeLimitMinutesInput] = useState('60');
   const [environmentSelection, setEnvironmentSelection] = useState<EnvironmentSelection>('default_writing');
   const [environmentConfig, setEnvironmentConfig] = useState<WritingEnvironmentConfig>(
     getAdminEnvironmentConfig('default_writing')
@@ -392,6 +417,7 @@ export default function NewTaskPage() {
     syncAiModelFromEnvironment(config);
     setAiConnectionResult(null);
     setTestedAiModels([]);
+    setWritingTimeLimitMinutesInput(getTimeLimitMinutesValue(config.time.timeLimitSeconds));
     form.setValue('aiUsageLimit', config.aiUsageLimit.maxRequests || 100);
     if (preset === 'default_writing') {
       setTimeLimitEnabled(true);
@@ -432,6 +458,7 @@ export default function NewTaskPage() {
       syncAiModelFromEnvironment(config);
       setAiConnectionResult(null);
       setTestedAiModels([]);
+      setWritingTimeLimitMinutesInput(getTimeLimitMinutesValue(config.time.timeLimitSeconds));
       form.setValue('aiUsageLimit', config.aiUsageLimit.maxRequests || 100);
       toast({
         title: 'Environment imported',
@@ -466,6 +493,73 @@ export default function NewTaskPage() {
       submission: {
         ...current.submission,
         minCharacters,
+      },
+    }));
+  };
+
+  const setSubmissionMaximumCharacters = (value: string) => {
+    const maxCharacters = parseOptionalMaxCharacters(value);
+    markCustom((current) => ({
+      ...current,
+      submission: {
+        ...current.submission,
+        maxCharacters,
+      },
+    }));
+  };
+
+  const setWritingSessionTimerEnabled = (enabled: boolean) => {
+    const minutes = parseTimeLimitMinutes(
+      writingTimeLimitMinutesInput,
+      Number(getTimeLimitMinutesValue(environmentConfig.time.timeLimitSeconds))
+    );
+    if (enabled) {
+      setWritingTimeLimitMinutesInput(String(minutes));
+    }
+
+    markCustom((current) => {
+      if (!enabled) {
+        return {
+          ...current,
+          time: {
+            ...current.time,
+            timeLimitSeconds: undefined,
+          },
+        };
+      }
+
+      return {
+        ...current,
+        time: {
+          ...current.time,
+          timeLimitSeconds: minutes * 60,
+        },
+      };
+    });
+  };
+
+  const setWritingSessionTimerMinutes = (value: string) => {
+    setWritingTimeLimitMinutesInput(value);
+    if (!value) return;
+
+    const minutes = parseTimeLimitMinutes(value, 1);
+    markCustom((current) => ({
+      ...current,
+      time: {
+        ...current.time,
+        timeLimitSeconds: minutes * 60,
+      },
+    }));
+  };
+
+  const commitWritingSessionTimerMinutes = () => {
+    const minutes = parseTimeLimitMinutes(writingTimeLimitMinutesInput, 1);
+    setWritingTimeLimitMinutesInput(String(minutes));
+    markCustom((current) => ({
+      ...current,
+      time: {
+        ...current.time,
+        timeLimitSeconds: minutes * 60,
       },
     }));
   };
@@ -581,6 +675,12 @@ export default function NewTaskPage() {
         : fallbackEnd.toISOString();
       const configStartTime = timeLimitEnabled ? startTime : undefined;
       const configEndTime = timeLimitEnabled ? endTime : undefined;
+      const writingTimeLimitSeconds = environmentConfig.time.timeLimitSeconds
+        ? parseTimeLimitMinutes(
+            writingTimeLimitMinutesInput,
+            Number(getTimeLimitMinutesValue(environmentConfig.time.timeLimitSeconds))
+          ) * 60
+        : undefined;
 
       // Clean up the data - remove empty strings for optional fields
       const payload = {
@@ -609,6 +709,7 @@ export default function NewTaskPage() {
             ...environmentConfig.time,
             startTime: configStartTime,
             endTime: configEndTime,
+            timeLimitSeconds: writingTimeLimitSeconds,
             lateSubmission: timeLimitEnabled ? 'not_allowed' : 'allowed',
           },
           traceability: {
@@ -1112,20 +1213,37 @@ export default function NewTaskPage() {
                         </Select>
                       </div>
 
-                      <div className="grid gap-2">
-                        <FormLabel htmlFor="minimum-characters">Minimum Characters</FormLabel>
-                        <Input
-                          id="minimum-characters"
-                          type="number"
-                          min={1}
-                          max={SUBMISSION_MIN_CHARACTERS_MAX}
-                          value={environmentConfig.submission.minCharacters ?? ''}
-                          onChange={(event) => setSubmissionMinimumCharacters(event.target.value)}
-                          placeholder="No minimum"
-                          disabled={isSubmitting}
-                        />
-                        <FormDescription>
-                          Leave blank when submissions do not need a minimum length.
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="grid gap-2">
+                          <FormLabel htmlFor="minimum-characters">Minimum Characters</FormLabel>
+                          <Input
+                            id="minimum-characters"
+                            type="number"
+                            min={1}
+                            max={SUBMISSION_MIN_CHARACTERS_MAX}
+                            value={environmentConfig.submission.minCharacters ?? ''}
+                            onChange={(event) => setSubmissionMinimumCharacters(event.target.value)}
+                            placeholder="No minimum"
+                            disabled={isSubmitting}
+                          />
+                        </div>
+
+                        <div className="grid gap-2">
+                          <FormLabel htmlFor="maximum-characters">Maximum Characters</FormLabel>
+                          <Input
+                            id="maximum-characters"
+                            type="number"
+                            min={1}
+                            max={SUBMISSION_MAX_CHARACTERS_MAX}
+                            value={environmentConfig.submission.maxCharacters ?? ''}
+                            onChange={(event) => setSubmissionMaximumCharacters(event.target.value)}
+                            placeholder="No maximum"
+                            disabled={isSubmitting}
+                          />
+                        </div>
+
+                        <FormDescription className="sm:col-span-2">
+                          Leave either field blank when submissions do not need that length bound.
                         </FormDescription>
                       </div>
                     </div>
@@ -1191,6 +1309,47 @@ export default function NewTaskPage() {
                               </FormItem>
                             )}
                           />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-4 rounded-md border p-4">
+                      <SectionHeading
+                        title="Writing Session Timer"
+                        description="Set an optional countdown shown while enrolled users write."
+                      />
+
+                      <div className="grid gap-2">
+                        <FormLabel>Timer</FormLabel>
+                        <Select
+                          value={environmentConfig.time.timeLimitSeconds ? 'time_limited' : 'unlimited'}
+                          onValueChange={(value) => setWritingSessionTimerEnabled(value === 'time_limited')}
+                        >
+                          <SelectTrigger aria-label="Writing session timer">
+                            <SelectValue placeholder="Writing session timer" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unlimited">No time limit</SelectItem>
+                            <SelectItem value="time_limited">Time limited</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {environmentConfig.time.timeLimitSeconds && (
+                        <div className="grid gap-2">
+                          <FormLabel htmlFor="writing-time-limit-minutes">Time Limit (minutes)</FormLabel>
+                          <Input
+                            id="writing-time-limit-minutes"
+                            type="number"
+                            min={1}
+                            value={writingTimeLimitMinutesInput}
+                            disabled={isSubmitting}
+                            onChange={(event) => setWritingSessionTimerMinutes(event.target.value)}
+                            onBlur={commitWritingSessionTimerMinutes}
+                          />
+                          <FormDescription>
+                            The editor shows a countdown and blocks submission when the timer reaches zero.
+                          </FormDescription>
                         </div>
                       )}
                     </div>

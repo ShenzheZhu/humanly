@@ -88,16 +88,18 @@ export default function LoginPage() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Welcome back</CardTitle>
+    <Card className="border-border bg-white shadow-none humanly-panel-shadow">
+      <CardHeader className="text-center">
+        <CardTitle className="text-2xl font-bold tracking-normal">
+          Welcome back
+        </CardTitle>
         <CardDescription>
           Sign in to your account to continue
         </CardDescription>
       </CardHeader>
 
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form method="post" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {error && (
             <Alert variant={resendSuccess ? "default" : "destructive"}>
               {resendSuccess ? (
@@ -148,7 +150,7 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 placeholder="you@example.com"
-                className="pl-10"
+                className="h-11 rounded-lg pl-10"
                 disabled={isLoading}
                 {...register('email')}
                 onChange={(e) => {
@@ -170,7 +172,7 @@ export default function LoginPage() {
                 id="password"
                 type="password"
                 placeholder="Enter your password"
-                className="pl-10"
+                className="h-11 rounded-lg pl-10"
                 disabled={isLoading}
                 {...register('password')}
                 onChange={(e) => {
@@ -184,7 +186,11 @@ export default function LoginPage() {
             )}
           </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button
+            type="submit"
+            className="h-11 w-full rounded-full font-bold"
+            disabled={isLoading}
+          >
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

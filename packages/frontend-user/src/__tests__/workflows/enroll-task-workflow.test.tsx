@@ -63,7 +63,11 @@ jest.mock('@/hooks/use-documents', () => ({
 }));
 
 describe('task enrollment workflow', () => {
+  let dateNowSpy: jest.SpyInstance<number, []> | null = null;
+
   beforeEach(() => {
+    dateNowSpy?.mockRestore();
+    dateNowSpy = null;
     documents = [];
     enrollments = [];
     mockPush.mockClear();
@@ -117,11 +121,16 @@ describe('task enrollment workflow', () => {
     });
   });
 
+  afterEach(() => {
+    dateNowSpy?.mockRestore();
+    dateNowSpy = null;
+  });
+
   it('blocks invalid invite codes, enrolls valid codes, prevents duplicates, and opens submissions', async () => {
     const user = userEvent.setup();
     const { rerender } = render(<DocumentsPage />);
 
-    expect(await screen.findByRole('heading', { name: /^workspace$/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /writing dashboard/i })).toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: /task submissions/i }));
 
@@ -172,5 +181,117 @@ describe('task enrollment workflow', () => {
 
     await user.click(screen.getByRole('button', { name: /open submission/i }));
     expect(mockPush).toHaveBeenCalledWith('/documents/submission-doc-1');
+  });
+
+  it('shows the persistent writing countdown on timed task cards', async () => {
+    dateNowSpy = jest
+      .spyOn(Date, 'now')
+      .mockReturnValue(new Date('2026-05-14T12:01:30.000Z').getTime());
+    documents = [{ ...createdDocument, id: 'timed-doc-1' }];
+    enrollments = [{
+      id: 'enroll-1',
+      name: 'Timed Task',
+      inviteCode: 'TIME01',
+      documentId: 'timed-doc-1',
+      joinedAt: '2026-05-14T12:00:00.000Z',
+      writingStartedAt: '2026-05-14T12:00:00.000Z',
+      environmentConfig: {
+        time: {
+          timeLimitSeconds: 120,
+        },
+      },
+    }];
+
+    const user = userEvent.setup();
+    render(<DocumentsPage />);
+
+    await screen.findByRole('heading', { name: /writing dashboard/i });
+    await user.click(screen.getByRole('tab', { name: /task submissions/i }));
+
+    expect(screen.getByText('Writing time left')).toBeInTheDocument();
+    expect(screen.getByText('0:30')).toBeInTheDocument();
+    expect(screen.getByText('Continues while you are away.')).toBeInTheDocument();
+  });
+
+  it('shows the persistent writing countdown on personal writing cards', async () => {
+    dateNowSpy = jest
+      .spyOn(Date, 'now')
+      .mockReturnValue(new Date('2026-05-14T12:01:30.000Z').getTime());
+    documents = [{
+      ...createdDocument,
+      id: 'personal-timed-doc-1',
+      title: 'Timed Personal Writing',
+      writingStartedAt: '2026-05-14T12:00:00.000Z',
+      environmentConfig: {
+        time: {
+          timeLimitSeconds: 120,
+        },
+      },
+    }];
+
+    render(<DocumentsPage />);
+
+    expect(await screen.findByRole('heading', { name: /writing dashboard/i })).toBeInTheDocument();
+    expect(screen.getByText('Timed Personal Writing')).toBeInTheDocument();
+    expect(screen.getByText('Writing time left')).toBeInTheDocument();
+    expect(screen.getByText('0:30')).toBeInTheDocument();
+    expect(screen.getByText('Continues while you are away.')).toBeInTheDocument();
+  });
+
+  it('marks expired timed personal writing cards as read-only while preserving access', async () => {
+    dateNowSpy = jest
+      .spyOn(Date, 'now')
+      .mockReturnValue(new Date('2026-05-14T12:03:00.000Z').getTime());
+    documents = [{
+      ...createdDocument,
+      id: 'personal-expired-doc-1',
+      title: 'Expired Personal Writing',
+      writingStartedAt: '2026-05-14T12:00:00.000Z',
+      environmentConfig: {
+        time: {
+          timeLimitSeconds: 120,
+        },
+      },
+    }];
+
+    render(<DocumentsPage />);
+
+    expect(await screen.findByRole('heading', { name: /writing dashboard/i })).toBeInTheDocument();
+    expect(screen.getByText('Expired Personal Writing')).toBeInTheDocument();
+    expect(screen.getByText('Writing time limit reached')).toBeInTheDocument();
+    expect(screen.getByText('Opens in read-only mode.')).toBeInTheDocument();
+    expect(screen.getByText('Open Read-only')).toBeInTheDocument();
+  });
+
+  it('marks expired timed task cards as read-only while preserving access', async () => {
+    dateNowSpy = jest
+      .spyOn(Date, 'now')
+      .mockReturnValue(new Date('2026-05-14T12:03:00.000Z').getTime());
+    documents = [{ ...createdDocument, id: 'expired-doc-1' }];
+    enrollments = [{
+      id: 'enroll-1',
+      name: 'Expired Timed Task',
+      inviteCode: 'TIME02',
+      documentId: 'expired-doc-1',
+      joinedAt: '2026-05-14T12:00:00.000Z',
+      writingStartedAt: '2026-05-14T12:00:00.000Z',
+      environmentConfig: {
+        time: {
+          timeLimitSeconds: 120,
+        },
+      },
+    }];
+
+    const user = userEvent.setup();
+    render(<DocumentsPage />);
+
+    await screen.findByRole('heading', { name: /writing dashboard/i });
+    await user.click(screen.getByRole('tab', { name: /task submissions/i }));
+
+    expect(screen.getByText('Writing time limit reached')).toBeInTheDocument();
+    expect(screen.getByText('Submission opens in read-only mode.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /open read-only/i }));
+    expect(mockPush).toHaveBeenCalledWith('/documents/expired-doc-1');
   });
 });

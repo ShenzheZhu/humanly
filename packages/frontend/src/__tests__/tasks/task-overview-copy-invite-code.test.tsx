@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import TaskDetailPage from '@/app/tasks/[id]/page';
+import { getAnalyticsDateRange } from '@/app/tasks/[id]/_components/AnalyticsPanel';
 
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
@@ -81,6 +82,7 @@ const taskFixture = {
     time: {
       startTime: '2026-05-01T12:00:00.000Z',
       endTime: '2026-05-02T12:00:00.000Z',
+      timeLimitSeconds: 30 * 60,
       lateSubmission: 'not_allowed',
     },
     submission: {
@@ -163,6 +165,19 @@ const submissionsFixture = [
   },
 ];
 
+const eventsTimelineFixture = [
+  { date: 'May 13', eventCount: 12 },
+  { date: 'May 14', eventCount: 18 },
+  { date: 'May 15', eventCount: 24 },
+];
+
+const eventTypesFixture = [
+  { eventType: 'input', count: 30, percentage: 50 },
+  { eventType: 'paste', count: 12, percentage: 20 },
+  { eventType: 'copy', count: 6, percentage: 10 },
+  { eventType: 'focus', count: 12, percentage: 20 },
+];
+
 const adminLocalTimeFormatter = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
   month: 'short',
@@ -183,6 +198,14 @@ function mockTaskOverviewResponses() {
 
     if (url.endsWith('/analytics/summary')) {
       return Promise.resolve({ success: true, data: statsFixture });
+    }
+
+    if (url.endsWith('/analytics/events-timeline')) {
+      return Promise.resolve({ success: true, data: { timeline: eventsTimelineFixture } });
+    }
+
+    if (url.endsWith('/analytics/event-types')) {
+      return Promise.resolve({ success: true, data: { eventTypes: eventTypesFixture } });
     }
 
     if (url.endsWith('/enrollments')) {
@@ -337,6 +360,10 @@ describe('admin task overview invite code copy button', () => {
     expect(screen.queryByText('user-1')).not.toBeInTheDocument();
     expect(screen.queryByText('user-2')).not.toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Status' })).not.toBeInTheDocument();
+    expect(within(latestTable).getByRole('columnheader', { name: 'Analytics' })).toBeInTheDocument();
+    fireEvent.click(within(latestTable).getByRole('button', { name: /view analytics/i }));
+    expect(mockPush).toHaveBeenCalledWith('/tasks/task-123/submissions/submission-latest?from=submission');
+
     const submittedUserButton = screen.getByRole('button', { name: /user@example.com/i });
     const quietUserButton = screen.getByRole('button', { name: /quiet@example.com/i });
     expect(within(submittedUserButton).getByText('2 submissions')).toBeInTheDocument();
@@ -419,6 +446,31 @@ describe('admin task overview invite code copy button', () => {
     expect(mockReplace).toHaveBeenCalledWith('/tasks/task-123?tab=analytics', { scroll: false });
   });
 
+  it('opens the analytics tab with task-level metrics and submission analytics links', async () => {
+    mockSearchParams = new URLSearchParams('tab=analytics');
+
+    render(<TaskDetailPage />);
+
+    await screen.findByRole('heading', { name: 'Clipboard Task' });
+    expect(await screen.findByRole('heading', { name: 'Analytics' })).toBeInTheDocument();
+    expect(screen.getByText('Submitted users')).toBeInTheDocument();
+    expect(screen.getByText('Total submissions')).toBeInTheDocument();
+    expect(screen.getByText('Avg editing time')).toBeInTheDocument();
+    expect(screen.getByText('Completion Difficulty')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Completion Difficulty' })).toBeInTheDocument();
+    expect(screen.getByText('Moderate')).toBeInTheDocument();
+    expect(screen.getByText('43/100 · 50% completed')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Submission Timeline' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Activity' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Event Type Distribution' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Event Type Percentage' })).toBeInTheDocument();
+    expect(screen.getByTestId('event-type-total-events')).toHaveTextContent('60events');
+    expect(screen.queryByRole('heading', { name: 'Submissions' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Latest Essay')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /view analytics/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/session/i)).not.toBeInTheDocument();
+  });
+
   it('exports the current setting form state as environment config JSON', async () => {
     mockSearchParams = new URLSearchParams('tab=setting');
 
@@ -440,6 +492,10 @@ describe('admin task overview invite code copy button', () => {
     });
     fireEvent.change(screen.getByLabelText(/Task End Date/i), {
       target: { value: '2026-05-20T09:30' },
+    });
+    expect(screen.getByLabelText(/Time Limit \(minutes\)/i)).toHaveValue(30);
+    fireEvent.change(screen.getByLabelText(/Time Limit \(minutes\)/i), {
+      target: { value: '45' },
     });
     fireEvent.click(screen.getByRole('radio', { name: 'Blocked' }));
 
@@ -467,6 +523,7 @@ describe('admin task overview invite code copy button', () => {
     expect(exportedConfig.time).toEqual(expect.objectContaining({
       startTime: taskFixture.environmentConfig.time.startTime,
       endTime: new Date(2026, 4, 20, 9, 30).toISOString(),
+      timeLimitSeconds: 45 * 60,
       lateSubmission: 'not_allowed',
     }));
     expect(exportedConfig.traceability).toEqual(expect.objectContaining({
@@ -520,6 +577,9 @@ describe('admin task overview invite code copy button', () => {
     fireEvent.change(screen.getByLabelText(/Task End Date/i), {
       target: { value: '2026-05-20T09:30' },
     });
+    fireEvent.change(screen.getByLabelText(/Time Limit \(minutes\)/i), {
+      target: { value: '20' },
+    });
     fireEvent.click(screen.getByRole('radio', { name: 'Blocked' }));
     fireEvent.click(screen.getByRole('button', { name: /save settings/i }));
 
@@ -546,11 +606,38 @@ describe('admin task overview invite code copy button', () => {
     expect(payload.environmentConfig.time).toEqual(expect.objectContaining({
       startTime: taskFixture.environmentConfig.time.startTime,
       endTime: new Date(2026, 4, 20, 9, 30).toISOString(),
+      timeLimitSeconds: 20 * 60,
       lateSubmission: 'not_allowed',
     }));
     expect(payload.environmentConfig.traceability).toEqual(expect.objectContaining({
       trackAiUsage: true,
       trackCopyPaste: false,
     }));
+  });
+});
+
+describe('admin analytics date ranges', () => {
+  it('uses task start through now for all time while the task is still active', () => {
+    expect(getAnalyticsDateRange({
+      preset: 'all',
+      taskStartDate: '2026-05-01T12:00:00.000Z',
+      taskEndDate: '2026-06-01T12:00:00.000Z',
+      now: new Date('2026-05-20T16:00:00.000Z'),
+    })).toEqual({
+      startDate: '2026-05-01T12:00:00.000Z',
+      endDate: '2026-05-20T16:00:00.000Z',
+    });
+  });
+
+  it('uses task start through task end for all time after the task ends', () => {
+    expect(getAnalyticsDateRange({
+      preset: 'all',
+      taskStartDate: '2026-05-01T12:00:00.000Z',
+      taskEndDate: '2026-05-10T12:00:00.000Z',
+      now: new Date('2026-05-20T16:00:00.000Z'),
+    })).toEqual({
+      startDate: '2026-05-01T12:00:00.000Z',
+      endDate: '2026-05-10T12:00:00.000Z',
+    });
   });
 });

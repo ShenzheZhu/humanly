@@ -68,9 +68,19 @@ Value: 34.30.217.221
 
 The TLS certificate mounted at `nginx/ssl/fullchain.pem` must also include
 `app.writehumanly.net`, `admin.writehumanly.net`, and `api.writehumanly.net`.
+Docker Compose nginx is the only production owner of ports `80` and `443`.
+Do not use host-level certbot nginx renewal on this VM.
+
 `scripts/deploy.sh` calls `scripts/ensure-production-cert.sh` after nginx is
-running; the script expands the Let's Encrypt certificate automatically when a
-supported hostname is missing from the certificate SAN.
+running; the script expands the Let's Encrypt certificate when a supported
+hostname is missing from the certificate SAN and renews it when it is inside the
+`CERTBOT_RENEWAL_WINDOW_DAYS` window, defaulting to 30 days. The script uses
+Docker certbot with the Compose webroot at `nginx/certbot`, so it does not need
+to bind `80` or `443`.
+
+Deploys also disable the obsolete host `certbot.timer` and `certbot.service`
+when the deploy user has root or passwordless sudo. This prevents host certbot
+from trying to start host nginx and colliding with Docker nginx.
 
 Manual certificate repair from the VM:
 
@@ -79,6 +89,64 @@ cd /home/humanly/humanly
 bash scripts/ensure-production-cert.sh
 docker compose -f docker-compose.prod.yml up -d --no-deps --force-recreate nginx
 ```
+
+Dry-run renewal check from the VM:
+
+```bash
+cd /home/humanly/humanly
+CERTBOT_DRY_RUN=1 bash scripts/ensure-production-cert.sh
+```
+
+If host certbot units are still present after an older deploy, disable them once:
+
+```bash
+sudo systemctl disable --now certbot.timer certbot.service
+sudo systemctl reset-failed certbot.service
+```
+
+Validate HTTPS after any certificate repair:
+
+```bash
+curl -fsS https://app.writehumanly.net/health
+curl -fsS https://admin.writehumanly.net/health
+curl -fsS https://api.writehumanly.net/health
+curl -fsS https://api.writehumanly.net/api/v1/health
+```
+
+## Production SSH Access
+
+Canonical deploy access is the GitHub Actions secret triplet `VM_HOST`,
+`VM_USER`, and `VM_SSH_KEY`. Do not rotate or remove that key during operator
+SSH repair unless the deployment workflow is updated in the same change.
+
+Canonical operator debug access is:
+
+```bash
+gcloud compute ssh zhu@humanly-project \
+  --project hai-gcp-representation \
+  --zone us-central1-f
+```
+
+If metadata contains the expected SSH key but `gcloud compute ssh` returns
+`Permission denied (publickey)`, repair the VM guest user from a workstation
+with GCP permissions:
+
+```bash
+cd humanly-code
+OPERATOR_USER=zhu \
+OPERATOR_PUBLIC_KEY_FILE="$HOME/.ssh/google_compute_engine.pub" \
+scripts/repair-production-ssh-access.sh
+```
+
+This break-glass script installs the operator public key through a one-shot GCE
+startup script, resets the VM so the startup script runs, verifies SSH, removes
+the startup script metadata, and disables host certbot units. It stores only a
+public key in metadata; it never prints or uploads private key material.
+
+Browser SSH depends on the guest OS materializing fresh metadata keys for the
+browser session. If browser SSH fails but canonical operator SSH works, use the
+operator path above and repair/restart the GCE guest agent during the next
+maintenance window.
 
 ## Required GCP Setup
 

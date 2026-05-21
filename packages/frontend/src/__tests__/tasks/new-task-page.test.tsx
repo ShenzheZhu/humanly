@@ -129,6 +129,49 @@ describe('admin new task page', () => {
     expect(endDate.getTime() - startDate.getTime()).toBe(14 * 24 * 60 * 60 * 1000);
     expect(payload.environmentConfig.time.startTime).toBe(payload.startDate);
     expect(payload.environmentConfig.time.endTime).toBe(payload.endDate);
+    expect(payload.environmentConfig.time.timeLimitSeconds).toBeUndefined();
+  });
+
+  it('creates tasks with an optional writing session timer', async () => {
+    render(<NewTaskPage />);
+
+    expect(await screen.findByRole('heading', { name: 'New Task' })).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Task Name/i), {
+        target: { value: 'Timed Writing Task' },
+      });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('option', { name: 'Custom' }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('option', { name: 'Time limited' }));
+    });
+
+    const timeLimitInput = screen.getByLabelText(/Time Limit \(minutes\)/i);
+    expect(timeLimitInput).toHaveValue(60);
+
+    await act(async () => {
+      fireEvent.change(timeLimitInput, { target: { value: '45' } });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Create Task$/i }));
+    });
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith(
+        '/api/v1/tasks',
+        expect.objectContaining({
+          name: 'Timed Writing Task',
+          environmentConfig: expect.objectContaining({
+            time: expect.objectContaining({
+              timeLimitSeconds: 45 * 60,
+            }),
+          }),
+        })
+      );
+    });
   });
 
   it('imports environment JSON and shows AI usage limit only when AI is on', async () => {

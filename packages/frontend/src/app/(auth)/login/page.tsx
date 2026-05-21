@@ -97,7 +97,7 @@ export default function LoginPage() {
       </CardHeader>
 
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form method="post" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {error && (
             <Alert variant={resendSuccess ? "default" : "destructive"}>
               {resendSuccess ? (

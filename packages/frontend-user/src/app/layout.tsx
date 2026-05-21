@@ -1,11 +1,15 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Space_Mono } from 'next/font/google';
 import { BRAND, getBrandText } from '@humanly/shared';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { PolyfillProvider } from '@/components/polyfill-provider';
 
-const inter = Inter({ subsets: ['latin'] });
+const spaceMono = Space_Mono({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-space-mono',
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL('http://localhost:3002'),
@@ -30,7 +34,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={spaceMono.variable}>
         <PolyfillProvider>
           {children}
           <Toaster />

@@ -19,6 +19,7 @@ export interface Document {
   wordCount: number;
   characterCount: number;
   environmentConfig?: WritingEnvironmentConfig | null;
+  writingStartedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   lastEditedAt: Date;
@@ -149,6 +150,8 @@ export interface DocumentEventQueryFilters {
 
 export type DocumentEventTimelineItemKind =
   | 'typing_burst'
+  | 'line_break'
+  | 'replace'
   | 'paste'
   | 'delete'
   | 'event';

@@ -24,6 +24,7 @@ import {
   AI_MAX_TOKENS_MIN,
   AI_SHORTCUT_MAX_TOKENS_DEFAULT,
   DEFAULT_WRITING_ENVIRONMENT_CONFIG,
+  SUBMISSION_MAX_CHARACTERS_MAX,
   SUBMISSION_MIN_CHARACTERS_MAX,
   WRITING_AI_MODELS,
   normalizeCopyPastePolicy,
@@ -101,6 +102,16 @@ const CUSTOM_MODEL_VALUE = '__custom_model__';
 const USE_EXISTING_AI_KEY = '__use_existing__';
 const UNLIMITED_TASK_WINDOW_YEARS = 100;
 
+const getTimeLimitMinutesValue = (seconds?: number): string => (
+  String(Math.max(1, Math.round((seconds || 3600) / 60)))
+);
+
+const parseTimeLimitMinutes = (value: string, fallback = 1): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return Math.max(1, Math.round(parsed));
+};
+
 const fallbackWritingModels = () => (
   WRITING_AI_MODELS.filter((model) => model !== 'Custom models')
 );
@@ -117,6 +128,16 @@ const parseOptionalMinCharacters = (value: string): number | undefined => {
   if (!Number.isFinite(parsed) || parsed < 1) return undefined;
 
   return Math.min(Math.floor(parsed), SUBMISSION_MIN_CHARACTERS_MAX);
+};
+
+const parseOptionalMaxCharacters = (value: string): number | undefined => {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed < 1) return undefined;
+
+  return Math.min(Math.floor(parsed), SUBMISSION_MAX_CHARACTERS_MAX);
 };
 
 const buildConfigFilename = (name?: string | null) => {
@@ -278,6 +299,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
   const [aiConnectionResult, setAiConnectionResult] = useState<AiConnectionResult | null>(null);
   const [testedAiModels, setTestedAiModels] = useState<string[]>([]);
   const [timeLimitEnabled, setTimeLimitEnabled] = useState(false);
+  const [writingTimeLimitMinutesInput, setWritingTimeLimitMinutesInput] = useState('60');
   const [advancedAiSettingsOpen, setAdvancedAiSettingsOpen] = useState(false);
   const [advancedAiSettingsTouched, setAdvancedAiSettingsTouched] = useState(false);
 
@@ -402,6 +424,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
         setAiAccessState(existingAiAccess);
         setAiModel(existingModel);
         setTimeLimitEnabled(hasTimeLimit);
+        setWritingTimeLimitMinutesInput(getTimeLimitMinutesValue(mergedConfig.time.timeLimitSeconds));
 
         form.reset({
           name: taskFromApi.name,
@@ -488,6 +511,73 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
       submission: {
         ...current.submission,
         minCharacters,
+      },
+    }));
+  };
+
+  const setSubmissionMaximumCharacters = (value: string) => {
+    const maxCharacters = parseOptionalMaxCharacters(value);
+    setEnvironmentConfig((current) => ({
+      ...current,
+      submission: {
+        ...current.submission,
+        maxCharacters,
+      },
+    }));
+  };
+
+  const setWritingSessionTimerEnabled = (enabled: boolean) => {
+    const minutes = parseTimeLimitMinutes(
+      writingTimeLimitMinutesInput,
+      Number(getTimeLimitMinutesValue(environmentConfig.time.timeLimitSeconds))
+    );
+    if (enabled) {
+      setWritingTimeLimitMinutesInput(String(minutes));
+    }
+
+    setEnvironmentConfig((current) => {
+      if (!enabled) {
+        return {
+          ...current,
+          time: {
+            ...current.time,
+            timeLimitSeconds: undefined,
+          },
+        };
+      }
+
+      return {
+        ...current,
+        time: {
+          ...current.time,
+          timeLimitSeconds: minutes * 60,
+        },
+      };
+    });
+  };
+
+  const setWritingSessionTimerMinutes = (value: string) => {
+    setWritingTimeLimitMinutesInput(value);
+    if (!value) return;
+
+    const minutes = parseTimeLimitMinutes(value, 1);
+    setEnvironmentConfig((current) => ({
+      ...current,
+      time: {
+        ...current.time,
+        timeLimitSeconds: minutes * 60,
+      },
+    }));
+  };
+
+  const commitWritingSessionTimerMinutes = () => {
+    const minutes = parseTimeLimitMinutes(writingTimeLimitMinutesInput, 1);
+    setWritingTimeLimitMinutesInput(String(minutes));
+    setEnvironmentConfig((current) => ({
+      ...current,
+      time: {
+        ...current.time,
+        timeLimitSeconds: minutes * 60,
       },
     }));
   };
@@ -636,6 +726,12 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
     const endTime = timeLimitEnabled && data.endDate
       ? localDateTimeInputToISOString(data.endDate)
       : undefined;
+    const writingTimeLimitSeconds = environmentConfig.time.timeLimitSeconds
+      ? parseTimeLimitMinutes(
+          writingTimeLimitMinutesInput,
+          Number(getTimeLimitMinutesValue(environmentConfig.time.timeLimitSeconds))
+        ) * 60
+      : undefined;
     const hasInstructionPdf = currentInstructionFiles.length > 0 || instructionFiles.length > 0;
 
     return {
@@ -657,6 +753,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
         ...environmentConfig.time,
         startTime,
         endTime,
+        timeLimitSeconds: writingTimeLimitSeconds,
         lateSubmission: timeLimitEnabled ? 'not_allowed' : 'allowed',
       },
       traceability: {
@@ -719,10 +816,11 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
       const configStartTime = timeLimitEnabled ? startTime : undefined;
       const configEndTime = timeLimitEnabled ? endTime : undefined;
       const allowedModels = aiAccess === 'off' ? [] : [selectedAiModel];
+      const currentEnvironmentConfig = buildCurrentEnvironmentConfig(data);
       const nextEnvironmentConfig: WritingEnvironmentConfig = {
-        ...buildCurrentEnvironmentConfig(data),
+        ...currentEnvironmentConfig,
         time: {
-          ...environmentConfig.time,
+          ...currentEnvironmentConfig.time,
           startTime: configStartTime,
           endTime: configEndTime,
           lateSubmission: timeLimitEnabled ? 'not_allowed' : 'allowed',
@@ -1237,6 +1335,37 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                 </div>
               )}
 
+              <SettingRow label="Writing Session Timer">
+                <SegmentedControl
+                  ariaLabel="Writing Session Timer"
+                  value={environmentConfig.time.timeLimitSeconds ? 'on' : 'off'}
+                  disabled={isSaving}
+                  options={[
+                    { value: 'off', label: 'Off' },
+                    { value: 'on', label: 'On' },
+                  ]}
+                  onValueChange={(value) => setWritingSessionTimerEnabled(value === 'on')}
+                />
+              </SettingRow>
+
+              {environmentConfig.time.timeLimitSeconds && (
+                <div className="grid gap-2 sm:max-w-[360px]">
+                  <FormLabel htmlFor="writing-time-limit-minutes">Time Limit (minutes)</FormLabel>
+                  <Input
+                    id="writing-time-limit-minutes"
+                    type="number"
+                    min={1}
+                    value={writingTimeLimitMinutesInput}
+                    onChange={(event) => setWritingSessionTimerMinutes(event.target.value)}
+                    onBlur={commitWritingSessionTimerMinutes}
+                    disabled={isSaving}
+                  />
+                  <FormDescription>
+                    The editor shows this countdown while each enrolled user writes.
+                  </FormDescription>
+                </div>
+              )}
+
               <FormField
                 control={form.control}
                 name="aiUsageLimit"
@@ -1278,20 +1407,37 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                 />
               </SettingRow>
 
-              <div className="grid gap-2 sm:max-w-[360px]">
-                <FormLabel htmlFor="minimum-characters">Minimum Characters</FormLabel>
-                <Input
-                  id="minimum-characters"
-                  type="number"
-                  min={1}
-                  max={SUBMISSION_MIN_CHARACTERS_MAX}
-                  value={environmentConfig.submission.minCharacters ?? ''}
-                  onChange={(event) => setSubmissionMinimumCharacters(event.target.value)}
-                  placeholder="No minimum"
-                  disabled={isSaving}
-                />
-                <FormDescription>
-                  Leave blank when submissions do not need a minimum length.
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <FormLabel htmlFor="minimum-characters">Minimum Characters</FormLabel>
+                  <Input
+                    id="minimum-characters"
+                    type="number"
+                    min={1}
+                    max={SUBMISSION_MIN_CHARACTERS_MAX}
+                    value={environmentConfig.submission.minCharacters ?? ''}
+                    onChange={(event) => setSubmissionMinimumCharacters(event.target.value)}
+                    placeholder="No minimum"
+                    disabled={isSaving}
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <FormLabel htmlFor="maximum-characters">Maximum Characters</FormLabel>
+                  <Input
+                    id="maximum-characters"
+                    type="number"
+                    min={1}
+                    max={SUBMISSION_MAX_CHARACTERS_MAX}
+                    value={environmentConfig.submission.maxCharacters ?? ''}
+                    onChange={(event) => setSubmissionMaximumCharacters(event.target.value)}
+                    placeholder="No maximum"
+                    disabled={isSaving}
+                  />
+                </div>
+
+                <FormDescription className="sm:col-span-2">
+                  Leave either field blank when submissions do not need that length bound.
                 </FormDescription>
               </div>
             </CardContent>
