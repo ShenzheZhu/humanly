@@ -158,7 +158,7 @@ function NavBar() {
   return (
     <header className="grid grid-cols-[1fr_auto] items-center px-5 py-5 sm:px-8 lg:grid-cols-[1fr_auto_1fr] lg:px-14 lg:py-[26px]">
       <Link href="/" className="justify-self-start">
-        <HumanlyWordmark size="sm" />
+        <HumanlyWordmark size="md" />
       </Link>
 
       <nav className="hidden items-center gap-9 text-sm font-medium text-muted-foreground lg:flex">

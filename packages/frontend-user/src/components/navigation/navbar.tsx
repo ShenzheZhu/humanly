@@ -48,7 +48,7 @@ export function Navbar() {
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
             <Link href="/documents" className="flex items-center">
-              <HumanlyWordmark size="sm" />
+              <HumanlyWordmark size="md" />
             </Link>
           </div>
 

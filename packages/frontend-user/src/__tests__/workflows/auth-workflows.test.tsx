@@ -94,7 +94,7 @@ describe('user auth workflows', () => {
 
     const { unmount } = render(<RegisterPage />);
 
-    await user.type(screen.getByLabelText(/^name$/i), 'QA User');
+    await user.type(screen.getByLabelText(/user name/i), 'QA User');
     await user.type(screen.getByLabelText(/^email$/i), 'qa@example.com');
     await user.type(screen.getByPlaceholderText('Enter your password'), 'weakpass');
     await user.type(screen.getByPlaceholderText('Confirm your password'), 'weakpass');
@@ -108,7 +108,7 @@ describe('user auth workflows', () => {
     mockRegister.mockResolvedValueOnce(undefined);
     render(<RegisterPage />);
 
-    await user.type(screen.getByLabelText(/^name$/i), 'QA User');
+    await user.type(screen.getByLabelText(/user name/i), 'QA User');
     await user.type(screen.getByLabelText(/^email$/i), 'qa@example.com');
     await user.type(screen.getByPlaceholderText('Enter your password'), 'Password123!');
     await user.type(screen.getByPlaceholderText('Confirm your password'), 'Password123!');
