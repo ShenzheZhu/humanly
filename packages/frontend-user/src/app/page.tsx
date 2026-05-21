@@ -123,10 +123,10 @@ export default function HomePage() {
     <main className="min-h-screen overflow-hidden bg-background text-foreground">
       <NavBar />
 
-      <section id="product" className="relative px-5 pb-14 pt-24 sm:px-8 sm:pb-16 sm:pt-28 lg:px-14 lg:pt-[120px]">
+      <section id="product" className="relative px-5 pb-14 pt-16 sm:px-8 sm:pb-16 sm:pt-20 lg:px-14 lg:pt-[82px]">
         <div className="mx-auto max-w-[940px] text-center">
           <Eyebrow className="mb-7">{BRAND.name}</Eyebrow>
-          <h1 className="text-[44px] font-semibold leading-[1.04] tracking-[-0.025em] sm:text-[64px] lg:text-[72px]">
+          <h1 className="text-[40px] font-semibold leading-[1.06] tracking-[-0.025em] sm:text-[56px] lg:text-[64px]">
             <span>Write with AI.</span>
             <br />
             <span className="text-[#a0a2a7]">Prove your process.</span>
@@ -158,7 +158,7 @@ export default function HomePage() {
 
 function NavBar() {
   return (
-    <header className="grid grid-cols-[1fr_auto] items-center border-b border-[rgba(20,22,26,0.05)] px-5 py-5 sm:px-8 lg:grid-cols-[1fr_auto_1fr] lg:px-14 lg:py-[26px]">
+    <header className="grid grid-cols-[1fr_auto] items-center px-5 py-5 sm:px-8 lg:grid-cols-[1fr_auto_1fr] lg:px-14 lg:py-[26px]">
       <Link href="/" className="justify-self-start">
         <HumanlyWordmark size="sm" />
       </Link>
