@@ -7,13 +7,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/auth-store';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Mail, Lock, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import { OAuthButtons } from '@/components/auth/oauth-buttons';
+import { AuthCard } from '@/components/auth/auth-card';
 
 // Form validation schema
 const loginSchema = z.object({
@@ -89,17 +89,31 @@ export default function LoginPage() {
   };
 
   return (
-    <Card className="border-border bg-white shadow-none humanly-panel-shadow">
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold tracking-normal">
-          Welcome back
-        </CardTitle>
-        <CardDescription>
-          Sign in to your account to continue
-        </CardDescription>
-      </CardHeader>
-
-      <CardContent>
+    <AuthCard
+      eyebrow="Account"
+      title="Welcome back"
+      description="Sign in to keep writing, tracking, and certifying your drafts."
+      footer={
+        <>
+          <p className="text-sm text-muted-foreground">
+            Do not have an account?{' '}
+            <Link
+              href="/register"
+              className="font-medium text-foreground hover:underline"
+            >
+              Sign up
+            </Link>
+          </p>
+          <p className="text-center text-xs leading-5 text-muted-foreground">
+            By signing in, you agree to our{' '}
+            <Link href="/terms" className="underline hover:text-foreground">
+              Terms of Service
+            </Link>
+          </p>
+        </>
+      }
+    >
+        <OAuthButtons className="mb-5" />
         <form method="post" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {error && (
             <Alert variant={resendSuccess ? "default" : "destructive"}>
@@ -151,7 +165,7 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 placeholder="you@example.com"
-                className="h-11 rounded-lg pl-10"
+                className="h-11 rounded-lg bg-background/70 pl-10"
                 disabled={isLoading}
                 {...register('email')}
                 onChange={(e) => {
@@ -181,7 +195,7 @@ export default function LoginPage() {
                 id="password"
                 type="password"
                 placeholder="Enter your password"
-                className="h-11 rounded-lg pl-10"
+                className="h-11 rounded-lg bg-background/70 pl-10"
                 disabled={isLoading}
                 {...register('password')}
                 onChange={(e) => {
@@ -210,28 +224,6 @@ export default function LoginPage() {
             )}
           </Button>
         </form>
-        <div className="mt-5">
-          <OAuthButtons />
-        </div>
-      </CardContent>
-
-      <CardFooter className="flex flex-col items-center gap-3">
-        <p className="text-sm text-muted-foreground">
-          Do not have an account?{' '}
-          <Link
-            href="/register"
-            className="text-primary hover:underline font-medium"
-          >
-            Sign up
-          </Link>
-        </p>
-        <p className="text-xs text-muted-foreground text-center">
-          By signing in, you agree to our{' '}
-          <Link href="/terms" className="underline hover:text-foreground">
-            Terms of Service
-          </Link>
-        </p>
-      </CardFooter>
-    </Card>
+    </AuthCard>
   );
 }

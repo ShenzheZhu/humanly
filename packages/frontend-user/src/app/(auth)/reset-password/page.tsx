@@ -7,12 +7,13 @@ import { z } from 'zod';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Lock, ArrowLeft, CheckCircle2, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Lock, CheckCircle2, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
+import { AuthBackLink, AuthCard } from '@/components/auth/auth-card';
 
 // Form validation schema
 const resetPasswordSchema = z.object({
@@ -77,15 +78,16 @@ function ResetPasswordContent() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Set new password</CardTitle>
-        <CardDescription>
-          Enter your new password below. Make sure it is at least 8 characters long.
-        </CardDescription>
-      </CardHeader>
-
-      <CardContent>
+    <AuthCard
+      eyebrow="Recovery"
+      title={success ? 'Password updated' : 'Set a new password'}
+      description={
+        success
+          ? 'You can use the new password the next time you sign in.'
+          : 'Choose a password you have not used before. It must be at least 8 characters long.'
+      }
+      footer={<AuthBackLink href="/login">Back to login</AuthBackLink>}
+    >
         {success ? (
           <Alert variant="success">
             <CheckCircle2 className="h-4 w-4" />
@@ -125,7 +127,7 @@ function ResetPasswordContent() {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Enter new password"
-                  className="pl-10 pr-10"
+                  className="h-11 rounded-lg bg-background/70 pl-10 pr-10"
                   disabled={isLoading || !token}
                   {...register('password')}
                 />
@@ -158,7 +160,7 @@ function ResetPasswordContent() {
                   id="confirmPassword"
                   type={showConfirmPassword ? 'text' : 'password'}
                   placeholder="Confirm new password"
-                  className="pl-10 pr-10"
+                  className="h-11 rounded-lg bg-background/70 pl-10 pr-10"
                   disabled={isLoading || !token}
                   {...register('confirmPassword')}
                 />
@@ -180,7 +182,11 @@ function ResetPasswordContent() {
               )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading || !token}>
+            <Button
+              type="submit"
+              className="h-11 w-full rounded-full font-bold"
+              disabled={isLoading || !token}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -192,18 +198,7 @@ function ResetPasswordContent() {
             </Button>
           </form>
         )}
-      </CardContent>
-
-      <CardFooter className="flex justify-center">
-        <Link
-          href="/login"
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to login
-        </Link>
-      </CardFooter>
-    </Card>
+    </AuthCard>
   );
 }
 

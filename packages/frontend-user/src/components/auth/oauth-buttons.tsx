@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Github, Loader2 } from 'lucide-react';
 import api, { getApiUrl } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 type OAuthProvidersResponse = {
   success: boolean;
@@ -15,7 +16,13 @@ type OAuthProvidersResponse = {
   };
 };
 
-export function OAuthButtons({ next = '/documents' }: { next?: string }) {
+export function OAuthButtons({
+  next = '/documents',
+  className,
+}: {
+  next?: string;
+  className?: string;
+}) {
   const [providers, setProviders] = useState({ google: false, github: false });
   const [loadingProvider, setLoadingProvider] = useState<'google' | 'github' | null>(null);
 
@@ -58,19 +65,16 @@ export function OAuthButtons({ next = '/documents' }: { next?: string }) {
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-border" />
-        <span className="text-xs text-muted-foreground">or continue with</span>
-        <div className="h-px flex-1 bg-border" />
-      </div>
-
+    <div className={cn('space-y-3', className)}>
+      <p className="text-center text-xs font-medium uppercase text-muted-foreground">
+        Quick access
+      </p>
       <div className="grid gap-2 sm:grid-cols-2">
         {providers.google && (
           <Button
             type="button"
             variant="outline"
-            className="h-11 rounded-full bg-white font-bold"
+            className="h-11 rounded-full border-border/80 bg-white/80 font-bold hover:bg-muted/60"
             onClick={() => startLogin('google')}
             disabled={loadingProvider !== null}
           >
@@ -87,7 +91,7 @@ export function OAuthButtons({ next = '/documents' }: { next?: string }) {
           <Button
             type="button"
             variant="outline"
-            className="h-11 rounded-full bg-white font-bold"
+            className="h-11 rounded-full border-border/80 bg-white/80 font-bold hover:bg-muted/60"
             onClick={() => startLogin('github')}
             disabled={loadingProvider !== null}
           >
@@ -99,6 +103,11 @@ export function OAuthButtons({ next = '/documents' }: { next?: string }) {
             GitHub
           </Button>
         )}
+      </div>
+      <div className="flex items-center gap-3 pt-1">
+        <div className="h-px flex-1 bg-border/80" />
+        <span className="text-xs text-muted-foreground">or use email</span>
+        <div className="h-px flex-1 bg-border/80" />
       </div>
     </div>
   );
