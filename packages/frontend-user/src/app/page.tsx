@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { BRAND } from '@humanly/shared';
 import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
 
 const ink = '#1a1c20';
@@ -125,7 +124,6 @@ export default function HomePage() {
 
       <section id="product" className="relative px-5 pb-14 pt-12 sm:px-8 sm:pb-16 sm:pt-16 lg:px-14 lg:pt-[58px]">
         <div className="mx-auto max-w-[940px] text-center">
-          <Eyebrow className="mb-7">{BRAND.name}</Eyebrow>
           <h1 className="text-[36px] font-semibold leading-[1.08] tracking-[-0.025em] sm:text-[50px] lg:text-[58px]">
             <span>Write with AI.</span>
             <br />
