@@ -2,6 +2,7 @@ import nodemailer, { Transporter } from 'nodemailer';
 import { getBrandText } from '@humanly/shared';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
+import { PASSWORD_RESET_TOKEN_TTL_MINUTES } from '../constants/auth';
 
 export function getEmailConfigurationErrors(): string[] {
   if (env.nodeEnv !== 'production') {
@@ -79,7 +80,7 @@ export function buildPasswordResetEmailHtml(resetUrl: string): string {
             <p>Or copy and paste this link into your browser:</p>
             <p style="word-break: break-all; color: #6b7280;">${resetUrl}</p>
             <div class="warning">
-              <p><strong>This link will expire in 1 hour.</strong></p>
+              <p><strong>This link will expire in ${PASSWORD_RESET_TOKEN_TTL_MINUTES} minutes.</strong></p>
             </div>
             <p>This password reset email uses a secure link. A 6-digit verification code is only for account verification and cannot reset your password.</p>
             <p>If you didn't request a password reset, please ignore this email. Your password will remain unchanged.</p>

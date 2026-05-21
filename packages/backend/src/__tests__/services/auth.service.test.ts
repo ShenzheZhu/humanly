@@ -29,6 +29,7 @@ import { UserModel } from '../../models/user.model';
 import { RefreshTokenModel } from '../../models/refresh-token.model';
 import { UserAISettingsModel } from '../../models/user-ai-settings.model';
 import { hashPassword } from '../../utils/crypto';
+import { PASSWORD_RESET_TOKEN_TTL_MS } from '../../constants/auth';
 
 const MockUserModel = UserModel as jest.Mocked<typeof UserModel>;
 const MockRefreshTokenModel = RefreshTokenModel as jest.Mocked<typeof RefreshTokenModel>;
@@ -333,6 +334,19 @@ describe('AuthService.forgotPassword', () => {
       expect.any(String)
     );
     expect(MockEmailService.sendVerificationEmail).not.toHaveBeenCalled();
+  });
+
+  it('sets password reset tokens to expire after 30 minutes', async () => {
+    MockUserModel.findByEmail.mockResolvedValue(makeUser() as any);
+    MockUserModel.setPasswordResetToken.mockResolvedValue(undefined);
+    const requestedAt = Date.now();
+
+    await AuthService.forgotPassword('alice@example.com');
+
+    const expiresAt = MockUserModel.setPasswordResetToken.mock.calls[0][2] as Date;
+    const expectedExpiry = requestedAt + PASSWORD_RESET_TOKEN_TTL_MS;
+    expect(expiresAt.getTime()).toBeGreaterThanOrEqual(expectedExpiry);
+    expect(expiresAt.getTime()).toBeLessThan(expectedExpiry + 1000);
   });
 
   it('surfaces reset email delivery failures for known users', async () => {

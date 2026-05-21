@@ -60,7 +60,7 @@ export default function ForgotPasswordPage() {
               <AlertTitle>Reset link requested</AlertTitle>
               <AlertDescription>
                 Look for the subject Reset Your Password - Humanly. It contains
-                a reset link, not a verification code.
+                a reset link that expires in 30 minutes, not a verification code.
               </AlertDescription>
             </Alert>
             <p className="rounded-lg border border-border/80 bg-muted/40 p-4 text-sm leading-6 text-muted-foreground">
