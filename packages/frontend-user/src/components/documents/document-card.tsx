@@ -167,27 +167,30 @@ export function DocumentCard({ document, timerState, onDelete, variant = 'card' 
     <>
       <div className="relative h-full">
         <Link href={documentHref} className="group block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <Card className="flex h-full min-h-[21rem] cursor-pointer overflow-hidden transition-colors group-hover:border-foreground/30">
+          <Card className="flex h-[20rem] cursor-pointer overflow-hidden transition-colors group-hover:border-foreground/30">
             <CardContent className="flex h-full flex-1 flex-col p-0">
-              <div className="flex min-h-[13rem] flex-1 items-start border-b border-border/60 bg-background px-5 py-5">
-                {previewText ? (
-                  <p className="line-clamp-7 text-sm leading-6 text-muted-foreground/80">
-                    {previewText}
-                  </p>
-                ) : (
-                  <div className="mt-2 w-full space-y-3" aria-hidden="true">
-                    <div className="h-3 w-2/3 rounded-full bg-muted" />
-                    <div className="h-3 w-5/6 rounded-full bg-muted" />
-                    <div className="h-3 w-3/4 rounded-full bg-muted" />
-                    <div className="h-3 w-1/2 rounded-full bg-muted" />
-                  </div>
-                )}
+              <div className="h-[14rem] overflow-hidden border-b border-border/70 bg-muted/20">
+                <div className="h-full w-full bg-background px-7 py-6">
+                  {previewText ? (
+                    <p className="line-clamp-[11] whitespace-pre-wrap text-[11px] leading-[1.45] text-muted-foreground/80">
+                      {previewText}
+                    </p>
+                  ) : (
+                    <div className="space-y-2.5" aria-hidden="true">
+                      <div className="h-2.5 w-2/3 rounded-full bg-muted" />
+                      <div className="h-2.5 w-5/6 rounded-full bg-muted" />
+                      <div className="h-2.5 w-3/4 rounded-full bg-muted" />
+                      <div className="h-2.5 w-4/5 rounded-full bg-muted" />
+                      <div className="h-2.5 w-1/2 rounded-full bg-muted" />
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="flex min-h-[7rem] items-start gap-3 p-4 pr-14">
-                <FileText className="mt-1 h-5 w-5 shrink-0 text-accent" />
+              <div className="flex flex-1 items-center gap-3 p-4 pr-14">
+                <FileText className="h-5 w-5 shrink-0 text-accent" />
                 <div className="min-w-0 flex-1">
-                  <div className="flex min-w-0 items-start gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
                     <h3 className="min-w-0 flex-1 truncate text-base font-semibold text-foreground">
                       {displayTitle}
                     </h3>
@@ -202,7 +205,7 @@ export function DocumentCard({ document, timerState, onDelete, variant = 'card' 
                   </div>
 
                   {timerState && (
-                    <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground">
                       <CalendarClock className="h-3.5 w-3.5 shrink-0 text-accent" />
                       <span className="font-medium text-foreground">{timerState.value}</span>
                       <span>{timerState.detail}</span>
