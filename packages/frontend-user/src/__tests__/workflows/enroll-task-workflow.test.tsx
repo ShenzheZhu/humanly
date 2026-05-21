@@ -238,6 +238,41 @@ describe('task enrollment workflow', () => {
     expect(screen.getByText('Continues while you are away.')).toBeInTheDocument();
   });
 
+  it('lets users switch personal writing between card and list views', async () => {
+    documents = [
+      {
+        ...createdDocument,
+        id: 'personal-doc-1',
+        title: 'First Personal Writing',
+        characterCount: 0,
+      },
+      {
+        ...createdDocument,
+        id: 'personal-doc-2',
+        title: 'Second Personal Writing',
+        plainText: 'This document has enough preview text to exercise the list layout without changing row controls.',
+        characterCount: 101,
+      },
+    ];
+
+    const user = userEvent.setup();
+    render(<DocumentsPage />);
+
+    expect(await screen.findByRole('heading', { name: /writing dashboard/i })).toBeInTheDocument();
+    const cardViewButton = screen.getByRole('button', { name: /card view/i });
+    const listViewButton = screen.getByRole('button', { name: /list view/i });
+
+    expect(cardViewButton).toHaveAttribute('aria-pressed', 'true');
+    expect(listViewButton).toHaveAttribute('aria-pressed', 'false');
+
+    await user.click(listViewButton);
+
+    expect(cardViewButton).toHaveAttribute('aria-pressed', 'false');
+    expect(listViewButton).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('First Personal Writing')).toBeInTheDocument();
+    expect(screen.getByText('Second Personal Writing')).toBeInTheDocument();
+  });
+
   it('marks expired timed personal writing cards as read-only while preserving access', async () => {
     dateNowSpy = jest
       .spyOn(Date, 'now')

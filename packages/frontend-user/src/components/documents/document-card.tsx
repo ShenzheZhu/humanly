@@ -33,9 +33,10 @@ interface DocumentCardProps {
   document: Document & { displayTitle?: string };
   timerState?: WritingTimerCardState | null;
   onDelete: (id: string) => Promise<void>;
+  variant?: 'card' | 'list';
 }
 
-export function DocumentCard({ document, timerState, onDelete }: DocumentCardProps) {
+export function DocumentCard({ document, timerState, onDelete, variant = 'card' }: DocumentCardProps) {
   const router = useRouter();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -65,11 +66,102 @@ export function DocumentCard({ document, timerState, onDelete }: DocumentCardPro
   const characterCount = document.characterCount ?? (document.plainText || '').length;
   const showPreview = characterCount > 100;
   const displayTitle = document.displayTitle || document.title || 'Untitled Document';
+  const documentHref = `/documents/${document.id}`;
+
+  if (variant === 'list') {
+    return (
+      <>
+        <Link href={documentHref} className="block">
+          <Card className="group cursor-pointer transition-colors hover:border-foreground/30">
+            <CardContent className="flex min-h-[7rem] flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-5">
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 items-start gap-2">
+                  <h3 className="min-w-0 flex-1 truncate text-base font-semibold text-foreground sm:text-lg">
+                    {displayTitle}
+                  </h3>
+                  {timerState?.expired && (
+                    <Badge variant="secondary" className="shrink-0 rounded-md">
+                      Read-only
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="mt-1 text-xs text-muted-foreground">
+                  Last edited {formatDate(document.updatedAt || document.createdAt)} · {characterCount.toLocaleString()} characters
+                </div>
+
+                <p className="mt-2 min-h-[1.5rem] truncate text-sm leading-6 text-muted-foreground/80">
+                  {showPreview && document.plainText ? document.plainText : ''}
+                </p>
+
+                {timerState && (
+                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                    <CalendarClock className="h-3.5 w-3.5 shrink-0 text-accent" />
+                    <span className="font-medium text-foreground">{timerState.value}</span>
+                    <span>{timerState.detail}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border/60 pt-3 sm:border-t-0 sm:pt-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    router.push(documentHref);
+                  }}
+                >
+                  {timerState?.expired ? 'Open Read-only' : 'Open'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowDeleteDialog(true);
+                  }}
+                >
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Delete
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Document</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete &quot;{document.title || 'this document'}&quot;?
+                This action cannot be undone and will also delete all associated tracking events.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
+    );
+  }
 
   return (
     <>
       <Link
-        href={`/documents/${document.id}`}
+        href={documentHref}
         className="block h-full"
       >
         <Card className="group flex h-full min-h-[18rem] cursor-pointer transition-colors hover:border-foreground/30">
@@ -116,7 +208,7 @@ export function DocumentCard({ document, timerState, onDelete }: DocumentCardPro
                 className="h-8 text-xs"
                 onClick={(e) => {
                   e.preventDefault();
-                  router.push(`/documents/${document.id}`);
+                  router.push(documentHref);
                 }}
               >
                 {timerState?.expired ? 'Open Read-only' : 'Open'}

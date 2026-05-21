@@ -8,6 +8,8 @@ import {
   CalendarClock,
   FileText,
   KeyRound,
+  LayoutGrid,
+  List,
   Plus,
   Trash2,
 } from 'lucide-react';
@@ -58,6 +60,7 @@ import type { Document, WritingEnvironmentConfig } from '@humanly/shared';
 
 type SortOption = 'lastEdited' | 'title' | 'characterCount';
 type WorkspaceTab = 'documents' | 'tasks';
+type DocumentViewMode = 'cards' | 'list';
 
 interface TaskEnrollment {
   id: string;
@@ -155,6 +158,7 @@ export default function DocumentsPage() {
   const { documents, isLoading, error, createDocument, deleteDocument } = useDocuments();
   const { toast } = useToast();
   const [sortBy, setSortBy] = useState<SortOption>('lastEdited');
+  const [documentViewMode, setDocumentViewMode] = useState<DocumentViewMode>('cards');
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<WorkspaceTab>('documents');
   const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<TaskEnrollment | null>(null);
@@ -426,9 +430,33 @@ export default function DocumentsPage() {
             </div>
           ) : (
             <>
-              <div className="flex justify-end">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                <div className="inline-flex w-full rounded-lg border border-border/70 bg-muted/40 p-1 sm:w-auto">
+                  <Button
+                    type="button"
+                    variant={documentViewMode === 'cards' ? 'default' : 'ghost'}
+                    size="icon"
+                    className="h-8 flex-1 rounded-md sm:w-8 sm:flex-none"
+                    aria-label="Card view"
+                    aria-pressed={documentViewMode === 'cards'}
+                    onClick={() => setDocumentViewMode('cards')}
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={documentViewMode === 'list' ? 'default' : 'ghost'}
+                    size="icon"
+                    className="h-8 flex-1 rounded-md sm:w-8 sm:flex-none"
+                    aria-label="List view"
+                    aria-pressed={documentViewMode === 'list'}
+                    onClick={() => setDocumentViewMode('list')}
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                </div>
                 <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
                   <SelectContent>
@@ -439,13 +467,17 @@ export default function DocumentsPage() {
                 </Select>
               </div>
 
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <div className={documentViewMode === 'cards'
+                ? 'grid gap-6 sm:grid-cols-2 lg:grid-cols-3'
+                : 'space-y-3'
+              }>
                 {personalDocuments.map((document: Document) => (
                   <DocumentCard
                     key={document.id}
                     document={document}
                     timerState={getWritingTimerState(document, dashboardNowMs)}
                     onDelete={handleDeleteDocument}
+                    variant={documentViewMode === 'cards' ? 'card' : 'list'}
                   />
                 ))}
               </div>
