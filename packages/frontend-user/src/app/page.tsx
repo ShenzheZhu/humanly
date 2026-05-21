@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { BRAND } from '@humanly/shared';
+import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
 
 const ink = '#1a1c20';
 const muted = '#6e7176';
@@ -114,9 +115,8 @@ export default function HomePage() {
 function NavBar() {
   return (
     <header className="grid grid-cols-[1fr_auto] items-center border-b border-[rgba(20,22,26,0.05)] px-5 py-5 sm:px-8 lg:grid-cols-[1fr_auto_1fr] lg:px-14 lg:py-[26px]">
-      <Link href="/" className="flex items-center gap-2.5 text-sm font-bold tracking-[-0.02em]">
-        <span className="text-lg leading-none">–</span>
-        <span>{BRAND.name}</span>
+      <Link href="/" className="justify-self-start">
+        <HumanlyWordmark size="sm" />
       </Link>
 
       <nav className="hidden items-center gap-9 text-sm font-medium text-muted-foreground lg:flex">
@@ -486,9 +486,8 @@ function Footer() {
   return (
     <footer className="border-t border-[rgba(20,22,26,0.10)] px-5 py-9 sm:px-8 lg:px-14">
       <div className="mx-auto flex max-w-[1168px] flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-        <Link href="/" className="flex items-center gap-2.5 text-sm font-bold tracking-[-0.02em]">
-          <span className="text-lg leading-none">–</span>
-          <span>{BRAND.name}</span>
+        <Link href="/">
+          <HumanlyWordmark size="sm" />
         </Link>
         <div className="flex flex-wrap gap-5 text-xs font-medium text-muted-foreground">
           <Link href="/privacy" className="hover:text-foreground">Privacy</Link>

@@ -95,13 +95,13 @@ export default function CertificatesPage() {
             return (
               <Card 
                 key={certificate.id} 
-                className="flex h-full cursor-pointer flex-col transition-colors hover:border-foreground/30"
+                className="cursor-pointer transition-colors hover:border-foreground/30"
                 onClick={() => router.push(`/certificates/${certificate.id}`)}
               >
-                <CardContent className="p-5 flex flex-col gap-3 flex-1">
+                <CardContent className="flex flex-col gap-3 p-4 sm:p-5">
                   {/* Title and Badge row */}
                   <div className="flex items-start justify-between gap-2">
-                      <h3 className="flex-1 text-lg font-semibold leading-tight text-foreground line-clamp-1">
+                      <h3 className="min-w-0 flex-1 text-base font-semibold leading-snug text-foreground line-clamp-1 sm:text-lg">
                         {certificate.title}
                       </h3>
                       {certificate.certificateType && (

@@ -70,12 +70,12 @@ export function DocumentCard({ document, timerState, onDelete }: DocumentCardPro
     <>
       <Link
         href={`/documents/${document.id}`}
-        className="block h-full"
+        className="block"
       >
-        <Card className="group flex h-full cursor-pointer flex-col transition-colors hover:border-foreground/30">
-          <CardContent className="flex flex-1 flex-col gap-3 p-5">
+        <Card className="group cursor-pointer transition-colors hover:border-foreground/30">
+          <CardContent className="flex flex-col gap-3 p-4 sm:p-5">
             <div className="flex items-start justify-between gap-2">
-              <h3 className="min-w-0 text-lg font-semibold leading-tight text-foreground line-clamp-2">
+              <h3 className="min-w-0 text-base font-semibold leading-snug text-foreground line-clamp-2 sm:text-lg">
                 {displayTitle}
               </h3>
               {timerState?.expired && (
@@ -104,12 +104,10 @@ export function DocumentCard({ document, timerState, onDelete }: DocumentCardPro
 
             {/* Preview text */}
             {showPreview && document.plainText && (
-              <p className="text-sm text-muted-foreground/80 line-clamp-2">
+              <p className="text-sm leading-6 text-muted-foreground/80 line-clamp-2">
                 {document.plainText}
               </p>
             )}
-
-            <div className="flex-1" />
 
             <div className="mt-2 flex items-center justify-end gap-2 border-t border-border/60 pt-3">
               <Button
