@@ -187,11 +187,11 @@ function HeroDocCalm() {
         <div className="border-b border-[rgba(20,22,26,0.05)] p-5 md:border-b-0 md:border-r md:p-9">
           <div className="mb-2 text-[11px] text-muted-foreground">Untitled draft</div>
           <h3 className="mb-4 text-xl font-bold leading-[1.2] tracking-[-0.015em] sm:text-[22px]">
-            On the practice of attention
+            Drafting with attention
           </h3>
           <p className="mb-3 text-[13px] leading-[1.75] text-[#2a2d33]">
-            The first thing to notice about a paragraph is the silence around it.
-            Before a word lands on the page there is a small, deliberate{' '}
+            The first thing to notice about a draft is the pause before it.
+            Before a sentence lands on the page there is a small, deliberate{' '}
             <span className="rounded-sm bg-[rgba(91,111,140,0.14)] px-1">refusal</span>{' '}
             — the writer choosing not to type yet.
           </p>
@@ -213,7 +213,7 @@ function HeroDocCalm() {
 
           <div className="flex flex-1 flex-col gap-2.5 p-3.5 pb-0">
             <div className="self-center rounded-[14px] bg-foreground px-3 py-2 text-[11px] leading-normal text-white">
-              Tell me the overall grading distribution
+              Find source support for my attention claim
             </div>
             <div className="flex flex-col gap-1 rounded-lg bg-[#ebede4] p-2 pb-2.5">
               {toolRows.map(([tool, ms]) => (
@@ -228,8 +228,8 @@ function HeroDocCalm() {
                 </div>
               ))}
               <p className="px-1 pt-1 text-[10.5px] leading-[1.55] text-[#2a2d33]">
-                Here&apos;s the overall grading distribution for ENV100H1F from
-                page 6 of the syllabus…
+                The source describes attention as sustained focus during revision,
+                supporting your point about waiting before drafting…
               </p>
             </div>
           </div>
@@ -317,7 +317,7 @@ function CertificateCard() {
           <span className="text-[8.5px] font-bold tracking-[0.2em] text-muted-foreground">CERTIFICATE · SIGNED</span>
           <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-[#6f8a78]" />
         </div>
-        <div className="text-sm font-bold tracking-[-0.005em]">On the practice of attention</div>
+        <div className="text-sm font-bold tracking-[-0.005em]">Drafting with attention</div>
         <div className="mt-1 whitespace-nowrap text-[9.5px] text-muted-foreground">
           Generated May 19, 2026 · SHA · 9F3A 7B2C
         </div>
