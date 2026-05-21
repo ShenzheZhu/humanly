@@ -484,6 +484,14 @@ function getFullTextMeta(item: DocumentEventTimelineItem) {
 }
 
 function renderRawDetail(event: DocumentEventTimelineRawEvent) {
+  if (event.eventType === 'delete' && event.insertedText) {
+    return (
+      <>
+        Replaced with {renderTextPreview(event.insertedText, '')}
+      </>
+    );
+  }
+
   if (event.insertedText) {
     return (
       <>
