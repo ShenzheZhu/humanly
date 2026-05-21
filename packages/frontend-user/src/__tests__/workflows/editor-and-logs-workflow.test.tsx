@@ -780,6 +780,70 @@ describe('editor and logs workflows', () => {
     expect(screen.queryByText(/failed to load logs/i)).not.toBeInTheDocument();
   });
 
+  it('labels delete raw events with inserted text as replacements', async () => {
+    mockTimelineSummary = {
+      rawEventTotal: 2,
+      timelineItemTotal: 2,
+      typingBursts: 0,
+      typedCharacters: 0,
+      typedWords: 0,
+      pasteCharacters: 0,
+      deletedCharacters: 0,
+    };
+    mockTimelineItems = [
+      {
+        id: 'raw-delete-replacement',
+        kind: 'event',
+        label: 'Raw delete replacement',
+        timestamp: '2026-05-14T12:00:02.000Z',
+        startTimestamp: '2026-05-14T12:00:02.000Z',
+        endTimestamp: '2026-05-14T12:00:02.000Z',
+        text: '',
+        rawEventCount: 1,
+        rawEvents: [
+          {
+            id: 'event-raw-delete-replacement',
+            eventType: 'delete',
+            timestamp: '2026-05-14T12:00:02.000Z',
+            insertedText: 'I am good!',
+            cursorPosition: 10,
+          },
+        ],
+      },
+      {
+        id: 'raw-input-insert',
+        kind: 'event',
+        label: 'Raw input insert',
+        timestamp: '2026-05-14T12:00:01.000Z',
+        startTimestamp: '2026-05-14T12:00:01.000Z',
+        endTimestamp: '2026-05-14T12:00:01.000Z',
+        text: '',
+        rawEventCount: 1,
+        rawEvents: [
+          {
+            id: 'event-raw-input-insert',
+            eventType: 'input',
+            timestamp: '2026-05-14T12:00:01.000Z',
+            insertedText: 'hello',
+            cursorPosition: 5,
+          },
+        ],
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByRole('row', {
+      name: /delete replaced with "I am good!" cursor 10/i,
+    })).toBeInTheDocument();
+    expect(screen.getByRole('row', {
+      name: /input inserted "hello" cursor 5/i,
+    })).toBeInTheDocument();
+    expect(screen.queryByRole('row', {
+      name: /delete inserted "I am good!"/i,
+    })).not.toBeInTheDocument();
+  });
+
   it('expands long paste and delete text inline from a lightweight button', async () => {
     const longPastedText = [
       'This is a long pasted paragraph that should stay compact in the timeline row.',
