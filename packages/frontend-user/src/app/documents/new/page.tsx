@@ -1130,7 +1130,7 @@ export default function NewDocumentPage() {
             )}
           </div>
         </CardContent>
-        <CardFooter className="flex justify-between border-t border-border/70 bg-muted/20">
+        <CardFooter className="flex justify-end gap-3 border-t border-border/70 bg-muted/20 pt-5">
           <Button variant="outline" onClick={() => router.push('/documents')} disabled={isCreating}>
             Cancel
           </Button>
