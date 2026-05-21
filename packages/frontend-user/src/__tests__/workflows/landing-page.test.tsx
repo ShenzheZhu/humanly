@@ -15,4 +15,16 @@ describe('landing page', () => {
     expect(screen.queryByText('Tracked writing process')).not.toBeInTheDocument();
     expect(screen.queryByText('Verifiable certificates')).not.toBeInTheDocument();
   });
+
+  it('explains the trust model, use cases, and certificate boundaries', () => {
+    render(<HomePage />);
+
+    expect(screen.getByText('Process beats')).toBeInTheDocument();
+    expect(screen.getByText('prediction.')).toBeInTheDocument();
+    expect(screen.getByText('For writers')).toBeInTheDocument();
+    expect(screen.getByText('For instructors')).toBeInTheDocument();
+    expect(screen.getByText('What it proves,')).toBeInTheDocument();
+    expect(screen.getByText('It does not claim')).toBeInTheDocument();
+    expect(screen.getByText('That AI was never used.')).toBeInTheDocument();
+  });
 });

@@ -35,6 +35,52 @@ const problemCards = [
   'Writers defend the work instead of doing it.',
 ];
 
+const trustCards = [
+  [
+    '01',
+    'Record while writing',
+    'Humanly captures typing, paste, focus, and AI-assist events as the draft is created.',
+  ],
+  [
+    '02',
+    'Verify after writing',
+    'The certificate connects the final text to the process record behind it.',
+  ],
+  [
+    '03',
+    'Avoid guessing',
+    'The goal is not to infer authorship from style, but to show how the work happened.',
+  ],
+] as const;
+
+const audienceCards = [
+  [
+    'For writers',
+    'Draft with AI in a tracked workspace, then share a clean certificate when your process matters.',
+  ],
+  [
+    'For instructors',
+    'Create assigned tasks with AI, paste, character, and time rules before students begin.',
+  ],
+  [
+    'For reviewers',
+    'Review the writing process and AI assistance trail instead of relying on detector scores alone.',
+  ],
+] as const;
+
+const certificateProof = {
+  proves: [
+    'The final text is linked to a recorded writing session.',
+    'Typing, paste, timing, and AI-assist signals were captured.',
+    'A PDF and JSON record can be shared for later verification.',
+  ],
+  doesNotClaim: [
+    'That AI was never used.',
+    'That the writing is high quality.',
+    'That work outside Humanly can be fully observed.',
+  ],
+} as const;
+
 const steps = [
   [
     '01',
@@ -101,7 +147,10 @@ export default function HomePage() {
       </section>
 
       <ProblemSection />
+      <TrustModelSection />
+      <AudienceSection />
       <HowItWorksSection />
+      <CertificateProofSection />
       <FAQSection />
       <CTASection />
       <Footer />
@@ -372,6 +421,74 @@ function ProblemCard({ n, illo, caption }: { n: string; illo: ReactNode; caption
   );
 }
 
+function TrustModelSection() {
+  return (
+    <section className="px-5 py-[110px] sm:px-8 lg:px-14">
+      <div className="mx-auto max-w-[1080px]">
+        <div className="mb-14 text-center">
+          <Eyebrow className="mb-[22px]">Trust model</Eyebrow>
+          <h2 className="text-[34px] font-semibold leading-[1.08] tracking-[-0.02em] sm:text-[44px]">
+            <span>Process beats</span>{' '}
+            <span className="text-[#a0a2a7]">prediction.</span>
+          </h2>
+          <p className="mx-auto mt-[22px] max-w-[640px] text-[15px] leading-[1.7] text-muted-foreground sm:text-[17px]">
+            Detectors judge the finished text. Humanly records the work as it happens,
+            then lets a reader verify the process later.
+          </p>
+        </div>
+
+        <div className="grid gap-5 md:grid-cols-3">
+          {trustCards.map(([number, title, description]) => (
+            <div
+              key={title}
+              className="humanly-hover-pop rounded-[14px] border border-[rgba(20,22,26,0.10)] bg-white p-7 hover:shadow-[0_28px_70px_-42px_rgba(20,22,26,0.60)]"
+            >
+              <div className="mb-10 flex items-center justify-between">
+                <span className="text-[11px] text-muted-foreground">· {number}</span>
+                <span className="h-1 w-1 rounded-full bg-foreground" />
+              </div>
+              <h3 className="text-xl font-semibold leading-snug tracking-[-0.015em]">{title}</h3>
+              <p className="mt-4 text-[14.5px] leading-[1.65] text-muted-foreground">{description}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AudienceSection() {
+  return (
+    <section className="px-5 py-[110px] sm:px-8 lg:px-14">
+      <div className="mx-auto max-w-[1080px]">
+        <div className="mb-14 text-center">
+          <Eyebrow className="mb-[22px]">Use cases</Eyebrow>
+          <h2 className="text-[34px] font-semibold leading-[1.08] tracking-[-0.02em] sm:text-[44px]">
+            <span>One workspace,</span>{' '}
+            <span className="text-[#a0a2a7]">two modes.</span>
+          </h2>
+          <p className="mx-auto mt-[22px] max-w-[640px] text-[15px] leading-[1.7] text-muted-foreground sm:text-[17px]">
+            Writers can start personal documents. Instructors and reviewers can use
+            assigned tasks when the writing environment needs rules.
+          </p>
+        </div>
+
+        <div className="grid gap-5 md:grid-cols-3">
+          {audienceCards.map(([title, description]) => (
+            <div
+              key={title}
+              className="humanly-hover-pop rounded-[14px] border border-[rgba(20,22,26,0.10)] bg-white p-7 hover:shadow-[0_28px_70px_-42px_rgba(20,22,26,0.60)]"
+            >
+              <h3 className="text-xl font-semibold leading-snug tracking-[-0.015em]">{title}</h3>
+              <p className="mt-4 text-[14.5px] leading-[1.65] text-muted-foreground">{description}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function HowItWorksSection() {
   return (
     <section id="process" className="px-5 py-[140px] sm:px-8 lg:px-14">
@@ -415,6 +532,46 @@ function Step({ n, t, d, illo, divider }: { n: string; t: string; d: string; ill
         <h3 className="text-[22px] font-semibold leading-snug tracking-[-0.015em]">{t}</h3>
       </div>
       <p className="text-[14.5px] leading-[1.6] text-muted-foreground">{d}</p>
+    </div>
+  );
+}
+
+function CertificateProofSection() {
+  return (
+    <section className="px-5 py-[110px] sm:px-8 lg:px-14">
+      <div className="mx-auto max-w-[980px]">
+        <div className="mb-14 text-center">
+          <Eyebrow className="mb-[22px]">Certificate</Eyebrow>
+          <h2 className="text-[34px] font-semibold leading-[1.08] tracking-[-0.02em] sm:text-[44px]">
+            <span>What it proves,</span>{' '}
+            <span className="text-[#a0a2a7]">and what it does not.</span>
+          </h2>
+        </div>
+
+        <div className="grid gap-5 md:grid-cols-2">
+          <ProofList title="It proves" items={certificateProof.proves} />
+          <ProofList title="It does not claim" items={certificateProof.doesNotClaim} muted />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ProofList({ title, items, muted: isMuted = false }: { title: string; items: readonly string[]; muted?: boolean }) {
+  return (
+    <div className="humanly-hover-pop rounded-[14px] border border-[rgba(20,22,26,0.10)] bg-white p-7 hover:shadow-[0_28px_70px_-42px_rgba(20,22,26,0.60)]">
+      <div className="mb-6 flex items-center justify-between">
+        <h3 className="text-xl font-semibold leading-snug tracking-[-0.015em]">{title}</h3>
+        <span className={`h-2 w-2 rounded-full ${isMuted ? 'bg-[#a07868]' : 'bg-[#6f8a78]'}`} />
+      </div>
+      <ul className="space-y-4">
+        {items.map((item) => (
+          <li key={item} className="flex gap-3 text-[14.5px] leading-[1.65] text-muted-foreground">
+            <span className="mt-[0.65em] h-1 w-1 shrink-0 rounded-full bg-foreground/70" />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
