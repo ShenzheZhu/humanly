@@ -261,9 +261,11 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
     },
     traceability: {
       ...base.traceability,
-      trackAiUsage: typeof traceability.trackAiUsage === 'boolean'
-        ? traceability.trackAiUsage
-        : aiAccess !== 'off',
+      trackAiUsage: aiAccess !== 'off' && (
+        typeof traceability.trackAiUsage === 'boolean'
+          ? traceability.trackAiUsage
+          : true
+      ),
       trackTyping: typeof traceability.trackTyping === 'boolean'
         ? traceability.trackTyping
         : base.traceability.trackTyping,
@@ -275,6 +277,17 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
     copyPastePolicy,
   };
 };
+
+const disableUnverifiedAiAccess = (config: WritingEnvironmentConfig): WritingEnvironmentConfig => ({
+  ...config,
+  aiAccess: 'off',
+  allowedModels: [],
+  customModels: [],
+  traceability: {
+    ...config.traceability,
+    trackAiUsage: false,
+  },
+});
 
 const getDefaultEndDate = () => new Date(Date.now() + DEFAULT_TASK_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
@@ -451,7 +464,11 @@ export default function NewTaskPage() {
 
     try {
       const parsed = JSON.parse(await file.text());
-      const config = normalizeImportedEnvironmentConfig(parsed);
+      const importedConfig = normalizeImportedEnvironmentConfig(parsed);
+      const disabledImportedAi = importedConfig.aiAccess !== 'off';
+      const config = disabledImportedAi
+        ? disableUnverifiedAiAccess(importedConfig)
+        : importedConfig;
       setEnvironmentSelection(IMPORT_ENVIRONMENT_VALUE);
       setEnvironmentConfig(config);
       setAiAccessState(config.aiAccess);
@@ -462,7 +479,9 @@ export default function NewTaskPage() {
       form.setValue('aiUsageLimit', config.aiUsageLimit.maxRequests || 100);
       toast({
         title: 'Environment imported',
-        description: 'The JSON configuration was applied to this task.',
+        description: disabledImportedAi
+          ? 'The JSON configuration was applied. AI was set to Off until an API key is tested.'
+          : 'The JSON configuration was applied to this task.',
       });
     } catch (err: any) {
       toast({

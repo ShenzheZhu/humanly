@@ -174,7 +174,7 @@ describe('admin new task page', () => {
     });
   });
 
-  it('imports environment JSON and shows AI usage limit only when AI is on', async () => {
+  it('imports environment JSON but downgrades unverified AI-on config until tested', async () => {
     mockApiGet.mockResolvedValue({
       data: {
         hasApiKey: true,
@@ -214,10 +214,12 @@ describe('admin new task page', () => {
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
         title: 'Environment imported',
+        description: expect.stringContaining('AI was set to Off'),
       }));
     });
 
-    expect(screen.getByLabelText(/AI Usage Limit/i)).toHaveValue(42);
+    expect(screen.getByRole('option', { name: 'AI Off' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByLabelText(/AI Usage Limit/i)).not.toBeInTheDocument();
 
     await act(async () => {
       fireEvent.change(screen.getByLabelText(/Task Name/i), {
@@ -234,8 +236,8 @@ describe('admin new task page', () => {
         expect.objectContaining({
           environmentConfig: expect.objectContaining({
             taskType: 'admin_assigned',
-            aiAccess: 'full',
-            allowedModels: ['GPT-5'],
+            aiAccess: 'off',
+            allowedModels: [],
             copyPastePolicy: 'blocked',
             aiUsageLimit: {
               mode: 'max_requests',
@@ -245,17 +247,14 @@ describe('admin new task page', () => {
               mode: 'multiple',
               minCharacters: 1000,
             }),
+            traceability: expect.objectContaining({
+              trackAiUsage: false,
+            }),
           }),
         })
       );
     });
+    expect(mockApiPut).not.toHaveBeenCalled();
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole('option', { name: 'AI Off' }));
-    });
-
-    await waitFor(() => {
-      expect(screen.queryByLabelText(/AI Usage Limit/i)).not.toBeInTheDocument();
-    });
   });
 });

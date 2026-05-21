@@ -204,9 +204,11 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
     },
     traceability: {
       ...base.traceability,
-      trackAiUsage: typeof traceability.trackAiUsage === 'boolean'
-        ? traceability.trackAiUsage
-        : aiAccess !== 'off',
+      trackAiUsage: aiAccess !== 'off' && (
+        typeof traceability.trackAiUsage === 'boolean'
+          ? traceability.trackAiUsage
+          : true
+      ),
       trackTyping: typeof traceability.trackTyping === 'boolean'
         ? traceability.trackTyping
         : base.traceability.trackTyping,
@@ -218,6 +220,17 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
     copyPastePolicy,
   };
 };
+
+const disableUnverifiedAiAccess = (config: WritingEnvironmentConfig): WritingEnvironmentConfig => ({
+  ...config,
+  aiAccess: 'off',
+  allowedModels: [],
+  customModels: [],
+  traceability: {
+    ...config.traceability,
+    trackAiUsage: false,
+  },
+});
 
 export default function NewDocumentPage() {
   const router = useRouter();
@@ -371,7 +384,11 @@ export default function NewDocumentPage() {
 
     try {
       const parsed = JSON.parse(await file.text());
-      const config = normalizeImportedEnvironmentConfig(parsed);
+      const importedConfig = normalizeImportedEnvironmentConfig(parsed);
+      const disabledImportedAi = importedConfig.aiAccess !== 'off';
+      const config = disabledImportedAi
+        ? disableUnverifiedAiAccess(importedConfig)
+        : importedConfig;
       setEnvironmentSelection('custom');
       setEnvironmentConfig(config);
       syncAiModelFromEnvironment(config);
@@ -379,7 +396,9 @@ export default function NewDocumentPage() {
       setTestedAiModels([]);
       toast({
         title: 'Environment imported',
-        description: 'The JSON configuration was applied to this document.',
+        description: disabledImportedAi
+          ? 'The JSON configuration was applied. AI was set to Off until an API key is tested.'
+          : 'The JSON configuration was applied to this document.',
       });
     } catch (err: any) {
       toast({

@@ -169,6 +169,41 @@ describe('document creation workflow', () => {
     expect(screen.queryByText('Custom Environment')).not.toBeInTheDocument();
   });
 
+  it('downgrades imported AI-on environments until an API key is tested', async () => {
+    const user = userEvent.setup();
+    render(<NewDocumentPage />);
+
+    await screen.findByRole('heading', { name: /create writing/i });
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
+    await user.click(await screen.findByRole('option', { name: 'Import Environment' }));
+
+    const fileInput = document.querySelector<HTMLInputElement>('input[type="file"][accept="application/json,.json"]');
+    expect(fileInput).toBeTruthy();
+
+    const environmentJson = JSON.stringify({
+      aiAccess: 'full',
+      allowedModels: ['qwen/qwen3.5-397b-a17b'],
+      traceability: { trackAiUsage: true },
+    });
+    const environmentFile = new File([environmentJson], 'ai-on-environment.json', { type: 'application/json' });
+    Object.defineProperty(environmentFile, 'text', {
+      value: jest.fn().mockResolvedValue(environmentJson),
+    });
+
+    await user.upload(fileInput!, environmentFile);
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'Environment imported',
+        description: expect.stringContaining('AI was set to Off'),
+      }));
+    });
+
+    expect(screen.getByText('Custom Environment')).toBeInTheDocument();
+    expect(screen.getByText('Off')).toBeInTheDocument();
+    expect(screen.queryByText('On')).not.toBeInTheDocument();
+  });
+
   it('does not expose or persist minimum character limits for personal writing', async () => {
     const user = userEvent.setup();
     mockCreateDocument.mockResolvedValueOnce({ id: 'doc-123', title: 'Personal Character Policy' });
