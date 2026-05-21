@@ -6,8 +6,12 @@ import {
   Award,
   BookOpen,
   CalendarClock,
+  ArrowDownAZ,
+  Check,
   FileText,
   KeyRound,
+  LayoutGrid,
+  List,
   Plus,
   Trash2,
 } from 'lucide-react';
@@ -26,18 +30,17 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Dialog,
   DialogContent,
@@ -58,6 +61,19 @@ import type { Document, WritingEnvironmentConfig } from '@humanly/shared';
 
 type SortOption = 'lastEdited' | 'title' | 'characterCount';
 type WorkspaceTab = 'documents' | 'tasks';
+type DocumentViewMode = 'cards' | 'list';
+
+const DOCUMENT_VIEW_MODE_STORAGE_KEY = 'humanly:documents:view-mode';
+
+const SORT_LABELS: Record<SortOption, string> = {
+  lastEdited: 'Last edited',
+  title: 'Title',
+  characterCount: 'Character count',
+};
+
+const isDocumentViewMode = (value: string | null): value is DocumentViewMode => (
+  value === 'cards' || value === 'list'
+);
 
 interface TaskEnrollment {
   id: string;
@@ -155,6 +171,7 @@ export default function DocumentsPage() {
   const { documents, isLoading, error, createDocument, deleteDocument } = useDocuments();
   const { toast } = useToast();
   const [sortBy, setSortBy] = useState<SortOption>('lastEdited');
+  const [documentViewMode, setDocumentViewMode] = useState<DocumentViewMode>('list');
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<WorkspaceTab>('documents');
   const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<TaskEnrollment | null>(null);
@@ -164,6 +181,18 @@ export default function DocumentsPage() {
   const [isLoadingTaskEnrollments, setIsLoadingTaskEnrollments] = useState(true);
   const [taskEnrollmentsError, setTaskEnrollmentsError] = useState<string | null>(null);
   const [dashboardNowMs, setDashboardNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const storedViewMode = window.localStorage.getItem(DOCUMENT_VIEW_MODE_STORAGE_KEY);
+    if (isDocumentViewMode(storedViewMode)) {
+      setDocumentViewMode(storedViewMode);
+    }
+  }, []);
+
+  const handleDocumentViewModeChange = useCallback((nextViewMode: DocumentViewMode) => {
+    setDocumentViewMode(nextViewMode);
+    window.localStorage.setItem(DOCUMENT_VIEW_MODE_STORAGE_KEY, nextViewMode);
+  }, []);
 
   const fetchTaskEnrollments = useCallback(async () => {
     try {
@@ -426,29 +455,77 @@ export default function DocumentsPage() {
             </div>
           ) : (
             <>
-              <div className="flex justify-end">
-                <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Sort by" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="lastEdited">Last edited</SelectItem>
-                    <SelectItem value="title">Title</SelectItem>
-                    <SelectItem value="characterCount">Character count</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="flex items-center justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 text-muted-foreground hover:text-foreground"
+                  aria-label={documentViewMode === 'cards' ? 'List view' : 'Card view'}
+                  onClick={() => handleDocumentViewModeChange(documentViewMode === 'cards' ? 'list' : 'cards')}
+                >
+                  {documentViewMode === 'cards' ? (
+                    <List className="h-6 w-6" />
+                  ) : (
+                    <LayoutGrid className="h-6 w-6" />
+                  )}
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10 text-muted-foreground hover:text-foreground"
+                      aria-label={`Sort by ${SORT_LABELS[sortBy]}`}
+                    >
+                      <ArrowDownAZ className="h-6 w-6" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {(Object.keys(SORT_LABELS) as SortOption[]).map((option) => (
+                      <DropdownMenuItem key={option} onClick={() => setSortBy(option)}>
+                        <Check className={sortBy === option ? 'mr-2 h-4 w-4 opacity-100' : 'mr-2 h-4 w-4 opacity-0'} />
+                        {SORT_LABELS[option]}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {personalDocuments.map((document: Document) => (
-                  <DocumentCard
-                    key={document.id}
-                    document={document}
-                    timerState={getWritingTimerState(document, dashboardNowMs)}
-                    onDelete={handleDeleteDocument}
-                  />
-                ))}
-              </div>
+              {documentViewMode === 'cards' ? (
+                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                  {personalDocuments.map((document: Document) => (
+                    <DocumentCard
+                      key={document.id}
+                      document={document}
+                      timerState={getWritingTimerState(document, dashboardNowMs)}
+                      onDelete={handleDeleteDocument}
+                      variant="card"
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div>
+                  <div className="hidden grid-cols-[minmax(0,1fr)_8.5rem_10rem_2.75rem] border-b border-border/70 px-2 pb-2 text-xs font-medium uppercase tracking-normal text-muted-foreground md:grid">
+                    <span>Name</span>
+                    <span>Characters</span>
+                    <span>Last edited</span>
+                    <span />
+                  </div>
+                  <div>
+                    {personalDocuments.map((document: Document) => (
+                      <DocumentCard
+                        key={document.id}
+                        document={document}
+                        timerState={getWritingTimerState(document, dashboardNowMs)}
+                        onDelete={handleDeleteDocument}
+                        variant="list"
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </TabsContent>
@@ -519,8 +596,8 @@ export default function DocumentsPage() {
                   expiredDetail: 'Submission opens in read-only mode.',
                 });
                 return (
-                  <Card key={`${task.id}-${task.documentId}`} className="transition-colors hover:border-foreground/30">
-                    <CardContent className="flex h-full flex-col gap-3 p-5">
+                  <Card key={`${task.id}-${task.documentId}`} className="flex h-full min-h-[18rem] transition-colors hover:border-foreground/30">
+                    <CardContent className="flex h-full flex-1 flex-col gap-3 p-5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="humanly-eyebrow">

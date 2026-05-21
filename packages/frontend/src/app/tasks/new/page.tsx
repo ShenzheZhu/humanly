@@ -261,9 +261,11 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
     },
     traceability: {
       ...base.traceability,
-      trackAiUsage: typeof traceability.trackAiUsage === 'boolean'
-        ? traceability.trackAiUsage
-        : aiAccess !== 'off',
+      trackAiUsage: aiAccess !== 'off' && (
+        typeof traceability.trackAiUsage === 'boolean'
+          ? traceability.trackAiUsage
+          : true
+      ),
       trackTyping: typeof traceability.trackTyping === 'boolean'
         ? traceability.trackTyping
         : base.traceability.trackTyping,
@@ -275,6 +277,17 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
     copyPastePolicy,
   };
 };
+
+const disableUnverifiedAiAccess = (config: WritingEnvironmentConfig): WritingEnvironmentConfig => ({
+  ...config,
+  aiAccess: 'off',
+  allowedModels: [],
+  customModels: [],
+  traceability: {
+    ...config.traceability,
+    trackAiUsage: false,
+  },
+});
 
 const getDefaultEndDate = () => new Date(Date.now() + DEFAULT_TASK_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
@@ -451,7 +464,11 @@ export default function NewTaskPage() {
 
     try {
       const parsed = JSON.parse(await file.text());
-      const config = normalizeImportedEnvironmentConfig(parsed);
+      const importedConfig = normalizeImportedEnvironmentConfig(parsed);
+      const disabledImportedAi = importedConfig.aiAccess !== 'off';
+      const config = disabledImportedAi
+        ? disableUnverifiedAiAccess(importedConfig)
+        : importedConfig;
       setEnvironmentSelection(IMPORT_ENVIRONMENT_VALUE);
       setEnvironmentConfig(config);
       setAiAccessState(config.aiAccess);
@@ -462,7 +479,9 @@ export default function NewTaskPage() {
       form.setValue('aiUsageLimit', config.aiUsageLimit.maxRequests || 100);
       toast({
         title: 'Environment imported',
-        description: 'The JSON configuration was applied to this task.',
+        description: disabledImportedAi
+          ? 'The JSON configuration was applied. AI was set to Off until an API key is tested.'
+          : 'The JSON configuration was applied to this task.',
       });
     } catch (err: any) {
       toast({
@@ -590,13 +609,13 @@ export default function NewTaskPage() {
     }));
   };
 
-  const handleTestAiConnection = async () => {
+  const testAiConnection = async (): Promise<boolean> => {
     if (!aiApiKey.trim() && !hasExistingAiKey) {
       setAiConnectionResult({
         success: false,
         message: 'Enter an AI API key before testing the connection.',
       });
-      return;
+      return false;
     }
 
     setIsTestingAiConnection(true);
@@ -615,6 +634,11 @@ export default function NewTaskPage() {
       });
 
       if (result.success) {
+        toast({
+          title: 'AI key verified',
+          description: 'Connection test passed. This task can use AI.',
+        });
+
         const fallbackModels = getWhitelist(aiBaseUrl.trim() || DEFAULT_AI_BASE_URL) || [];
         const modelsFromApi = Array.isArray(result.models) ? result.models.filter(Boolean) : [];
         const nextModels = fallbackModels.length ? fallbackModels : modelsFromApi;
@@ -626,14 +650,21 @@ export default function NewTaskPage() {
           setEnvironmentAiModel(nextModels[0]);
         }
       }
+
+      return !!result.success;
     } catch (err: any) {
       setAiConnectionResult({
         success: false,
         message: err.message || 'Connection test failed.',
       });
+      return false;
     } finally {
       setIsTestingAiConnection(false);
     }
+  };
+
+  const handleTestAiConnection = async () => {
+    await testAiConnection();
   };
 
   const onSubmit = async (data: TaskFormValues) => {
@@ -647,6 +678,13 @@ export default function NewTaskPage() {
 
         if (!selectedAiModel) {
           throw new Error('Select or enter the AI model for this task.');
+        }
+
+        if (aiConnectionResult?.success !== true) {
+          const success = await testAiConnection();
+          if (!success) {
+            throw new Error('Test AI connection before creating an AI-enabled task.');
+          }
         }
 
         await api.put('/api/v1/ai/settings', {
@@ -804,7 +842,7 @@ export default function NewTaskPage() {
   const showDetailedEnvironmentControls = environmentSelection !== 'default_writing';
 
   return (
-    <div className="container mx-auto max-w-2xl px-4 py-8">
+    <div className="container mx-auto max-w-6xl px-4 py-8">
       <div className="mb-6">
         <Button variant="ghost" className="mb-4" onClick={() => router.push('/tasks')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -826,9 +864,9 @@ export default function NewTaskPage() {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            <CardContent className="space-y-6">
+            <CardContent className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.25fr)] xl:items-start">
               {error && (
-                <Alert variant="destructive">
+                <Alert variant="destructive" className="xl:col-span-2">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
@@ -994,8 +1032,8 @@ export default function NewTaskPage() {
                     </p>
                   </div>
                 ) : (
-                  <>
-                    <div className="space-y-4 rounded-md border p-4">
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    <div className="space-y-4 rounded-md border p-4 xl:col-span-2">
                       <SectionHeading
                         title="AI"
                         description="Control whether enrolled users can use assistant support."
@@ -1353,7 +1391,7 @@ export default function NewTaskPage() {
                         </div>
                       )}
                     </div>
-                  </>
+                  </div>
                 )}
               </div>
             </CardContent>

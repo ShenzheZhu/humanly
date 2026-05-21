@@ -35,6 +35,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -196,9 +204,11 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
     },
     traceability: {
       ...base.traceability,
-      trackAiUsage: typeof traceability.trackAiUsage === 'boolean'
-        ? traceability.trackAiUsage
-        : aiAccess !== 'off',
+      trackAiUsage: aiAccess !== 'off' && (
+        typeof traceability.trackAiUsage === 'boolean'
+          ? traceability.trackAiUsage
+          : true
+      ),
       trackTyping: typeof traceability.trackTyping === 'boolean'
         ? traceability.trackTyping
         : base.traceability.trackTyping,
@@ -210,6 +220,17 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
     copyPastePolicy,
   };
 };
+
+const disableUnverifiedAiAccess = (config: WritingEnvironmentConfig): WritingEnvironmentConfig => ({
+  ...config,
+  aiAccess: 'off',
+  allowedModels: [],
+  customModels: [],
+  traceability: {
+    ...config.traceability,
+    trackAiUsage: false,
+  },
+});
 
 export default function NewDocumentPage() {
   const router = useRouter();
@@ -233,6 +254,8 @@ export default function NewDocumentPage() {
   const [aiConnectionResult, setAiConnectionResult] = useState<AiConnectionResult | null>(null);
   const [testedAiModels, setTestedAiModels] = useState<string[]>([]);
   const [timeLimitMinutesInput, setTimeLimitMinutesInput] = useState('60');
+  const [environmentDialogOpen, setEnvironmentDialogOpen] = useState(false);
+  const allowEnvironmentDialogCloseRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -334,10 +357,15 @@ export default function NewDocumentPage() {
   const handleEnvironmentSelectionChange = (value: EnvironmentSelection) => {
     if (value === IMPORT_ENVIRONMENT_VALUE) {
       setEnvironmentSelection(value);
+      setEnvironmentDialogOpen(false);
       return;
     }
 
     applyEnvironmentPreset(value);
+    if (value === 'custom') {
+      allowEnvironmentDialogCloseRef.current = false;
+    }
+    setEnvironmentDialogOpen(value === 'custom');
   };
 
   const handleEnvironmentImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -356,15 +384,21 @@ export default function NewDocumentPage() {
 
     try {
       const parsed = JSON.parse(await file.text());
-      const config = normalizeImportedEnvironmentConfig(parsed);
-      setEnvironmentSelection(IMPORT_ENVIRONMENT_VALUE);
+      const importedConfig = normalizeImportedEnvironmentConfig(parsed);
+      const disabledImportedAi = importedConfig.aiAccess !== 'off';
+      const config = disabledImportedAi
+        ? disableUnverifiedAiAccess(importedConfig)
+        : importedConfig;
+      setEnvironmentSelection('custom');
       setEnvironmentConfig(config);
       syncAiModelFromEnvironment(config);
       setAiConnectionResult(null);
       setTestedAiModels([]);
       toast({
         title: 'Environment imported',
-        description: 'The JSON configuration was applied to this document.',
+        description: disabledImportedAi
+          ? 'The JSON configuration was applied. AI was set to Off until an API key is tested.'
+          : 'The JSON configuration was applied to this document.',
       });
     } catch (err: any) {
       toast({
@@ -463,13 +497,13 @@ export default function NewDocumentPage() {
     }
   };
 
-  const handleTestAiConnection = async () => {
+  const testAiConnection = async (): Promise<boolean> => {
     if (!aiApiKey.trim() && !hasExistingAiKey) {
       setAiConnectionResult({
         success: false,
         message: 'Enter an AI API key before testing the connection.',
       });
-      return;
+      return false;
     }
     const baseUrlToTest = aiBaseUrl.trim();
     if (!baseUrlToTest) {
@@ -477,7 +511,7 @@ export default function NewDocumentPage() {
         success: false,
         message: 'Select a provider or enter a custom base URL before testing the connection.',
       });
-      return;
+      return false;
     }
 
     setIsTestingAiConnection(true);
@@ -490,13 +524,19 @@ export default function NewDocumentPage() {
         baseUrl: baseUrlToTest,
       });
       const result = response.data || {};
+      const success = !!result.success;
 
       setAiConnectionResult({
-        success: !!result.success,
+        success,
         message: result.message || (result.success ? 'Connection successful.' : 'Connection failed.'),
       });
 
-      if (result.success) {
+      if (success) {
+        toast({
+          title: 'AI key verified',
+          description: 'Connection test passed. This writing environment can use AI.',
+        });
+
         const fallbackModels = getWhitelist(baseUrlToTest) || [];
         const modelsFromApi = Array.isArray(result.models) ? result.models.filter(Boolean) : [];
         const nextModels = fallbackModels.length ? fallbackModels : modelsFromApi;
@@ -508,14 +548,55 @@ export default function NewDocumentPage() {
           setEnvironmentAiModel(nextModels[0]);
         }
       }
+
+      return success;
     } catch (err: any) {
       setAiConnectionResult({
         success: false,
         message: err.message || 'Connection test failed.',
       });
+      return false;
     } finally {
       setIsTestingAiConnection(false);
     }
+  };
+
+  const handleTestAiConnection = async () => {
+    await testAiConnection();
+  };
+
+  const handleCustomEnvironmentDone = async () => {
+    if (environmentConfig.aiAccess === 'off') {
+      allowEnvironmentDialogCloseRef.current = true;
+      setEnvironmentDialogOpen(false);
+      return;
+    }
+
+    const success = await testAiConnection();
+    if (success) {
+      allowEnvironmentDialogCloseRef.current = true;
+      setEnvironmentDialogOpen(false);
+    }
+  };
+
+  const handleEnvironmentDialogOpenChange = (open: boolean) => {
+    if (open) {
+      allowEnvironmentDialogCloseRef.current = false;
+      setEnvironmentDialogOpen(true);
+      return;
+    }
+
+    if (
+      environmentConfig.aiAccess !== 'off'
+      && !allowEnvironmentDialogCloseRef.current
+      && aiConnectionResult?.success !== true
+    ) {
+      setAiAccess('off');
+      setAiConnectionResult(null);
+    }
+
+    allowEnvironmentDialogCloseRef.current = false;
+    setEnvironmentDialogOpen(false);
   };
 
   const handleCreateDocument = useCallback(async () => {
@@ -644,12 +725,336 @@ export default function NewDocumentPage() {
     router,
   ]);
 
-  const showDetailedEnvironmentControls = environmentSelection !== 'default_writing';
+  const isImportingEnvironment = environmentSelection === IMPORT_ENVIRONMENT_VALUE;
+  const showCustomEnvironmentSummary = environmentSelection === 'custom';
+  const customEnvironmentControls = (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4 lg:col-span-2">
+        <SectionHeading
+          title="AI"
+          description="Control whether this document can use assistant support."
+        />
+
+        <div className="humanly-field">
+          <Label>AI</Label>
+          <Select value={environmentConfig.aiAccess} onValueChange={(value) => setAiAccess(value as WritingAiAccess)}>
+            <SelectTrigger aria-label="AI access">
+              <SelectValue placeholder="AI access" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="off">AI Off</SelectItem>
+              <SelectItem value="full">AI On</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {environmentConfig.aiAccess !== 'off' && (
+          <div className="grid gap-4 rounded-lg border border-border/70 bg-muted/30 p-3">
+            <div className="humanly-field">
+              <Label htmlFor="ai-api-key">AI API Key</Label>
+              <Input
+                id="ai-api-key"
+                type="password"
+                value={aiApiKey}
+                onChange={(event) => {
+                  setAiApiKey(event.target.value);
+                  setAiConnectionResult(null);
+                  setTestedAiModels([]);
+                }}
+                placeholder={hasExistingAiKey ? `Current: ${maskedAiKey || 'saved key'}` : 'Enter API key'}
+                disabled={isCreating}
+              />
+              {hasExistingAiKey && !aiApiKey && (
+                <p className="text-xs text-muted-foreground">
+                  Leave empty to use the saved key.
+                </p>
+              )}
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleTestAiConnection}
+              disabled={isCreating || isTestingAiConnection || (!aiApiKey.trim() && !hasExistingAiKey)}
+            >
+              {isTestingAiConnection ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Testing...
+                </>
+              ) : (
+                'Test Connection'
+              )}
+            </Button>
+
+            {aiConnectionResult && (
+              <div className="flex items-start gap-2 text-xs">
+                {aiConnectionResult.success ? (
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#6f8a78]" />
+                ) : (
+                  <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                )}
+                <p className={aiConnectionResult.success ? 'text-[#58715f]' : 'text-destructive'}>
+                  {aiConnectionResult.message}
+                </p>
+              </div>
+            )}
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="humanly-field">
+                <Label>Model</Label>
+                <Select
+                  value={aiModel}
+                  onValueChange={(value) => {
+                    setAiModel(value);
+                    if (value !== CUSTOM_MODEL_VALUE) {
+                      setCustomAiModel('');
+                      setEnvironmentAiModel(value);
+                    } else {
+                      setEnvironmentAiModel(customAiModel.trim(), true);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {aiModelOptions.map((model) => (
+                      <SelectItem key={model} value={model}>
+                        {model}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={CUSTOM_MODEL_VALUE}>Custom model</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="humanly-field">
+                <Label>Provider</Label>
+                <Select
+                  value={getProviderValueForBaseUrl(aiBaseUrl)}
+                  onValueChange={(value) => {
+                    const provider = AI_PROVIDER_OPTIONS.find(option => option.value === value);
+                    updateAiBaseUrl(provider?.baseUrl ?? '', true);
+                  }}
+                  disabled={isCreating}
+                >
+                  <SelectTrigger aria-label="AI provider">
+                    <SelectValue placeholder="Select provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AI_PROVIDER_OPTIONS.map((provider) => (
+                      <SelectItem key={provider.value} value={provider.value}>
+                        {provider.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {getProviderValueForBaseUrl(aiBaseUrl) === CUSTOM_AI_PROVIDER_VALUE && (
+                <div className="humanly-field sm:col-span-2">
+                  <Label htmlFor="ai-base-url">Custom Base URL</Label>
+                  <Input
+                    id="ai-base-url"
+                    value={aiBaseUrl}
+                    onChange={(event) => updateAiBaseUrl(event.target.value, true)}
+                    placeholder={DEFAULT_AI_BASE_URL}
+                    disabled={isCreating}
+                  />
+                </div>
+              )}
+            </div>
+
+            {aiModel === CUSTOM_MODEL_VALUE && (
+              <div className="humanly-field">
+                <Label htmlFor="custom-ai-model">Custom Model</Label>
+                <Input
+                  id="custom-ai-model"
+                  value={customAiModel}
+                  onChange={(event) => {
+                    setCustomAiModel(event.target.value);
+                    setEnvironmentAiModel(event.target.value.trim(), true);
+                  }}
+                  placeholder="provider/model-name"
+                  disabled={isCreating}
+                />
+              </div>
+            )}
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="humanly-field">
+                <Label htmlFor="ai-shortcut-max-tokens">Shortcut Tokens</Label>
+                <Input
+                  id="ai-shortcut-max-tokens"
+                  type="number"
+                  min={AI_MAX_TOKENS_MIN}
+                  max={AI_MAX_TOKENS_MAX}
+                  value={environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT}
+                  onChange={(event) => setAiTokenBudget({
+                    shortcutMaxTokens: Number(event.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+                  })}
+                  disabled={isCreating}
+                />
+                <p className="text-xs text-muted-foreground">Shortcut actions and fallback answers.</p>
+              </div>
+
+              <div className="humanly-field">
+                <Label htmlFor="ai-chat-max-tokens">Chat Tokens</Label>
+                <Input
+                  id="ai-chat-max-tokens"
+                  type="number"
+                  min={AI_MAX_TOKENS_MIN}
+                  max={AI_MAX_TOKENS_MAX}
+                  value={environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT}
+                  onChange={(event) => setAiTokenBudget({
+                    chatMaxTokens: Number(event.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT,
+                  })}
+                  disabled={isCreating}
+                />
+                <p className="text-xs text-muted-foreground">Chat and retrieval tool turns, per model call.</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4">
+        <SectionHeading
+          title="Writing Control"
+          description="Set rules for editing behavior during writing."
+        />
+
+        <div className="humanly-field">
+          <Label>Copy & Paste</Label>
+          <Select
+            value={normalizeCopyPastePolicy(environmentConfig.copyPastePolicy)}
+            onValueChange={(value) => {
+              markCustom((current) => ({
+                ...current,
+                copyPastePolicy: normalizeCopyPastePolicy(value),
+              }));
+            }}
+          >
+            <SelectTrigger aria-label="Copy-paste policy">
+              <SelectValue placeholder="Copy-paste policy" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="allowed">Allowed</SelectItem>
+              <SelectItem value="blocked">Blocked</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid gap-3">
+          <div className="humanly-field">
+            <Label htmlFor="maximum-characters">Maximum Characters</Label>
+            <Input
+              id="maximum-characters"
+              type="number"
+              min={1}
+              max={SUBMISSION_MAX_CHARACTERS_MAX}
+              value={environmentConfig.submission.maxCharacters ?? ''}
+              onChange={(event) => setSubmissionMaximumCharacters(event.target.value)}
+              placeholder="No maximum"
+              disabled={isCreating}
+            />
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Optional cap for personal writing. Leave blank for no maximum length.
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4">
+        <SectionHeading
+          title="Time Limitation"
+          description="Set whether the writing session should have a time limit."
+        />
+
+        <div className="humanly-field">
+          <Label>Time</Label>
+          <Select
+            value={timeMode}
+            onValueChange={(value) => {
+              markCustom((current) => ({
+                ...current,
+                aiUsageLimit: {
+                  ...current.aiUsageLimit,
+                  mode: value === 'time_restricted' ? 'time_restricted' : 'unlimited',
+                },
+                time: {
+                  ...current.time,
+                  timeLimitSeconds: value === 'time_restricted'
+                    ? current.time.timeLimitSeconds || 3600
+                    : undefined,
+                },
+              }));
+              if (value === 'time_restricted') {
+                setTimeLimitMinutesInput(getTimeLimitMinutesValue(environmentConfig.time.timeLimitSeconds));
+              }
+            }}
+          >
+            <SelectTrigger aria-label="Time policy">
+              <SelectValue placeholder="Time policy" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="unlimited">No limitations</SelectItem>
+              <SelectItem value="time_restricted">Time limited</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {timeMode === 'time_restricted' && (
+          <div className="humanly-field">
+            <Label htmlFor="time-limit-minutes">Time Limit (minutes)</Label>
+            <Input
+              id="time-limit-minutes"
+              type="number"
+              min={1}
+              value={timeLimitMinutesInput}
+              disabled={isCreating}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                setTimeLimitMinutesInput(nextValue);
+                if (!nextValue) return;
+                const minutes = parseTimeLimitMinutes(nextValue, 1);
+                markCustom((current) => ({
+                  ...current,
+                  time: {
+                    ...current.time,
+                    timeLimitSeconds: minutes * 60,
+                  },
+                }));
+              }}
+              onBlur={() => {
+                const minutes = parseTimeLimitMinutes(timeLimitMinutesInput, 1);
+                setTimeLimitMinutesInput(String(minutes));
+                markCustom((current) => ({
+                  ...current,
+                  time: {
+                    ...current.time,
+                    timeLimitSeconds: minutes * 60,
+                  },
+                }));
+              }}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   return (
-    <div className="humanly-page-narrow">
-      <div className="mb-6">
-        <Button variant="outline" size="sm" className="mb-4" onClick={() => router.push('/documents')}>
+    <div className="humanly-page">
+      <div className="mb-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mb-3 -ml-2 h-auto px-2 py-1 text-muted-foreground hover:bg-transparent hover:text-foreground"
+          onClick={() => router.push('/documents')}
+        >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Workspace
         </Button>
@@ -661,14 +1066,14 @@ export default function NewDocumentPage() {
       </div>
 
       <Card className="overflow-hidden">
-        <CardHeader>
+        <CardHeader className="p-4 sm:p-5">
           <CardTitle>Document setup</CardTitle>
           <CardDescription>
             Set up the document details, AI access, and writing controls before you start.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-5">
-          <section className="space-y-4 rounded-lg border border-border/70 bg-background p-4">
+        <CardContent className="grid gap-4 px-4 pb-4 pt-0 sm:px-5 sm:pb-5 sm:pt-0 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)] xl:items-stretch">
+          <section className="h-full space-y-3 rounded-lg border border-border/70 bg-background p-3">
             <SectionHeading
               title="Basic Information"
               description="Name the document and attach an optional source PDF for side-by-side writing."
@@ -696,7 +1101,7 @@ export default function NewDocumentPage() {
               />
             </div>
 
-            <div className="rounded-lg border border-dashed border-border/80 bg-muted/25 p-4">
+            <div className="rounded-lg border border-dashed border-border/80 bg-muted/25 p-3">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Upload className="h-4 w-4 text-accent" />
                 PDF
@@ -708,7 +1113,7 @@ export default function NewDocumentPage() {
                 ref={fileInputRef}
                 type="file"
                 accept="application/pdf"
-                className="mt-3"
+                className="mt-2"
                 onChange={handlePdfSelect}
                 disabled={isCreating}
               />
@@ -740,7 +1145,7 @@ export default function NewDocumentPage() {
             </div>
           </section>
 
-          <div className="space-y-5 rounded-lg border border-border/70 bg-background p-4">
+          <div className="h-full space-y-4 rounded-lg border border-border/70 bg-background p-3">
             <SectionHeading
               title="Environment"
               description="Choose a default, customize the modules below, or import a JSON configuration."
@@ -749,7 +1154,7 @@ export default function NewDocumentPage() {
             <div className="humanly-field">
               <Label>Environment</Label>
               <Select value={environmentSelection} onValueChange={(value) => handleEnvironmentSelectionChange(value as EnvironmentSelection)}>
-                <SelectTrigger>
+                <SelectTrigger aria-label="Environment">
                   <SelectValue placeholder="Select environment" />
                 </SelectTrigger>
                 <SelectContent>
@@ -760,8 +1165,8 @@ export default function NewDocumentPage() {
               </Select>
             </div>
 
-            {environmentSelection === IMPORT_ENVIRONMENT_VALUE && (
-              <div className="rounded-lg border border-dashed border-border/80 bg-muted/25 p-4">
+            {isImportingEnvironment && (
+              <div className="rounded-lg border border-dashed border-border/80 bg-muted/25 p-3">
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <Upload className="h-4 w-4 text-accent" />
                   Import JSON Configuration
@@ -772,15 +1177,15 @@ export default function NewDocumentPage() {
                 <Input
                   type="file"
                   accept="application/json,.json"
-                  className="mt-3"
+                  className="mt-2"
                   onChange={handleEnvironmentImport}
                   disabled={isCreating}
                 />
               </div>
             )}
 
-            {!showDetailedEnvironmentControls ? (
-              <div className="rounded-lg border border-border/70 bg-muted/35 p-4">
+            {!showCustomEnvironmentSummary && !isImportingEnvironment && (
+              <div className="rounded-lg border border-border/70 bg-muted/35 p-3">
                 <div className="flex items-start gap-3">
                   <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#6f8a78]" />
                   <div>
@@ -791,346 +1196,87 @@ export default function NewDocumentPage() {
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-lg border border-border/60 bg-background p-3">
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-lg border border-border/60 bg-background p-2.5">
                     <p className="humanly-eyebrow">AI</p>
                     <p className="mt-1 text-sm font-medium">Off</p>
                   </div>
-                  <div className="rounded-lg border border-border/60 bg-background p-3">
+                  <div className="rounded-lg border border-border/60 bg-background p-2.5">
                     <p className="humanly-eyebrow">Writing</p>
                     <p className="mt-1 text-sm font-medium">Copy & paste allowed</p>
                   </div>
-                  <div className="rounded-lg border border-border/60 bg-background p-3">
+                  <div className="rounded-lg border border-border/60 bg-background p-2.5">
                     <p className="humanly-eyebrow">Time</p>
                     <p className="mt-1 text-sm font-medium">No limit</p>
                   </div>
                 </div>
 
-                <p className="mt-4 text-sm text-muted-foreground">
+                <p className="mt-3 text-sm text-muted-foreground">
                   Choose Custom to configure AI access, copy-paste rules, or a time limit.
                 </p>
               </div>
-            ) : (
-              <>
-                <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4">
-                  <SectionHeading
-                    title="AI"
-                    description="Control whether this document can use assistant support."
-                  />
+            )}
 
-                  <div className="humanly-field">
-                    <Label>AI</Label>
-                    <Select value={environmentConfig.aiAccess} onValueChange={(value) => setAiAccess(value as WritingAiAccess)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="AI access" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="off">AI Off</SelectItem>
-                        <SelectItem value="full">AI On</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {environmentConfig.aiAccess !== 'off' && (
-                    <div className="grid gap-4 rounded-lg border border-border/70 bg-muted/30 p-3">
-                      <div className="humanly-field">
-                        <Label htmlFor="ai-api-key">AI API Key</Label>
-                        <Input
-                          id="ai-api-key"
-                          type="password"
-                          value={aiApiKey}
-                          onChange={(event) => {
-                            setAiApiKey(event.target.value);
-                            setAiConnectionResult(null);
-                            setTestedAiModels([]);
-                          }}
-                          placeholder={hasExistingAiKey ? `Current: ${maskedAiKey || 'saved key'}` : 'Enter API key'}
-                          disabled={isCreating}
-                        />
-                        {hasExistingAiKey && !aiApiKey && (
-                          <p className="text-xs text-muted-foreground">
-                            Leave empty to use the saved key.
-                          </p>
-                        )}
-                      </div>
-
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleTestAiConnection}
-                        disabled={isCreating || isTestingAiConnection || (!aiApiKey.trim() && !hasExistingAiKey)}
-                      >
-                        {isTestingAiConnection ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Testing...
-                          </>
-                        ) : (
-                          'Test Connection'
-                        )}
-                      </Button>
-
-                      {aiConnectionResult && (
-                        <div className="flex items-start gap-2 text-xs">
-                          {aiConnectionResult.success ? (
-                            <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#6f8a78]" />
-                          ) : (
-                            <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                          )}
-                          <p className={aiConnectionResult.success ? 'text-[#58715f]' : 'text-destructive'}>
-                            {aiConnectionResult.message}
-                          </p>
-                        </div>
-                      )}
-
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="humanly-field">
-                          <Label>Model</Label>
-                          <Select
-                            value={aiModel}
-                            onValueChange={(value) => {
-                              setAiModel(value);
-                              if (value !== CUSTOM_MODEL_VALUE) {
-                                setCustomAiModel('');
-                                setEnvironmentAiModel(value);
-                              } else {
-                                setEnvironmentAiModel(customAiModel.trim(), true);
-                              }
-                            }}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select model" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {aiModelOptions.map((model) => (
-                                <SelectItem key={model} value={model}>
-                                  {model}
-                                </SelectItem>
-                              ))}
-                              <SelectItem value={CUSTOM_MODEL_VALUE}>Custom model</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="humanly-field">
-                          <Label>Provider</Label>
-                          <Select
-                            value={getProviderValueForBaseUrl(aiBaseUrl)}
-                            onValueChange={(value) => {
-                              const provider = AI_PROVIDER_OPTIONS.find(option => option.value === value);
-                              updateAiBaseUrl(provider?.baseUrl ?? '', true);
-                            }}
-                            disabled={isCreating}
-                          >
-                            <SelectTrigger aria-label="AI provider">
-                              <SelectValue placeholder="Select provider" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {AI_PROVIDER_OPTIONS.map((provider) => (
-                                <SelectItem key={provider.value} value={provider.value}>
-                                  {provider.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {getProviderValueForBaseUrl(aiBaseUrl) === CUSTOM_AI_PROVIDER_VALUE && (
-                          <div className="humanly-field sm:col-span-2">
-                            <Label htmlFor="ai-base-url">Custom Base URL</Label>
-                            <Input
-                              id="ai-base-url"
-                              value={aiBaseUrl}
-                              onChange={(event) => updateAiBaseUrl(event.target.value, true)}
-                              placeholder={DEFAULT_AI_BASE_URL}
-                              disabled={isCreating}
-                            />
-                          </div>
-                        )}
-                      </div>
-
-                      {aiModel === CUSTOM_MODEL_VALUE && (
-                        <div className="humanly-field">
-                          <Label htmlFor="custom-ai-model">Custom Model</Label>
-                          <Input
-                            id="custom-ai-model"
-                            value={customAiModel}
-                            onChange={(event) => {
-                              setCustomAiModel(event.target.value);
-                              setEnvironmentAiModel(event.target.value.trim(), true);
-                            }}
-                            placeholder="provider/model-name"
-                            disabled={isCreating}
-                          />
-                        </div>
-                      )}
-
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="humanly-field">
-                          <Label htmlFor="ai-shortcut-max-tokens">Shortcut Tokens</Label>
-                          <Input
-                            id="ai-shortcut-max-tokens"
-                            type="number"
-                            min={AI_MAX_TOKENS_MIN}
-                            max={AI_MAX_TOKENS_MAX}
-                            value={environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT}
-                            onChange={(event) => setAiTokenBudget({
-                              shortcutMaxTokens: Number(event.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
-                            })}
-                            disabled={isCreating}
-                          />
-                          <p className="text-xs text-muted-foreground">Shortcut actions and fallback answers.</p>
-                        </div>
-
-                        <div className="humanly-field">
-                          <Label htmlFor="ai-chat-max-tokens">Chat Tokens</Label>
-                          <Input
-                            id="ai-chat-max-tokens"
-                            type="number"
-                            min={AI_MAX_TOKENS_MIN}
-                            max={AI_MAX_TOKENS_MAX}
-                            value={environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT}
-                            onChange={(event) => setAiTokenBudget({
-                              chatMaxTokens: Number(event.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT,
-                            })}
-                            disabled={isCreating}
-                          />
-                          <p className="text-xs text-muted-foreground">Chat and retrieval tool turns, per model call.</p>
-                        </div>
+            {showCustomEnvironmentSummary && (
+              <div className="rounded-lg border border-border/70 bg-muted/35 p-3">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1 space-y-4">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#6f8a78]" />
+                      <div>
+                        <p className="font-medium">Custom Environment</p>
+                        <p className="text-sm text-muted-foreground">
+                          Configure AI, copy-paste, character cap, and time limit in a separate dialog.
+                        </p>
                       </div>
                     </div>
-                  )}
-                </div>
 
-                <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4">
-                  <SectionHeading
-                    title="Writing Control"
-                    description="Set rules for editing behavior during writing."
-                  />
-
-                  <div className="humanly-field">
-                    <Label>Copy & Paste</Label>
-                    <Select
-                      value={normalizeCopyPastePolicy(environmentConfig.copyPastePolicy)}
-                      onValueChange={(value) => {
-                        markCustom((current) => ({
-                          ...current,
-                          copyPastePolicy: normalizeCopyPastePolicy(value),
-                        }));
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Copy-paste policy" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="allowed">Allowed</SelectItem>
-                        <SelectItem value="blocked">Blocked</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid gap-3">
-                    <div className="humanly-field">
-                      <Label htmlFor="maximum-characters">Maximum Characters</Label>
-                      <Input
-                        id="maximum-characters"
-                        type="number"
-                        min={1}
-                        max={SUBMISSION_MAX_CHARACTERS_MAX}
-                        value={environmentConfig.submission.maxCharacters ?? ''}
-                        onChange={(event) => setSubmissionMaximumCharacters(event.target.value)}
-                        placeholder="No maximum"
-                        disabled={isCreating}
-                      />
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-lg border border-border/60 bg-background p-2.5">
+                        <p className="humanly-eyebrow">AI</p>
+                        <p className="mt-1 text-sm font-medium">
+                          {environmentConfig.aiAccess === 'off' ? 'Off' : 'On'}
+                        </p>
+                        {environmentConfig.aiAccess !== 'off' && aiConnectionResult?.success === true && (
+                          <p className="mt-1 text-xs text-muted-foreground">Key verified</p>
+                        )}
+                      </div>
+                      <div className="rounded-lg border border-border/60 bg-background p-2.5">
+                        <p className="humanly-eyebrow">Writing</p>
+                        <p className="mt-1 text-sm font-medium">
+                          {normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) === 'blocked'
+                            ? 'Paste blocked'
+                            : 'Paste allowed'}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-border/60 bg-background p-2.5">
+                        <p className="humanly-eyebrow">Time</p>
+                        <p className="mt-1 text-sm font-medium">
+                          {timeMode === 'time_restricted'
+                            ? `${getTimeLimitMinutesValue(environmentConfig.time.timeLimitSeconds)} min`
+                            : 'No limit'}
+                        </p>
+                      </div>
                     </div>
-
-                    <p className="text-xs text-muted-foreground">
-                      Optional cap for personal writing. Leave blank for no maximum length.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4">
-                  <SectionHeading
-                    title="Time Limitation"
-                    description="Set whether the writing session should have a time limit."
-                  />
-
-                  <div className="humanly-field">
-                    <Label>Time</Label>
-                    <Select
-                      value={timeMode}
-                      onValueChange={(value) => {
-                        markCustom((current) => ({
-                          ...current,
-                          aiUsageLimit: {
-                            ...current.aiUsageLimit,
-                            mode: value === 'time_restricted' ? 'time_restricted' : 'unlimited',
-                          },
-                          time: {
-                            ...current.time,
-                            timeLimitSeconds: value === 'time_restricted'
-                              ? current.time.timeLimitSeconds || 3600
-                              : undefined,
-                          },
-                        }));
-                        if (value === 'time_restricted') {
-                          setTimeLimitMinutesInput(getTimeLimitMinutesValue(environmentConfig.time.timeLimitSeconds));
-                        }
-                      }}
-                    >
-                      <SelectTrigger aria-label="Time policy">
-                        <SelectValue placeholder="Time policy" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="unlimited">No limitations</SelectItem>
-                        <SelectItem value="time_restricted">Time limited</SelectItem>
-                      </SelectContent>
-                    </Select>
                   </div>
 
-                  {timeMode === 'time_restricted' && (
-                    <div className="humanly-field">
-                      <Label htmlFor="time-limit-minutes">Time Limit (minutes)</Label>
-                      <Input
-                        id="time-limit-minutes"
-                        type="number"
-                        min={1}
-                        value={timeLimitMinutesInput}
-                        disabled={isCreating}
-                        onChange={(event) => {
-                          const nextValue = event.target.value;
-                          setTimeLimitMinutesInput(nextValue);
-                          if (!nextValue) return;
-                          const minutes = parseTimeLimitMinutes(nextValue, 1);
-                          markCustom((current) => ({
-                            ...current,
-                            time: {
-                              ...current.time,
-                              timeLimitSeconds: minutes * 60,
-                            },
-                          }));
-                        }}
-                        onBlur={() => {
-                          const minutes = parseTimeLimitMinutes(timeLimitMinutesInput, 1);
-                          setTimeLimitMinutesInput(String(minutes));
-                          markCustom((current) => ({
-                            ...current,
-                            time: {
-                              ...current.time,
-                              timeLimitSeconds: minutes * 60,
-                            },
-                          }));
-                        }}
-                      />
-                    </div>
-                    )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      allowEnvironmentDialogCloseRef.current = false;
+                      setEnvironmentDialogOpen(true);
+                    }}
+                    disabled={isCreating}
+                  >
+                    Edit Settings
+                  </Button>
                 </div>
-              </>
+              </div>
             )}
           </div>
         </CardContent>
-        <CardFooter className="flex justify-between border-t border-border/70 bg-muted/20">
+        <CardFooter className="mt-4 flex justify-end gap-3 border-t border-border/70 bg-muted/20 px-5 pb-5 pt-7 sm:pt-7">
           <Button variant="outline" onClick={() => router.push('/documents')} disabled={isCreating}>
             Cancel
           </Button>
@@ -1140,6 +1286,36 @@ export default function NewDocumentPage() {
           </Button>
         </CardFooter>
       </Card>
+
+      <Dialog open={environmentDialogOpen} onOpenChange={handleEnvironmentDialogOpenChange}>
+        <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-5xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Custom Environment</DialogTitle>
+            <DialogDescription>
+              Configure AI access, writing rules, character cap, and time limit before creating this document.
+            </DialogDescription>
+          </DialogHeader>
+
+          {customEnvironmentControls}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              onClick={handleCustomEnvironmentDone}
+              disabled={isCreating || isTestingAiConnection}
+            >
+              {isTestingAiConnection ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Testing...
+                </>
+              ) : (
+                'Done'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

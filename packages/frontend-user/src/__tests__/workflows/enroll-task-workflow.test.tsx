@@ -77,6 +77,7 @@ describe('task enrollment workflow', () => {
     mockApiPut.mockReset();
     mockCreateDocument.mockClear();
     mockDeleteDocument.mockClear();
+    window.localStorage.clear();
 
     mockApiGet.mockImplementation(async (path: string) => {
       if (path === '/tasks/my-enrollments') {
@@ -233,9 +234,52 @@ describe('task enrollment workflow', () => {
 
     expect(await screen.findByRole('heading', { name: /writing dashboard/i })).toBeInTheDocument();
     expect(screen.getByText('Timed Personal Writing')).toBeInTheDocument();
-    expect(screen.getByText('Writing time left')).toBeInTheDocument();
     expect(screen.getByText('0:30')).toBeInTheDocument();
     expect(screen.getByText('Continues while you are away.')).toBeInTheDocument();
+  });
+
+  it('lets users switch personal writing between card and list views', async () => {
+    documents = [
+      {
+        ...createdDocument,
+        id: 'personal-doc-1',
+        title: 'First Personal Writing',
+        characterCount: 0,
+      },
+      {
+        ...createdDocument,
+        id: 'personal-doc-2',
+        title: 'Second Personal Writing',
+        plainText: 'This document has enough preview text to exercise the list layout without changing row controls.',
+        characterCount: 101,
+      },
+    ];
+
+    const user = userEvent.setup();
+    const { unmount } = render(<DocumentsPage />);
+
+    expect(await screen.findByRole('heading', { name: /writing dashboard/i })).toBeInTheDocument();
+    const cardViewButton = screen.getByRole('button', { name: /card view/i });
+    expect(screen.getByText('Name')).toBeInTheDocument();
+    expect(screen.getByText('Characters')).toBeInTheDocument();
+    expect(screen.getByText('Last edited')).toBeInTheDocument();
+    expect(screen.getByText('First Personal Writing')).toBeInTheDocument();
+    expect(screen.getByText('Second Personal Writing')).toBeInTheDocument();
+    expect(screen.queryByText('This document has enough preview text to exercise the list layout without changing row controls.')).not.toBeInTheDocument();
+
+    await user.click(cardViewButton);
+
+    expect(screen.getByRole('button', { name: /list view/i })).toBeInTheDocument();
+    expect(screen.getByText('This document has enough preview text to exercise the list layout without changing row controls.')).toBeInTheDocument();
+    expect(window.localStorage.getItem('humanly:documents:view-mode')).toBe('cards');
+
+    unmount();
+    render(<DocumentsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /list view/i })).toBeInTheDocument();
+    });
+    expect(screen.getByText('This document has enough preview text to exercise the list layout without changing row controls.')).toBeInTheDocument();
   });
 
   it('marks expired timed personal writing cards as read-only while preserving access', async () => {
@@ -258,9 +302,12 @@ describe('task enrollment workflow', () => {
 
     expect(await screen.findByRole('heading', { name: /writing dashboard/i })).toBeInTheDocument();
     expect(screen.getByText('Expired Personal Writing')).toBeInTheDocument();
-    expect(screen.getByText('Writing time limit reached')).toBeInTheDocument();
     expect(screen.getByText('Opens in read-only mode.')).toBeInTheDocument();
-    expect(screen.getByText('Open Read-only')).toBeInTheDocument();
+    expect(screen.getAllByText('Read-only').length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: /Expired Personal Writing/i })).toHaveAttribute(
+      'href',
+      '/documents/personal-expired-doc-1'
+    );
   });
 
   it('marks expired timed task cards as read-only while preserving access', async () => {

@@ -115,7 +115,7 @@ describe('document creation workflow', () => {
     expect(screen.queryByText('Writing Control')).not.toBeInTheDocument();
     expect(screen.queryByText('Time Limitation')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('combobox'));
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
     await user.click(await screen.findByRole('option', { name: 'Custom' }));
 
     expect(screen.getByText('Writing Control')).toBeInTheDocument();
@@ -126,6 +126,84 @@ describe('document creation workflow', () => {
     expect(screen.queryByText('Choose Custom to configure AI access, copy-paste rules, or a time limit.')).not.toBeInTheDocument();
   });
 
+  it('shows only the import box until a JSON environment is applied', async () => {
+    const user = userEvent.setup();
+    render(<NewDocumentPage />);
+
+    await screen.findByRole('heading', { name: /create writing/i });
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
+    await user.click(await screen.findByRole('option', { name: 'Import Environment' }));
+
+    expect(screen.getByText('Import JSON Configuration')).toBeInTheDocument();
+    expect(screen.queryByText('Custom Environment')).not.toBeInTheDocument();
+    expect(screen.queryByText('Default Environment')).not.toBeInTheDocument();
+
+    const fileInput = document.querySelector<HTMLInputElement>('input[type="file"][accept="application/json,.json"]');
+    expect(fileInput).toBeTruthy();
+
+    const environmentJson = JSON.stringify({
+      aiAccess: 'off',
+      copyPastePolicy: 'blocked',
+      submission: { maxCharacters: 123 },
+    });
+    const environmentFile = new File([environmentJson], 'environment.json', { type: 'application/json' });
+    Object.defineProperty(environmentFile, 'text', {
+      value: jest.fn().mockResolvedValue(environmentJson),
+    });
+
+    await user.upload(fileInput!, environmentFile);
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'Environment imported',
+      }));
+    });
+    expect(screen.getByText('Custom Environment')).toBeInTheDocument();
+    expect(screen.getByText('Paste blocked')).toBeInTheDocument();
+    expect(screen.queryByText('Import JSON Configuration')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
+    await user.click(await screen.findByRole('option', { name: 'Import Environment' }));
+
+    expect(screen.getByText('Import JSON Configuration')).toBeInTheDocument();
+    expect(screen.queryByText('Custom Environment')).not.toBeInTheDocument();
+  });
+
+  it('downgrades imported AI-on environments until an API key is tested', async () => {
+    const user = userEvent.setup();
+    render(<NewDocumentPage />);
+
+    await screen.findByRole('heading', { name: /create writing/i });
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
+    await user.click(await screen.findByRole('option', { name: 'Import Environment' }));
+
+    const fileInput = document.querySelector<HTMLInputElement>('input[type="file"][accept="application/json,.json"]');
+    expect(fileInput).toBeTruthy();
+
+    const environmentJson = JSON.stringify({
+      aiAccess: 'full',
+      allowedModels: ['qwen/qwen3.5-397b-a17b'],
+      traceability: { trackAiUsage: true },
+    });
+    const environmentFile = new File([environmentJson], 'ai-on-environment.json', { type: 'application/json' });
+    Object.defineProperty(environmentFile, 'text', {
+      value: jest.fn().mockResolvedValue(environmentJson),
+    });
+
+    await user.upload(fileInput!, environmentFile);
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'Environment imported',
+        description: expect.stringContaining('AI was set to Off'),
+      }));
+    });
+
+    expect(screen.getByText('Custom Environment')).toBeInTheDocument();
+    expect(screen.getByText('Off')).toBeInTheDocument();
+    expect(screen.queryByText('On')).not.toBeInTheDocument();
+  });
+
   it('does not expose or persist minimum character limits for personal writing', async () => {
     const user = userEvent.setup();
     mockCreateDocument.mockResolvedValueOnce({ id: 'doc-123', title: 'Personal Character Policy' });
@@ -134,11 +212,12 @@ describe('document creation workflow', () => {
 
     await screen.findByRole('heading', { name: /create writing/i });
     await user.type(screen.getByLabelText(/document name/i), 'Personal Character Policy');
-    await user.click(screen.getByRole('combobox'));
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
     await user.click(await screen.findByRole('option', { name: 'Custom' }));
 
     expect(screen.queryByLabelText(/minimum characters/i)).not.toBeInTheDocument();
     await user.type(screen.getByLabelText(/maximum characters/i), '200');
+    await user.click(screen.getByRole('button', { name: /^done$/i }));
     await user.click(screen.getByRole('button', { name: /^create writing$/i }));
 
     await waitFor(() => {
@@ -173,9 +252,9 @@ describe('document creation workflow', () => {
     render(<NewDocumentPage />);
 
     await screen.findByRole('heading', { name: /create writing/i });
-    await user.click(screen.getByRole('combobox'));
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
     await user.click(await screen.findByRole('option', { name: 'Custom' }));
-    await user.click(screen.getAllByRole('combobox')[1]);
+    await user.click(screen.getByRole('combobox', { name: /ai access/i }));
     await user.click(await screen.findByRole('option', { name: 'AI On' }));
 
     await user.type(screen.getByLabelText(/ai api key/i), 'sk-or-test');
@@ -187,13 +266,71 @@ describe('document creation workflow', () => {
     expect(screen.queryByText('qwen/qwen-plus-2025-07-28')).not.toBeInTheDocument();
   });
 
+  it('requires and auto-tests an AI key before closing custom settings with AI on', async () => {
+    const user = userEvent.setup();
+    render(<NewDocumentPage />);
+
+    await screen.findByRole('heading', { name: /create writing/i });
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
+    await user.click(await screen.findByRole('option', { name: 'Custom' }));
+    await user.click(screen.getByRole('combobox', { name: /ai access/i }));
+    await user.click(await screen.findByRole('option', { name: 'AI On' }));
+
+    await user.click(screen.getByRole('button', { name: /^done$/i }));
+
+    expect(mockApiPost).not.toHaveBeenCalled();
+    expect(screen.getByText('Enter an AI API key before testing the connection.')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /custom environment/i })).toBeInTheDocument();
+
+    mockApiPost.mockResolvedValueOnce({
+      data: {
+        success: true,
+        message: 'Connection successful.',
+        models: ['qwen/qwen3.5-397b-a17b'],
+      },
+    });
+
+    await user.type(screen.getByLabelText(/ai api key/i), 'sk-test');
+    await user.click(screen.getByRole('button', { name: /^done$/i }));
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith('/ai/settings/test', expect.objectContaining({
+        apiKey: 'sk-test',
+      }));
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'AI key verified',
+      }));
+      expect(screen.queryByRole('dialog', { name: /custom environment/i })).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Key verified')).toBeInTheDocument();
+  });
+
+  it('reverts unvalidated AI-on settings when the custom dialog is dismissed', async () => {
+    const user = userEvent.setup();
+    render(<NewDocumentPage />);
+
+    await screen.findByRole('heading', { name: /create writing/i });
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
+    await user.click(await screen.findByRole('option', { name: 'Custom' }));
+    await user.click(screen.getByRole('combobox', { name: /ai access/i }));
+    await user.click(await screen.findByRole('option', { name: 'AI On' }));
+
+    await user.click(screen.getByRole('button', { name: /^close$/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /custom environment/i })).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Custom Environment')).toBeInTheDocument();
+    expect(screen.getByText('Off')).toBeInTheDocument();
+  });
+
   it('allows the time-limit minutes field to be cleared while editing', async () => {
     const user = userEvent.setup();
 
     render(<NewDocumentPage />);
 
     await screen.findByRole('heading', { name: /create writing/i });
-    await user.click(screen.getByRole('combobox'));
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
     await user.click(await screen.findByRole('option', { name: 'Custom' }));
     await user.click(screen.getByRole('combobox', { name: /time policy/i }));
     await user.click(await screen.findByRole('option', { name: 'Time limited' }));

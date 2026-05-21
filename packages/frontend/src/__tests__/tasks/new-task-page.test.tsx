@@ -174,7 +174,75 @@ describe('admin new task page', () => {
     });
   });
 
-  it('imports environment JSON and shows AI usage limit only when AI is on', async () => {
+  it('auto-tests AI connection before creating AI-enabled tasks', async () => {
+    mockApiPost.mockImplementation(async (url: string) => {
+      if (url === '/api/v1/ai/settings/test') {
+        return {
+          success: true,
+          message: 'Connection successful.',
+          models: ['qwen/qwen3.5-397b-a17b'],
+        };
+      }
+      if (url === '/api/v1/tasks') {
+        return {
+          success: true,
+          data: { id: 'created-ai-task' },
+          message: 'Task created',
+        };
+      }
+      throw new Error(`Unexpected POST ${url}`);
+    });
+    mockApiPut.mockResolvedValue({ success: true });
+
+    render(<NewTaskPage />);
+
+    expect(await screen.findByRole('heading', { name: 'New Task' })).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Task Name/i), {
+        target: { value: 'AI Task' },
+      });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('option', { name: 'Custom' }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('option', { name: 'AI On' }));
+    });
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/AI API Key/i), {
+        target: { value: 'sk-test' },
+      });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Create Task$/i }));
+    });
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith('/api/v1/ai/settings/test', expect.objectContaining({
+        apiKey: 'sk-test',
+      }));
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'AI key verified',
+      }));
+      expect(mockApiPut).toHaveBeenCalledWith('/api/v1/ai/settings', expect.objectContaining({
+        apiKey: 'sk-test',
+      }));
+      expect(mockApiPost).toHaveBeenCalledWith(
+        '/api/v1/tasks',
+        expect.objectContaining({
+          name: 'AI Task',
+          environmentConfig: expect.objectContaining({
+            aiAccess: 'full',
+            traceability: expect.objectContaining({
+              trackAiUsage: true,
+            }),
+          }),
+        })
+      );
+    });
+  });
+
+  it('imports environment JSON but downgrades unverified AI-on config until tested', async () => {
     mockApiGet.mockResolvedValue({
       data: {
         hasApiKey: true,
@@ -214,10 +282,12 @@ describe('admin new task page', () => {
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
         title: 'Environment imported',
+        description: expect.stringContaining('AI was set to Off'),
       }));
     });
 
-    expect(screen.getByLabelText(/AI Usage Limit/i)).toHaveValue(42);
+    expect(screen.getByRole('option', { name: 'AI Off' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByLabelText(/AI Usage Limit/i)).not.toBeInTheDocument();
 
     await act(async () => {
       fireEvent.change(screen.getByLabelText(/Task Name/i), {
@@ -234,8 +304,8 @@ describe('admin new task page', () => {
         expect.objectContaining({
           environmentConfig: expect.objectContaining({
             taskType: 'admin_assigned',
-            aiAccess: 'full',
-            allowedModels: ['GPT-5'],
+            aiAccess: 'off',
+            allowedModels: [],
             copyPastePolicy: 'blocked',
             aiUsageLimit: {
               mode: 'max_requests',
@@ -245,17 +315,14 @@ describe('admin new task page', () => {
               mode: 'multiple',
               minCharacters: 1000,
             }),
+            traceability: expect.objectContaining({
+              trackAiUsage: false,
+            }),
           }),
         })
       );
     });
+    expect(mockApiPut).not.toHaveBeenCalled();
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole('option', { name: 'AI Off' }));
-    });
-
-    await waitFor(() => {
-      expect(screen.queryByLabelText(/AI Usage Limit/i)).not.toBeInTheDocument();
-    });
   });
 });
