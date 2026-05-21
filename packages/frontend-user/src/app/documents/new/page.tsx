@@ -647,7 +647,7 @@ export default function NewDocumentPage() {
   const showDetailedEnvironmentControls = environmentSelection !== 'default_writing';
 
   return (
-    <div className="humanly-page-narrow">
+    <div className="humanly-page">
       <div className="mb-6">
         <Button variant="outline" size="sm" className="mb-4" onClick={() => router.push('/documents')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -667,7 +667,7 @@ export default function NewDocumentPage() {
             Set up the document details, AI access, and writing controls before you start.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-5">
+        <CardContent className="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)] xl:items-start">
           <section className="space-y-4 rounded-lg border border-border/70 bg-background p-4">
             <SectionHeading
               title="Basic Information"
@@ -811,8 +811,8 @@ export default function NewDocumentPage() {
                 </p>
               </div>
             ) : (
-              <>
-                <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4">
+              <div className="grid gap-4 xl:grid-cols-2">
+                <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4 xl:col-span-2">
                   <SectionHeading
                     title="AI"
                     description="Control whether this document can use assistant support."
@@ -1126,7 +1126,7 @@ export default function NewDocumentPage() {
                     </div>
                     )}
                 </div>
-              </>
+              </div>
             )}
           </div>
         </CardContent>
