@@ -63,7 +63,6 @@ export function DocumentCard({ document, timerState, onDelete, variant = 'card' 
   const displayTitle = document.displayTitle || document.title || 'Untitled Document';
   const documentHref = `/documents/${document.id}`;
   const editedDate = formatDate(document.updatedAt || document.createdAt);
-  const previewFillLines = ['86%', '94%', '78%', '91%', '83%', '66%'];
 
   const deleteButton = (
     <Button
@@ -169,22 +168,11 @@ export function DocumentCard({ document, timerState, onDelete, variant = 'card' 
             <div className="flex h-full min-w-0 flex-1 flex-col p-0">
               <div className="relative h-[14rem] w-full overflow-hidden border-b border-border/70 bg-background">
                 <div className="absolute inset-0 px-5 py-5">
-                  {previewText ? (
-                    <p className="line-clamp-4 whitespace-pre-wrap text-[12px] leading-[1.45] text-muted-foreground/80">
+                  {previewText && (
+                    <p className="line-clamp-[12] whitespace-pre-wrap text-[11px] leading-[1.45] text-muted-foreground/80">
                       {previewText}
                     </p>
-                  ) : (
-                    <div className="mb-4 h-3 w-1/2 rounded-full bg-muted" aria-hidden="true" />
                   )}
-                  <div className="mt-4 space-y-2.5" aria-hidden="true">
-                    {previewFillLines.map((width) => (
-                      <div
-                        key={width}
-                        className="h-2.5 rounded-full bg-muted"
-                        style={{ width }}
-                      />
-                    ))}
-                  </div>
                 </div>
               </div>
 
