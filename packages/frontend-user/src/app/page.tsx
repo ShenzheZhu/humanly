@@ -123,7 +123,7 @@ export default function HomePage() {
     <main className="min-h-screen overflow-hidden bg-background text-foreground">
       <NavBar />
 
-      <section id="product" className="relative px-5 pb-14 pt-16 sm:px-8 sm:pb-16 sm:pt-20 lg:px-14 lg:pt-[82px]">
+      <section id="product" className="relative px-5 pb-14 pt-12 sm:px-8 sm:pb-16 sm:pt-16 lg:px-14 lg:pt-[58px]">
         <div className="mx-auto max-w-[940px] text-center">
           <Eyebrow className="mb-7">{BRAND.name}</Eyebrow>
           <h1 className="text-[36px] font-semibold leading-[1.08] tracking-[-0.025em] sm:text-[50px] lg:text-[58px]">
