@@ -977,8 +977,8 @@ export default function NewDocumentPage() {
 
   return (
     <div className="humanly-page">
-      <div className="mb-6">
-        <Button variant="outline" size="sm" className="mb-4" onClick={() => router.push('/documents')}>
+      <div className="mb-4">
+        <Button variant="outline" size="sm" className="mb-3" onClick={() => router.push('/documents')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Workspace
         </Button>
@@ -990,14 +990,14 @@ export default function NewDocumentPage() {
       </div>
 
       <Card className="overflow-hidden">
-        <CardHeader>
+        <CardHeader className="p-4 sm:p-5">
           <CardTitle>Document setup</CardTitle>
           <CardDescription>
             Set up the document details, AI access, and writing controls before you start.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)] xl:items-stretch">
-          <section className="h-full space-y-4 rounded-lg border border-border/70 bg-background p-4">
+        <CardContent className="grid gap-4 px-4 pb-4 pt-0 sm:px-5 sm:pb-5 sm:pt-0 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)] xl:items-stretch">
+          <section className="h-full space-y-3 rounded-lg border border-border/70 bg-background p-3">
             <SectionHeading
               title="Basic Information"
               description="Name the document and attach an optional source PDF for side-by-side writing."
@@ -1025,7 +1025,7 @@ export default function NewDocumentPage() {
               />
             </div>
 
-            <div className="rounded-lg border border-dashed border-border/80 bg-muted/25 p-4">
+            <div className="rounded-lg border border-dashed border-border/80 bg-muted/25 p-3">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Upload className="h-4 w-4 text-accent" />
                 PDF
@@ -1037,7 +1037,7 @@ export default function NewDocumentPage() {
                 ref={fileInputRef}
                 type="file"
                 accept="application/pdf"
-                className="mt-3"
+                className="mt-2"
                 onChange={handlePdfSelect}
                 disabled={isCreating}
               />
@@ -1069,7 +1069,7 @@ export default function NewDocumentPage() {
             </div>
           </section>
 
-          <div className="h-full space-y-5 rounded-lg border border-border/70 bg-background p-4">
+          <div className="h-full space-y-4 rounded-lg border border-border/70 bg-background p-3">
             <SectionHeading
               title="Environment"
               description="Choose a default, customize the modules below, or import a JSON configuration."
@@ -1109,7 +1109,7 @@ export default function NewDocumentPage() {
             )}
 
             {!showDetailedEnvironmentControls ? (
-              <div className="rounded-lg border border-border/70 bg-muted/35 p-4">
+              <div className="rounded-lg border border-border/70 bg-muted/35 p-3">
                 <div className="flex items-start gap-3">
                   <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#6f8a78]" />
                   <div>
@@ -1120,27 +1120,27 @@ export default function NewDocumentPage() {
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-lg border border-border/60 bg-background p-3">
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-lg border border-border/60 bg-background p-2.5">
                     <p className="humanly-eyebrow">AI</p>
                     <p className="mt-1 text-sm font-medium">Off</p>
                   </div>
-                  <div className="rounded-lg border border-border/60 bg-background p-3">
+                  <div className="rounded-lg border border-border/60 bg-background p-2.5">
                     <p className="humanly-eyebrow">Writing</p>
                     <p className="mt-1 text-sm font-medium">Copy & paste allowed</p>
                   </div>
-                  <div className="rounded-lg border border-border/60 bg-background p-3">
+                  <div className="rounded-lg border border-border/60 bg-background p-2.5">
                     <p className="humanly-eyebrow">Time</p>
                     <p className="mt-1 text-sm font-medium">No limit</p>
                   </div>
                 </div>
 
-                <p className="mt-4 text-sm text-muted-foreground">
+                <p className="mt-3 text-sm text-muted-foreground">
                   Choose Custom to configure AI access, copy-paste rules, or a time limit.
                 </p>
               </div>
             ) : (
-              <div className="rounded-lg border border-border/70 bg-muted/35 p-4">
+              <div className="rounded-lg border border-border/70 bg-muted/35 p-3">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0 flex-1 space-y-4">
                     <div className="flex items-start gap-3">
@@ -1154,13 +1154,13 @@ export default function NewDocumentPage() {
                     </div>
 
                     <div className="grid gap-3 sm:grid-cols-3">
-                      <div className="rounded-lg border border-border/60 bg-background p-3">
+                      <div className="rounded-lg border border-border/60 bg-background p-2.5">
                         <p className="humanly-eyebrow">AI</p>
                         <p className="mt-1 text-sm font-medium">
                           {environmentConfig.aiAccess === 'off' ? 'Off' : 'On'}
                         </p>
                       </div>
-                      <div className="rounded-lg border border-border/60 bg-background p-3">
+                      <div className="rounded-lg border border-border/60 bg-background p-2.5">
                         <p className="humanly-eyebrow">Writing</p>
                         <p className="mt-1 text-sm font-medium">
                           {normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) === 'blocked'
@@ -1168,7 +1168,7 @@ export default function NewDocumentPage() {
                             : 'Paste allowed'}
                         </p>
                       </div>
-                      <div className="rounded-lg border border-border/60 bg-background p-3">
+                      <div className="rounded-lg border border-border/60 bg-background p-2.5">
                         <p className="humanly-eyebrow">Time</p>
                         <p className="mt-1 text-sm font-medium">
                           {timeMode === 'time_restricted'
@@ -1192,7 +1192,7 @@ export default function NewDocumentPage() {
             )}
           </div>
         </CardContent>
-        <CardFooter className="mt-8 flex justify-end gap-3 border-t border-border/70 bg-muted/20 px-6 pb-6 pt-10 sm:pt-10">
+        <CardFooter className="mt-4 flex justify-end gap-3 border-t border-border/70 bg-muted/20 px-5 pb-5 pt-7 sm:pt-7">
           <Button variant="outline" onClick={() => router.push('/documents')} disabled={isCreating}>
             Cancel
           </Button>
