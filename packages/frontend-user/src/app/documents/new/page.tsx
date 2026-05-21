@@ -242,6 +242,7 @@ export default function NewDocumentPage() {
   const [testedAiModels, setTestedAiModels] = useState<string[]>([]);
   const [timeLimitMinutesInput, setTimeLimitMinutesInput] = useState('60');
   const [environmentDialogOpen, setEnvironmentDialogOpen] = useState(false);
+  const allowEnvironmentDialogCloseRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -348,6 +349,9 @@ export default function NewDocumentPage() {
     }
 
     applyEnvironmentPreset(value);
+    if (value === 'custom') {
+      allowEnvironmentDialogCloseRef.current = false;
+    }
     setEnvironmentDialogOpen(value === 'custom');
   };
 
@@ -539,14 +543,36 @@ export default function NewDocumentPage() {
 
   const handleCustomEnvironmentDone = async () => {
     if (environmentConfig.aiAccess === 'off') {
+      allowEnvironmentDialogCloseRef.current = true;
       setEnvironmentDialogOpen(false);
       return;
     }
 
     const success = await testAiConnection();
     if (success) {
+      allowEnvironmentDialogCloseRef.current = true;
       setEnvironmentDialogOpen(false);
     }
+  };
+
+  const handleEnvironmentDialogOpenChange = (open: boolean) => {
+    if (open) {
+      allowEnvironmentDialogCloseRef.current = false;
+      setEnvironmentDialogOpen(true);
+      return;
+    }
+
+    if (
+      environmentConfig.aiAccess !== 'off'
+      && !allowEnvironmentDialogCloseRef.current
+      && aiConnectionResult?.success !== true
+    ) {
+      setAiAccess('off');
+      setAiConnectionResult(null);
+    }
+
+    allowEnvironmentDialogCloseRef.current = false;
+    setEnvironmentDialogOpen(false);
   };
 
   const handleCreateDocument = useCallback(async () => {
@@ -1210,7 +1236,10 @@ export default function NewDocumentPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setEnvironmentDialogOpen(true)}
+                    onClick={() => {
+                      allowEnvironmentDialogCloseRef.current = false;
+                      setEnvironmentDialogOpen(true);
+                    }}
                     disabled={isCreating}
                   >
                     Edit Settings
@@ -1231,7 +1260,7 @@ export default function NewDocumentPage() {
         </CardFooter>
       </Card>
 
-      <Dialog open={environmentDialogOpen} onOpenChange={setEnvironmentDialogOpen}>
+      <Dialog open={environmentDialogOpen} onOpenChange={handleEnvironmentDialogOpenChange}>
         <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-5xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Custom Environment</DialogTitle>

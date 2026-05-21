@@ -266,6 +266,25 @@ describe('document creation workflow', () => {
     });
   });
 
+  it('reverts unvalidated AI-on settings when the custom dialog is dismissed', async () => {
+    const user = userEvent.setup();
+    render(<NewDocumentPage />);
+
+    await screen.findByRole('heading', { name: /create writing/i });
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
+    await user.click(await screen.findByRole('option', { name: 'Custom' }));
+    await user.click(screen.getByRole('combobox', { name: /ai access/i }));
+    await user.click(await screen.findByRole('option', { name: 'AI On' }));
+
+    await user.click(screen.getByRole('button', { name: /^close$/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /custom environment/i })).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Custom Environment')).toBeInTheDocument();
+    expect(screen.getByText('Off')).toBeInTheDocument();
+  });
+
   it('allows the time-limit minutes field to be cleared while editing', async () => {
     const user = userEvent.setup();
 
