@@ -91,4 +91,25 @@ describe('user auth store session restore', () => {
       error: null,
     });
   });
+
+  it('clears the local session without calling the backend', () => {
+    useAuthStore.setState({
+      user,
+      isAuthenticated: true,
+      isLoading: true,
+      error: 'stale error',
+    });
+
+    useAuthStore.getState().clearLocalSession();
+
+    expect(mockClearTokens).toHaveBeenCalledTimes(1);
+    expect(mockDisconnectSocket).toHaveBeenCalledTimes(1);
+    expect(mockApiPost).not.toHaveBeenCalled();
+    expect(useAuthStore.getState()).toMatchObject({
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+    });
+  });
 });

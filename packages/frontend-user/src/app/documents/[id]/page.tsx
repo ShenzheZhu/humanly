@@ -37,6 +37,7 @@ import { useState, useEffect, useCallback, useMemo, useRef, type ChangeEvent } f
 import dynamic from 'next/dynamic';
 import { apiClient, TokenManager } from '@/lib/api-client';
 import { formatDateTime } from '@/lib/utils';
+import { isGuestUserEmail } from '@/components/navigation/user-display';
 import {
   DEFAULT_WRITING_ENVIRONMENT_CONFIG,
   normalizeCopyPastePolicy,
@@ -246,6 +247,8 @@ export default function DocumentEditorPage() {
   const [timerStartedAtMs, setTimerStartedAtMs] = useState<number | null>(null);
   const [timerNowMs, setTimerNowMs] = useState(() => Date.now());
   const isTaskDocument = Boolean(taskEnrollment);
+  const isGuestUser = isGuestUserEmail(user?.email);
+  const isPublicTaskGuestDocument = isTaskDocument && isGuestUser;
   const taskEnvironmentConfig = taskEnrollment?.environmentConfig || null;
 
   const currentEnvironmentConfig = useMemo(() => {
@@ -902,9 +905,11 @@ export default function DocumentEditorPage() {
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <p className="text-destructive">{error || 'Document not found'}</p>
-          <Button onClick={() => router.push('/documents')} className="mt-4">
-            Back to Documents
-          </Button>
+          {!isGuestUser && (
+            <Button onClick={() => router.push('/documents')} className="mt-4">
+              Back to Documents
+            </Button>
+          )}
         </div>
       </div>
     );
@@ -940,9 +945,16 @@ export default function DocumentEditorPage() {
         <div className={`${CANVAS} py-3`}>
           <div className="flex items-center justify-between gap-4">
             <div className="flex min-w-0 items-center gap-3">
-              <Button variant="outline" size="icon" onClick={() => router.push('/documents')}>
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
+              {!isPublicTaskGuestDocument && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label="Back to Documents"
+                  onClick={() => router.push('/documents')}
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              )}
 
               <div className="min-w-0 flex-1">
                 {isTitleEditing ? (

@@ -22,12 +22,14 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { useAuthStore } from '@/stores/auth-store';
+import { getUserDisplayLabel } from './user-display';
 
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const userDisplayLabel = getUserDisplayLabel(user?.email);
 
   const handleLogout = async () => {
     await logout();
@@ -57,7 +59,7 @@ export function Navbar() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex items-center gap-2">
                     <User className="h-4 w-4" />
-                    <span className="hidden lg:inline">{user?.email}</span>
+                    <span className="hidden lg:inline">{userDisplayLabel}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -87,7 +89,7 @@ export function Navbar() {
                   <div className="mt-6 flex flex-col space-y-4">
                     <div>
                       <div className="px-3 py-2 text-sm text-muted-foreground">
-                        {user?.email}
+                        {userDisplayLabel}
                       </div>
                       <Button
                         variant="ghost"

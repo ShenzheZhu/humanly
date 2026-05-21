@@ -18,7 +18,10 @@ let mockDocumentContent: any = {};
 let mockDocumentPlainText = '';
 let mockDocumentCharacterCount = 0;
 let mockDocumentWritingStartedAt: string | null = null;
+let mockDocumentOverride: any = undefined;
+let mockDocumentError: string | null = null;
 let mockTaskEnrollments: any[] = [];
+let mockAuthUserEmail = 'user@example.com';
 let mockAiLogs: any[] = [];
 let mockTimelineSummary: any;
 let mockTimelineItems: any[] = [];
@@ -81,8 +84,8 @@ jest.mock('@/components/ui/use-toast', () => ({
 }));
 
 jest.mock('@/hooks/use-document', () => ({
-  useDocument: () => ({
-    document: {
+  useDocument: () => {
+    const document = mockDocumentOverride === undefined ? {
       id: 'doc-1',
       title: 'Workflow Document',
       content: mockDocumentContent,
@@ -92,16 +95,20 @@ jest.mock('@/hooks/use-document', () => ({
       characterCount: mockDocumentCharacterCount,
       environmentConfig: mockDocumentEnvironmentConfig,
       writingStartedAt: mockDocumentWritingStartedAt,
-    },
-    linkedFile: null,
-    isLoading: false,
-    error: null,
-    isSaving: false,
-    updateDocument: mockUpdateDocument,
-    startWritingSession: mockStartWritingSession,
-    trackEvents: mockTrackEvents,
-    uploadPdf: jest.fn(),
-  }),
+    } : mockDocumentOverride;
+
+    return {
+      document,
+      linkedFile: null,
+      isLoading: false,
+      error: mockDocumentError,
+      isSaving: false,
+      updateDocument: mockUpdateDocument,
+      startWritingSession: mockStartWritingSession,
+      trackEvents: mockTrackEvents,
+      uploadPdf: jest.fn(),
+    };
+  },
 }));
 
 jest.mock('@/hooks/use-certificates', () => ({
@@ -112,7 +119,7 @@ jest.mock('@/hooks/use-certificates', () => ({
 
 jest.mock('@/stores/auth-store', () => ({
   useAuthStore: () => ({
-    user: { id: 'user-1', email: 'user@example.com' },
+    user: { id: 'user-1', email: mockAuthUserEmail },
     checkAuth: jest.fn(),
   }),
 }));
@@ -207,7 +214,10 @@ describe('editor and logs workflows', () => {
     mockDocumentPlainText = '';
     mockDocumentCharacterCount = 0;
     mockDocumentWritingStartedAt = null;
+    mockDocumentOverride = undefined;
+    mockDocumentError = null;
     mockTaskEnrollments = [];
+    mockAuthUserEmail = 'user@example.com';
     mockAiLogs = [];
     mockTimelineSummary = {
       rawEventTotal: 40,
@@ -448,6 +458,51 @@ describe('editor and logs workflows', () => {
     expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
     expect(screen.getByText('Task deadline in')).toBeInTheDocument();
     expect(screen.getByTitle(/Task deadline:/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /back to documents/i })).toBeInTheDocument();
+  });
+
+  it('hides the workspace back button for public guest task documents', async () => {
+    mockAuthUserEmail = 'public-task-guest@guest.humanly.local';
+    mockTaskEnrollments = [{
+      id: 'enroll-1',
+      documentId: 'doc-1',
+      name: 'Public Task',
+      inviteCode: 'ABC123',
+      joinedAt: '2026-05-19T12:00:00.000Z',
+      endDate: '2099-01-01T00:00:00.000Z',
+      environmentConfig: {
+        aiAccess: 'off',
+        copyPastePolicy: 'allowed',
+      },
+    }];
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    expect(screen.getByText('Task deadline in')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /back to documents/i })).not.toBeInTheDocument();
+  });
+
+  it('hides the documents back action for guest document load errors', async () => {
+    mockAuthUserEmail = 'public-task-guest@guest.humanly.local';
+    mockDocumentOverride = null;
+    mockDocumentError = 'Document not found or unauthorized';
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Document not found or unauthorized')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /back to documents/i })).not.toBeInTheDocument();
+    expect(screen.queryByText('Back to Documents')).not.toBeInTheDocument();
+  });
+
+  it('keeps the documents back action for normal user document load errors', async () => {
+    mockDocumentOverride = null;
+    mockDocumentError = 'Document not found or unauthorized';
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Document not found or unauthorized')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /back to documents/i })).toBeInTheDocument();
   });
 
   it('auto-submits an enrolled timed task when the persisted timer has expired', async () => {
