@@ -2,6 +2,7 @@ import {
   buildPasswordResetEmailHtml,
   buildPasswordResetUrl,
 } from '../../services/email.service';
+import { PASSWORD_RESET_TOKEN_TTL_MINUTES } from '../../constants/auth';
 
 describe('password reset email helpers', () => {
   it('builds a frontend reset-password link with the token in the query string', () => {
@@ -18,6 +19,8 @@ describe('password reset email helpers', () => {
     expect(html).toContain(`href="${resetUrl}"`);
     expect(html).toContain(resetUrl);
     expect(html).toContain('secure link');
+    expect(html).toContain(`expire in ${PASSWORD_RESET_TOKEN_TTL_MINUTES} minutes`);
+    expect(html).not.toContain('expire in 1 hour');
     expect(html).not.toContain('Enter this code on the verification page');
     expect(html).not.toContain('Verify Your Email Address');
   });

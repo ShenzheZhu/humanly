@@ -19,6 +19,7 @@ import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 import { UserAISettingsModel } from '../models/user-ai-settings.model';
 import { OAuthProfile } from './oauth.service';
+import { PASSWORD_RESET_TOKEN_TTL_MS } from '../constants/auth';
 
 export class AuthService {
   private static async initializeDefaultAISettings(userId: string): Promise<void> {
@@ -392,7 +393,7 @@ export class AuthService {
 
     // Generate reset token
     const resetToken = generatePasswordResetToken();
-    const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    const resetExpires = new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MS);
 
     // Store reset token
     await UserModel.setPasswordResetToken(user.id, resetToken, resetExpires);
