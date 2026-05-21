@@ -582,7 +582,6 @@ function CTASection() {
           Open the editor <Arrow />
         </Link>
       </div>
-      <p className="mt-6 text-[13px] text-muted-foreground">Open source under MIT</p>
     </section>
   );
 }
@@ -597,7 +596,6 @@ function Footer() {
         <div className="flex flex-wrap gap-5 text-xs font-medium text-muted-foreground">
           <Link href="/privacy" className="hover:text-foreground">Privacy</Link>
           <Link href="/terms" className="hover:text-foreground">Terms</Link>
-          <span>Open source under MIT</span>
         </div>
       </div>
     </footer>
