@@ -94,9 +94,6 @@ export default function HomePage() {
             <Link href="/register" className="humanly-landing-btn">
               Start writing <Arrow />
             </Link>
-            <Link href="/login" className="humanly-landing-btn-ghost">
-              Sign in
-            </Link>
           </div>
         </div>
 
@@ -126,13 +123,6 @@ function NavBar() {
       </nav>
 
       <div className="flex items-center gap-3 justify-self-end">
-        <a
-          href="https://github.com/ShenzheZhu/humanly"
-          className="hidden items-center gap-2 rounded-full border border-[rgba(20,22,26,0.10)] px-3 py-1.5 text-[13px] font-medium text-muted-foreground sm:inline-flex"
-        >
-          <GitHubMark />
-          <span>Open source</span>
-        </a>
         <Link href="/login" className="hidden text-sm font-medium text-muted-foreground hover:text-foreground sm:inline">
           Log in
         </Link>
@@ -519,14 +509,6 @@ function PlusIcon() {
   return (
     <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
       <path d="M5 0v10M0 5h10" stroke="currentColor" strokeWidth="1.4" />
-    </svg>
-  );
-}
-
-function GitHubMark() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38l-.01-1.49c-2.23.48-2.7-.94-2.7-.94-.36-.92-.89-1.17-.89-1.17-.73-.5.06-.49.06-.49.8.06 1.23.83 1.23.83.72 1.23 1.88.87 2.34.67.07-.52.28-.87.5-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.7 7.7 0 0 1 4 0c1.53-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.74.54 1.49l-.01 2.2c0 .22.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
     </svg>
   );
 }
