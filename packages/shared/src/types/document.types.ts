@@ -151,6 +151,7 @@ export interface DocumentEventQueryFilters {
 export type DocumentEventTimelineItemKind =
   | 'typing_burst'
   | 'line_break'
+  | 'ai_insert'
   | 'replace'
   | 'paste'
   | 'delete'

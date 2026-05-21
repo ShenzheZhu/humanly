@@ -510,6 +510,89 @@ describe('buildDocumentEventTimeline', () => {
     expect(timeline.summary.deletedCharacters).toBe(0);
   });
 
+  it('shows AI chat insertion as a primary AI insert item', () => {
+    const timeline = buildDocumentEventTimeline([
+      event({
+        id: 'ai-insert-chat-1',
+        eventType: 'ai_insert_from_chat',
+        timestamp: new Date('2026-05-20T12:00:00.300Z'),
+        textBefore: 'Intro text.',
+        textAfter: 'Intro text.AI inserted answer.',
+        cursorPosition: 30,
+        selectionStart: 11,
+        selectionEnd: 11,
+        metadata: {
+          messageId: 'message-1',
+          logId: 'log-1',
+          insertedTextLength: 19,
+        },
+      }),
+    ]);
+
+    expect(timeline.items).toHaveLength(1);
+    expect(timeline.items[0]).toMatchObject({
+      kind: 'ai_insert',
+      label: 'AI inserted text',
+      text: 'AI inserted answer.',
+      charCount: 19,
+      wordCount: 3,
+      rawEventCount: 1,
+      metadata: {
+        messageId: 'message-1',
+        logId: 'log-1',
+      },
+    });
+    expect(timeline.items[0].rawEvents[0]).toMatchObject({
+      eventType: 'ai_insert_from_chat',
+      insertedText: 'AI inserted answer.',
+    });
+  });
+
+  it('does not show the editor input mirror for AI chat insertion as typed text', () => {
+    const before = 'Intro text.';
+    const after = 'Intro text.AI inserted answer.';
+    const timeline = buildDocumentEventTimeline([
+      event({
+        id: 'input-mirror-ai-insert',
+        eventType: 'input',
+        timestamp: new Date('2026-05-20T12:00:00.300Z'),
+        textBefore: before,
+        textAfter: after,
+        cursorPosition: 30,
+        selectionStart: 11,
+        selectionEnd: 11,
+      }),
+      event({
+        id: 'ai-insert-chat-1',
+        eventType: 'ai_insert_from_chat',
+        timestamp: new Date('2026-05-20T12:00:00.350Z'),
+        textBefore: before,
+        textAfter: after,
+        cursorPosition: 30,
+        selectionStart: 11,
+        selectionEnd: 11,
+        metadata: {
+          messageId: 'message-1',
+          logId: 'log-1',
+          insertedTextLength: 19,
+        },
+      }),
+    ]);
+
+    expect(timeline.items).toHaveLength(1);
+    expect(timeline.items[0]).toMatchObject({
+      kind: 'ai_insert',
+      text: 'AI inserted answer.',
+      rawEventCount: 1,
+    });
+    expect(timeline.summary).toMatchObject({
+      rawEventTotal: 2,
+      timelineItemTotal: 1,
+      typingBursts: 0,
+      typedCharacters: 0,
+    });
+  });
+
   it('uses the best recent selection when the final selection event is noisy', () => {
     const timeline = buildDocumentEventTimeline([
       event({

@@ -10,6 +10,7 @@ const TYPING_BURST_GAP_MS = 1500;
 const DELETE_BURST_GAP_MS = 1500;
 const LINE_BREAK_GAP_MS = 1500;
 const SELECTION_DELETE_WINDOW_MS = 5000;
+const AI_INSERT_MIRROR_WINDOW_MS = 1500;
 const BOUNDARY_KEYS = new Set(['Enter', 'Tab', 'Escape']);
 const TYPING_EVENT_TYPES = new Set<EventType>(['keydown', 'input']);
 const FORMAT_EVENT_TYPES = new Set<EventType>([
@@ -145,6 +146,48 @@ function getTextDelta(event: DocumentEvent): TextDelta {
   }
 
   return { insertedText: '', deletedText: '' };
+}
+
+function hasSameTextSnapshot(a: DocumentEvent, b: DocumentEvent): boolean {
+  return (
+    typeof a.textBefore === 'string' &&
+    typeof a.textAfter === 'string' &&
+    a.textBefore === b.textBefore &&
+    a.textAfter === b.textAfter
+  );
+}
+
+function isMirroredAIInsertTypingEvent(
+  event: DocumentEvent,
+  aiInsertEvents: DocumentEvent[]
+): boolean {
+  if (!TYPING_EVENT_TYPES.has(event.eventType)) return false;
+
+  const delta = getTextDelta(event);
+  if (!delta.insertedText || delta.deletedText) return false;
+
+  return aiInsertEvents.some((aiEvent) => {
+    if (!sameSession(event.sessionId, aiEvent.sessionId)) return false;
+    if (Math.abs(timestampMs(event.timestamp) - timestampMs(aiEvent.timestamp)) > AI_INSERT_MIRROR_WINDOW_MS) {
+      return false;
+    }
+
+    const aiDelta = getTextDelta(aiEvent);
+    if (!aiDelta.insertedText || aiDelta.deletedText) return false;
+
+    return (
+      delta.insertedText === aiDelta.insertedText &&
+      event.cursorPosition === aiEvent.cursorPosition &&
+      hasSameTextSnapshot(event, aiEvent)
+    );
+  });
+}
+
+function filterMirroredAIInsertTypingEvents(events: DocumentEvent[]): DocumentEvent[] {
+  const aiInsertEvents = events.filter((event) => event.eventType === 'ai_insert_from_chat');
+  if (aiInsertEvents.length === 0) return events;
+
+  return events.filter((event) => !isMirroredAIInsertTypingEvent(event, aiInsertEvents));
 }
 
 function getSelectedText(event: DocumentEvent | null): string {
@@ -607,6 +650,30 @@ function makeSingleItem(
   };
 }
 
+function makeAIInsertItem(event: DocumentEvent, delta: TextDelta): DocumentEventTimelineItem {
+  const insertedText =
+    delta.insertedText ||
+    (typeof event.metadata?.insertedText === 'string' ? event.metadata.insertedText : '');
+
+  return {
+    id: `ai-insert-${event.id}`,
+    kind: 'ai_insert',
+    label: 'AI inserted text',
+    timestamp: event.timestamp,
+    startTimestamp: event.timestamp,
+    endTimestamp: event.timestamp,
+    sessionId: event.sessionId,
+    text: insertedText,
+    charCount: insertedText.length || undefined,
+    wordCount: insertedText ? countWords(insertedText) : undefined,
+    cursorStart: event.selectionStart,
+    cursorEnd: event.cursorPosition,
+    rawEventCount: 1,
+    rawEvents: [makeRawEvent(event, delta)],
+    metadata: event.metadata,
+  };
+}
+
 function summarize(items: DocumentEventTimelineItem[], rawEventTotal: number) {
   return items.reduce(
     (summary, item) => {
@@ -640,7 +707,9 @@ export function buildDocumentEventTimeline(
   events: DocumentEvent[],
   rawEventTotal = events.length
 ): DocumentEventTimelineResponse {
-  const chronologicalEvents = [...events].sort(compareEventsAscending);
+  const chronologicalEvents = filterMirroredAIInsertTypingEvents(
+    [...events].sort(compareEventsAscending)
+  );
 
   const items: DocumentEventTimelineItem[] = [];
   let openGroup: OpenGroup | null = null;
@@ -660,7 +729,18 @@ export function buildDocumentEventTimeline(
     if (isReplaceEvent(event, delta)) {
       flushGroup();
       recentSelectionEvents = [];
-      items.push(makeReplaceItem(event, delta));
+      items.push(
+        event.eventType === 'ai_insert_from_chat'
+          ? makeAIInsertItem(event, delta)
+          : makeReplaceItem(event, delta)
+      );
+      continue;
+    }
+
+    if (event.eventType === 'ai_insert_from_chat') {
+      flushGroup();
+      recentSelectionEvents = [];
+      items.push(makeAIInsertItem(event, delta));
       continue;
     }
 

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { format } from 'date-fns';
 
 import DocumentEditorPage from '@/app/documents/[id]/page';
 import DocumentLogsPage from '@/app/logs/[id]/page';
@@ -971,6 +972,39 @@ describe('editor and logs workflows', () => {
     expect(screen.getByText('Am I okay?')).toBeInTheDocument();
   });
 
+  it('shows AI chat insertions as primary timeline rows', async () => {
+    mockTimelineItems = [
+      {
+        id: 'ai-insert-1',
+        kind: 'ai_insert',
+        label: 'AI inserted text',
+        timestamp: '2026-05-14T12:00:03.000Z',
+        startTimestamp: '2026-05-14T12:00:03.000Z',
+        endTimestamp: '2026-05-14T12:00:03.000Z',
+        text: 'AI inserted answer.',
+        charCount: 19,
+        wordCount: 3,
+        rawEventCount: 1,
+        rawEvents: [
+          {
+            id: 'ai-raw-1',
+            eventType: 'ai_insert_from_chat',
+            timestamp: '2026-05-14T12:00:03.000Z',
+            insertedText: 'AI inserted answer.',
+            cursorPosition: 42,
+          },
+        ],
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByText('AI inserted')).toBeInTheDocument();
+    expect(screen.getByText('"AI inserted answer."')).toBeInTheDocument();
+    expect(screen.getByText('3 words · 19 chars')).toBeInTheDocument();
+    expect(screen.queryByText('ai_insert_from_chat')).not.toBeInTheDocument();
+  });
+
   it('keeps AI logs in the grouped logs timeline', async () => {
     mockAiLogs = [
       {
@@ -993,6 +1027,25 @@ describe('editor and logs workflows', () => {
     fireEvent.click(screen.getByRole('row', { name: /chat what does this paragraph mean/i }));
 
     expect(await screen.findByText('It explains the core argument.')).toBeInTheDocument();
+  });
+
+  it('treats timezone-less AI log timestamps as UTC before displaying local time', async () => {
+    mockAiLogs = [
+      {
+        id: 'ai-log-naive-time',
+        queryType: 'other',
+        query: 'When was this sent?',
+        response: 'The timestamp is normalized.',
+        timestamp: '2026-05-14T16:00:02.000',
+        status: 'success',
+        modificationsApplied: false,
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    const expectedLocalTime = format(new Date('2026-05-14T16:00:02.000Z'), 'HH:mm:ss');
+    expect(await screen.findByRole('row', { name: new RegExp(`${expectedLocalTime}.*Chat`) })).toBeInTheDocument();
   });
 
   it('does not expand discarded AI quick actions', async () => {

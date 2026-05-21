@@ -343,11 +343,13 @@ function AIBridgePlugin({
     let selectionStart = 0;
     let selectionEnd = 0;
     let cursorPosition = 0;
+    let textBefore = '';
+    let textAfter = '';
     let inserted = true;
 
     editor.update(() => {
       const root = $getRoot();
-      const textBefore = root.getTextContent();
+      textBefore = root.getTextContent();
       const selection = $getSelection();
 
       if (shouldBlockTextInsertion(text, maxCharacters)) {
@@ -378,6 +380,7 @@ function AIBridgePlugin({
         root.append(paragraph);
       }
 
+      textAfter = root.getTextContent();
     }, { discrete: true });
 
     editorStateAfter = editor.getEditorState().toJSON();
@@ -387,6 +390,8 @@ function AIBridgePlugin({
       selectionStart,
       selectionEnd,
       cursorPosition,
+      textBefore,
+      textAfter,
       inserted,
       editorStateBefore,
       editorStateAfter,

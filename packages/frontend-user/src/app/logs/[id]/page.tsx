@@ -39,6 +39,7 @@ const EMPTY_SUMMARY: DocumentEventTimelineSummary = {
 const WRITING_TIMELINE_KINDS = new Set<DocumentEventTimelineItem['kind']>([
   'typing_burst',
   'line_break',
+  'ai_insert',
   'replace',
   'paste',
   'delete',
@@ -51,6 +52,7 @@ const LINE_BREAK_COLLAPSE_THRESHOLD = 4;
 const TIMELINE_COLORS: Partial<Record<DocumentEventTimelineItem['kind'], string>> = {
   typing_burst: 'bg-teal-100 text-teal-800',
   line_break: 'bg-sky-100 text-sky-800',
+  ai_insert: 'bg-violet-100 text-violet-800',
   replace: 'bg-indigo-100 text-indigo-800',
   paste: 'bg-yellow-100 text-yellow-800',
   delete: 'bg-red-100 text-red-800',
@@ -59,6 +61,7 @@ const TIMELINE_COLORS: Partial<Record<DocumentEventTimelineItem['kind'], string>
 const TIMELINE_ICONS: Partial<Record<DocumentEventTimelineItem['kind'], JSX.Element>> = {
   typing_burst: <Type className="h-3 w-3" />,
   line_break: <CornerDownLeft className="h-3 w-3" />,
+  ai_insert: <Sparkles className="h-3 w-3" />,
   replace: <RefreshCw className="h-3 w-3" />,
   paste: <Copy className="h-3 w-3" />,
   delete: <Trash2 className="h-3 w-3" />,
@@ -168,6 +171,23 @@ function formatTimeRange(item: DocumentEventTimelineItem) {
   const startText = format(start, 'HH:mm:ss');
   const endText = format(end, 'HH:mm:ss');
   return startText === endText ? startText : `${startText} - ${endText}`;
+}
+
+function hasExplicitTimezone(value: string) {
+  return /(?:z|[+-]\d{2}:?\d{2})$/i.test(value.trim());
+}
+
+function parseAILogTimestamp(value: string | Date) {
+  if (value instanceof Date) return value;
+  const trimmed = String(value).trim();
+  if (!trimmed) return new Date(value);
+
+  const normalized = trimmed.includes('T') ? trimmed : trimmed.replace(' ', 'T');
+  return new Date(hasExplicitTimezone(normalized) ? normalized : `${normalized}Z`);
+}
+
+function formatAILogTime(value: string | Date) {
+  return format(parseAILogTimestamp(value), 'HH:mm:ss');
 }
 
 function normalizeVisibleText(text?: string) {
@@ -330,6 +350,10 @@ function renderTimelineDetail(item: DocumentEventTimelineItem) {
     return renderReplacePreview(item);
   }
 
+  if (item.kind === 'ai_insert') {
+    return renderTextPreview(item.text, 'AI inserted text');
+  }
+
   if (item.kind === 'paste') {
     return renderTextPreview(item.text, '');
   }
@@ -347,6 +371,7 @@ function getTimelineActivityLabel(item: DocumentEventTimelineItem) {
   if (item.kind === 'line_break') {
     return getTimelineLineBreakCount(item) > 1 ? 'Blank line' : 'Line break';
   }
+  if (item.kind === 'ai_insert') return 'AI inserted';
   if (item.kind === 'replace') return 'Replaced';
   if (item.kind === 'paste') return 'Pasted';
   if (item.kind === 'delete') {
@@ -399,7 +424,7 @@ function canExpandTimelineText(item: DocumentEventTimelineItem) {
     );
   }
 
-  if (item.kind !== 'paste' && item.kind !== 'delete') return false;
+  if (item.kind !== 'paste' && item.kind !== 'delete' && item.kind !== 'ai_insert') return false;
   return normalizeVisibleText(item.text).length > LONG_TEXT_PREVIEW_THRESHOLD;
 }
 
@@ -417,6 +442,7 @@ function getTimelineTextPreview(item: DocumentEventTimelineItem) {
 
 function getFullTextHeader(item: DocumentEventTimelineItem) {
   if (item.kind === 'replace') return 'Replaced text';
+  if (item.kind === 'ai_insert') return 'AI inserted text';
   if (item.kind === 'paste') return 'Pasted text';
   if (item.kind === 'delete' && item.metadata?.deleteScope === 'all_text') return 'Deleted all text';
   if (item.kind === 'delete') return 'Deleted text';
@@ -711,16 +737,20 @@ export default function DocumentLogsPage() {
           item,
         };
       }),
-      ...visibleAILogs.map((log) => ({
-        kind: 'primary' as const,
-        timestamp: log.timestamp,
-        item: {
-          kind: 'ai' as const,
-          id: log.id,
-          timestamp: log.timestamp,
-          log,
-        },
-      })),
+      ...visibleAILogs.map((log) => {
+        const timestamp = parseAILogTimestamp(log.timestamp);
+
+        return {
+          kind: 'primary' as const,
+          timestamp,
+          item: {
+            kind: 'ai' as const,
+            id: log.id,
+            timestamp,
+            log,
+          },
+        };
+      }),
     ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
     const displayItems: TimelineDisplayItem[] = [];
@@ -995,7 +1025,7 @@ export default function DocumentLogsPage() {
                                 <ChevronRight className="h-3 w-3" />
                               )
                             )}
-                            {format(new Date(log.timestamp), 'HH:mm:ss')}
+                            {formatAILogTime(log.timestamp)}
                           </div>
                         </td>
                         <td className="px-4 py-3">
