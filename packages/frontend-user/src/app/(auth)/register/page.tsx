@@ -146,9 +146,11 @@ export default function RegisterPage() {
 
   if (registrationSuccess) {
     return (
-      <Card>
+      <Card className="border-border bg-white shadow-none humanly-panel-shadow">
         <CardHeader>
-          <CardTitle className="text-center">Registration Successful!</CardTitle>
+          <CardTitle className="text-center text-2xl font-bold tracking-normal">
+            Registration Successful!
+          </CardTitle>
           <CardDescription className="text-center">
             Write with AI. Prove your process.
           </CardDescription>
@@ -180,9 +182,11 @@ export default function RegisterPage() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Create an account</CardTitle>
+    <Card className="border-border bg-white shadow-none humanly-panel-shadow">
+      <CardHeader className="text-center">
+        <CardTitle className="text-2xl font-bold tracking-normal">
+          Create an account
+        </CardTitle>
         <CardDescription>
           Enter your information to {getBrandText().createAccount}
         </CardDescription>
@@ -207,6 +211,7 @@ export default function RegisterPage() {
                   <FormControl>
                     <Input
                       placeholder="John Doe"
+                      className="h-11 rounded-lg"
                       {...field}
                       disabled={isLoading}
                     />
@@ -226,6 +231,7 @@ export default function RegisterPage() {
                     <Input
                       type="email"
                       placeholder="name@example.com"
+                      className="h-11 rounded-lg"
                       {...field}
                       disabled={isLoading}
                     />
@@ -246,6 +252,7 @@ export default function RegisterPage() {
                       <Input
                         type={showPassword ? 'text' : 'password'}
                         placeholder="Enter your password"
+                        className="h-11 rounded-lg pr-10"
                         {...field}
                         disabled={isLoading}
                       />
@@ -300,6 +307,7 @@ export default function RegisterPage() {
                       <Input
                         type={showConfirmPassword ? 'text' : 'password'}
                         placeholder="Confirm your password"
+                        className="h-11 rounded-lg pr-10"
                         {...field}
                         disabled={isLoading}
                       />
@@ -361,7 +369,11 @@ export default function RegisterPage() {
               )}
             />
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="h-11 w-full rounded-full font-bold"
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

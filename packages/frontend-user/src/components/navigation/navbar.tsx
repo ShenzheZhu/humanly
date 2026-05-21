@@ -4,8 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { LogOut, User, Menu } from 'lucide-react';
-import { BRAND } from '@humanly/shared';
 import { Button } from '@/components/ui/button';
+import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,9 +45,8 @@ export function Navbar() {
       <div className={containerClass}>
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
-            <Link href="/documents" className="flex items-center gap-2 text-xl font-bold">
-              <img src="/humanly.svg" alt={BRAND.name} className="h-8 w-8" />
-              {BRAND.name}
+            <Link href="/documents" className="flex items-center">
+              <HumanlyWordmark size="sm" cursor={false} />
             </Link>
           </div>
 
