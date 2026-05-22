@@ -89,6 +89,72 @@ describe('testConnection', () => {
     }));
   });
 
+  it('authenticates OpenRouter keys against OpenRouter before returning the curated list', async () => {
+    mockFetchJson({
+      data: {
+        label: 'Humanly OpenRouter key',
+      },
+    });
+
+    const req = makeReq({
+      body: { apiKey: 'sk-or-test', baseUrl: 'https://openrouter.ai/api/v1' },
+    });
+    const res = makeRes();
+
+    await testConnection(req, res);
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://openrouter.ai/api/v1/key',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer sk-or-test',
+        }),
+      }),
+    );
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: true,
+      message: 'Connection successful. Found 8 supported models.',
+      models: expect.arrayContaining([
+        'qwen/qwen3.5-397b-a17b',
+        'anthropic/claude-sonnet-4.6',
+      ]),
+    }));
+  });
+
+  it('rejects non-OpenRouter keys when the selected provider is OpenRouter', async () => {
+    mockFetchJson({
+      error: {
+        message: 'Missing Authentication header',
+      },
+    }, false, 401);
+
+    const req = makeReq({
+      body: { apiKey: 'tgp_wrong_provider', baseUrl: 'https://openrouter.ai/api/v1' },
+    });
+    const res = makeRes();
+
+    await testConnection(req, res);
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://openrouter.ai/api/v1/key',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer tgp_wrong_provider',
+        }),
+      }),
+    );
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: false,
+      message: expect.stringContaining('OpenRouter authentication failed'),
+    }));
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      message: expect.stringContaining('Use an OpenRouter API key'),
+    }));
+  });
+
   it('uses raw provider models only for unknown OpenAI-compatible providers', async () => {
     mockFetchJson({
       data: [

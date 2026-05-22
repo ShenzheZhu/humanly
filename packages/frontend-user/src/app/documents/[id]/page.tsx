@@ -921,9 +921,8 @@ export default function DocumentEditorPage() {
     taskInstructionFile;
   const displayFile = selectedInstructionFile || linkedFile;
   const aiEnabled = currentEnvironmentConfig.aiAccess !== 'off';
-  const lockedTaskModel = taskEnrollment
-    ? currentEnvironmentConfig.allowedModels?.[0] || 'Task model'
-    : undefined;
+  const lockedAiModel = currentEnvironmentConfig.allowedModels?.[0] || (taskEnrollment ? 'Task model' : undefined);
+  const lockedAiBaseUrl = currentEnvironmentConfig.aiProvider?.baseUrl;
 
   const handleExportConfig = () => {
     const blob = new Blob(
@@ -1265,7 +1264,8 @@ export default function DocumentEditorPage() {
                       documentId={documentId}
                       onClose={closeAIPanel}
                       taskManaged={!!taskEnrollment}
-                      lockedModel={lockedTaskModel}
+                      lockedModel={lockedAiModel}
+                      lockedBaseUrl={lockedAiBaseUrl}
                       insertAtCursor={!isEditorReadOnly && editorInsertAtCursor ? handleInsertAssistantMessage : null}
                     />
                   </div>

@@ -30,6 +30,10 @@ export const writingEnvironmentConfigSchema = z.object({
     editableAfterSubmission: z.boolean(),
   }),
   aiAccess: z.enum(['off', 'readonly', 'full']),
+  aiProvider: z.object({
+    provider: z.enum(['together', 'openrouter', 'custom']),
+    baseUrl: z.string().url(),
+  }).optional(),
   allowedModels: z.array(z.string().min(1).max(100)).max(20),
   customModels: z.array(z.string().min(1).max(100)).max(20).optional(),
   aiTokenBudget: z.object({

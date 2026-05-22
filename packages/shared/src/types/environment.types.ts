@@ -5,6 +5,12 @@ export type WritingLateSubmissionPolicy = 'allowed' | 'not_allowed';
 export type WritingSubmissionMode = 'single' | 'multiple';
 export type CopyPastePolicy = 'allowed' | 'blocked';
 export type WritingEnvironmentPreset = 'default_writing' | 'no_ai' | 'ai_assisted' | 'timed_writing' | 'custom';
+export type WritingAiProvider = 'together' | 'openrouter' | 'custom';
+
+export interface WritingAiProviderConfig {
+  provider: WritingAiProvider;
+  baseUrl: string;
+}
 
 export interface WritingAiTokenBudget {
   shortcutMaxTokens?: number;
@@ -20,6 +26,7 @@ export interface WritingEnvironmentConfig {
     editableAfterSubmission: boolean;
   };
   aiAccess: WritingAiAccess;
+  aiProvider?: WritingAiProviderConfig;
   allowedModels: string[];
   customModels?: string[];
   aiTokenBudget?: WritingAiTokenBudget;

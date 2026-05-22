@@ -182,6 +182,10 @@ describe('document creation workflow', () => {
 
     const environmentJson = JSON.stringify({
       aiAccess: 'full',
+      aiProvider: {
+        provider: 'openrouter',
+        baseUrl: 'https://openrouter.ai/api/v1',
+      },
       allowedModels: ['qwen/qwen3.5-397b-a17b'],
       traceability: { trackAiUsage: true },
     });
@@ -262,8 +266,59 @@ describe('document creation workflow', () => {
     await user.click(await screen.findByRole('option', { name: 'OpenRouter' }));
     await user.click(screen.getByRole('button', { name: /test connection/i }));
 
+    expect(mockApiPost).toHaveBeenCalledWith('/ai/settings/test', expect.objectContaining({
+      apiKey: 'sk-or-test',
+      baseUrl: 'https://openrouter.ai/api/v1',
+    }));
     expect(await screen.findByText('qwen/qwen3.5-397b-a17b')).toBeInTheDocument();
     expect(screen.queryByText('qwen/qwen-plus-2025-07-28')).not.toBeInTheDocument();
+  });
+
+  it('persists the selected provider with the environment JSON config', async () => {
+    const user = userEvent.setup();
+    mockCreateDocument.mockResolvedValueOnce({ id: 'doc-456', title: 'Provider-bound Writing' });
+    const connectionSuccess = {
+      data: {
+        success: true,
+        message: 'Connection successful.',
+        models: ['qwen/qwen3.5-397b-a17b'],
+      },
+    };
+    mockApiPost
+      .mockResolvedValueOnce(connectionSuccess)
+      .mockResolvedValueOnce(connectionSuccess);
+
+    render(<NewDocumentPage />);
+
+    await screen.findByRole('heading', { name: /create writing/i });
+    await user.type(screen.getByLabelText(/document name/i), 'Provider-bound Writing');
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
+    await user.click(await screen.findByRole('option', { name: 'Custom' }));
+    await user.click(screen.getByRole('combobox', { name: /ai access/i }));
+    await user.click(await screen.findByRole('option', { name: 'AI On' }));
+    await user.type(screen.getByLabelText(/ai api key/i), 'sk-or-test');
+    await user.click(screen.getByRole('combobox', { name: /ai provider/i }));
+    await user.click(await screen.findByRole('option', { name: 'OpenRouter' }));
+    await user.click(screen.getByRole('button', { name: /test connection/i }));
+    await screen.findByText('Connection successful.');
+    await user.click(screen.getByRole('button', { name: /^done$/i }));
+    await user.click(screen.getByRole('button', { name: /^create writing$/i }));
+
+    await waitFor(() => {
+      expect(mockCreateDocument).toHaveBeenCalledWith(
+        'Provider-bound Writing',
+        undefined,
+        expect.objectContaining({
+          aiAccess: 'full',
+          aiProvider: {
+            provider: 'openrouter',
+            baseUrl: 'https://openrouter.ai/api/v1',
+          },
+          allowedModels: ['qwen/qwen3.5-397b-a17b'],
+        }),
+        '',
+      );
+    });
   });
 
   it('requires and auto-tests an AI key before closing custom settings with AI on', async () => {

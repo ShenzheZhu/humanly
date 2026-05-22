@@ -17,6 +17,55 @@ type ProviderModelsResponse =
       message?: string;
     };
 
+type ProviderAuthResponse = {
+  data?: unknown;
+  error?: { message?: string };
+  message?: string;
+};
+
+async function readProviderErrorMessage(response: globalThis.Response): Promise<string> {
+  const contentType = response.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    const body = await response.json().catch(() => null) as ProviderAuthResponse | null;
+    return body?.error?.message || body?.message || `API returned ${response.status}`;
+  }
+
+  const text = await response.text().catch(() => '');
+  return text.trim() || `API returned ${response.status}`;
+}
+
+async function validateProviderCredentials(
+  normalizedUrl: string,
+  hostname: string,
+  apiKey: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (hostname !== 'openrouter.ai') {
+    return { ok: true };
+  }
+
+  // OpenRouter's model catalog can be reachable even when the key does not
+  // belong to OpenRouter. The /key endpoint validates the bearer credential
+  // itself, so use it before returning the curated OpenRouter model list.
+  const response = await fetch(`${normalizedUrl}/key`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (response.ok) {
+    return { ok: true };
+  }
+
+  const detail = await readProviderErrorMessage(response);
+  return {
+    ok: false,
+    message: `OpenRouter authentication failed. Use an OpenRouter API key for this provider. ${detail}`,
+  };
+}
+
 function parseTokenBudget(
   value: unknown,
   fallback: number
@@ -196,6 +245,30 @@ export async function testConnection(req: Request, res: Response): Promise<void>
   try {
     // Normalize base URL: remove trailing slash
     const normalizedUrl = baseUrl.replace(/\/+$/, '');
+    const whitelistedModels = getModelWhitelist(baseUrl);
+
+    const providerAuth = await validateProviderCredentials(
+      normalizedUrl,
+      parsedBaseUrl.hostname,
+      apiKey,
+    );
+    if (!providerAuth.ok) {
+      res.json({
+        success: false,
+        message: providerAuth.message,
+      });
+      return;
+    }
+
+    if (parsedBaseUrl.hostname === 'openrouter.ai' && whitelistedModels) {
+      res.json({
+        success: true,
+        message: `Connection successful. Found ${whitelistedModels.length} supported models.`,
+        models: whitelistedModels,
+      });
+      return;
+    }
+
     const modelsUrl = `${normalizedUrl}/models`;
 
     const response = await fetch(modelsUrl, {
@@ -243,7 +316,6 @@ export async function testConnection(req: Request, res: Response): Promise<void>
         .sort();
     }
 
-    const whitelistedModels = getModelWhitelist(baseUrl);
     const returnedModels = whitelistedModels || models;
     const modelSource = whitelistedModels ? 'supported' : 'available';
 
