@@ -1,11 +1,9 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { AIAssistantPanel } from '@/components/ai/ai-assistant-panel';
 
 window.HTMLElement.prototype.scrollIntoView = jest.fn();
 
 const mockApiGet = jest.fn();
-const mockApiPut = jest.fn();
 const mockStartNewChat = jest.fn();
 let mockMessages: any[] = [];
 
@@ -14,7 +12,7 @@ jest.mock('@/lib/api-client', () => ({
   default: {
     get: (...args: any[]) => mockApiGet(...args),
     post: jest.fn(),
-    put: (...args: any[]) => mockApiPut(...args),
+    put: jest.fn(),
   },
 }));
 
@@ -57,10 +55,6 @@ jest.mock('@/stores/pdf-text-store', () => ({
   usePDFTextStore: (selector: any) => selector({ getPDFText: jest.fn().mockReturnValue(null) }),
 }));
 
-jest.mock('@/components/ai/ai-settings-dialog', () => ({
-  AISettingsDialog: () => null,
-}));
-
 jest.mock('react-markdown', () => ({
   __esModule: true,
   default: ({ children }: any) => children,
@@ -77,123 +71,68 @@ beforeEach(() => {
   mockApiGet.mockResolvedValue({
     data: {
       hasApiKey: true,
-      baseUrl: 'https://openrouter.ai/api/v1',
-      model: 'qwen/qwen3.5-9b',
+      baseUrl: 'https://api.together.xyz/v1',
+      model: 'moonshotai/Kimi-K2.6',
     },
   });
-  mockApiPut.mockResolvedValue({ data: { success: true } });
   mockStartNewChat.mockResolvedValue(undefined);
 });
 
-afterEach(() => {
-  jest.restoreAllMocks();
-});
-
-describe('AIAssistantPanel model selector labels', () => {
-  it('uses explicit image+text and text only labels instead of an unexplained emoji', async () => {
+describe('AIAssistantPanel locked environment model display', () => {
+  it('shows the document-locked image+text model without exposing settings or a model selector', async () => {
     render(
       <AIAssistantPanel
         documentId="doc-1"
         onClose={jest.fn()}
+        lockedBaseUrl="https://openrouter.ai/api/v1"
+        lockedModel="qwen/qwen3.5-9b"
       />
     );
 
     await waitFor(() => expect(mockApiGet).toHaveBeenCalledWith('/ai/settings'));
 
-    const selector = await screen.findByRole('combobox');
-    expect(selector).toHaveTextContent('qwen/qwen3.5-9b (image+text)');
-    expect(selector).toHaveTextContent('deepseek/deepseek-v4-pro (text only)');
-    expect(selector.textContent).not.toContain('🖼');
-
-    expect(
-      screen.getByRole('option', { name: 'qwen/qwen3.5-9b (image+text)' }),
-    ).toHaveValue('qwen/qwen3.5-9b');
-    expect(
-      screen.getByRole('option', { name: 'deepseek/deepseek-v4-pro (text only)' }),
-    ).toHaveValue('deepseek/deepseek-v4-pro');
+    expect(await screen.findByText('AI model: qwen/qwen3.5-9b (image+text)')).toBeInTheDocument();
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('AI Settings')).not.toBeInTheDocument();
+    expect(screen.queryByText('Quick access')).not.toBeInTheDocument();
   });
 
-  it('prompts before switching from image+text to text only when image history exists', async () => {
-    const user = userEvent.setup();
-    mockMessages = [
-      {
-        id: 'message-with-image',
-        role: 'user',
-        content: 'Please describe this image.',
-        timestamp: new Date('2026-05-18T00:00:00Z'),
-        metadata: {
-          attachments: [
-            {
-              type: 'image',
-              storageKey: 'image-key',
-              mimeType: 'image/png',
-            },
-          ],
-        },
-      },
-    ];
-    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
-
+  it('uses the locked text-only model for image attachment gating', async () => {
     render(
       <AIAssistantPanel
         documentId="doc-1"
         onClose={jest.fn()}
+        lockedBaseUrl="https://openrouter.ai/api/v1"
+        lockedModel="deepseek/deepseek-v4-pro"
       />
     );
 
     await waitFor(() => expect(mockApiGet).toHaveBeenCalledWith('/ai/settings'));
 
-    await user.selectOptions(
-      await screen.findByRole('combobox'),
-      'deepseek/deepseek-v4-pro',
+    expect(await screen.findByText('AI model: deepseek/deepseek-v4-pro (text only)')).toBeInTheDocument();
+    const attachButton = screen.getByRole('button', { name: /attach image/i });
+    expect(attachButton).toBeDisabled();
+    expect(attachButton).toHaveAttribute(
+      'title',
+      '"deepseek/deepseek-v4-pro" doesn\'t accept image input',
     );
-
-    expect(confirmSpy).toHaveBeenCalledWith(
-      expect.stringContaining('"deepseek/deepseek-v4-pro" doesn\'t accept image input'),
-    );
-    await waitFor(() => expect(mockStartNewChat).toHaveBeenCalledTimes(1));
-    expect(mockApiPut).toHaveBeenCalledWith('/ai/settings', {
-      apiKey: '__use_existing__',
-      baseUrl: 'https://openrouter.ai/api/v1',
-      model: 'deepseek/deepseek-v4-pro',
-    });
   });
 
-  it('keeps the image+text model when the user cancels a text-only switch with image history', async () => {
-    const user = userEvent.setup();
-    mockMessages = [
-      {
-        id: 'message-with-image',
-        role: 'user',
-        content: 'Please describe this image.',
-        timestamp: new Date('2026-05-18T00:00:00Z'),
-        metadata: {
-          attachments: [
-            {
-              type: 'image',
-              storageKey: 'image-key',
-              mimeType: 'image/png',
-            },
-          ],
-        },
-      },
-    ];
-    jest.spyOn(window, 'confirm').mockReturnValue(false);
+  it('does not offer an in-editor settings shortcut when the user has no usable key', async () => {
+    mockApiGet.mockResolvedValueOnce({ data: { hasApiKey: false } });
 
     render(
       <AIAssistantPanel
         documentId="doc-1"
         onClose={jest.fn()}
+        lockedBaseUrl="https://openrouter.ai/api/v1"
+        lockedModel="qwen/qwen3.5-9b"
       />
     );
 
-    await waitFor(() => expect(mockApiGet).toHaveBeenCalledWith('/ai/settings'));
-
-    const selector = await screen.findByRole('combobox');
-    await user.selectOptions(selector, 'deepseek/deepseek-v4-pro');
-
-    expect(mockStartNewChat).not.toHaveBeenCalled();
-    expect(mockApiPut).not.toHaveBeenCalled();
-    expect(selector).toHaveValue('qwen/qwen3.5-9b');
+    expect(await screen.findByText('AI unavailable')).toBeInTheDocument();
+    expect(screen.getByText("This document's AI configuration is locked, but no usable API key is available.")).toBeInTheDocument();
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('AI Settings')).not.toBeInTheDocument();
   });
 });

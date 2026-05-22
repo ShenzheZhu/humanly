@@ -2008,18 +2008,23 @@ export class AIService {
       if (!settings) {
         throw new AppError(400, 'Please configure your AI settings first');
       }
-      const tokenBudget = resolveEffectiveTokenBudget(settings);
+      const model = document.environmentConfig?.allowedModels?.[0] || settings.model;
+      if (!model) {
+        throw new AppError(400, 'No AI model is configured for this document');
+      }
+      const baseUrl = document.environmentConfig?.aiProvider?.baseUrl || settings.baseUrl;
+      const tokenBudget = resolveEffectiveTokenBudget(settings, document.environmentConfig);
 
       return {
         provider: new OpenAIProvider({
           apiKey: settings.apiKey,
-          baseUrl: settings.baseUrl,
-          model: settings.model,
+          baseUrl,
+          model,
         }),
-        modelVersion: settings.model,
+        modelVersion: model,
         shortcutMaxTokens: tokenBudget.shortcutMaxTokens,
         chatMaxTokens: tokenBudget.chatMaxTokens,
-        baseUrl: settings.baseUrl,
+        baseUrl,
       };
     }
 
@@ -2043,17 +2048,18 @@ export class AIService {
       throw new AppError(400, 'No AI model is configured for this task');
     }
     const tokenBudget = resolveEffectiveTokenBudget(ownerSettings, taskConfig);
+    const baseUrl = taskConfig.aiProvider?.baseUrl || ownerSettings.baseUrl;
 
     return {
       provider: new OpenAIProvider({
         apiKey: ownerSettings.apiKey,
-        baseUrl: ownerSettings.baseUrl,
+        baseUrl,
         model,
       }),
       modelVersion: model,
       shortcutMaxTokens: tokenBudget.shortcutMaxTokens,
       chatMaxTokens: tokenBudget.chatMaxTokens,
-      baseUrl: ownerSettings.baseUrl,
+      baseUrl,
     };
   }
 

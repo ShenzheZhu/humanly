@@ -72,7 +72,7 @@ describe('testConnection', () => {
     ]);
 
     const req = makeReq({
-      body: { apiKey: 'tgp-test', baseUrl: 'https://api.together.xyz/v1' },
+      body: { apiKey: 'tgp_v1_test', baseUrl: 'https://api.together.xyz/v1' },
     });
     const res = makeRes();
 
@@ -86,6 +86,150 @@ describe('testConnection', () => {
         'deepseek-ai/DeepSeek-V4-Pro',
         'zai-org/GLM-5.1',
       ],
+    }));
+  });
+
+  it('authenticates OpenRouter keys against OpenRouter before returning the curated list', async () => {
+    mockFetchJson({
+      data: {
+        label: 'Humanly OpenRouter key',
+      },
+    });
+
+    const req = makeReq({
+      body: { apiKey: 'sk-or-test', baseUrl: 'https://openrouter.ai/api/v1' },
+    });
+    const res = makeRes();
+
+    await testConnection(req, res);
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://openrouter.ai/api/v1/key',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer sk-or-test',
+        }),
+      }),
+    );
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: true,
+      message: 'Connection successful. Found 8 supported models.',
+      models: expect.arrayContaining([
+        'qwen/qwen3.5-397b-a17b',
+        'anthropic/claude-sonnet-4.6',
+      ]),
+    }));
+  });
+
+  it('rejects non-OpenRouter keys when the selected provider is OpenRouter', async () => {
+    mockFetchJson({
+      error: {
+        message: 'No auth credentials found',
+      },
+    }, false, 401);
+
+    const req = makeReq({
+      body: { apiKey: 'tgp_wrong_provider', baseUrl: 'https://openrouter.ai/api/v1' },
+    });
+    const res = makeRes();
+
+    await testConnection(req, res);
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://openrouter.ai/api/v1/key',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer tgp_wrong_provider',
+        }),
+      }),
+    );
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: false,
+      message: expect.stringContaining('OpenRouter authentication failed'),
+    }));
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      message: expect.stringContaining('No auth credentials found'),
+    }));
+  });
+
+  it('rejects non-Together keys when the selected provider is Together AI', async () => {
+    mockFetchJson({
+      error: {
+        message: 'Invalid API key',
+      },
+    }, false, 401);
+
+    const req = makeReq({
+      body: { apiKey: 'sk-or-wrong-provider', baseUrl: 'https://api.together.xyz/v1' },
+    });
+    const res = makeRes();
+
+    await testConnection(req, res);
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://api.together.xyz/v1/models',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer sk-or-wrong-provider',
+        }),
+      }),
+    );
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: false,
+      message: expect.stringContaining('Together AI authentication failed'),
+    }));
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      message: expect.stringContaining('Invalid API key'),
+    }));
+  });
+
+  it('rejects expired provider-shaped keys based on the provider response', async () => {
+    mockFetchJson({
+      error: {
+        message: 'API key expired',
+      },
+    }, false, 401);
+
+    const req = makeReq({
+      body: { apiKey: 'sk-or-expired', baseUrl: 'https://openrouter.ai/api/v1' },
+    });
+    const res = makeRes();
+
+    await testConnection(req, res);
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://openrouter.ai/api/v1/key',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer sk-or-expired',
+        }),
+      }),
+    );
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: false,
+      message: expect.stringContaining('API key expired'),
+    }));
+  });
+
+  it('rejects known provider website URLs before probing the network', async () => {
+    const req = makeReq({
+      body: { apiKey: 'tgp_v1_test', baseUrl: 'https://www.together.ai' },
+    });
+    const res = makeRes();
+
+    await testConnection(req, res);
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: false,
+      message: expect.stringContaining('https://api.together.xyz/v1'),
     }));
   });
 
@@ -114,13 +258,17 @@ describe('testConnection', () => {
 
 describe('saveSettings', () => {
   beforeEach(() => {
+    global.fetch = jest.fn() as any;
     MockUserAISettingsModel.getByUserId.mockReset();
     MockUserAISettingsModel.upsert.mockReset();
   });
 
   it('saves configurable token budgets with an existing key', async () => {
+    mockFetchJson([
+      { id: 'moonshotai/Kimi-K2.6' },
+    ]);
     MockUserAISettingsModel.getByUserId.mockResolvedValue({
-      apiKey: 'sk-existing',
+      apiKey: 'tgp_v1_existing',
       baseUrl: 'https://api.together.xyz/v1',
       model: 'moonshotai/Kimi-K2.6',
       shortcutMaxTokens: 1024,
@@ -145,7 +293,7 @@ describe('saveSettings', () => {
 
     expect(MockUserAISettingsModel.upsert).toHaveBeenCalledWith(
       'user-1',
-      'sk-existing',
+      'tgp_v1_existing',
       'https://api.together.xyz/v1',
       'moonshotai/Kimi-K2.6',
       {
@@ -187,8 +335,11 @@ describe('saveSettings', () => {
   });
 
   it('accepts legacy response/agent token budget fields during deploy rollover', async () => {
+    mockFetchJson([
+      { id: 'moonshotai/Kimi-K2.6' },
+    ]);
     MockUserAISettingsModel.getByUserId.mockResolvedValue({
-      apiKey: 'sk-existing',
+      apiKey: 'tgp_v1_existing',
       baseUrl: 'https://api.together.xyz/v1',
       model: 'moonshotai/Kimi-K2.6',
       shortcutMaxTokens: 1024,
@@ -213,7 +364,7 @@ describe('saveSettings', () => {
 
     expect(MockUserAISettingsModel.upsert).toHaveBeenCalledWith(
       'user-1',
-      'sk-existing',
+      'tgp_v1_existing',
       'https://api.together.xyz/v1',
       'moonshotai/Kimi-K2.6',
       {
@@ -224,10 +375,67 @@ describe('saveSettings', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
   });
 
+  it('rejects saving settings when the key does not match the selected provider', async () => {
+    mockFetchJson({
+      error: {
+        message: 'Invalid API key',
+      },
+    }, false, 401);
+
+    const req = makeReq({
+      body: {
+        apiKey: 'sk-or-wrong-provider',
+        baseUrl: 'https://api.together.xyz/v1',
+        model: 'moonshotai/Kimi-K2.6',
+      },
+    });
+    const res = makeRes();
+
+    await saveSettings(req, res);
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://api.together.xyz/v1/models',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer sk-or-wrong-provider',
+        }),
+      }),
+    );
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: false,
+      error: expect.stringContaining('Together AI authentication failed'),
+    }));
+    expect(MockUserAISettingsModel.upsert).not.toHaveBeenCalled();
+  });
+
+  it('rejects saving settings when a known provider base URL is malformed', async () => {
+    const req = makeReq({
+      body: {
+        apiKey: 'tgp_v1_test',
+        baseUrl: 'https://api.together.xyz',
+        model: 'moonshotai/Kimi-K2.6',
+      },
+    });
+    const res = makeRes();
+
+    await saveSettings(req, res);
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(MockUserAISettingsModel.getByUserId).not.toHaveBeenCalled();
+    expect(MockUserAISettingsModel.upsert).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: false,
+      error: expect.stringContaining('https://api.together.xyz/v1'),
+    }));
+  });
+
   it('rejects token budgets outside the supported range', async () => {
     const req = makeReq({
       body: {
-        apiKey: 'sk-test',
+        apiKey: 'tgp_v1_test',
         baseUrl: 'https://api.together.xyz/v1',
         model: 'moonshotai/Kimi-K2.6',
         shortcutMaxTokens: 32,
@@ -243,6 +451,7 @@ describe('saveSettings', () => {
       success: false,
       error: expect.stringContaining('Token budget must be between'),
     }));
+    expect(global.fetch).not.toHaveBeenCalled();
     expect(MockUserAISettingsModel.upsert).not.toHaveBeenCalled();
   });
 });

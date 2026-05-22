@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { X, Send, Sparkles, Loader2, StopCircle, Trash2, History, ChevronDown, ChevronRight, Plus, CheckCircle, Settings, ChevronsUpDown, ImageIcon } from 'lucide-react';
+import { X, Send, Sparkles, Loader2, StopCircle, Trash2, History, ChevronDown, ChevronRight, Plus, CheckCircle, ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -13,7 +13,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { getWhitelist, modelSupportsImage } from '@/lib/ai-models';
+import { modelSupportsImage } from '@/lib/ai-models';
 import { uploadChatImage, validateChatImage } from '@/lib/ai-chat-attachments';
 import type { ChatImageAttachment } from '@humanly/shared';
 import { useAI, useAILogs } from '@/hooks/use-ai';
@@ -27,7 +27,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { MarkdownContent } from '@/components/markdown-content';
-import { AISettingsDialog } from './ai-settings-dialog';
 import { ReasoningBlock, ToolCallTimeline } from './tool-call-card';
 import api from '@/lib/api-client';
 import type { ToolCallEntry } from '@/stores/ai-store';
@@ -39,6 +38,7 @@ interface AIAssistantPanelProps {
   getSelection?: () => { text: string; start: number; end: number } | null;
   taskManaged?: boolean;
   lockedModel?: string;
+  lockedBaseUrl?: string;
   insertAtCursor?: ((text: string, source: { messageId: string; logId?: string }) => void | Promise<void>) | null;
 }
 
@@ -80,8 +80,8 @@ export function AIAssistantPanel({
   onClose,
   onApplySuggestion,
   getSelection,
-  taskManaged = false,
   lockedModel,
+  lockedBaseUrl,
   insertAtCursor,
 }: AIAssistantPanelProps) {
   const [input, setInput] = useState('');
@@ -96,32 +96,8 @@ export function AIAssistantPanel({
   const [hasAISettings, setHasAISettings] = useState<boolean | null>(null); // null = loading
   const [currentModel, setCurrentModel] = useState('');
   const [currentBaseUrl, setCurrentBaseUrl] = useState('');
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
-  const [modelSwitching, setModelSwitching] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const loadAvailableModels = useCallback(async (baseUrl?: string) => {
-    const url = baseUrl || currentBaseUrl;
-    // For known providers, use the whitelist directly without an API call.
-    const whitelist = getWhitelist(url);
-    if (whitelist) {
-      setAvailableModels(whitelist);
-      return;
-    }
-    // Unknown provider: fetch from API.
-    try {
-      const res: any = await api.post('/ai/settings/test', {
-        apiKey: '__use_existing__',
-        baseUrl: url,
-      });
-      if (res.data?.success && res.data?.models?.length > 0) {
-        setAvailableModels(res.data.models);
-      }
-    } catch {
-      // Silent fail — selector just won't show
-    }
-  }, [currentBaseUrl]);
 
   const checkAISettings = useCallback(async () => {
     try {
@@ -129,61 +105,20 @@ export function AIAssistantPanel({
       const hasKey = res.data?.hasApiKey === true;
       setHasAISettings(hasKey);
       if (hasKey) {
-        setCurrentModel(res.data.model || '');
-        setCurrentBaseUrl(res.data.baseUrl || '');
-        loadAvailableModels(res.data.baseUrl);
+        setCurrentModel(lockedModel || res.data.model || '');
+        setCurrentBaseUrl(lockedBaseUrl || res.data.baseUrl || '');
       }
     } catch {
       setHasAISettings(false);
     }
-  }, [loadAvailableModels]);
+  }, [lockedBaseUrl, lockedModel]);
 
-  // Check if user has AI settings configured + load model info
+  // Check if the user has a usable key. Model/provider are document-bound
+  // when a writing environment was configured, so the editor does not expose
+  // mutable AI settings or a model switcher.
   useEffect(() => {
-    if (taskManaged) {
-      setHasAISettings(true);
-      setCurrentModel(lockedModel || 'Task model');
-      setCurrentBaseUrl('');
-      setAvailableModels([]);
-      return;
-    }
     checkAISettings();
-  }, [taskManaged, lockedModel, checkAISettings]);
-
-  const handleModelChange = async (newModel: string) => {
-    if (!newModel || newModel === currentModel) return;
-
-    // #93 mid-session switch guard. If the conversation already contains
-    // an image attachment and the new model is text-only, refuse the
-    // switch and tell the user to start a new chat. The backend would
-    // also catch this with MODEL_CAPABILITY_MISMATCH on the next send,
-    // but blocking client-side gives a clearer message and avoids the
-    // confusing "old model is still selected" state.
-    const newSupportsImage = modelSupportsImage(currentBaseUrl, newModel);
-    if (historyHasImage && !newSupportsImage) {
-      const ok = window.confirm(
-        `"${newModel}" doesn't accept image input, but this conversation already contains image attachments.\n\n` +
-        `Switching would break the conversation. Click OK to start a new chat with "${newModel}", or Cancel to keep the current model.`,
-      );
-      if (!ok) return;
-      // Start fresh so the new model never sees the orphan image history.
-      await startNewChat();
-    }
-
-    setModelSwitching(true);
-    try {
-      await api.put('/ai/settings', {
-        apiKey: '__use_existing__',
-        baseUrl: currentBaseUrl,
-        model: newModel,
-      });
-      setCurrentModel(newModel);
-    } catch (err: any) {
-      console.error('Failed to switch model:', err);
-    } finally {
-      setModelSwitching(false);
-    }
-  };
+  }, [checkAISettings]);
 
   const {
     messages,
@@ -254,17 +189,6 @@ export function AIAssistantPanel({
     () => modelSupportsImage(currentBaseUrl, currentModel),
     [currentBaseUrl, currentModel],
   );
-  // Used to detect mid-session model switches that would drop a modality
-  // already used in the conversation history (vision → text-only with
-  // images already attached).
-  const historyHasImage = useMemo(
-    () =>
-      messages.some((m) =>
-        (m.metadata?.attachments ?? []).some((a) => a.type === 'image'),
-      ),
-    [messages],
-  );
-
   const handlePickAttachment = () => {
     setAttachmentError(null);
     fileInputRef.current?.click();
@@ -400,8 +324,6 @@ export function AIAssistantPanel({
           <span className="font-medium text-sm truncate">AI Assistant</span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {!taskManaged && <AISettingsDialog onSettingsChanged={checkAISettings} />}
-
           {/* New Chat Button */}
           <Button
             variant="ghost"
@@ -461,14 +383,13 @@ export function AIAssistantPanel({
       <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 w-full">
         <div className="p-4 space-y-4 w-full min-w-0">
           {/* No AI settings configured banner */}
-          {hasAISettings === false && !taskManaged && (
+          {hasAISettings === false && (
             <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-4 text-center">
-              <Settings className="h-8 w-8 text-amber-500 mx-auto mb-2" />
-              <h3 className="font-medium text-sm mb-1">Configure AI Settings</h3>
+              <Sparkles className="h-8 w-8 text-amber-500 mx-auto mb-2" />
+              <h3 className="font-medium text-sm mb-1">AI unavailable</h3>
               <p className="text-xs text-muted-foreground mb-3 max-w-[220px] mx-auto">
-                Set up your API key to start using the AI assistant.
+                This document's AI configuration is locked, but no usable API key is available.
               </p>
-              <AISettingsDialog onSettingsChanged={checkAISettings} />
             </div>
           )}
 
@@ -614,36 +535,9 @@ export function AIAssistantPanel({
           </div>
         )}
         {/* Quick model selector */}
-        {taskManaged && currentModel && (
+        {currentModel && (
           <div className="mb-2 rounded-lg border bg-muted/40 px-2 py-1.5 text-[11px] text-muted-foreground">
-            Task AI model: {currentModel}
-          </div>
-        )}
-
-        {!taskManaged && hasAISettings && availableModels.length > 0 && currentModel && (
-          <div className="mb-2 flex items-center gap-1.5 min-w-0">
-            <div className="relative flex-1 min-w-0">
-              <select
-                value={currentModel}
-                onChange={(e) => handleModelChange(e.target.value)}
-                disabled={modelSwitching || isStreaming}
-                className="h-7 w-full cursor-pointer appearance-none truncate rounded-lg border border-border/50 bg-muted/50 pl-2 pr-6 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
-              >
-                {availableModels.map((m) => (
-                  <option key={m} value={m}>
-                    {formatModelOptionLabel(currentBaseUrl, m)}
-                  </option>
-                ))}
-                {/* If current model not in list, add it */}
-                {!availableModels.includes(currentModel) && (
-                  <option value={currentModel}>
-                    {formatModelOptionLabel(currentBaseUrl, currentModel)}
-                  </option>
-                )}
-              </select>
-              <ChevronsUpDown className="absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
-            </div>
-            {modelSwitching && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />}
+            AI model: {formatModelOptionLabel(currentBaseUrl, currentModel)}
           </div>
         )}
         {/* Pending image attachment chips (#93). Each chip is removable

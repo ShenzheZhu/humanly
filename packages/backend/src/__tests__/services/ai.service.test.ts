@@ -1017,6 +1017,38 @@ describe('AIService.chat', () => {
     expect(body.max_tokens).toBe(3072);
   });
 
+  it('uses the document-bound provider and model for personal document chat', async () => {
+    MockDocumentModel.findByIdAndUserId.mockResolvedValue({
+      id: 'doc-1',
+      userId: 'user-1',
+      environmentConfig: {
+        aiAccess: 'full',
+        aiProvider: {
+          provider: 'openrouter',
+          baseUrl: 'https://openrouter.ai/api/v1',
+        },
+        allowedModels: ['qwen/qwen3.5-9b'],
+        aiTokenBudget: {
+          chatMaxTokens: 2048,
+        },
+      },
+    } as any);
+    MockUserAISettings.getByUserId.mockResolvedValue(makeSettings({
+      model: 'moonshotai/Kimi-K2.6',
+      baseUrl: 'https://api.together.xyz/v1',
+      chatMaxTokens: 4096,
+    }));
+    mockFetch.mockResolvedValueOnce(mockChatCompletionResponse('Document-scoped answer.'));
+
+    await AIService.chat('user-1', request as any);
+
+    const [url, options] = mockFetch.mock.calls[0];
+    const body = JSON.parse(options.body);
+    expect(url).toBe('https://openrouter.ai/api/v1/chat/completions');
+    expect(body.model).toBe('qwen/qwen3.5-9b');
+    expect(body.max_tokens).toBe(2048);
+  });
+
   it('does not disable OpenRouter reasoning for normal chat requests', async () => {
     MockUserAISettings.getByUserId.mockResolvedValue(makeSettings({
       model: 'qwen/qwen3.5-9b',
@@ -1061,6 +1093,35 @@ describe('AIService.chat', () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.model).toBe('Qwen/Qwen3.5-397B-A17B');
     expect(body.max_tokens).toBe(4096);
+  });
+
+  it('uses the task-bound provider and model for assigned document chat', async () => {
+    MockTaskModel.findBySubmissionDocument.mockResolvedValue({
+      id: 'task-1',
+      userId: 'admin-1',
+      allowedLlmModels: [],
+      environmentConfig: {
+        aiAccess: 'full',
+        aiProvider: {
+          provider: 'openrouter',
+          baseUrl: 'https://openrouter.ai/api/v1',
+        },
+        allowedModels: ['anthropic/claude-sonnet-4.6'],
+      },
+    } as any);
+    MockUserAISettings.getByUserId.mockResolvedValue(makeSettings({
+      model: 'moonshotai/Kimi-K2.6',
+      baseUrl: 'https://api.together.xyz/v1',
+    }));
+    mockFetch.mockResolvedValueOnce(mockChatCompletionResponse('Task-scoped provider answer.'));
+
+    await AIService.chat('user-1', request as any);
+
+    expect(MockUserAISettings.getByUserId).toHaveBeenCalledWith('admin-1');
+    const [url, options] = mockFetch.mock.calls[0];
+    const body = JSON.parse(options.body);
+    expect(url).toBe('https://openrouter.ai/api/v1/chat/completions');
+    expect(body.model).toBe('anthropic/claude-sonnet-4.6');
   });
 
   it('retries transient 503s on OpenAI-compatible chat completions', async () => {

@@ -22,6 +22,8 @@ import {
   normalizeCopyPastePolicy,
   type UserAISettings,
   type WritingAiAccess,
+  type WritingAiProvider,
+  type WritingAiProviderConfig,
   type WritingEnvironmentConfig,
   type WritingEnvironmentPreset,
 } from '@humanly/shared';
@@ -129,6 +131,19 @@ const parseOptionalMaxCharacters = (value: string): number | undefined => {
   return Math.min(Math.floor(parsed), SUBMISSION_MAX_CHARACTERS_MAX);
 };
 
+const isWritingAiProvider = (value: unknown): value is WritingAiProvider => (
+  value === 'together' || value === 'openrouter' || value === 'custom'
+);
+
+const getAiProviderConfigForBaseUrl = (baseUrl: string): WritingAiProviderConfig | undefined => {
+  const normalizedBaseUrl = baseUrl.trim();
+  if (!normalizedBaseUrl) return undefined;
+  return {
+    provider: getProviderValueForBaseUrl(normalizedBaseUrl),
+    baseUrl: normalizedBaseUrl,
+  };
+};
+
 const normalizeStringArray = (value: unknown, fallback: string[] = []) => (
   Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
@@ -143,12 +158,21 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
   const base = getPresetConfig('default_writing');
   const imported = value;
   const instructions = isRecord(imported.instructions) ? imported.instructions : {};
+  const aiProvider = isRecord(imported.aiProvider) ? imported.aiProvider : {};
   const aiUsageLimit = isRecord(imported.aiUsageLimit) ? imported.aiUsageLimit : {};
   const aiTokenBudget = isRecord(imported.aiTokenBudget) ? imported.aiTokenBudget : {};
   const time = isRecord(imported.time) ? imported.time : {};
   const submission = isRecord(imported.submission) ? imported.submission : {};
   const traceability = isRecord(imported.traceability) ? imported.traceability : {};
   const aiAccess = normalizeAiAccessForForm(imported.aiAccess, base.aiAccess);
+  const importedProviderBaseUrl = typeof aiProvider.baseUrl === 'string'
+    ? aiProvider.baseUrl.trim()
+    : undefined;
+  const importedProvider = isWritingAiProvider(aiProvider.provider)
+    ? aiProvider.provider
+    : importedProviderBaseUrl
+      ? getProviderValueForBaseUrl(importedProviderBaseUrl)
+      : undefined;
   const usageMode = aiUsageLimit.mode === 'time_restricted' ? 'time_restricted' : 'unlimited';
   const copyPastePolicy = normalizeCopyPastePolicy(
     typeof imported.copyPastePolicy === 'string'
@@ -162,6 +186,12 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
     preset: 'custom',
     taskType: 'personal',
     aiAccess,
+    aiProvider: importedProviderBaseUrl && importedProvider
+      ? {
+        provider: importedProvider,
+        baseUrl: importedProviderBaseUrl,
+      }
+      : undefined,
     allowedModels: aiAccess === 'off' ? [] : normalizeStringArray(imported.allowedModels, base.allowedModels),
     customModels: aiAccess === 'off' ? [] : normalizeStringArray(imported.customModels, base.customModels),
     instructions: {
@@ -224,8 +254,6 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
 const disableUnverifiedAiAccess = (config: WritingEnvironmentConfig): WritingEnvironmentConfig => ({
   ...config,
   aiAccess: 'off',
-  allowedModels: [],
-  customModels: [],
   traceability: {
     ...config.traceability,
     trackAiUsage: false,
@@ -389,9 +417,12 @@ export default function NewDocumentPage() {
       const config = disabledImportedAi
         ? disableUnverifiedAiAccess(importedConfig)
         : importedConfig;
+      if (importedConfig.aiProvider?.baseUrl) {
+        setAiBaseUrl(importedConfig.aiProvider.baseUrl);
+      }
+      syncAiModelFromEnvironment(importedConfig);
       setEnvironmentSelection('custom');
       setEnvironmentConfig(config);
-      syncAiModelFromEnvironment(config);
       setAiConnectionResult(null);
       setTestedAiModels([]);
       toast({
@@ -423,6 +454,10 @@ export default function NewDocumentPage() {
     setAiBaseUrl(nextBaseUrl);
     setAiConnectionResult(null);
     setTestedAiModels([]);
+    markCustom((current) => ({
+      ...current,
+      aiProvider: getAiProviderConfigForBaseUrl(nextBaseUrl),
+    }));
 
     if (resetModel) {
       const nextModel = getWhitelist(nextBaseUrl)?.[0] || '';
@@ -532,6 +567,14 @@ export default function NewDocumentPage() {
       });
 
       if (success) {
+        const providerConfig = getAiProviderConfigForBaseUrl(baseUrlToTest);
+        if (providerConfig) {
+          markCustom((current) => ({
+            ...current,
+            aiProvider: providerConfig,
+          }));
+        }
+
         toast({
           title: 'AI key verified',
           description: 'Connection test passed. This writing environment can use AI.',
@@ -679,6 +722,7 @@ export default function NewDocumentPage() {
 
         configToCreate = {
           ...configToCreate,
+          aiProvider: getAiProviderConfigForBaseUrl(baseUrlToSave),
           allowedModels: [selectedAiModel],
           customModels: aiModel === CUSTOM_MODEL_VALUE ? [selectedAiModel] : configToCreate.customModels,
           traceability: {
