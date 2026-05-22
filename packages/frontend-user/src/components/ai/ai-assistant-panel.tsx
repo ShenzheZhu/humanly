@@ -80,6 +80,7 @@ export function AIAssistantPanel({
   onClose,
   onApplySuggestion,
   getSelection,
+  taskManaged = false,
   lockedModel,
   lockedBaseUrl,
   insertAtCursor,
@@ -100,6 +101,13 @@ export function AIAssistantPanel({
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const checkAISettings = useCallback(async () => {
+    if (taskManaged) {
+      setHasAISettings(true);
+      setCurrentModel(lockedModel || '');
+      setCurrentBaseUrl(lockedBaseUrl || '');
+      return;
+    }
+
     try {
       const res: any = await api.get('/ai/settings');
       const hasKey = res.data?.hasApiKey === true;
@@ -111,7 +119,7 @@ export function AIAssistantPanel({
     } catch {
       setHasAISettings(false);
     }
-  }, [lockedBaseUrl, lockedModel]);
+  }, [lockedBaseUrl, lockedModel, taskManaged]);
 
   // Check if the user has a usable key. Model/provider are document-bound
   // when a writing environment was configured, so the editor does not expose

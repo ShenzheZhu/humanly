@@ -135,4 +135,21 @@ describe('AIAssistantPanel locked environment model display', () => {
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
     expect(screen.queryByTitle('AI Settings')).not.toBeInTheDocument();
   });
+
+  it('uses task-managed AI configuration without checking the guest user key', async () => {
+    render(
+      <AIAssistantPanel
+        documentId="doc-1"
+        onClose={jest.fn()}
+        taskManaged
+        lockedBaseUrl="https://openrouter.ai/api/v1"
+        lockedModel="qwen/qwen3.5-9b"
+      />
+    );
+
+    expect(await screen.findByText('AI model: qwen/qwen3.5-9b (image+text)')).toBeInTheDocument();
+    expect(mockApiGet).not.toHaveBeenCalledWith('/ai/settings');
+    expect(screen.queryByText('AI unavailable')).not.toBeInTheDocument();
+    expect(screen.queryByText("This document's AI configuration is locked, but no usable API key is available.")).not.toBeInTheDocument();
+  });
 });
