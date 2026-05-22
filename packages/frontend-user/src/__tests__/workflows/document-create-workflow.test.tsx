@@ -170,7 +170,7 @@ describe('document creation workflow', () => {
     expect(screen.queryByText('Custom Environment')).not.toBeInTheDocument();
   });
 
-  it('downgrades imported AI-on environments until an API key is added', async () => {
+  it('preserves imported AI-on environments and infers provider from known models', async () => {
     const user = userEvent.setup();
     render(<NewDocumentPage />);
 
@@ -183,10 +183,6 @@ describe('document creation workflow', () => {
 
     const environmentJson = JSON.stringify({
       aiAccess: 'full',
-      aiProvider: {
-        provider: 'openrouter',
-        baseUrl: 'https://openrouter.ai/api/v1',
-      },
       allowedModels: ['qwen/qwen3.5-397b-a17b'],
       traceability: { trackAiUsage: true },
     });
@@ -200,13 +196,16 @@ describe('document creation workflow', () => {
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
         title: 'Environment imported',
-        description: expect.stringContaining('AI was set to Off'),
+        description: 'The JSON configuration was applied to this document.',
       }));
     });
 
     expect(screen.getByText('Custom Environment')).toBeInTheDocument();
-    expect(screen.getByText('Off')).toBeInTheDocument();
-    expect(screen.queryByText('On')).not.toBeInTheDocument();
+    expect(screen.getByText('On')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^edit settings$/i }));
+    expect(screen.getByText('qwen/qwen3.5-397b-a17b')).toBeInTheDocument();
+    expect(screen.getByText('OpenRouter')).toBeInTheDocument();
   });
 
   it('does not expose or persist minimum character limits for personal writing', async () => {

@@ -138,6 +138,17 @@ const getAiProviderConfigForBaseUrl = (baseUrl: string): WritingAiProviderConfig
   };
 };
 
+const getAiProviderConfigForModel = (model: string): WritingAiProviderConfig | undefined => {
+  const normalizedModel = model.trim();
+  if (!normalizedModel) return undefined;
+
+  const provider = AI_PROVIDER_OPTIONS.find((option) => (
+    !!option.baseUrl && getWhitelist(option.baseUrl)?.includes(normalizedModel)
+  ));
+
+  return provider?.baseUrl ? getAiProviderConfigForBaseUrl(provider.baseUrl) : undefined;
+};
+
 const normalizeStringArray = (value: unknown, fallback: string[] = []) => (
   Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
@@ -173,6 +184,22 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
       ? imported.copyPastePolicy
       : base.copyPastePolicy
   );
+  const normalizedAllowedModels = aiAccess === 'off'
+    ? []
+    : normalizeStringArray(imported.allowedModels, base.allowedModels);
+  const normalizedCustomModels = aiAccess === 'off'
+    ? []
+    : normalizeStringArray(imported.customModels, base.customModels);
+  const explicitProviderConfig = importedProviderBaseUrl && importedProvider
+    ? {
+      provider: importedProvider,
+      baseUrl: importedProviderBaseUrl,
+    }
+    : undefined;
+  const modelForProvider = normalizedAllowedModels[0] || normalizedCustomModels[0] || '';
+  const aiProviderConfig = aiAccess === 'off'
+    ? undefined
+    : explicitProviderConfig || getAiProviderConfigForModel(modelForProvider);
 
   return {
     ...base,
@@ -180,14 +207,9 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
     preset: 'custom',
     taskType: 'personal',
     aiAccess,
-    aiProvider: importedProviderBaseUrl && importedProvider
-      ? {
-        provider: importedProvider,
-        baseUrl: importedProviderBaseUrl,
-      }
-      : undefined,
-    allowedModels: aiAccess === 'off' ? [] : normalizeStringArray(imported.allowedModels, base.allowedModels),
-    customModels: aiAccess === 'off' ? [] : normalizeStringArray(imported.customModels, base.customModels),
+    aiProvider: aiProviderConfig,
+    allowedModels: normalizedAllowedModels,
+    customModels: normalizedCustomModels,
     instructions: {
       ...base.instructions,
       hasInstructionPdf: typeof instructions.hasInstructionPdf === 'boolean'
@@ -244,15 +266,6 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
     copyPastePolicy,
   };
 };
-
-const disableUnverifiedAiAccess = (config: WritingEnvironmentConfig): WritingEnvironmentConfig => ({
-  ...config,
-  aiAccess: 'off',
-  traceability: {
-    ...config.traceability,
-    trackAiUsage: false,
-  },
-});
 
 export default function NewDocumentPage() {
   const router = useRouter();
@@ -399,22 +412,16 @@ export default function NewDocumentPage() {
 
     try {
       const parsed = JSON.parse(await file.text());
-      const importedConfig = normalizeImportedEnvironmentConfig(parsed);
-      const disabledImportedAi = importedConfig.aiAccess !== 'off';
-      const config = disabledImportedAi
-        ? disableUnverifiedAiAccess(importedConfig)
-        : importedConfig;
-      if (importedConfig.aiProvider?.baseUrl) {
-        setAiBaseUrl(importedConfig.aiProvider.baseUrl);
+      const config = normalizeImportedEnvironmentConfig(parsed);
+      if (config.aiProvider?.baseUrl) {
+        setAiBaseUrl(config.aiProvider.baseUrl);
       }
-      syncAiModelFromEnvironment(importedConfig);
+      syncAiModelFromEnvironment(config);
       setEnvironmentSelection('custom');
       setEnvironmentConfig(config);
       toast({
         title: 'Environment imported',
-        description: disabledImportedAi
-          ? 'The JSON configuration was applied. AI was set to Off until an API key is added.'
-          : 'The JSON configuration was applied to this document.',
+        description: 'The JSON configuration was applied to this document.',
       });
     } catch (err: any) {
       toast({
