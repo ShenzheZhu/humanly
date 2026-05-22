@@ -23,6 +23,87 @@ type ProviderAuthResponse = {
   message?: string;
 };
 
+type ProviderCredentialSuccess = {
+  ok: true;
+  modelsResponse?: ProviderModelsResponse;
+  skipCatalogProbe?: boolean;
+};
+
+type ProviderCredentialValidation =
+  | ProviderCredentialSuccess
+  | { ok: false; message: string };
+
+type ProviderCredentialRule = {
+  label: string;
+  keyPrefix?: string;
+  validate?: (
+    normalizedUrl: string,
+    apiKey: string,
+  ) => Promise<ProviderCredentialValidation>;
+};
+
+type ProviderBaseUrlGuard = {
+  matches: (url: URL) => boolean;
+  message: string;
+};
+
+const TOGETHER_AI_BASE_URL = 'https://api.together.xyz/v1';
+
+const PROVIDER_CREDENTIAL_RULES: Record<string, ProviderCredentialRule> = {
+  'openrouter.ai': {
+    label: 'OpenRouter',
+    keyPrefix: 'sk-or-',
+    validate: async (normalizedUrl, apiKey) => {
+      // OpenRouter's model catalog can be reachable even when the key does not
+      // belong to OpenRouter. The /key endpoint validates the bearer credential
+      // itself, so use it before returning the curated OpenRouter model list.
+      const response = await fetch(`${normalizedUrl}/key`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(15000),
+      });
+
+      if (response.ok) {
+        return { ok: true, skipCatalogProbe: true };
+      }
+
+      const detail = await readProviderErrorMessage(response);
+      return {
+        ok: false,
+        message: detail,
+      };
+    },
+  },
+  'api.together.xyz': {
+    label: 'Together AI',
+    keyPrefix: 'tgp_',
+    validate: async (normalizedUrl, apiKey) => {
+      const modelsResult = await fetchProviderModelsCatalog(`${normalizedUrl}/models`, apiKey);
+      if (!modelsResult.ok) {
+        return {
+          ok: false,
+          message: modelsResult.message,
+        };
+      }
+      return { ok: true, modelsResponse: modelsResult.data };
+    },
+  },
+};
+
+const PROVIDER_BASE_URL_GUARDS: ProviderBaseUrlGuard[] = [
+  {
+    matches: (url) => url.hostname.endsWith('together.ai'),
+    message: `Together AI uses the OpenAI-compatible API base URL ${TOGETHER_AI_BASE_URL}. The together.ai website URL returns HTML, not model JSON.`,
+  },
+  {
+    matches: (url) => url.hostname === 'api.together.xyz' && !url.pathname.includes('/v1'),
+    message: `Together AI base URL should include /v1: ${TOGETHER_AI_BASE_URL}`,
+  },
+];
+
 async function readProviderErrorMessage(response: globalThis.Response): Promise<string> {
   const contentType = response.headers.get('content-type') || '';
   if (contentType.includes('application/json')) {
@@ -34,19 +115,37 @@ async function readProviderErrorMessage(response: globalThis.Response): Promise<
   return text.trim() || `API returned ${response.status}`;
 }
 
-async function validateProviderCredentials(
-  normalizedUrl: string,
+function validateProviderKeyShape(
   hostname: string,
   apiKey: string,
-): Promise<{ ok: true } | { ok: false; message: string }> {
-  if (hostname !== 'openrouter.ai') {
+): { ok: true } | { ok: false; message: string } {
+  const rule = PROVIDER_CREDENTIAL_RULES[hostname];
+  if (!rule?.keyPrefix || apiKey.startsWith(rule.keyPrefix)) {
     return { ok: true };
   }
 
-  // OpenRouter's model catalog can be reachable even when the key does not
-  // belong to OpenRouter. The /key endpoint validates the bearer credential
-  // itself, so use it before returning the curated OpenRouter model list.
-  const response = await fetch(`${normalizedUrl}/key`, {
+  return {
+    ok: false,
+    message: [
+      `${rule.label} authentication failed.`,
+      `Use a valid ${rule.label} API key for this provider`,
+      `(expected prefix "${rule.keyPrefix}").`,
+    ].join(' '),
+  };
+}
+
+function validateProviderBaseUrl(url: URL): { ok: true } | { ok: false; message: string } {
+  const failedGuard = PROVIDER_BASE_URL_GUARDS.find((guard) => guard.matches(url));
+  return failedGuard
+    ? { ok: false, message: failedGuard.message }
+    : { ok: true };
+}
+
+async function fetchProviderModelsCatalog(
+  modelsUrl: string,
+  apiKey: string,
+): Promise<{ ok: true; data: ProviderModelsResponse } | { ok: false; message: string }> {
+  const response = await fetch(modelsUrl, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -55,14 +154,59 @@ async function validateProviderCredentials(
     signal: AbortSignal.timeout(15000),
   });
 
-  if (response.ok) {
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    const bodyPreview = await response.text().catch(() => '');
+    const htmlHint = bodyPreview.trim().startsWith('<!DOCTYPE') || bodyPreview.trim().startsWith('<html')
+      ? ' The endpoint returned an HTML page.'
+      : '';
+    return {
+      ok: false,
+      message: [
+        `Expected JSON from ${modelsUrl}, but received ${contentType || 'unknown content type'}.`,
+        `Check that the Base URL is an OpenAI-compatible API endpoint.${htmlHint}`,
+      ].join(' '),
+    };
+  }
+
+  const data = await response.json() as ProviderModelsResponse;
+
+  if (!response.ok) {
+    let errorMessage = `API returned ${response.status}`;
+    if (!Array.isArray(data)) {
+      errorMessage = data.error?.message || data.message || errorMessage;
+    }
+    return {
+      ok: false,
+      message: errorMessage,
+    };
+  }
+
+  return { ok: true, data };
+}
+
+async function validateProviderCredentials(
+  normalizedUrl: string,
+  hostname: string,
+  apiKey: string,
+): Promise<ProviderCredentialValidation> {
+  const rule = PROVIDER_CREDENTIAL_RULES[hostname];
+  const keyShape = validateProviderKeyShape(hostname, apiKey);
+  if (!keyShape.ok) {
+    return keyShape;
+  }
+
+  if (!rule?.validate) {
     return { ok: true };
   }
 
-  const detail = await readProviderErrorMessage(response);
+  const providerValidation = await rule.validate(normalizedUrl, apiKey);
+  if (providerValidation.ok) {
+    return providerValidation;
+  }
   return {
     ok: false,
-    message: `OpenRouter authentication failed. Use an OpenRouter API key for this provider. ${detail}`,
+    message: `${rule.label} authentication failed. Use a valid ${rule.label} API key for this provider. ${providerValidation.message}`,
   };
 }
 
@@ -111,12 +255,22 @@ export async function saveSettings(req: Request, res: Response): Promise<void> {
   }
 
   // Validate URL format
+  let parsedBaseUrl: URL;
   try {
-    new URL(baseUrl);
+    parsedBaseUrl = new URL(baseUrl);
   } catch {
     res.status(400).json({
       success: false,
       error: 'Invalid base URL format',
+    });
+    return;
+  }
+
+  const baseUrlGuard = validateProviderBaseUrl(parsedBaseUrl);
+  if (!baseUrlGuard.ok) {
+    res.status(400).json({
+      success: false,
+      error: baseUrlGuard.message,
     });
     return;
   }
@@ -159,6 +313,43 @@ export async function saveSettings(req: Request, res: Response): Promise<void> {
   );
   if (!parsedChatMaxTokens.ok) {
     res.status(400).json({ success: false, error: parsedChatMaxTokens.error });
+    return;
+  }
+
+  try {
+    const normalizedUrl = baseUrl.replace(/\/+$/, '');
+    const providerAuth = await validateProviderCredentials(
+      normalizedUrl,
+      parsedBaseUrl.hostname,
+      keyToSave,
+    );
+    if (!providerAuth.ok) {
+      res.status(400).json({
+        success: false,
+        error: providerAuth.message,
+      });
+      return;
+    }
+
+    const canUseCuratedProviderModels = providerAuth.skipCatalogProbe && whitelistedModels;
+    if (!providerAuth.modelsResponse && !canUseCuratedProviderModels) {
+      const modelsResult = await fetchProviderModelsCatalog(`${normalizedUrl}/models`, keyToSave);
+      if (!modelsResult.ok) {
+        res.status(400).json({
+          success: false,
+          error: modelsResult.message,
+        });
+        return;
+      }
+    }
+  } catch (error: any) {
+    const message = error.name === 'TimeoutError'
+      ? 'Connection timed out (15s)'
+      : error.message || 'Connection failed';
+    res.status(400).json({
+      success: false,
+      error: message,
+    });
     return;
   }
 
@@ -226,18 +417,11 @@ export async function testConnection(req: Request, res: Response): Promise<void>
     return;
   }
 
-  if (parsedBaseUrl.hostname.endsWith('together.ai')) {
+  const baseUrlGuard = validateProviderBaseUrl(parsedBaseUrl);
+  if (!baseUrlGuard.ok) {
     res.json({
       success: false,
-      message: 'Together AI uses the OpenAI-compatible API base URL https://api.together.xyz/v1. The together.ai website URL returns HTML, not model JSON.',
-    });
-    return;
-  }
-
-  if (parsedBaseUrl.hostname === 'api.together.xyz' && !parsedBaseUrl.pathname.includes('/v1')) {
-    res.json({
-      success: false,
-      message: 'Together AI base URL should include /v1: https://api.together.xyz/v1',
+      message: baseUrlGuard.message,
     });
     return;
   }
@@ -260,7 +444,7 @@ export async function testConnection(req: Request, res: Response): Promise<void>
       return;
     }
 
-    if (parsedBaseUrl.hostname === 'openrouter.ai' && whitelistedModels) {
+    if (providerAuth.skipCatalogProbe && whitelistedModels) {
       res.json({
         success: true,
         message: `Connection successful. Found ${whitelistedModels.length} supported models.`,
@@ -270,36 +454,13 @@ export async function testConnection(req: Request, res: Response): Promise<void>
     }
 
     const modelsUrl = `${normalizedUrl}/models`;
-
-    const response = await fetch(modelsUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      signal: AbortSignal.timeout(15000),
-    });
-
-    const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('application/json')) {
-      const bodyPreview = await response.text().catch(() => '');
+    const modelsResult = providerAuth.modelsResponse
+      ? { ok: true as const, data: providerAuth.modelsResponse }
+      : await fetchProviderModelsCatalog(modelsUrl, apiKey);
+    if (!modelsResult.ok) {
       res.json({
         success: false,
-        message: `Expected JSON from ${modelsUrl}, but received ${contentType || 'unknown content type'}. Check that the Base URL is an OpenAI-compatible API endpoint, for Together AI use https://api.together.xyz/v1.${bodyPreview.trim().startsWith('<!DOCTYPE') || bodyPreview.trim().startsWith('<html') ? ' The endpoint returned an HTML page.' : ''}`,
-      });
-      return;
-    }
-
-    const data = await response.json() as ProviderModelsResponse;
-
-    if (!response.ok) {
-      let errorMessage = `API returned ${response.status}`;
-      if (!Array.isArray(data)) {
-        errorMessage = data.error?.message || data.message || errorMessage;
-      }
-      res.json({
-        success: false,
-        message: errorMessage,
+        message: modelsResult.message,
       });
       return;
     }
@@ -308,7 +469,9 @@ export async function testConnection(req: Request, res: Response): Promise<void>
     // return { data: [{ id: "gpt-4o", ... }] }, while Together currently
     // returns a top-level array from /v1/models.
     let models: string[] = [];
-    const modelList = Array.isArray(data) ? data : data.data;
+    const modelList = Array.isArray(modelsResult.data)
+      ? modelsResult.data
+      : modelsResult.data.data;
     if (Array.isArray(modelList)) {
       models = modelList
         .map((m) => m.id)
