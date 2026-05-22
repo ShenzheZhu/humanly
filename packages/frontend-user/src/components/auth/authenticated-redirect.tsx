@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
 
@@ -10,32 +10,21 @@ interface AuthenticatedRedirectProps {
 
 export function AuthenticatedRedirect({ to = '/documents' }: AuthenticatedRedirectProps) {
   const router = useRouter();
-  const { checkAuth, isAuthenticated } = useAuthStore();
-  const [hasChecked, setHasChecked] = useState(false);
+  const authState = useAuthStore();
+  const { checkAuth } = authState;
   const startedRef = useRef(false);
 
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
 
-    let cancelled = false;
-
     checkAuth().finally(() => {
-      if (!cancelled) {
-        setHasChecked(true);
+      const latestAuthState = useAuthStore.getState?.() ?? authState;
+      if (latestAuthState.isAuthenticated || authState.isAuthenticated) {
+        router.replace(to);
       }
     });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [checkAuth]);
-
-  useEffect(() => {
-    if (hasChecked && isAuthenticated) {
-      router.replace(to);
-    }
-  }, [hasChecked, isAuthenticated, router, to]);
+  }, [authState, checkAuth, router, to]);
 
   return null;
 }

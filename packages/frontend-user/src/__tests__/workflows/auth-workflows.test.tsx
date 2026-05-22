@@ -20,20 +20,32 @@ jest.mock('next/navigation', () => ({
   }),
 }));
 
-jest.mock('@/stores/auth-store', () => ({
-  useAuthStore: (selector?: any) => {
+jest.mock('@/stores/auth-store', () => {
+  const getState = () => ({
+    login: mockLogin,
+    register: mockRegister,
+    resendVerificationEmail: mockResendVerificationEmail,
+    checkAuth: mockCheckAuth,
+    isAuthenticated: mockIsAuthenticated,
+    isLoading: false,
+  });
+
+  const useAuthStore = (selector?: any) => {
     const state = {
       login: mockLogin,
-        register: mockRegister,
-        resendVerificationEmail: mockResendVerificationEmail,
-        checkAuth: mockCheckAuth,
-        isAuthenticated: mockIsAuthenticated,
-        isLoading: false,
-      };
+      register: mockRegister,
+      resendVerificationEmail: mockResendVerificationEmail,
+      checkAuth: mockCheckAuth,
+      isAuthenticated: mockIsAuthenticated,
+      isLoading: false,
+    };
 
     return selector ? selector(state) : state;
-  },
-}));
+  };
+  useAuthStore.getState = getState;
+
+  return { useAuthStore };
+});
 
 jest.mock('@/lib/api-client', () => ({
   __esModule: true,

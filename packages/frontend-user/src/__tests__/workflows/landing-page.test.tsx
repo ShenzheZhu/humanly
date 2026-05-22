@@ -11,12 +11,18 @@ jest.mock('next/navigation', () => ({
   }),
 }));
 
-jest.mock('@/stores/auth-store', () => ({
-  useAuthStore: () => ({
+jest.mock('@/stores/auth-store', () => {
+  const useAuthStore = () => ({
     checkAuth: mockCheckAuth,
     isAuthenticated: false,
-  }),
-}));
+  });
+  useAuthStore.getState = () => ({
+    checkAuth: mockCheckAuth,
+    isAuthenticated: false,
+  });
+
+  return { useAuthStore };
+});
 
 describe('landing page', () => {
   beforeEach(() => {
