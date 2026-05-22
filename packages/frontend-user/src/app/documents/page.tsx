@@ -596,17 +596,20 @@ export default function DocumentsPage() {
                   expiredDetail: 'Submission opens in read-only mode.',
                 });
                 return (
-                  <Card key={`${task.id}-${task.documentId}`} className="flex h-full min-h-[18rem] transition-colors hover:border-foreground/30">
-                    <CardContent className="flex h-full flex-1 flex-col gap-3 p-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="humanly-eyebrow">
-                            Task
-                          </p>
-                          <h3 className="truncate text-lg font-semibold" title={taskName}>
-                            {taskName}
-                          </h3>
-                        </div>
+                  <Card
+                    key={`${task.id}-${task.documentId}`}
+                    className="flex h-full min-h-[18rem] p-5 transition-colors hover:border-foreground/30"
+                  >
+                    <CardContent className="flex h-full flex-1 flex-col gap-4 p-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 space-y-1">
+                        <p className="humanly-eyebrow">
+                          Task
+                        </p>
+                        <h3 className="truncate text-lg font-semibold" title={taskName}>
+                          {taskName}
+                        </h3>
+                      </div>
                         {timerState?.expired ? (
                           <Badge variant="secondary" className="shrink-0 rounded-md">Read-only</Badge>
                         ) : (
