@@ -60,6 +60,40 @@ jest.mock('@/components/ui/select', () => {
   };
 });
 
+const createAdminEnvironmentJson = (overrides: Record<string, unknown> = {}) => ({
+  preset: 'custom',
+  taskType: 'admin_assigned',
+  instructions: {
+    hasInstructionPdf: false,
+    editableAfterSubmission: false,
+  },
+  aiAccess: 'off',
+  allowedModels: [],
+  customModels: [],
+  aiTokenBudget: {
+    shortcutMaxTokens: 1024,
+    chatMaxTokens: 4096,
+  },
+  aiUsageLimit: {
+    mode: 'max_requests',
+    maxRequests: 100,
+  },
+  time: {
+    lateSubmission: 'not_allowed',
+  },
+  submission: {
+    mode: 'single',
+  },
+  traceability: {
+    trackAiUsage: false,
+    trackTyping: true,
+    trackCopyPaste: true,
+    trackFocusBlur: true,
+  },
+  copyPastePolicy: 'allowed',
+  ...overrides,
+});
+
 describe('admin new task page', () => {
   beforeEach(() => {
     jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
@@ -242,7 +276,7 @@ describe('admin new task page', () => {
     });
   });
 
-  it('imports AI-on environment JSON and preserves the inferred provider', async () => {
+  it('imports AI-on environment JSON and preserves the explicit provider', async () => {
     mockApiGet.mockResolvedValue({
       data: {
         hasApiKey: true,
@@ -282,14 +316,23 @@ describe('admin new task page', () => {
     const jsonInput = document.querySelector('input[accept="application/json,.json"]') as HTMLInputElement;
     expect(jsonInput).not.toBeNull();
 
-    const environmentJson = JSON.stringify({
+    const environmentJson = JSON.stringify(createAdminEnvironmentJson({
       aiAccess: 'full',
+      aiProvider: {
+        provider: 'openrouter',
+        baseUrl: 'https://openrouter.ai/api/v1',
+      },
       allowedModels: ['qwen/qwen3.5-397b-a17b'],
       aiUsageLimit: { mode: 'max_requests', maxRequests: 42 },
       submission: { mode: 'multiple', minCharacters: 1000 },
       copyPastePolicy: 'blocked',
-      traceability: { trackTyping: true, trackFocusBlur: true },
-    });
+      traceability: {
+        trackAiUsage: true,
+        trackTyping: true,
+        trackCopyPaste: false,
+        trackFocusBlur: true,
+      },
+    }));
     const environmentFile = new File([environmentJson], 'environment.json', { type: 'application/json' });
     Object.defineProperty(environmentFile, 'text', {
       value: async () => environmentJson,
@@ -352,5 +395,79 @@ describe('admin new task page', () => {
       model: 'qwen/qwen3.5-397b-a17b',
     }));
 
+  });
+
+  it('rejects AI-on environment JSON without an explicit provider', async () => {
+    render(<NewTaskPage />);
+
+    const importOption = await screen.findByRole('option', { name: 'Import Environment' });
+    await act(async () => {
+      fireEvent.click(importOption);
+    });
+
+    const jsonInput = document.querySelector('input[accept="application/json,.json"]') as HTMLInputElement;
+    expect(jsonInput).not.toBeNull();
+
+    const environmentJson = JSON.stringify(createAdminEnvironmentJson({
+      aiAccess: 'full',
+      allowedModels: ['qwen/qwen3.5-397b-a17b'],
+      aiUsageLimit: { mode: 'max_requests', maxRequests: 42 },
+      traceability: {
+        trackAiUsage: true,
+        trackTyping: true,
+        trackCopyPaste: true,
+        trackFocusBlur: true,
+      },
+    }));
+    const environmentFile = new File([environmentJson], 'missing-provider-environment.json', { type: 'application/json' });
+    Object.defineProperty(environmentFile, 'text', {
+      value: async () => environmentJson,
+    });
+
+    await act(async () => {
+      fireEvent.change(jsonInput, { target: { files: [environmentFile] } });
+    });
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'Invalid environment file',
+        variant: 'destructive',
+      }));
+    });
+    expect(screen.getByRole('option', { name: 'Import Environment' })).toHaveAttribute('aria-selected', 'true');
+    expect(mockApiPost).not.toHaveBeenCalledWith('/api/v1/tasks', expect.anything());
+  });
+
+  it('rejects environment JSON missing required template entries', async () => {
+    render(<NewTaskPage />);
+
+    const importOption = await screen.findByRole('option', { name: 'Import Environment' });
+    await act(async () => {
+      fireEvent.click(importOption);
+    });
+
+    const jsonInput = document.querySelector('input[accept="application/json,.json"]') as HTMLInputElement;
+    expect(jsonInput).not.toBeNull();
+
+    const environment = createAdminEnvironmentJson();
+    delete (environment as any).traceability;
+    const environmentJson = JSON.stringify(environment);
+    const environmentFile = new File([environmentJson], 'incomplete-environment.json', { type: 'application/json' });
+    Object.defineProperty(environmentFile, 'text', {
+      value: async () => environmentJson,
+    });
+
+    await act(async () => {
+      fireEvent.change(jsonInput, { target: { files: [environmentFile] } });
+    });
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'Invalid environment file',
+        variant: 'destructive',
+      }));
+    });
+    expect(screen.getByRole('option', { name: 'Import Environment' })).toHaveAttribute('aria-selected', 'true');
+    expect(mockApiPost).not.toHaveBeenCalledWith('/api/v1/tasks', expect.anything());
   });
 });
