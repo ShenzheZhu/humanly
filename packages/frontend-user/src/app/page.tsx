@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { BookOpen, Check, MessageSquare, Sparkles, Wand2 } from 'lucide-react';
 import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
 
 const ink = '#1a1c20';
@@ -26,6 +27,14 @@ const toolRows = [
   { tool: 'read', detail: 'source passage', ms: '52ms' },
   { tool: 'grep', detail: '"revision"', ms: '43ms' },
   { tool: 'read', detail: 'nearby context', ms: '49ms' },
+] as const;
+
+const quickActions = [
+  { label: 'Fix grammar', Icon: Check },
+  { label: 'Improve writing', Icon: Wand2 },
+  { label: 'Simplify', Icon: BookOpen },
+  { label: 'Make formal', Icon: Sparkles },
+  { label: 'Ask AI', Icon: MessageSquare },
 ] as const;
 
 const problemCards = [
@@ -181,23 +190,31 @@ function NavBar() {
 
 function HeroComposition() {
   return (
-    <div className="relative mx-auto mt-[72px] h-[390px] w-full max-w-[1100px] sm:h-[520px] lg:h-[720px]">
+    <div
+      className="relative mx-auto mt-[72px] w-full max-w-[1100px] overflow-visible"
+      style={{ aspectRatio: '1100 / 720', containerType: 'inline-size' }}
+    >
       <div
-        className="absolute inset-0 rotate-[-0.6deg] rounded-md bg-cover bg-center"
-        style={{
-          backgroundImage: "url('/brand/monet-windmills.jpg')",
-          boxShadow:
-            '0 36px 80px -30px rgba(40,32,18,0.40), 0 0 0 8px #fbf9f1, 0 0 0 9px rgba(40,32,18,0.10)',
-        }}
-      />
+        className="absolute left-1/2 top-0 h-[720px] w-[1100px] origin-top"
+        style={{ transform: 'translateX(-50%) scale(min(1, calc(100cqw / 1100px)))' }}
+      >
+        <div
+          className="absolute inset-0 rotate-[-0.6deg] rounded-md bg-cover bg-center"
+          style={{
+            backgroundImage: "url('/brand/monet-windmills.jpg')",
+            boxShadow:
+              '0 36px 80px -30px rgba(40,32,18,0.40), 0 0 0 8px #fbf9f1, 0 0 0 9px rgba(40,32,18,0.10)',
+          }}
+        />
 
-      <div className="absolute left-1/2 top-5 z-20 w-[min(680px,78vw)] -translate-x-1/2 rotate-[0.4deg] sm:top-7 lg:left-[19.1%] lg:top-[4.2%] lg:w-[61.8%] lg:translate-x-0">
-        <HeroDocCalm />
+        <div className="absolute left-[19.1%] top-[4.2%] z-20 w-[61.8%] rotate-[0.4deg]">
+          <HeroDocCalm />
+        </div>
+
+        <AIAssistCard />
+        <TrackingCard />
+        <CertificateCard />
       </div>
-
-      <AIAssistCard />
-      <TrackingCard />
-      <CertificateCard />
     </div>
   );
 }
@@ -205,23 +222,23 @@ function HeroComposition() {
 function HeroDocCalm() {
   return (
     <div className="humanly-hover-pop overflow-hidden rounded-[14px] border border-[rgba(20,22,26,0.10)] bg-white shadow-[0_30px_80px_-30px_rgba(10,10,10,0.18)] hover:shadow-[0_38px_96px_-32px_rgba(10,10,10,0.30)]">
-      <div className="flex items-center justify-between border-b border-[rgba(20,22,26,0.05)] px-4 py-3 sm:px-[22px] sm:py-[14px]">
+      <div className="flex items-center justify-between border-b border-[rgba(20,22,26,0.05)] px-[22px] py-[14px]">
         <div className="flex gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-[#e9e6df]" />
           <span className="h-2.5 w-2.5 rounded-full bg-[#e9e6df]" />
           <span className="h-2.5 w-2.5 rounded-full bg-[#e9e6df]" />
         </div>
-        <span className="text-[10px] text-muted-foreground sm:text-xs">A draft, in progress</span>
-        <span className="inline-flex items-center gap-1.5 text-[10px] text-[#6f8a78] sm:text-xs">
+        <span className="text-xs text-muted-foreground">A draft, in progress</span>
+        <span className="inline-flex items-center gap-1.5 text-xs text-[#6f8a78]">
           <span className="h-1.5 w-1.5 rounded-full bg-current" />
           Tracking
         </span>
       </div>
 
-      <div className="grid min-h-[360px] grid-cols-1 md:min-h-[510px] md:grid-cols-[1.5fr_1fr]">
-        <div className="border-b border-[rgba(20,22,26,0.05)] p-5 md:border-b-0 md:border-r md:p-9">
+      <div className="grid min-h-[510px] grid-cols-[1.5fr_1fr]">
+        <div className="border-r border-[rgba(20,22,26,0.05)] p-9">
           <div className="mb-2 text-[11px] text-muted-foreground">Untitled draft</div>
-          <h3 className="mb-4 text-xl font-bold leading-[1.2] tracking-[-0.015em] sm:text-[22px]">
+          <h3 className="mb-4 text-[22px] font-bold leading-[1.2] tracking-[-0.015em]">
             Drafting with attention
           </h3>
           <p className="mb-3 text-[13px] leading-[1.75] text-[#2a2d33]">
@@ -230,16 +247,29 @@ function HeroDocCalm() {
             refusal{' '}
             — the writer choosing not to type yet.
           </p>
-          <p className="text-[13px] leading-[1.75] text-muted-foreground">
-            <span className="box-decoration-clone bg-[rgba(142,190,238,0.62)] px-[2px] py-[1px]">
-              Most drafts fail in this earlier moment, when the mind accepts whatever
-              language arrives first. The discipline is to wait, then to choose.
-            </span>
-          </p>
+          <div className="relative pt-11">
+            <div className="absolute left-[-6px] top-1 z-40 flex max-w-[440px] items-center gap-1.5 rounded-[9px] border border-[rgba(20,22,26,0.10)] bg-white/95 px-2 py-1.5 shadow-[0_16px_34px_-22px_rgba(20,22,26,0.55)]">
+              {quickActions.map(({ label, Icon }, index) => (
+                <div key={label} className="flex min-w-0 items-center gap-1.5">
+                  {index === 4 ? <span className="h-4 w-px bg-[rgba(20,22,26,0.12)]" /> : null}
+                  <span className="inline-flex min-w-0 items-center gap-1 whitespace-nowrap text-[8.8px] font-medium leading-none text-foreground">
+                    <Icon className="h-3 w-3 shrink-0" strokeWidth={1.8} />
+                    {label}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="text-[13px] leading-[1.75] text-muted-foreground">
+              <span className="box-decoration-clone bg-[rgba(142,190,238,0.62)] px-[2px] py-[1px]">
+                Most drafts fail in this earlier moment, when the mind accepts whatever
+                language arrives first. The discipline is to wait, then to choose.
+              </span>
+            </p>
+          </div>
           <span className="humanly-cursor-blink mt-1 inline-block h-[17px] w-0.5 bg-foreground align-text-bottom" />
         </div>
 
-        <div className="hidden flex-col bg-[#fcfcfb] md:flex">
+        <div className="flex flex-col bg-[#fcfcfb]">
           <div className="flex items-center justify-between border-b border-[rgba(20,22,26,0.05)] px-3.5 py-3">
             <span className="inline-flex items-center gap-1.5 text-[11.5px] font-bold">
               <span className="grid h-4 w-4 place-items-center rounded bg-foreground text-[9px] text-white">✦</span>
@@ -296,7 +326,7 @@ function HeroDocCalm() {
 
 function AIAssistCard() {
   return (
-    <div className="humanly-hover-pop absolute left-[2.5%] top-[33.3%] z-30 hidden w-[18.2%] min-w-[176px] rotate-[-2deg] rounded-[10px] border border-[rgba(20,22,26,0.10)] bg-white px-3.5 py-3 shadow-[0_24px_60px_-18px_rgba(20,22,26,0.40)] hover:z-50 hover:shadow-[0_32px_70px_-18px_rgba(20,22,26,0.48)] lg:block">
+    <div className="humanly-hover-pop absolute left-[2.5%] top-[33.3%] z-30 w-[18.2%] min-w-[176px] rotate-[-2deg] rounded-[10px] border border-[rgba(20,22,26,0.10)] bg-white px-3.5 py-3 shadow-[0_24px_60px_-18px_rgba(20,22,26,0.40)] hover:z-50 hover:shadow-[0_32px_70px_-18px_rgba(20,22,26,0.48)]">
       <div className="mb-2 flex items-center gap-1.5">
         <span className="grid h-[18px] w-[18px] place-items-center rounded-[5px] bg-foreground text-[10px] font-bold text-white">✦</span>
         <span className="text-[11px] font-bold">AI Assistant</span>
@@ -322,7 +352,7 @@ function AIAssistCard() {
 
 function TrackingCard() {
   return (
-    <div className="humanly-hover-pop absolute right-[2.5%] top-[9.7%] z-40 hidden w-[18.2%] min-w-[176px] rotate-[2deg] rounded-[10px] border border-[rgba(20,22,26,0.10)] bg-white px-3.5 py-3 shadow-[0_24px_50px_-18px_rgba(20,22,26,0.40)] hover:z-50 hover:shadow-[0_32px_70px_-18px_rgba(20,22,26,0.48)] lg:block">
+    <div className="humanly-hover-pop absolute right-[2.5%] top-[9.7%] z-40 w-[18.2%] min-w-[176px] rotate-[2deg] rounded-[10px] border border-[rgba(20,22,26,0.10)] bg-white px-3.5 py-3 shadow-[0_24px_50px_-18px_rgba(20,22,26,0.40)] hover:z-50 hover:shadow-[0_32px_70px_-18px_rgba(20,22,26,0.48)]">
       <div className="mb-2.5 flex justify-between">
         <span className="text-[11px] font-bold">Tracking log</span>
         <span className="text-[9px] text-muted-foreground">live</span>
@@ -348,7 +378,7 @@ function TrackingCard() {
 
 function CertificateCard() {
   return (
-    <div className="humanly-hover-pop absolute bottom-[5%] right-[3%] z-30 hidden min-h-[84px] w-[40%] rotate-[-0.8deg] grid-cols-[1fr_auto] items-center gap-3.5 rounded-[10px] border border-[rgba(20,22,26,0.10)] bg-[#fdfcf7] px-4 py-3 shadow-[0_24px_50px_-18px_rgba(20,22,26,0.40)] hover:z-50 hover:shadow-[0_32px_70px_-18px_rgba(20,22,26,0.48)] lg:grid">
+    <div className="humanly-hover-pop absolute bottom-[5%] right-[3%] z-30 grid min-h-[84px] w-[40%] rotate-[-0.8deg] grid-cols-[1fr_auto] items-center gap-3.5 rounded-[10px] border border-[rgba(20,22,26,0.10)] bg-[#fdfcf7] px-4 py-3 shadow-[0_24px_50px_-18px_rgba(20,22,26,0.40)] hover:z-50 hover:shadow-[0_32px_70px_-18px_rgba(20,22,26,0.48)]">
       <div>
         <div className="mb-1.5 flex items-center gap-1.5">
           <CertBadge />
@@ -766,19 +796,19 @@ function StepIllo2() {
 function StepIllo3() {
   return (
     <svg width="200" height="160" viewBox="0 0 200 160" aria-hidden="true">
-      <rect x="30" y="14" width="140" height="132" rx="6" fill="#fff" stroke={ink} strokeWidth="1.2" />
-      <rect x="30" y="14" width="140" height="22" fill={ink} />
-      <text x="100" y="29" textAnchor="middle" fontFamily="var(--font-space-mono)" fontSize="8" fill="#fff" letterSpacing="2">CERTIFICATE</text>
-      <rect x="46" y="48" width="108" height="5" fill={ink} />
-      <rect x="46" y="60" width="80" height="3" fill={muted} />
-      <line x1="46" y1="76" x2="154" y2="76" stroke={hairline} />
-      <g transform="translate(56 92)">
+      <rect x="14" y="14" width="172" height="132" rx="8" fill="#fff" stroke={ink} strokeWidth="1.2" />
+      <path d="M22 14H178C182.4 14 186 17.6 186 22V38H14V22C14 17.6 17.6 14 22 14Z" fill={ink} />
+      <text x="100" y="31" textAnchor="middle" fontFamily="var(--font-space-mono)" fontSize="8" fill="#fff" letterSpacing="2">CERTIFICATE</text>
+      <rect x="34" y="52" width="132" height="5" fill={ink} />
+      <rect x="34" y="64" width="96" height="3" fill={muted} />
+      <line x1="34" y1="80" x2="166" y2="80" stroke={hairline} />
+      <g transform="translate(50 102)">
         <text fontFamily="var(--font-space-mono)" fontSize="6" fill={muted}>SIGNED</text>
         <text y="12" fontFamily="var(--font-space-mono)" fontSize="12" fontWeight="600">✓</text>
       </g>
-      <g transform="translate(130 92)" stroke={ink} fill="none" strokeWidth="1">
-        <circle r="14" />
-        <circle r="10" strokeDasharray="1 2" />
+      <g transform="translate(146 104)" stroke={ink} fill="none" strokeWidth="1">
+        <circle r="18" />
+        <circle r="13" strokeDasharray="1 2" />
         <text textAnchor="middle" y="3" fontFamily="var(--font-space-mono)" fontSize="8" fontWeight="700" fill={ink} stroke="none">H</text>
       </g>
     </svg>

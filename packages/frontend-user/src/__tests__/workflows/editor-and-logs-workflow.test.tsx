@@ -1029,7 +1029,7 @@ describe('editor and logs workflows', () => {
     expect(await screen.findByText(deletedText)).toBeInTheDocument();
   });
 
-  it('shows replacement edits as previous text to new text', async () => {
+  it('shows replacement edits as before and after text', async () => {
     const replacedText =
       'Original selected paragraph with enough detail to require the lightweight full text viewer. It includes a second sentence so the preview remains compact.';
     const newText =
@@ -1061,8 +1061,8 @@ describe('editor and logs workflows', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /view full text/i }));
 
-    expect(await screen.findByText('Previous text')).toBeInTheDocument();
-    expect(screen.getByText('New text')).toBeInTheDocument();
+    expect(await screen.findByText('Before')).toBeInTheDocument();
+    expect(screen.getByText('After')).toBeInTheDocument();
     expect(screen.getByText(replacedText)).toBeInTheDocument();
     expect(screen.getByText(newText)).toBeInTheDocument();
   });
@@ -1099,8 +1099,8 @@ describe('editor and logs workflows', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /view full text/i }));
 
-    expect(await screen.findByText('Previous text')).toBeInTheDocument();
-    expect(screen.getByText('New text')).toBeInTheDocument();
+    expect(await screen.findByText('Before')).toBeInTheDocument();
+    expect(screen.getByText('After')).toBeInTheDocument();
     expect(screen.getAllByText(/I am good and I like this sentence/)).toHaveLength(2);
   });
 

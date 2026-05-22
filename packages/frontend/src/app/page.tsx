@@ -1,13 +1,12 @@
 import Link from 'next/link';
-import { BRAND } from '@humanly/shared';
+import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
 
 export default function HomePage() {
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center px-6 py-20">
       <div className="absolute top-6 left-8">
-        <Link href="/" className="flex items-center gap-2 text-xl font-bold">
-          <img src="/humanly.svg" alt={BRAND.name} className="h-8 w-8" />
-          {BRAND.name} Admin
+        <Link href="/" className="flex items-center">
+          <HumanlyWordmark admin size="md" />
         </Link>
       </div>
       <div className="z-10 max-w-5xl w-full items-center justify-between text-sm">
