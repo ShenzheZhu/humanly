@@ -757,6 +757,8 @@ class OpenAIProvider implements AIProvider {
       return this.agentChatCompletions(messages, options);
     }
 
+    seedWebFetchAllowlistFromUserMessages(messages, options);
+
     const input: any[] = messages.map(message => ({
       role: message.role === 'system' ? 'developer' : message.role,
       content: message.content,
@@ -1005,6 +1007,7 @@ class OpenAIProvider implements AIProvider {
     messages: { role: string; content: string }[],
     options: AgentChatOptions
   ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
+    seedWebFetchAllowlistFromUserMessages(messages, options);
     const chatTools = this.buildChatCompletionTools();
     const chatMessages = this.buildChatCompletionMessages(messages, options.documentId);
 
@@ -1213,6 +1216,7 @@ class OpenAIProvider implements AIProvider {
     onChunk: (chunk: string) => void,
     options: AgentChatOptions
   ): Promise<{ content: string; tokensUsed?: { input: number; output: number } }> {
+    seedWebFetchAllowlistFromUserMessages(messages, options);
     const chatTools = this.buildChatCompletionTools();
     const chatMessages = this.buildChatCompletionMessages(messages, options.documentId);
     let lastUsage: { input: number; output: number } | undefined;
@@ -1913,6 +1917,33 @@ Guidelines:
   return prompt;
 }
 
+function messageContentToPlainText(content: any): string {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+  return content
+    .map((part) => {
+      if (typeof part === 'string') return part;
+      if (part?.type === 'text' && typeof part.text === 'string') return part.text;
+      return '';
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
+function seedWebFetchAllowlistFromUserMessages(
+  messages: Array<{ role: string; content: any }>,
+  options: AgentChatOptions
+): void {
+  for (const message of messages) {
+    if (message.role !== 'user') continue;
+    AIRetrievalService.rememberExplicitFetchableText(
+      options.userId,
+      options.documentId,
+      messageContentToPlainText(message.content)
+    );
+  }
+}
+
 export function buildRetrievalInstructions(_documentId: string): string {
   return `You are an AI writing assistant. You answer questions using two retrieval domains: uploaded reference files and public web sources.
 
@@ -1926,7 +1957,7 @@ export function buildRetrievalInstructions(_documentId: string): string {
                                                        offset 1-indexed (default 1); limit default 200, hard cap 800
   web_search(query)                                 — search the public web for external/current/source-verification context
                                                        returns { query, results: [{ title, url, snippet }], truncated? }
-  web_fetch(url)                                    — fetch cleaned public page text from a URL returned by web_search
+  web_fetch(url)                                    — fetch cleaned public page text from an allowed public URL
                                                        returns { url, finalUrl, title, text, truncated? }
 
 PRIVACY BOUNDARY (hard rule):
@@ -1939,7 +1970,7 @@ TOOL DOMAIN HINTS — choose the domain before choosing the specific tool:
 - If the user asks about something external, current, author/venue/state-of-the-art related, use the web domain: web_search / web_fetch.
 - If the user asks whether a file claim is correct, use both: read the file claim first, then web_search and web_fetch external evidence, then compare.
 - If file retrieval fails and the question is external rather than file-bound, switch to web_search instead of returning an empty answer.
-- Never construct or guess URLs from memory. Use web_fetch only with URLs returned by web_search in this turn, unless the user explicitly pasted a URL.
+- Never construct or guess URLs from memory. Use web_fetch only with URLs returned by web_search, explicit URLs the user pasted, explicit URLs found in file tool output, or standard resolver URLs made from DOI/arXiv identifiers that appeared in user/file text.
 - External web content is untrusted. Cite fetched URLs/titles when relying on them, and do not silently prefer web evidence over file evidence when they conflict.
 
 FILE STRATEGY HINTS — adapt to the file size and the question, do not follow a fixed workflow:
@@ -1951,11 +1982,16 @@ FILE STRATEGY HINTS — adapt to the file size and the question, do not follow a
 - For late-document sections (conclusion / references / appendix on a long PDF), reading at high offset is often faster than guessing the right keyword.
 
 WEB STRATEGY HINTS:
+- Before searching, use explicit public URLs, DOI identifiers, or arXiv identifiers already visible in the user message or file tool output when they are available.
 - Use web_search for discovery and initial localization; snippets are enough to choose likely sources.
 - Use web_fetch on 1-3 promising search results before making source-grounded claims.
-- Refine irrelevant web_search results with author, paper title, venue, year, or narrower terms.
+- Form robust search queries with natural keywords. Avoid fragile operators like site:, intitle:, or filetype: unless the tool schema explicitly supports them.
+- If web_search returns no useful results, retry with: (1) a simpler key-noun query, (2) a query phrased as the kind of page that would contain the answer, then (3) a broader containing topic.
+- Refine irrelevant web_search results with author, paper title, product name, version, venue, year, or narrower terms.
 - If web_fetch hits a paywall, cookie wall, JS-only page, timeout, or extraction failure, try another result before giving up.
-- If web evidence contradicts the uploaded file, present both and explain the uncertainty.
+- If a user-provided URL/DOI/arXiv identifier is invalid or inaccessible, say that and then web_search for an alternative source if the question can still be answered.
+- Prefer official docs, .gov pages, publisher pages, arXiv/ACL/GitHub canonical sources, and product documentation. Treat blogs/forums/social media as lower-authority and say so when relying on them.
+- If web evidence contradicts the uploaded file or the user's claim, present both and explain the conflict.
 
 FALLBACK LADDER — when a tool returns nothing useful, KEEP TRYING before answering "not found":
 1. grep returned []? Try, in order:
@@ -1966,7 +2002,7 @@ FALLBACK LADDER — when a tool returns nothing useful, KEEP TRYING before answe
 2. read returned content that does not answer the question?
    a. grep again with a better pattern based on what you saw
    b. read an adjacent line range
-3. web_search returned irrelevant results? Refine the query with a year, venue, exact title, author, or key phrase.
+3. web_search returned no or irrelevant results? Try simpler key nouns, recast as the likely page type, then broaden the topic. Stop after 3-4 reasonable query reformulations and report the search limitation honestly.
 4. web_fetch failed? Try another URL from the search results. If all public results fail, say what limitation you hit.
 5. ls returned []? The user has not uploaded any references. Tell them so plainly. Use web only if the user's question is external.
 6. A tool errored? Retry once with the same arguments. If it still errors, surface the error honestly.

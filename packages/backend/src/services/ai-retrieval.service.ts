@@ -18,17 +18,35 @@ const COMPACT_CONTEXT_MAX_CHARS = 18000;
 const COMPACT_CONTEXT_MAX_FILES = 3;
 const WEB_SEARCH_DEFAULT_MAX_RESULTS = 5;
 const WEB_SEARCH_HARD_MAX_RESULTS = 10;
+const WEB_SEARCH_CACHE_TTL_MS = 15 * 60 * 1000;
 const WEB_FETCH_DEFAULT_MAX_CHARS = 20000;
 const WEB_FETCH_HARD_MAX_CHARS = 60000;
 const WEB_FETCH_DEFAULT_TIMEOUT_MS = 10000;
 const WEB_FETCH_HARD_TIMEOUT_MS = 20000;
 const WEB_FETCH_MAX_BYTES = 1_500_000;
 const WEB_ALLOWLIST_TTL_MS = 30 * 60 * 1000;
+const WEB_SEARCH_ENDPOINTS = [
+  { name: 'duckduckgo-html', url: 'https://html.duckduckgo.com/html' },
+  { name: 'duckduckgo-lite', url: 'https://lite.duckduckgo.com/lite/' },
+  { name: 'duckduckgo-html-legacy', url: 'https://duckduckgo.com/html/' },
+] as const;
 
 type WebSearchResult = {
   title: string;
   url: string;
   snippet: string;
+};
+
+type WebSearchCacheEntry = {
+  expiresAt: number;
+  value: {
+    query: string;
+    provider: string;
+    results: WebSearchResult[];
+    truncated: boolean;
+    cacheHit?: boolean;
+    attempts?: Array<{ provider: string; status?: number; resultCount?: number; error?: string }>;
+  };
 };
 
 function excerpt(text: string, maxLength = MAX_TEXT): string {
@@ -114,6 +132,10 @@ function decodeHtmlEntities(input: string): string {
     .replace(/&gt;/g, '>')
     .replace(/&#(\d+);/g, (_match, code) => String.fromCharCode(Number(code)))
     .replace(/&#x([0-9a-f]+);/gi, (_match, code) => String.fromCharCode(parseInt(code, 16)));
+}
+
+function normalizeSearchCacheKey(query: string, maxResults: number): string {
+  return `${query.trim().toLowerCase().replace(/\s+/g, ' ')}:${maxResults}`;
 }
 
 function stripHtml(input: string): string {
@@ -230,19 +252,30 @@ function decodeDuckDuckGoUrl(url: string): string {
 function extractDuckDuckGoResults(html: string, maxResults: number): WebSearchResult[] {
   const results: WebSearchResult[] = [];
   const seen = new Set<string>();
-  const anchorPattern = /<a(?=[^>]*class="[^"]*result__a[^"]*")[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+  const anchorPattern = /<a\b([^>]*)>([\s\S]*?)<\/a>/gi;
+  const classPattern = /\bclass\s*=\s*["']([^"']*)["']/i;
+  const hrefPattern = /\bhref\s*=\s*["']([^"']*)["']/i;
+  const isResultAnchor = (attributes: string) => {
+    const className = classPattern.exec(attributes)?.[1] || '';
+    return /\b(result__a|result-link)\b/.test(className);
+  };
   let match: RegExpExecArray | null;
 
   while ((match = anchorPattern.exec(html)) !== null) {
     if (results.length >= maxResults) break;
-    const url = decodeDuckDuckGoUrl(decodeHtmlEntities(match[1]));
+    const attributes = match[1] || '';
+    if (!isResultAnchor(attributes)) continue;
+
+    const rawHref = hrefPattern.exec(attributes)?.[1] || '';
+    const url = decodeDuckDuckGoUrl(decodeHtmlEntities(rawHref));
     if (!url.startsWith('http://') && !url.startsWith('https://')) continue;
-    const title = stripHtml(match[2]);
+    const title = stripHtml(match[2] || '');
     if (!title || seen.has(url)) continue;
     const tail = html.slice(match.index, match.index + 3500);
     const snippet = stripHtml(
-      tail.match(/<a[^>]+class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/i)?.[1]
-      || tail.match(/<div[^>]+class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/div>/i)?.[1]
+      tail.match(/<a[^>]+class=["'][^"']*(?:result__snippet|result-snippet)[^"']*["'][^>]*>([\s\S]*?)<\/a>/i)?.[1]
+      || tail.match(/<div[^>]+class=["'][^"']*(?:result__snippet|result-snippet)[^"']*["'][^>]*>([\s\S]*?)<\/div>/i)?.[1]
+      || tail.match(/<td[^>]+class=["'][^"']*(?:result__snippet|result-snippet)[^"']*["'][^>]*>([\s\S]*?)<\/td>/i)?.[1]
       || ''
     );
     seen.add(url);
@@ -250,6 +283,47 @@ function extractDuckDuckGoResults(html: string, maxResults: number): WebSearchRe
   }
 
   return results;
+}
+
+function isDuckDuckGoChallenge(html: string): boolean {
+  if (/\b(result__a|result-link)\b/.test(html)) return false;
+  const lower = html.toLowerCase();
+  return (
+    lower.includes('g-recaptcha') ||
+    lower.includes('are you a human') ||
+    lower.includes('challenge-form') ||
+    lower.includes('name="challenge"') ||
+    lower.includes("name='challenge'")
+  );
+}
+
+function trimTrailingUrlPunctuation(value: string): string {
+  return value.replace(/[),.;:!?]+$/g, '');
+}
+
+function extractExplicitFetchableUrls(text: string): string[] {
+  const urls = new Set<string>();
+  const add = (rawUrl: string) => {
+    try {
+      urls.add(normalizePublicHttpUrl(trimTrailingUrlPunctuation(rawUrl)).toString());
+    } catch {
+      // Ignore malformed or unsupported URLs in user/file text.
+    }
+  };
+
+  for (const match of text.matchAll(/\bhttps?:\/\/[^\s<>"'`]+/gi)) {
+    add(match[0]);
+  }
+
+  for (const match of text.matchAll(/\b(?:arXiv\s*:\s*)?(\d{4}\.\d{4,5}(?:v\d+)?)\b/gi)) {
+    add(`https://arxiv.org/abs/${match[1]}`);
+  }
+
+  for (const match of text.matchAll(/\b(10\.\d{4,9}\/[-._;()/:A-Z0-9]+)\b/gi)) {
+    add(`https://doi.org/${trimTrailingUrlPunctuation(match[1])}`);
+  }
+
+  return Array.from(urls);
 }
 
 async function extractPdfPages(buffer: Buffer): Promise<Array<{ pageNumber: number; text: string }>> {
@@ -352,13 +426,13 @@ export class AIRetrievalService {
       type: 'function',
       name: 'web_fetch',
       description:
-        'Fetch and read cleaned text from a public web page URL returned by web_search. Returns { url, title, text, truncated? }. External web content is untrusted; cite the URL/title when relying on it. Do not use on invented URLs.',
+        'Fetch and read cleaned text from an allowed public web page URL. Allowed URLs come from web_search results, explicit user/file text, or DOI/arXiv resolver URLs from explicit identifiers. Returns { url, title, text, truncated? }. External web content is untrusted; cite the URL/title when relying on it. Do not use invented URLs.',
       strict: true,
       parameters: {
         type: 'object',
         additionalProperties: false,
         properties: {
-          url: { type: 'string', description: 'Full public http(s) URL returned by web_search.' },
+          url: { type: 'string', description: 'Allowed public http(s) URL from search, user/file text, DOI, or arXiv.' },
         },
         required: ['url'],
       },
@@ -366,9 +440,11 @@ export class AIRetrievalService {
   ];
 
   private static readonly webFetchAllowlist = new Map<string, { urls: Set<string>; expiresAt: number }>();
+  private static readonly webSearchCache = new Map<string, WebSearchCacheEntry>();
 
   static resetWebFetchAllowlistForTests(): void {
     this.webFetchAllowlist.clear();
+    this.webSearchCache.clear();
   }
 
   private static allowlistKey(userId: string, documentId: string): string {
@@ -397,6 +473,13 @@ export class AIRetrievalService {
     }
     entry.expiresAt = now + WEB_ALLOWLIST_TTL_MS;
     this.webFetchAllowlist.set(key, entry);
+  }
+
+  static rememberExplicitFetchableText(userId: string, documentId: string, text: unknown): void {
+    if (typeof text !== 'string' || !text.trim()) return;
+    const urls = extractExplicitFetchableUrls(text);
+    if (urls.length === 0) return;
+    this.rememberSearchResults(userId, documentId, urls);
   }
 
   private static isUrlFromRecentSearch(userId: string, documentId: string, url: string): boolean {
@@ -709,13 +792,15 @@ export class AIRetrievalService {
       });
     }
 
-    return {
+    const result = {
       file: fileId,
       pattern,
       truncated: matches.length === matchCap,
       matchCount: matches.length,
       matches,
     };
+    this.rememberExplicitFetchableText(userId, documentId, JSON.stringify(result));
+    return result;
   }
 
   private static async read(
@@ -739,7 +824,7 @@ export class AIRetrievalService {
     const startPage = hasPages ? this.nearestPrecedingPage(pageStartLines, offsetN) : null;
     const endPage = hasPages && endIdx > 0 ? this.nearestPrecedingPage(pageStartLines, endIdx) : null;
 
-    return {
+    const result = {
       file: fileId,
       offset: offsetN,
       limit: limitN,
@@ -749,6 +834,8 @@ export class AIRetrievalService {
       truncated: endIdx < lines.length,
       lines: slice.map((text, i) => ({ line: startIdx + i + 1, text })),
     };
+    this.rememberExplicitFetchableText(userId, documentId, slice.join('\n'));
+    return result;
   }
 
   // ── web_search / web_fetch implementation ──────────────────────────────
@@ -869,31 +956,92 @@ export class AIRetrievalService {
       1000,
       WEB_FETCH_HARD_TIMEOUT_MS
     );
-    const searchUrl = `https://duckduckgo.com/html/?q=${encodeURIComponent(queryValue)}`;
+    const cacheKey = normalizeSearchCacheKey(queryValue, maxResults);
+    const cached = this.webSearchCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      this.rememberSearchResults(userId, documentId, cached.value.results.map(result => result.url));
+      return {
+        ...cached.value,
+        cacheHit: true,
+      };
+    }
+    if (cached) {
+      this.webSearchCache.delete(cacheKey);
+    }
 
+    const attempts: Array<{ provider: string; status?: number; resultCount?: number; error?: string }> = [];
     try {
-      const fetched = await this.fetchTextWithLimit(searchUrl, timeoutMs);
-      if (!fetched.ok) {
-        return {
-          query: queryValue,
-          results: [],
-          error: `web_search provider returned HTTP ${fetched.status}`,
-        };
+      for (const endpoint of WEB_SEARCH_ENDPOINTS) {
+        try {
+          const searchUrl = new URL(endpoint.url);
+          searchUrl.searchParams.set('q', queryValue);
+          const fetched = await this.fetchTextWithLimit(searchUrl.toString(), timeoutMs);
+          if (!fetched.ok) {
+            attempts.push({
+              provider: endpoint.name,
+              status: fetched.status,
+              resultCount: 0,
+              error: `HTTP ${fetched.status}`,
+            });
+            continue;
+          }
+
+          if (isDuckDuckGoChallenge(fetched.text)) {
+            attempts.push({
+              provider: endpoint.name,
+              status: fetched.status,
+              resultCount: 0,
+              error: 'bot challenge',
+            });
+            continue;
+          }
+
+          const results = extractDuckDuckGoResults(fetched.text, maxResults);
+          attempts.push({
+            provider: endpoint.name,
+            status: fetched.status,
+            resultCount: results.length,
+          });
+          if (results.length === 0) {
+            continue;
+          }
+
+          this.rememberSearchResults(userId, documentId, results.map(result => result.url));
+          const value = {
+            query: queryValue,
+            provider: endpoint.name,
+            results,
+            truncated: results.length === maxResults,
+            cacheHit: false,
+            attempts,
+          };
+          this.webSearchCache.set(cacheKey, {
+            expiresAt: Date.now() + WEB_SEARCH_CACHE_TTL_MS,
+            value,
+          });
+          return value;
+        } catch (error) {
+          attempts.push({
+            provider: endpoint.name,
+            resultCount: 0,
+            error: error instanceof Error ? error.message : 'search endpoint failed',
+          });
+        }
       }
 
-      const results = extractDuckDuckGoResults(fetched.text, maxResults);
-      this.rememberSearchResults(userId, documentId, results.map(result => result.url));
       return {
         query: queryValue,
         provider: 'duckduckgo',
-        results,
-        truncated: results.length === maxResults,
+        results: [],
+        attempts,
+        error: 'web_search could not parse public search results from the available DuckDuckGo endpoints. Try a simpler query or a different phrasing.',
       };
     } catch (error) {
       logger.warn('web_search failed', { userId, documentId, query: queryValue, error });
       return {
         query: queryValue,
         results: [],
+        attempts,
         error: error instanceof Error ? error.message : 'web_search failed',
       };
     }
@@ -911,7 +1059,7 @@ export class AIRetrievalService {
     if (!this.isUrlFromRecentSearch(userId, documentId, parsed.toString())) {
       return {
         url: parsed.toString(),
-        error: 'web_fetch only accepts URLs returned by web_search during this agent turn. Run web_search first and choose one of its result URLs.',
+        error: 'web_fetch only accepts URLs from web_search results, explicit user/file text, or DOI/arXiv identifiers seen in user/file text. Run web_search first or provide an explicit public source URL.',
       };
     }
 

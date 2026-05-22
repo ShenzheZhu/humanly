@@ -288,12 +288,12 @@ const TOOLS = [
     function: {
       name: 'web_fetch',
       description:
-        'Fetch cleaned text from a public web page URL returned by web_search. Returns { url, title, text, truncated? }. Do not use on invented URLs.',
+        'Fetch cleaned text from an allowed public web page URL. Allowed URLs come from web_search results, explicit user/file text, or DOI/arXiv resolver URLs from explicit identifiers. Returns { url, title, text, truncated? }. Do not use invented URLs.',
       parameters: {
         type: 'object',
         additionalProperties: false,
         properties: {
-          url: { type: 'string', description: 'Full public http(s) URL returned by web_search.' },
+          url: { type: 'string', description: 'Allowed public http(s) URL from search, user/file text, DOI, or arXiv.' },
         },
         required: ['url'],
       },
@@ -336,13 +336,15 @@ function grepFile(fileId, pattern, contextBefore, contextAfter) {
       ...(contextLines ? { contextLines } : {}),
     });
   }
-  return {
+  const result = {
     file: fileId,
     pattern,
     truncated: matches.length === cap,
     matchCount: matches.length,
     matches,
   };
+  rememberExplicitFetchableText(JSON.stringify(result));
+  return result;
 }
 
 function readFile(fileId, offset, limit) {
@@ -354,7 +356,7 @@ function readFile(fileId, offset, limit) {
   const slice = FILE_LINES.slice(startIdx, endIdx);
   const startPage = HAS_PAGES ? nearestPrecedingPage(offsetN) : null;
   const endPage = HAS_PAGES && endIdx > 0 ? nearestPrecedingPage(endIdx) : null;
-  return {
+  const result = {
     file: fileId,
     offset: offsetN,
     limit: limitN,
@@ -364,9 +366,17 @@ function readFile(fileId, offset, limit) {
     truncated: endIdx < FILE_LINES.length,
     lines: slice.map((text, i) => ({ line: startIdx + i + 1, text })),
   };
+  rememberExplicitFetchableText(slice.join('\n'));
+  return result;
 }
 
 const webFetchAllowlist = new Set();
+const webSearchCache = new Map();
+const webSearchEndpoints = [
+  { name: 'duckduckgo-html', url: 'https://html.duckduckgo.com/html' },
+  { name: 'duckduckgo-lite', url: 'https://lite.duckduckgo.com/lite/' },
+  { name: 'duckduckgo-html-legacy', url: 'https://duckduckgo.com/html/' },
+];
 
 function decodeHtmlEntities(value) {
   return String(value || '')
@@ -386,43 +396,110 @@ function stripHtml(html) {
     .trim());
 }
 
+function decodeDuckDuckGoUrl(rawUrl) {
+  try {
+    const absolute = rawUrl.startsWith('//') ? `https:${rawUrl}` : rawUrl;
+    const parsed = new URL(absolute);
+    return parsed.searchParams.get('uddg') || absolute;
+  } catch {
+    return rawUrl;
+  }
+}
+
 function extractDuckDuckGoResults(html, maxResults = 5) {
   const results = [];
-  const resultBlocks = String(html || '').split(/<div class="result\b/i).slice(1);
-  for (const block of resultBlocks) {
-    const linkMatch = block.match(/<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i);
-    if (!linkMatch) continue;
-    const url = decodeHtmlEntities(linkMatch[1]);
-    const title = stripHtml(linkMatch[2]);
-    const snippetMatch = block.match(/<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/a>/i)
-      || block.match(/<div[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/div>/i);
-    const snippet = snippetMatch ? stripHtml(snippetMatch[1]) : '';
-    if (!title || !url.startsWith('http')) continue;
+  const seen = new Set();
+  const anchorPattern = /<a\b([^>]*)>([\s\S]*?)<\/a>/gi;
+  const classPattern = /\bclass\s*=\s*["']([^"']*)["']/i;
+  const hrefPattern = /\bhref\s*=\s*["']([^"']*)["']/i;
+  let match;
+  while ((match = anchorPattern.exec(String(html || ''))) !== null) {
+    const attributes = match[1] || '';
+    const className = classPattern.exec(attributes)?.[1] || '';
+    if (!/\b(result__a|result-link)\b/.test(className)) continue;
+    const rawHref = hrefPattern.exec(attributes)?.[1] || '';
+    const url = decodeDuckDuckGoUrl(decodeHtmlEntities(rawHref));
+    const title = stripHtml(match[2] || '');
+    if (!title || !url.startsWith('http') || seen.has(url)) continue;
+    const tail = String(html || '').slice(match.index, match.index + 3500);
+    const snippet = stripHtml(
+      tail.match(/<a[^>]+class=["'][^"']*(?:result__snippet|result-snippet)[^"']*["'][^>]*>([\s\S]*?)<\/a>/i)?.[1]
+      || tail.match(/<div[^>]+class=["'][^"']*(?:result__snippet|result-snippet)[^"']*["'][^>]*>([\s\S]*?)<\/div>/i)?.[1]
+      || tail.match(/<td[^>]+class=["'][^"']*(?:result__snippet|result-snippet)[^"']*["'][^>]*>([\s\S]*?)<\/td>/i)?.[1]
+      || ''
+    );
+    seen.add(url);
     results.push({ title, url, snippet });
     if (results.length >= maxResults) break;
   }
   return results;
 }
 
+function isDuckDuckGoChallenge(html) {
+  if (/\b(result__a|result-link)\b/.test(String(html || ''))) return false;
+  const lower = String(html || '').toLowerCase();
+  return lower.includes('g-recaptcha')
+    || lower.includes('are you a human')
+    || lower.includes('challenge-form')
+    || lower.includes('name="challenge"')
+    || lower.includes("name='challenge'");
+}
+
+function rememberExplicitFetchableText(text) {
+  const raw = String(text || '');
+  for (const match of raw.matchAll(/\bhttps?:\/\/[^\s<>"'`]+/gi)) {
+    webFetchAllowlist.add(match[0].replace(/[),.;:!?]+$/g, ''));
+  }
+  for (const match of raw.matchAll(/\b(?:arXiv\s*:\s*)?(\d{4}\.\d{4,5}(?:v\d+)?)\b/gi)) {
+    webFetchAllowlist.add(`https://arxiv.org/abs/${match[1]}`);
+  }
+  for (const match of raw.matchAll(/\b(10\.\d{4,9}\/[-._;()/:A-Z0-9]+)\b/gi)) {
+    webFetchAllowlist.add(`https://doi.org/${match[1].replace(/[),.;:!?]+$/g, '')}`);
+  }
+}
+
 async function webSearch(query) {
   if (!query || typeof query !== 'string') return { query, results: [], error: 'query required' };
-  const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
-  const response = await fetch(url, {
-    headers: {
-      'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/124.0 Safari/537.36',
-      accept: 'text/html',
-    },
-  });
-  if (!response.ok) return { query, results: [], error: `web_search returned HTTP ${response.status}` };
-  const results = extractDuckDuckGoResults(await response.text(), 5);
-  for (const result of results) webFetchAllowlist.add(result.url);
-  return { query, provider: 'duckduckgo', results, truncated: results.length >= 5 };
+  const normalized = query.trim().toLowerCase().replace(/\s+/g, ' ');
+  if (webSearchCache.has(normalized)) {
+    const cached = webSearchCache.get(normalized);
+    for (const result of cached.results) webFetchAllowlist.add(result.url);
+    return { ...cached, cacheHit: true };
+  }
+  const attempts = [];
+  for (const endpoint of webSearchEndpoints) {
+    const url = new URL(endpoint.url);
+    url.searchParams.set('q', query.trim());
+    const response = await fetch(url, {
+      headers: {
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/124.0 Safari/537.36',
+        accept: 'text/html',
+      },
+    });
+    if (!response.ok) {
+      attempts.push({ provider: endpoint.name, status: response.status, resultCount: 0, error: `HTTP ${response.status}` });
+      continue;
+    }
+    const html = await response.text();
+    if (isDuckDuckGoChallenge(html)) {
+      attempts.push({ provider: endpoint.name, status: response.status, resultCount: 0, error: 'bot challenge' });
+      continue;
+    }
+    const results = extractDuckDuckGoResults(html, 5);
+    attempts.push({ provider: endpoint.name, status: response.status, resultCount: results.length });
+    if (results.length === 0) continue;
+    for (const result of results) webFetchAllowlist.add(result.url);
+    const output = { query, provider: endpoint.name, results, truncated: results.length >= 5, attempts, cacheHit: false };
+    webSearchCache.set(normalized, output);
+    return output;
+  }
+  return { query, provider: 'duckduckgo', results: [], attempts, error: 'web_search could not parse public search results from the available DuckDuckGo endpoints.' };
 }
 
 async function webFetch(url) {
   if (!url || typeof url !== 'string') return { url, error: 'url required' };
   if (!webFetchAllowlist.has(url)) {
-    return { url, error: 'web_fetch only accepts URLs returned by web_search during this agent turn.' };
+    return { url, error: 'web_fetch only accepts URLs from web_search results, explicit user/file text, or DOI/arXiv identifiers seen in user/file text.' };
   }
   const response = await fetch(url, {
     headers: {
@@ -469,7 +546,7 @@ const SYSTEM_PROMPT = `You are an AI writing assistant. You answer questions usi
                                                        returns { lines, totalLines, hasPages, pageRange?, truncated? }
                                                        offset 1-indexed (default 1); limit default 200, hard cap 800
   web_search(query)                                 — search the public web for external/current/source-verification context
-  web_fetch(url)                                    — fetch cleaned public page text from a URL returned by web_search
+  web_fetch(url)                                    — fetch cleaned public page text from an allowed public URL
 
 PRIVACY BOUNDARY (hard rule):
 You can only see files in ls(), public web pages returned by web_search/web_fetch, and text the user explicitly typed into chat. You CANNOT read the user's editor draft, their current writing, selected text, or anything not exposed through tools. The schema does not expose such a tool. If the user asks for editor content ("summarize my draft", "find a typo in what I wrote"), refuse honestly:
@@ -484,12 +561,14 @@ STRATEGY HINTS — adapt to file size and question, no fixed workflow:
 - For PDFs the [page N] markers appear inline — cite them ("see page 21").
 - For late-document sections (conclusion / references / appendix on a long PDF), read at high offset is often faster than guessing keywords.
 - Use web_search/web_fetch only for external/current/source-verification questions, or after local retrieval fails on a question that is external rather than file-bound.
-- Never construct or guess URLs. Use web_fetch only with URLs returned by web_search in this turn unless the user pasted the URL.
+- Never construct or guess URLs. Use web_fetch only with URLs returned by web_search, explicit URLs the user pasted, explicit URLs found in file tool output, or standard resolver URLs made from DOI/arXiv identifiers that appeared in user/file text.
+- Before searching, use explicit public URLs, DOI identifiers, or arXiv identifiers already visible in the user message or file tool output when they are available.
+- Form robust web queries with natural keywords. Avoid fragile operators like site:, intitle:, or filetype: unless the tool schema explicitly supports them.
 
 FALLBACK LADDER — keep trying before answering "not found":
 1. grep returned []? Try a synonym, then a shorter substring, then a numbered-heading style ("Conclusion" → "5. Conclusion"), then read the likely region directly.
 2. read returned content that doesn't answer? grep with a better pattern or read an adjacent range.
-3. web_search returned irrelevant results? Refine with author, paper title, venue, year, or exact phrase.
+3. web_search returned no or irrelevant results? Try simpler key nouns, recast as likely page type, then broaden the topic. Stop after 3-4 reasonable query reformulations and report the search limitation honestly.
 4. web_fetch failed? Try another URL from search results. If all public results fail, say what limitation you hit.
 5. ls returned []? Tell the user no files are attached. Don't pretend.
 6. Tool errored? Retry once. If still failing, surface the error honestly.
@@ -564,6 +643,7 @@ async function runAgent(userPrompt, traceFile) {
   };
 
   emit({ type: 'user-message', content: userPrompt });
+  rememberExplicitFetchableText(userPrompt);
 
   const messages = [
     { role: 'system', content: SYSTEM_PROMPT },
