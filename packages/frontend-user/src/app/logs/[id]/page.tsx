@@ -442,7 +442,7 @@ function getTimelineTextPreview(item: DocumentEventTimelineItem) {
 }
 
 function getFullTextHeader(item: DocumentEventTimelineItem) {
-  if (item.kind === 'replace') return 'Replaced text';
+  if (item.kind === 'replace') return 'Replacement';
   if (item.kind === 'ai_insert') return 'AI inserted text';
   if (item.kind === 'paste') return 'Pasted text';
   if (item.kind === 'delete' && item.metadata?.deleteScope === 'all_text') return 'Deleted all text';
@@ -982,7 +982,7 @@ export default function DocumentLogsPage() {
                                   <div className="grid gap-3 md:grid-cols-2">
                                     <div>
                                       <p className="mb-1 text-xs font-medium text-muted-foreground">
-                                        Previous text
+                                        Before
                                       </p>
                                       <div className="max-h-80 overflow-auto rounded border bg-muted/20 p-3 whitespace-pre-wrap break-words text-sm">
                                         {getReplacedText(item) || '—'}
@@ -990,7 +990,7 @@ export default function DocumentLogsPage() {
                                     </div>
                                     <div>
                                       <p className="mb-1 text-xs font-medium text-muted-foreground">
-                                        New text
+                                        After
                                       </p>
                                       <div className="max-h-80 overflow-auto rounded border bg-muted/20 p-3 whitespace-pre-wrap break-words text-sm">
                                         {item.text || '—'}
