@@ -233,10 +233,10 @@ const formatCharacterBounds = (submission: WritingEnvironmentConfig['submission'
   const min = submission.minCharacters;
   const max = submission.maxCharacters;
 
-  if (min && max) return `${min.toLocaleString()}-${max.toLocaleString()} characters`;
-  if (min) return `Minimum ${min.toLocaleString()}`;
-  if (max) return `Maximum ${max.toLocaleString()}`;
-  return 'No character limits';
+  if (min && max) return `${min.toLocaleString()}-${max.toLocaleString()} submission characters`;
+  if (min) return `At least ${min.toLocaleString()} submission characters`;
+  if (max) return `Up to ${max.toLocaleString()} submission characters`;
+  return 'No submission length limit';
 };
 
 type AiConnectionResult = {
@@ -1555,7 +1555,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
               <AdminEnvironmentDialogSection
                 className="lg:col-span-2"
                 title="Writing Rules"
-                description="Set paste and length rules for submitted writing."
+                description="Set paste behavior and final submission length rules."
               >
                 <div className="grid gap-5 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]">
                   <SettingRow label="Copy-Paste Policy">
@@ -1575,7 +1575,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="grid gap-2">
-                      <FormLabel htmlFor="minimum-characters">Minimum Characters</FormLabel>
+                      <FormLabel htmlFor="minimum-characters">Minimum Submission Characters</FormLabel>
                       <Input
                         id="minimum-characters"
                         type="number"
@@ -1589,7 +1589,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                     </div>
 
                     <div className="grid gap-2">
-                      <FormLabel htmlFor="maximum-characters">Maximum Characters</FormLabel>
+                      <FormLabel htmlFor="maximum-characters">Maximum Submission Characters</FormLabel>
                       <Input
                         id="maximum-characters"
                         type="number"
@@ -1601,6 +1601,9 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                         disabled={isSubmitting}
                       />
                     </div>
+                    <FormDescription className="sm:col-span-2">
+                      These limits apply to the final submitted document, not copy-paste length.
+                    </FormDescription>
                   </div>
                 </div>
               </AdminEnvironmentDialogSection>

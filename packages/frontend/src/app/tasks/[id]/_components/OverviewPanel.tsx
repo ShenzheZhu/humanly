@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Activity, BrainCircuit, Calendar, Copy, FileText, Link, Loader2, Users } from 'lucide-react';
-import type { Task } from '@humanly/shared';
+import { Activity, BrainCircuit, Calendar, Clock, Copy, FileText, Link, Loader2, Users } from 'lucide-react';
+import { normalizeCopyPastePolicy, type Task } from '@humanly/shared';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +18,34 @@ interface OverviewPanelProps {
   isLoadingStats: boolean;
   isLoadingSubmissions: boolean;
 }
+
+const formatCharacterBounds = (submission?: NonNullable<Task['environmentConfig']>['submission']) => {
+  const min = submission?.minCharacters;
+  const max = submission?.maxCharacters;
+
+  if (min && max) return `${min.toLocaleString()}-${max.toLocaleString()} characters`;
+  if (min) return `At least ${min.toLocaleString()} characters`;
+  if (max) return `Up to ${max.toLocaleString()} characters`;
+  return 'No limit';
+};
+
+const formatWritingSessionLimit = (timeLimitSeconds?: number) => {
+  if (!timeLimitSeconds) return 'No limit';
+
+  const totalMinutes = Math.max(1, Math.round(timeLimitSeconds / 60));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours && minutes) {
+    return `${hours.toLocaleString()} ${hours === 1 ? 'hour' : 'hours'} ${minutes.toLocaleString()} ${minutes === 1 ? 'minute' : 'minutes'}`;
+  }
+
+  if (hours) {
+    return `${hours.toLocaleString()} ${hours === 1 ? 'hour' : 'hours'}`;
+  }
+
+  return `${minutes.toLocaleString()} ${minutes === 1 ? 'minute' : 'minutes'}`;
+};
 
 export function OverviewPanel({
   task,
@@ -39,6 +67,11 @@ export function OverviewPanel({
   const completionRate = enrolledUserCount > 0 ? (submittedUserCount / enrolledUserCount) * 100 : 0;
   const allowedLlmModels = task.allowedLlmModels?.length ? task.allowedLlmModels : ['GPT-4o mini'];
   const aiUsageLimit = task.aiUsageLimit ?? 100;
+  const copyPasteSummary = normalizeCopyPastePolicy(task.environmentConfig?.copyPastePolicy) === 'blocked'
+    ? 'Blocked'
+    : 'Allowed';
+  const writingSessionSummary = formatWritingSessionLimit(task.environmentConfig?.time.timeLimitSeconds);
+  const characterBoundsSummary = formatCharacterBounds(task.environmentConfig?.submission);
 
   const copyInviteCode = async () => {
     setCopyFeedback(null);
@@ -128,6 +161,27 @@ export function OverviewPanel({
               </dd>
             </div>
             <div>
+              <dt className="text-sm font-medium text-muted-foreground">Copy & Paste</dt>
+              <dd className="mt-1 flex items-center gap-2 text-sm">
+                <Copy className="h-4 w-4 text-muted-foreground" />
+                {copyPasteSummary}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm font-medium text-muted-foreground">Writing Session</dt>
+              <dd className="mt-1 flex items-center gap-2 text-sm">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                {writingSessionSummary}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm font-medium text-muted-foreground">Final Submission Length</dt>
+              <dd className="mt-1 flex items-center gap-2 text-sm">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                {characterBoundsSummary}
+              </dd>
+            </div>
+            <div>
               <dt className="text-sm font-medium text-muted-foreground">Invite Code</dt>
               <dd className="mt-1 flex items-center gap-2">
                 <span className="rounded-md border bg-muted/40 px-2 py-1 font-mono text-sm font-semibold tracking-wider">
@@ -166,20 +220,6 @@ export function OverviewPanel({
               <p className="mt-1 text-xs text-muted-foreground">
                 Anyone with this link can write and submit without registering.
               </p>
-            </div>
-            <div>
-              <dt className="text-sm font-medium text-muted-foreground">Status</dt>
-              <dd className="mt-1 text-sm">
-                <span
-                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                    task.isActive
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
-                  }`}
-                >
-                  {task.isActive ? 'Active' : 'Inactive'}
-                </span>
-              </dd>
             </div>
             <div>
               <dt className="text-sm font-medium text-muted-foreground">Allowed AI Models</dt>
