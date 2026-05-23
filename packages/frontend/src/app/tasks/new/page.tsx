@@ -1194,7 +1194,7 @@ export default function NewTaskPage() {
                     <div className="space-y-4 rounded-md border p-4">
                       <SectionHeading
                         title="Writing Control"
-                        description="Set rules for editing behavior during writing."
+                        description="Set paste behavior and final submission length rules."
                       />
 
                       <div className="grid gap-2">
@@ -1217,7 +1217,7 @@ export default function NewTaskPage() {
 
                       <div className="grid gap-3 sm:grid-cols-2">
                         <div className="grid gap-2">
-                          <FormLabel htmlFor="minimum-characters">Minimum Characters</FormLabel>
+                          <FormLabel htmlFor="minimum-characters">Minimum Submission Characters</FormLabel>
                           <Input
                             id="minimum-characters"
                             type="number"
@@ -1231,7 +1231,7 @@ export default function NewTaskPage() {
                         </div>
 
                         <div className="grid gap-2">
-                          <FormLabel htmlFor="maximum-characters">Maximum Characters</FormLabel>
+                          <FormLabel htmlFor="maximum-characters">Maximum Submission Characters</FormLabel>
                           <Input
                             id="maximum-characters"
                             type="number"
@@ -1245,7 +1245,7 @@ export default function NewTaskPage() {
                         </div>
 
                         <FormDescription className="sm:col-span-2">
-                          Leave either field blank when submissions do not need that length bound.
+                          These limits apply to the final submitted document, not copy-paste length.
                         </FormDescription>
                       </div>
                     </div>
