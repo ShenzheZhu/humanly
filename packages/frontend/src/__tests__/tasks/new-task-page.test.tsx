@@ -166,6 +166,58 @@ describe('admin new task page', () => {
     expect(payload.environmentConfig.time.timeLimitSeconds).toBeUndefined();
   });
 
+  it('edits custom task availability in a dialog before creating the task', async () => {
+    render(<NewTaskPage />);
+
+    expect(await screen.findByRole('heading', { name: 'New Task' })).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Task Name/i), {
+        target: { value: 'Custom Window Task' },
+      });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('option', { name: 'Custom' }));
+    });
+
+    expect(screen.getByRole('button', { name: /Edit Time Window/i })).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Edit Time Window/i }));
+    });
+
+    const startInput = screen.getByLabelText(/Task Start Date/i);
+    const endInput = screen.getByLabelText(/Task End Date/i);
+
+    await act(async () => {
+      fireEvent.change(startInput, { target: { value: '2026-06-01T09:30' } });
+    });
+    await act(async () => {
+      fireEvent.change(endInput, { target: { value: '2026-06-15T17:45' } });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Create Task$/i }));
+    });
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith(
+        '/api/v1/tasks',
+        expect.objectContaining({
+          name: 'Custom Window Task',
+        })
+      );
+    });
+
+    const payload = mockApiPost.mock.calls.find(([url]) => url === '/api/v1/tasks')?.[1];
+    expect(payload.startDate).toBe(new Date('2026-06-01T09:30').toISOString());
+    expect(payload.endDate).toBe(new Date('2026-06-15T17:45').toISOString());
+    expect(payload.environmentConfig.time.startTime).toBe(payload.startDate);
+    expect(payload.environmentConfig.time.endTime).toBe(payload.endDate);
+  });
+
   it('creates tasks with an optional writing session timer', async () => {
     render(<NewTaskPage />);
 

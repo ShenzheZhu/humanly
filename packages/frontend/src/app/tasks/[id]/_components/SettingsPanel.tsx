@@ -7,10 +7,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
   CheckCircle,
-  ChevronDown,
   Download,
   FileText,
-  Key,
   Loader2,
   RefreshCcw,
   Trash2,
@@ -41,7 +39,6 @@ import { MODEL_WHITELIST, getWhitelist } from '@/lib/ai-models';
 import { downloadBlob } from '@/lib/download';
 import {
   cn,
-  getLocalTimeZoneLabel,
   localDateTimeInputToISOString,
   toLocalDateTimeInputValue,
 } from '@/lib/utils';
@@ -75,6 +72,11 @@ import { Input } from '@/components/ui/input';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
+import {
+  AdminEnvironmentDialogSection,
+  AdminEnvironmentSummary,
+  type AdminEnvironmentSummaryItem,
+} from '@/components/admin-environment-ui';
 
 const taskSettingsSchema = z.object({
   name: z
@@ -101,8 +103,13 @@ type TaskSettingsFormData = z.infer<typeof taskSettingsSchema>;
 
 const DEFAULT_AI_BASE_URL = 'https://api.together.xyz/v1';
 const CUSTOM_MODEL_VALUE = '__custom_model__';
+const CUSTOM_PROVIDER_VALUE = '__custom_provider__';
 const USE_EXISTING_AI_KEY = '__use_existing__';
 const UNLIMITED_TASK_WINDOW_YEARS = 100;
+
+const fallbackWritingModels = () => (
+  WRITING_AI_MODELS.filter((model) => model !== 'Custom models')
+);
 
 const getTimeLimitMinutesValue = (seconds?: number): string => (
   String(Math.max(1, Math.round((seconds || 3600) / 60)))
@@ -114,10 +121,6 @@ const parseTimeLimitMinutes = (value: string, fallback = 1): number => {
   return Math.max(1, Math.round(parsed));
 };
 
-const fallbackWritingModels = () => (
-  WRITING_AI_MODELS.filter((model) => model !== 'Custom models')
-);
-
 const modelBelongsToOptions = (model: string, options: string[]) => (
   !!model && model !== CUSTOM_MODEL_VALUE && options.includes(model)
 );
@@ -125,11 +128,12 @@ const modelBelongsToOptions = (model: string, options: string[]) => (
 const KNOWN_AI_PROVIDER_BASE_URLS: Record<string, string> = {
   'api.together.xyz': 'https://api.together.xyz/v1',
   'openrouter.ai': 'https://openrouter.ai/api/v1',
-  'api.openai.com': 'https://api.openai.com/v1',
-  'api.deepseek.com': 'https://api.deepseek.com/v1',
-  'api.anthropic.com': 'https://api.anthropic.com/v1',
-  'generativelanguage.googleapis.com': 'https://generativelanguage.googleapis.com/v1beta',
 };
+
+const AI_PROVIDER_OPTIONS = [
+  { label: 'Together AI', value: 'https://api.together.xyz/v1' },
+  { label: 'OpenRouter', value: 'https://openrouter.ai/api/v1' },
+] as const;
 
 const getAiProviderForBaseUrl = (baseUrl: string): WritingAiProvider => {
   try {
@@ -208,6 +212,31 @@ const buildConfigFilename = (name?: string | null) => {
     .replace(/^_+|_+$/g, '');
 
   return `${normalized || 'task'}-environment-config.json`;
+};
+
+const formatDateTimeSummary = (value?: string) => {
+  if (!value) return 'Not set';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value.replace('T', ' ');
+
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
+};
+
+const formatCharacterBounds = (submission: WritingEnvironmentConfig['submission']) => {
+  const min = submission.minCharacters;
+  const max = submission.maxCharacters;
+
+  if (min && max) return `${min.toLocaleString()}-${max.toLocaleString()} characters`;
+  if (min) return `Minimum ${min.toLocaleString()}`;
+  if (max) return `Maximum ${max.toLocaleString()}`;
+  return 'No character limits';
 };
 
 type AiConnectionResult = {
@@ -331,11 +360,9 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
-  const [isRegenerating, setIsRegenerating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [showRegenerateDialog, setShowRegenerateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [newToken, setNewToken] = useState<string | null>(null);
+  const [environmentDialogOpen, setEnvironmentDialogOpen] = useState(false);
   const [instructionFiles, setInstructionFiles] = useState<File[]>([]);
 
   const [environmentConfig, setEnvironmentConfig] = useState<WritingEnvironmentConfig>({
@@ -361,8 +388,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
   const [testedAiModels, setTestedAiModels] = useState<string[]>([]);
   const [timeLimitEnabled, setTimeLimitEnabled] = useState(false);
   const [writingTimeLimitMinutesInput, setWritingTimeLimitMinutesInput] = useState('60');
-  const [advancedAiSettingsOpen, setAdvancedAiSettingsOpen] = useState(false);
-  const [advancedAiSettingsTouched, setAdvancedAiSettingsTouched] = useState(false);
 
   const form = useForm<TaskSettingsFormData>({
     resolver: zodResolver(taskSettingsSchema),
@@ -377,6 +402,9 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
 
   const currentInstructionFiles = files.filter((file) => file.purpose === 'task_instruction_pdf');
   const selectedAiModel = aiModel === CUSTOM_MODEL_VALUE ? customAiModel.trim() : aiModel.trim();
+  const selectedAiProvider = AI_PROVIDER_OPTIONS.some((option) => option.value === aiBaseUrl)
+    ? aiBaseUrl
+    : CUSTOM_PROVIDER_VALUE;
 
   const aiModelOptions = useMemo(() => {
     const whitelist = getWhitelist(aiBaseUrl);
@@ -393,12 +421,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
       ? [aiModel, ...options]
       : options;
   }, [aiBaseUrl, aiModel, testedAiModels]);
-
-  useEffect(() => {
-    if (advancedAiSettingsTouched) return;
-
-    setAdvancedAiSettingsOpen(aiAccess !== 'off' && !hasExistingAiKey);
-  }, [advancedAiSettingsTouched, aiAccess, hasExistingAiKey]);
 
   const fetchInstructionFiles = useCallback(async () => {
     const response = await api.get<{
@@ -674,8 +696,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
 
   const testAiConnection = async (): Promise<boolean> => {
     if (!aiApiKey.trim() && !hasExistingAiKey) {
-      setAdvancedAiSettingsTouched(true);
-      setAdvancedAiSettingsOpen(true);
       setAiConnectionResult({
         success: false,
         message: 'Enter an AI API key before testing the connection.',
@@ -718,8 +738,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
 
       return !!result.success;
     } catch (err: any) {
-      setAdvancedAiSettingsTouched(true);
-      setAdvancedAiSettingsOpen(true);
       setAiConnectionResult({
         success: false,
         message: err.message || 'Connection test failed.',
@@ -861,8 +879,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
 
       if (aiAccess !== 'off') {
         if (!aiApiKey.trim() && !hasExistingAiKey) {
-          setAdvancedAiSettingsTouched(true);
-          setAdvancedAiSettingsOpen(true);
           throw new Error('Enter an AI API key before saving an AI-enabled task.');
         }
 
@@ -955,33 +971,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
     }
   };
 
-  const handleRegenerateToken = async () => {
-    try {
-      setIsRegenerating(true);
-      const response = await api.post<{
-        success: boolean;
-        data: Task;
-        message: string;
-      }>(`/api/v1/tasks/${taskId}/regenerate-token`);
-
-      setNewToken(response.data.taskToken);
-      setTask((current) => current ? { ...current, taskToken: response.data.taskToken } : current);
-      toast({
-        title: 'Success',
-        description: 'Task token regenerated successfully',
-      });
-      setShowRegenerateDialog(false);
-    } catch (err: any) {
-      toast({
-        title: 'Error',
-        description: err.message || 'Failed to regenerate token',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsRegenerating(false);
-    }
-  };
-
   const handleDeleteTask = async () => {
     try {
       setIsDeleting(true);
@@ -1002,14 +991,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast({
-      title: 'Copied',
-      description: 'Token copied to clipboard',
-    });
-  };
-
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -1023,6 +1004,39 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
   }
 
   const isSubmitting = isSaving || isUploadingFiles;
+  const watchedStartDate = form.watch('startDate');
+  const watchedEndDate = form.watch('endDate');
+  const writingSessionMinutes = getTimeLimitMinutesValue(environmentConfig.time.timeLimitSeconds);
+  const environmentSummaryItems: AdminEnvironmentSummaryItem[] = [
+    {
+      label: 'AI',
+      value: aiAccess === 'off' ? 'Off' : 'On',
+      detail: aiAccess === 'off'
+        ? 'Assistant disabled'
+        : selectedAiModel || 'Model not selected',
+    },
+    {
+      label: 'Availability',
+      value: timeLimitEnabled ? 'Window on' : 'Off',
+      detail: timeLimitEnabled
+        ? `${formatDateTimeSummary(watchedStartDate)} - ${formatDateTimeSummary(watchedEndDate)}`
+        : 'No visible task window restriction',
+    },
+    {
+      label: 'Writing Session',
+      value: environmentConfig.time.timeLimitSeconds ? `${writingSessionMinutes} min` : 'No limit',
+      detail: environmentConfig.time.timeLimitSeconds
+        ? 'Countdown shown while writing'
+        : 'No session countdown',
+    },
+    {
+      label: 'Writing Rules',
+      value: normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) === 'blocked'
+        ? 'Paste blocked'
+        : 'Paste allowed',
+      detail: formatCharacterBounds(environmentConfig.submission),
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -1044,494 +1058,152 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
             </Alert>
           )}
 
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.15fr)] xl:items-start">
+          <div className="space-y-6">
             <Card>
-            <CardHeader>
-              <CardTitle>Task Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Task Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Research Reflection Assignment" {...field} disabled={isSaving} />
-                    </FormControl>
-                    <FormDescription>
-                      A user-facing title shown on the admin dashboard and enrolled user documents.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Describe the writing task, deadline, evaluation criteria, or class context..."
-                        className="resize-none"
-                        {...field}
-                        disabled={isSaving}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      This description is stored with the task and shown in task context.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="rounded-md border border-dashed p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <Upload className="h-4 w-4 text-muted-foreground" />
-                      Files
-                    </div>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Current and newly uploaded PDF instruction files for this task.
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={fetchInstructionFiles}
-                    disabled={isSaving || isUploadingFiles}
-                  >
-                    <RefreshCcw className="mr-2 h-4 w-4" />
-                    Refresh
-                  </Button>
-                </div>
-
-                {currentInstructionFiles.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    {currentInstructionFiles.map((file) => (
-                      <div key={file.id} className="flex items-center gap-3 rounded-md border bg-muted/40 p-3">
-                        <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium" title={file.title}>
-                            {file.title}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Existing PDF
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <Input
-                  type="file"
-                  accept="application/pdf"
-                  multiple
-                  className="mt-3"
-                  onChange={handleInstructionFilesChange}
-                  disabled={isSaving || isUploadingFiles}
+              <CardHeader>
+                <CardTitle>Task Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Task Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Research Reflection Assignment" {...field} disabled={isSaving} />
+                      </FormControl>
+                      <FormDescription>
+                        A user-facing title shown on the admin dashboard and enrolled user documents.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
 
-                {instructionFiles.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    {instructionFiles.map((file) => (
-                      <div key={`${file.name}-${file.size}`} className="flex items-center gap-3 rounded-md border bg-muted/40 p-3">
-                        <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium" title={file.name}>
-                            {file.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            New upload · {(file.size / 1024 / 1024).toFixed(2)} MB
-                          </p>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setInstructionFiles((current) => current.filter((item) => item !== file))}
-                          disabled={isSaving || isUploadingFiles}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-            </Card>
-
-            <div className="space-y-6">
-              <Card>
-            <CardHeader>
-              <CardTitle>AI</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <SettingRow label="Access">
-                <SegmentedControl
-                  ariaLabel="AI"
-                  value={aiAccess}
-                  disabled={isSaving}
-                  options={[
-                    { value: 'off', label: 'Off' },
-                    { value: 'full', label: 'On' },
-                  ]}
-                  onValueChange={(value) => setAiAccess(value as WritingAiAccess)}
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Describe the writing task, deadline, evaluation criteria, or class context..."
+                          className="resize-none"
+                          {...field}
+                          disabled={isSaving}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        This description is stored with the task and shown in task context.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </SettingRow>
 
-              {aiAccess !== 'off' && (
-                <div className="space-y-5 border-t pt-5">
-                  <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-                    <div className="space-y-2">
-                      <FormLabel>Model</FormLabel>
-                      <select
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                        value={aiModel}
-                        disabled={isSaving}
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          setAiModel(value);
-                          if (value !== CUSTOM_MODEL_VALUE) {
-                            setCustomAiModel('');
-                            setEnvironmentAiModel(value);
-                          } else {
-                            setEnvironmentAiModel(customAiModel.trim(), true);
-                          }
-                        }}
-                      >
-                        <option value="">Select model</option>
-                        {aiModelOptions.map((model) => (
-                          <option key={model} value={model}>
-                            {model}
-                          </option>
-                        ))}
-                        <option value={CUSTOM_MODEL_VALUE}>Custom model</option>
-                      </select>
+                <div className="rounded-md border border-dashed p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Upload className="h-4 w-4 text-muted-foreground" />
+                        Files
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Current and newly uploaded PDF instruction files for this task.
+                      </p>
                     </div>
-
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={handleTestAiConnection}
-                      disabled={isSaving || isTestingAiConnection || (!aiApiKey.trim() && !hasExistingAiKey)}
+                      size="sm"
+                      onClick={fetchInstructionFiles}
+                      disabled={isSaving || isUploadingFiles}
                     >
-                      {isTestingAiConnection ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Testing...
-                        </>
-                      ) : (
-                        'Test Connection'
-                      )}
+                      <RefreshCcw className="mr-2 h-4 w-4" />
+                      Refresh
                     </Button>
                   </div>
 
-                  {aiModel === CUSTOM_MODEL_VALUE && (
-                    <div className="space-y-2">
-                      <FormLabel htmlFor="custom-ai-model">Custom Model</FormLabel>
-                      <Input
-                        id="custom-ai-model"
-                        value={customAiModel}
-                        disabled={isSaving}
-                        onChange={(event) => {
-                          setCustomAiModel(event.target.value);
-                          setEnvironmentAiModel(event.target.value.trim(), true);
-                        }}
-                        placeholder="provider/model-name"
-                      />
+                  {currentInstructionFiles.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      {currentInstructionFiles.map((file) => (
+                        <div key={file.id} className="flex items-center gap-3 rounded-md border bg-muted/40 p-3">
+                          <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium" title={file.title}>
+                              {file.title}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Existing PDF
+                            </p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
 
-                  {aiConnectionResult && (
-                    <div className="flex items-start gap-2 text-xs">
-                      {aiConnectionResult.success ? (
-                        <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                      ) : (
-                        <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                      )}
-                      <p className={aiConnectionResult.success ? 'text-emerald-700' : 'text-destructive'}>
-                        {aiConnectionResult.message}
-                      </p>
+                  <Input
+                    type="file"
+                    accept="application/pdf"
+                    multiple
+                    className="mt-3"
+                    onChange={handleInstructionFilesChange}
+                    disabled={isSaving || isUploadingFiles}
+                  />
+
+                  {instructionFiles.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      {instructionFiles.map((file) => (
+                        <div key={`${file.name}-${file.size}`} className="flex items-center gap-3 rounded-md border bg-muted/40 p-3">
+                          <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium" title={file.name}>
+                              {file.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              New upload · {(file.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setInstructionFiles((current) => current.filter((item) => item !== file))}
+                            disabled={isSaving || isUploadingFiles}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
                     </div>
                   )}
-
-                  <div className="rounded-md border">
-                    <div className="flex items-center justify-between gap-4 p-4">
-                      <h3 className="text-sm font-semibold">Advanced AI Settings</h3>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        aria-expanded={advancedAiSettingsOpen}
-                        onClick={() => {
-                          setAdvancedAiSettingsTouched(true);
-                          setAdvancedAiSettingsOpen((open) => !open);
-                        }}
-                      >
-                        {advancedAiSettingsOpen ? 'Hide' : 'Show'}
-                        <ChevronDown
-                          className={cn(
-                            'ml-2 h-4 w-4 transition-transform',
-                            advancedAiSettingsOpen && 'rotate-180'
-                          )}
-                        />
-                      </Button>
-                    </div>
-
-                    {advancedAiSettingsOpen && (
-                      <div className="space-y-4 border-t p-4">
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <div className="space-y-2">
-                            <FormLabel htmlFor="ai-api-key">AI API Key</FormLabel>
-                            <Input
-                              id="ai-api-key"
-                              type="password"
-                              value={aiApiKey}
-                              disabled={isSaving}
-                              onChange={(event) => {
-                                setAiApiKey(event.target.value);
-                                setAiConnectionResult(null);
-                                setTestedAiModels([]);
-                              }}
-                              placeholder={hasExistingAiKey ? `Current: ${maskedAiKey || 'saved key'}` : 'Enter API key'}
-                            />
-                            {hasExistingAiKey && !aiApiKey && (
-                              <p className="text-xs text-muted-foreground">
-                                Leave empty to use the saved key.
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="space-y-2">
-                            <FormLabel htmlFor="ai-base-url">Base URL</FormLabel>
-                            <Input
-                              id="ai-base-url"
-                              value={aiBaseUrl}
-                              disabled={isSaving}
-                              onChange={(event) => {
-                                setAiBaseUrl(event.target.value);
-                                setAiConnectionResult(null);
-                                setTestedAiModels([]);
-                              }}
-                              placeholder={DEFAULT_AI_BASE_URL}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <div className="space-y-2">
-                            <FormLabel htmlFor="ai-shortcut-max-tokens">Shortcut Tokens</FormLabel>
-                            <Input
-                              id="ai-shortcut-max-tokens"
-                              type="number"
-                              min={AI_MAX_TOKENS_MIN}
-                              max={AI_MAX_TOKENS_MAX}
-                              value={environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT}
-                              disabled={isSaving}
-                              onChange={(event) => setAiTokenBudget({
-                                shortcutMaxTokens: Number(event.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
-                              })}
-                            />
-                            <FormDescription>Shortcut actions and fallback answers.</FormDescription>
-                          </div>
-
-                          <div className="space-y-2">
-                            <FormLabel htmlFor="ai-chat-max-tokens">Chat Tokens</FormLabel>
-                            <Input
-                              id="ai-chat-max-tokens"
-                              type="number"
-                              min={AI_MAX_TOKENS_MIN}
-                              max={AI_MAX_TOKENS_MAX}
-                              value={environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT}
-                              disabled={isSaving}
-                              onChange={(event) => setAiTokenBudget({
-                                chatMaxTokens: Number(event.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT,
-                              })}
-                            />
-                            <FormDescription>Chat and retrieval tool turns, per model call.</FormDescription>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
                 </div>
-              )}
-            </CardContent>
-              </Card>
+              </CardContent>
+            </Card>
 
-              <Card>
-            <CardHeader>
-              <CardTitle>Environment</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-6 xl:grid-cols-2">
-              <SettingRow label="Time">
-                <SegmentedControl
-                  ariaLabel="Time"
-                  value={timeLimitEnabled ? 'on' : 'off'}
-                  disabled={isSaving}
-                  options={[
-                    { value: 'off', label: 'Off' },
-                    { value: 'on', label: 'On' },
-                  ]}
-                  onValueChange={(value) => setTimeLimitEnabled(value === 'on')}
-                />
-              </SettingRow>
-
-              {timeLimitEnabled && (
-                <div className="grid gap-4 sm:grid-cols-2 xl:col-span-2">
-                  <FormField
-                    control={form.control}
-                    name="startDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Task Start Date</FormLabel>
-                        <FormControl>
-                          <Input type="datetime-local" {...field} disabled={isSaving} />
-                        </FormControl>
-                        <FormDescription>
-                          Users see this in their own timezone. Yours is {getLocalTimeZoneLabel()}.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="endDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Task End Date</FormLabel>
-                        <FormControl>
-                          <Input type="datetime-local" {...field} disabled={isSaving} />
-                        </FormControl>
-                        <FormDescription>
-                          Saved as one absolute deadline and localized for each user.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+            <Card>
+              <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle>Environment</CardTitle>
+                  <CardDescription>
+                    Review task controls, then edit detailed rules in one focused dialog.
+                  </CardDescription>
                 </div>
-              )}
-
-              <SettingRow label="Writing Session Timer">
-                <SegmentedControl
-                  ariaLabel="Writing Session Timer"
-                  value={environmentConfig.time.timeLimitSeconds ? 'on' : 'off'}
-                  disabled={isSaving}
-                  options={[
-                    { value: 'off', label: 'Off' },
-                    { value: 'on', label: 'On' },
-                  ]}
-                  onValueChange={(value) => setWritingSessionTimerEnabled(value === 'on')}
-                />
-              </SettingRow>
-
-              {environmentConfig.time.timeLimitSeconds && (
-                <div className="grid gap-2 sm:max-w-[360px]">
-                  <FormLabel htmlFor="writing-time-limit-minutes">Time Limit (minutes)</FormLabel>
-                  <Input
-                    id="writing-time-limit-minutes"
-                    type="number"
-                    min={1}
-                    value={writingTimeLimitMinutesInput}
-                    onChange={(event) => setWritingSessionTimerMinutes(event.target.value)}
-                    onBlur={commitWritingSessionTimerMinutes}
-                    disabled={isSaving}
-                  />
-                  <FormDescription>
-                    The editor shows this countdown while each enrolled user writes.
-                  </FormDescription>
-                </div>
-              )}
-
-              <FormField
-                control={form.control}
-                name="aiUsageLimit"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="space-y-1">
-                      <FormLabel>AI Usage Limit</FormLabel>
-                      <FormDescription>
-                        Maximum AI requests allowed per enrolled user for this task.
-                      </FormDescription>
-                      <FormMessage />
-                    </div>
-                    <FormControl>
-                      <Input
-                        className="sm:w-[220px]"
-                        type="number"
-                        min={1}
-                        placeholder="100"
-                        {...field}
-                        disabled={isSaving}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              <SettingRow label="Copy-Paste Policy">
-                <SegmentedControl
-                  ariaLabel="Copy-Paste Policy"
-                  value={normalizeCopyPastePolicy(environmentConfig.copyPastePolicy)}
-                  disabled={isSaving}
-                  options={[
-                    { value: 'allowed', label: 'Allowed' },
-                    { value: 'blocked', label: 'Blocked' },
-                  ]}
-                  onValueChange={(value) => updateEnvironment({
-                    copyPastePolicy: normalizeCopyPastePolicy(value),
-                  })}
-                />
-              </SettingRow>
-
-              <div className="grid gap-3 sm:grid-cols-2 xl:col-span-2">
-                <div className="grid gap-2">
-                  <FormLabel htmlFor="minimum-characters">Minimum Characters</FormLabel>
-                  <Input
-                    id="minimum-characters"
-                    type="number"
-                    min={1}
-                    max={SUBMISSION_MIN_CHARACTERS_MAX}
-                    value={environmentConfig.submission.minCharacters ?? ''}
-                    onChange={(event) => setSubmissionMinimumCharacters(event.target.value)}
-                    placeholder="No minimum"
-                    disabled={isSaving}
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <FormLabel htmlFor="maximum-characters">Maximum Characters</FormLabel>
-                  <Input
-                    id="maximum-characters"
-                    type="number"
-                    min={1}
-                    max={SUBMISSION_MAX_CHARACTERS_MAX}
-                    value={environmentConfig.submission.maxCharacters ?? ''}
-                    onChange={(event) => setSubmissionMaximumCharacters(event.target.value)}
-                    placeholder="No maximum"
-                    disabled={isSaving}
-                  />
-                </div>
-
-                <FormDescription className="sm:col-span-2">
-                  Leave either field blank when submissions do not need that length bound.
-                </FormDescription>
-              </div>
-            </CardContent>
-              </Card>
-            </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEnvironmentDialogOpen(true)}
+                  disabled={isSubmitting}
+                >
+                  Edit Environment
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <AdminEnvironmentSummary items={environmentSummaryItems} />
+              </CardContent>
+            </Card>
           </div>
 
           <div
@@ -1556,46 +1228,396 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
             </div>
           </div>
         </form>
-      </Form>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Task Token</CardTitle>
-          <CardDescription>
-            Your task token is used for API authentication.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {newToken && (
-            <div className="rounded-md border border-yellow-200 bg-yellow-50 p-4">
-              <p className="mb-2 text-sm font-medium text-yellow-800">
-                New Token Generated
-              </p>
-              <p className="mb-3 text-xs text-yellow-700">
-                Make sure to copy your new token now. You will not be able to see it again.
-              </p>
-              <div className="flex gap-2">
-                <Input value={newToken} readOnly className="bg-white font-mono text-sm" />
-                <Button variant="outline" onClick={() => copyToClipboard(newToken)}>
-                  Copy
-                </Button>
-              </div>
+        <Dialog open={environmentDialogOpen} onOpenChange={setEnvironmentDialogOpen}>
+          <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-5xl overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Environment</DialogTitle>
+              <DialogDescription>
+                Configure AI access, task availability, writing session timing, and submission rules.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-4 lg:grid-cols-2">
+              <AdminEnvironmentDialogSection
+                className="lg:col-span-2"
+                title="AI"
+                description="Control whether this task can use assistant support."
+              >
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]">
+                  <div className="space-y-2">
+                    <FormLabel htmlFor="ai-access">Access</FormLabel>
+                    <select
+                      id="ai-access"
+                      aria-label="AI"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      value={aiAccess}
+                      disabled={isSubmitting}
+                      onChange={(event) => setAiAccess(event.target.value as WritingAiAccess)}
+                    >
+                      <option value="off">AI Off</option>
+                      <option value="full">AI On</option>
+                    </select>
+                  </div>
+
+                  {aiAccess === 'off' ? (
+                    <div className="rounded-md border border-border/70 bg-muted/25 p-3 text-sm text-muted-foreground">
+                      AI assistant access is disabled for enrolled users.
+                    </div>
+                  ) : (
+                    <div className="space-y-5 rounded-md border border-border/70 bg-muted/10 p-4">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <FormLabel htmlFor="ai-api-key">AI API Key</FormLabel>
+                          <Input
+                            id="ai-api-key"
+                            type="password"
+                            value={aiApiKey}
+                            disabled={isSubmitting}
+                            onChange={(event) => {
+                              setAiApiKey(event.target.value);
+                              setAiConnectionResult(null);
+                              setTestedAiModels([]);
+                            }}
+                            placeholder={hasExistingAiKey ? `Current: ${maskedAiKey || 'saved key'}` : 'Enter API key'}
+                          />
+                          {hasExistingAiKey && !aiApiKey && (
+                            <p className="text-xs text-muted-foreground">
+                              Leave empty to use the saved key.
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <FormLabel htmlFor="ai-provider">Provider</FormLabel>
+                          <select
+                            id="ai-provider"
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            value={selectedAiProvider}
+                            disabled={isSubmitting}
+                            onChange={(event) => {
+                              if (event.target.value === CUSTOM_PROVIDER_VALUE) {
+                                setAiBaseUrl('');
+                              } else {
+                                setAiBaseUrl(event.target.value);
+                              }
+                              setAiConnectionResult(null);
+                              setTestedAiModels([]);
+                            }}
+                          >
+                            {AI_PROVIDER_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                            <option value={CUSTOM_PROVIDER_VALUE}>Custom provider</option>
+                          </select>
+                        </div>
+
+                        {selectedAiProvider === CUSTOM_PROVIDER_VALUE && (
+                          <div className="space-y-2 md:col-span-2">
+                            <FormLabel htmlFor="ai-base-url">Base URL</FormLabel>
+                            <Input
+                              id="ai-base-url"
+                              value={aiBaseUrl}
+                              disabled={isSubmitting}
+                              onChange={(event) => {
+                                setAiBaseUrl(event.target.value);
+                                setAiConnectionResult(null);
+                                setTestedAiModels([]);
+                              }}
+                              placeholder={DEFAULT_AI_BASE_URL}
+                            />
+                          </div>
+                        )}
+
+                        <div className="space-y-2">
+                          <FormLabel htmlFor="ai-model">Model</FormLabel>
+                          <select
+                            id="ai-model"
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            value={aiModel}
+                            disabled={isSubmitting}
+                            onChange={(event) => {
+                              const value = event.target.value;
+                              setAiModel(value);
+                              if (value !== CUSTOM_MODEL_VALUE) {
+                                setCustomAiModel('');
+                                setEnvironmentAiModel(value);
+                              } else {
+                                setEnvironmentAiModel(customAiModel.trim(), true);
+                              }
+                            }}
+                          >
+                            {aiModelOptions.map((model) => (
+                              <option key={model} value={model}>
+                                {model}
+                              </option>
+                            ))}
+                            <option value={CUSTOM_MODEL_VALUE}>Custom model</option>
+                          </select>
+                        </div>
+
+                        <FormField
+                          control={form.control}
+                          name="aiUsageLimit"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>AI Usage Limit</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  placeholder="100"
+                                  {...field}
+                                  disabled={isSubmitting}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        {aiModel === CUSTOM_MODEL_VALUE && (
+                          <div className="space-y-2 md:col-span-2">
+                            <FormLabel htmlFor="custom-ai-model">Custom Model</FormLabel>
+                            <Input
+                              id="custom-ai-model"
+                              value={customAiModel}
+                              disabled={isSubmitting}
+                              onChange={(event) => {
+                                setCustomAiModel(event.target.value);
+                                setEnvironmentAiModel(event.target.value.trim(), true);
+                              }}
+                              placeholder="provider/model-name"
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={handleTestAiConnection}
+                        disabled={isSubmitting || isTestingAiConnection || (!aiApiKey.trim() && !hasExistingAiKey)}
+                      >
+                        {isTestingAiConnection ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Testing...
+                          </>
+                        ) : (
+                          'Test Connection'
+                        )}
+                      </Button>
+
+                      {aiConnectionResult && (
+                        <div className="flex items-start gap-2 text-xs">
+                          {aiConnectionResult.success ? (
+                            <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                          ) : (
+                            <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                          )}
+                          <p className={aiConnectionResult.success ? 'text-emerald-700' : 'text-destructive'}>
+                            {aiConnectionResult.message}
+                          </p>
+                        </div>
+                      )}
+
+                      <details className="rounded-md border border-border/70 bg-background p-4">
+                        <summary className="cursor-pointer text-sm font-medium">
+                          Advanced AI
+                        </summary>
+                        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <FormLabel htmlFor="ai-shortcut-max-tokens">Shortcut Tokens</FormLabel>
+                            <Input
+                              id="ai-shortcut-max-tokens"
+                              type="number"
+                              min={AI_MAX_TOKENS_MIN}
+                              max={AI_MAX_TOKENS_MAX}
+                              value={environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT}
+                              disabled={isSubmitting}
+                              onChange={(event) => setAiTokenBudget({
+                                shortcutMaxTokens: Number(event.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+                              })}
+                            />
+                            <FormDescription>Shortcut actions and fallback answers.</FormDescription>
+                          </div>
+
+                          <div className="space-y-2">
+                            <FormLabel htmlFor="ai-chat-max-tokens">Chat Tokens</FormLabel>
+                            <Input
+                              id="ai-chat-max-tokens"
+                              type="number"
+                              min={AI_MAX_TOKENS_MIN}
+                              max={AI_MAX_TOKENS_MAX}
+                              value={environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT}
+                              disabled={isSubmitting}
+                              onChange={(event) => setAiTokenBudget({
+                                chatMaxTokens: Number(event.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT,
+                              })}
+                            />
+                            <FormDescription>Chat and retrieval tool turns, per model call.</FormDescription>
+                          </div>
+                        </div>
+                      </details>
+                    </div>
+                  )}
+                </div>
+              </AdminEnvironmentDialogSection>
+
+              <AdminEnvironmentDialogSection
+                title="Task Availability"
+                description="Set the task availability window shown to enrolled users."
+              >
+                <SettingRow label="Time">
+                  <SegmentedControl
+                    ariaLabel="Time"
+                    value={timeLimitEnabled ? 'on' : 'off'}
+                    disabled={isSubmitting}
+                    options={[
+                      { value: 'off', label: 'Off' },
+                      { value: 'on', label: 'On' },
+                    ]}
+                    onValueChange={(value) => setTimeLimitEnabled(value === 'on')}
+                  />
+                </SettingRow>
+
+                {timeLimitEnabled && (
+                  <div className="grid gap-4">
+                    <FormField
+                      control={form.control}
+                      name="startDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Task Start Date</FormLabel>
+                          <FormControl>
+                            <Input type="datetime-local" {...field} disabled={isSubmitting} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="endDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Task End Date</FormLabel>
+                          <FormControl>
+                            <Input type="datetime-local" {...field} disabled={isSubmitting} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+              </AdminEnvironmentDialogSection>
+
+              <AdminEnvironmentDialogSection
+                title="Writing Session"
+                description="Set whether the writing session should have a time limit."
+              >
+                <div className="grid gap-2">
+                  <FormLabel htmlFor="writing-session-time-mode">Time</FormLabel>
+                  <select
+                    id="writing-session-time-mode"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={environmentConfig.time.timeLimitSeconds ? 'time_limited' : 'unlimited'}
+                    disabled={isSubmitting}
+                    onChange={(event) => setWritingSessionTimerEnabled(event.target.value === 'time_limited')}
+                  >
+                    <option value="unlimited">No limitations</option>
+                    <option value="time_limited">Time limited</option>
+                  </select>
+                </div>
+
+                {environmentConfig.time.timeLimitSeconds && (
+                  <div className="grid gap-2">
+                    <FormLabel htmlFor="writing-time-limit-minutes">Time Limit (minutes)</FormLabel>
+                    <Input
+                      id="writing-time-limit-minutes"
+                      type="number"
+                      min={1}
+                      value={writingTimeLimitMinutesInput}
+                      onChange={(event) => setWritingSessionTimerMinutes(event.target.value)}
+                      onBlur={commitWritingSessionTimerMinutes}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                )}
+              </AdminEnvironmentDialogSection>
+
+              <AdminEnvironmentDialogSection
+                className="lg:col-span-2"
+                title="Writing Rules"
+                description="Set paste and length rules for submitted writing."
+              >
+                <div className="grid gap-5 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]">
+                  <SettingRow label="Copy-Paste Policy">
+                    <SegmentedControl
+                      ariaLabel="Copy-Paste Policy"
+                      value={normalizeCopyPastePolicy(environmentConfig.copyPastePolicy)}
+                      disabled={isSubmitting}
+                      options={[
+                        { value: 'allowed', label: 'Allowed' },
+                        { value: 'blocked', label: 'Blocked' },
+                      ]}
+                      onValueChange={(value) => updateEnvironment({
+                        copyPastePolicy: normalizeCopyPastePolicy(value),
+                      })}
+                    />
+                  </SettingRow>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-2">
+                      <FormLabel htmlFor="minimum-characters">Minimum Characters</FormLabel>
+                      <Input
+                        id="minimum-characters"
+                        type="number"
+                        min={1}
+                        max={SUBMISSION_MIN_CHARACTERS_MAX}
+                        value={environmentConfig.submission.minCharacters ?? ''}
+                        onChange={(event) => setSubmissionMinimumCharacters(event.target.value)}
+                        placeholder="No minimum"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+
+                    <div className="grid gap-2">
+                      <FormLabel htmlFor="maximum-characters">Maximum Characters</FormLabel>
+                      <Input
+                        id="maximum-characters"
+                        type="number"
+                        min={1}
+                        max={SUBMISSION_MAX_CHARACTERS_MAX}
+                        value={environmentConfig.submission.maxCharacters ?? ''}
+                        onChange={(event) => setSubmissionMaximumCharacters(event.target.value)}
+                        placeholder="No maximum"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </AdminEnvironmentDialogSection>
             </div>
-          )}
 
-          <div className="flex gap-2">
-            <Input value={task.taskToken} readOnly className="font-mono text-sm" type="password" />
-            <Button variant="outline" onClick={() => copyToClipboard(task.taskToken)}>
-              Copy
-            </Button>
-          </div>
-
-          <Button variant="outline" onClick={() => setShowRegenerateDialog(true)}>
-            <Key className="mr-2 h-4 w-4" />
-            Regenerate Token
-          </Button>
-        </CardContent>
-      </Card>
+            <DialogFooter>
+              <Button
+                type="button"
+                onClick={() => setEnvironmentDialogOpen(false)}
+                disabled={isSubmitting}
+              >
+                Apply
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </Form>
 
       <Card className="border-destructive">
         <CardHeader>
@@ -1619,30 +1641,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
           </div>
         </CardContent>
       </Card>
-
-      <Dialog open={showRegenerateDialog} onOpenChange={setShowRegenerateDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Regenerate Task Token?</DialogTitle>
-            <DialogDescription>
-              This will invalidate your current token. Any integrations using the old token must be updated.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowRegenerateDialog(false)}
-              disabled={isRegenerating}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleRegenerateToken} disabled={isRegenerating}>
-              {isRegenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Regenerate Token
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>

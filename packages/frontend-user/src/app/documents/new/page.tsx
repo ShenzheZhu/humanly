@@ -166,6 +166,7 @@ export default function NewDocumentPage() {
   const [customAiModel, setCustomAiModel] = useState('');
   const [hasExistingAiKey, setHasExistingAiKey] = useState(false);
   const [maskedAiKey, setMaskedAiKey] = useState('');
+  const [testedAiModels, setTestedAiModels] = useState<string[]>([]);
   const [timeLimitMinutesInput, setTimeLimitMinutesInput] = useState('60');
   const [environmentDialogOpen, setEnvironmentDialogOpen] = useState(false);
   const allowEnvironmentDialogCloseRef = useRef(false);
@@ -215,7 +216,10 @@ export default function NewDocumentPage() {
   const aiModelOptions = useMemo(() => {
     const whitelist = getWhitelist(aiBaseUrl);
     let options: string[];
-    if (whitelist?.length) {
+
+    if (testedAiModels.length) {
+      options = testedAiModels;
+    } else if (whitelist?.length) {
       options = whitelist;
     } else {
       options = WRITING_AI_MODELS.filter((model) => model !== 'Custom models');
@@ -224,7 +228,7 @@ export default function NewDocumentPage() {
     return aiModel && aiModel !== CUSTOM_MODEL_VALUE && !options.includes(aiModel)
       ? [aiModel, ...options]
       : options;
-  }, [aiBaseUrl, aiModel]);
+  }, [aiBaseUrl, aiModel, testedAiModels]);
 
   const selectedAiModel = aiModel === CUSTOM_MODEL_VALUE ? customAiModel.trim() : aiModel.trim();
   const timeMode = environmentConfig.aiUsageLimit.mode === 'time_restricted' ? 'time_restricted' : 'unlimited';
@@ -325,6 +329,7 @@ export default function NewDocumentPage() {
 
   const updateAiBaseUrl = (nextBaseUrl: string, resetModel = false) => {
     setAiBaseUrl(nextBaseUrl);
+    setTestedAiModels([]);
     markCustom((current) => ({
       ...current,
       aiProvider: getAiProviderConfigForBaseUrl(nextBaseUrl),
