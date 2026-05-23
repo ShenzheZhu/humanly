@@ -221,23 +221,6 @@ export default function EnvironmentConfigFields({
         </div>
       </div>
 
-      {config.allowedModels.includes('Custom models') && (
-        <div className="space-y-2">
-          <Label>Custom Models</Label>
-          <Input
-            value={(config.customModels || []).join(', ')}
-            disabled={disabled}
-            placeholder="model-a, model-b"
-            onChange={(event) => onChange(setNested(config, {
-              customModels: event.target.value
-                .split(',')
-                .map((item) => item.trim())
-                .filter(Boolean),
-            }))}
-          />
-        </div>
-      )}
-
       {config.aiAccess !== 'off' && (
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">

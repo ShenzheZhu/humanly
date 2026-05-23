@@ -1,5 +1,8 @@
 import fs from 'fs';
 import path from 'path';
+
+jest.mock('lexical', () => jest.requireActual('../../../../../node_modules/lexical'));
+
 import {
   createSerializedMarkdownNodes,
   looksLikeMarkdown,

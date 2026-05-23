@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
   ArrowLeft,
+  CalendarClock,
   CheckCircle,
   FileText,
   Loader2,
@@ -37,6 +38,14 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -44,9 +53,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
+import {
+  AdminEnvironmentSectionHeading as SectionHeading,
+  AdminEnvironmentSummary,
+} from '@/components/admin-environment-ui';
 import { api } from '@/lib/api-client';
 import { MODEL_WHITELIST, getWhitelist } from '@/lib/ai-models';
 import {
+  formatDateTime,
   getLocalTimeZoneLabel,
   localDateTimeInputToISOString,
   toLocalDateTimeInputValue,
@@ -112,10 +126,6 @@ const modelBelongsToOptions = (model: string, options: string[]) => (
 const KNOWN_AI_PROVIDER_BASE_URLS: Record<string, string> = {
   'api.together.xyz': 'https://api.together.xyz/v1',
   'openrouter.ai': 'https://openrouter.ai/api/v1',
-  'api.openai.com': 'https://api.openai.com/v1',
-  'api.deepseek.com': 'https://api.deepseek.com/v1',
-  'api.anthropic.com': 'https://api.anthropic.com/v1',
-  'generativelanguage.googleapis.com': 'https://generativelanguage.googleapis.com/v1beta',
 };
 
 const getAiProviderForBaseUrl = (baseUrl: string): WritingAiProvider => {
@@ -174,21 +184,6 @@ type AiConnectionResult = {
 };
 
 type EnvironmentSelection = 'default_writing' | 'custom' | typeof IMPORT_ENVIRONMENT_VALUE;
-
-function SectionHeading({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <div>
-      <h3 className="font-semibold">{title}</h3>
-      <p className="text-sm text-muted-foreground">{description}</p>
-    </div>
-  );
-}
 
 const getAdminEnvironmentConfig = (preset: WritingEnvironmentPreset = 'default_writing'): WritingEnvironmentConfig => ({
   ...WRITING_ENVIRONMENT_PRESETS[preset],
@@ -371,6 +366,8 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
 
 const getDefaultEndDate = () => new Date(Date.now() + DEFAULT_TASK_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
+const formatTaskWindowDate = (value?: string) => formatDateTime(value);
+
 export default function NewTaskPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -387,6 +384,7 @@ export default function NewTaskPage() {
   const [aiConnectionResult, setAiConnectionResult] = useState<AiConnectionResult | null>(null);
   const [testedAiModels, setTestedAiModels] = useState<string[]>([]);
   const [timeLimitEnabled, setTimeLimitEnabled] = useState(true);
+  const [timeWindowDialogOpen, setTimeWindowDialogOpen] = useState(false);
   const [writingTimeLimitMinutesInput, setWritingTimeLimitMinutesInput] = useState('60');
   const [environmentSelection, setEnvironmentSelection] = useState<EnvironmentSelection>('default_writing');
   const [environmentConfig, setEnvironmentConfig] = useState<WritingEnvironmentConfig>(
@@ -405,6 +403,9 @@ export default function NewTaskPage() {
   });
 
   const { isSubmitting } = form.formState;
+  const watchedStartDate = form.watch('startDate');
+  const watchedEndDate = form.watch('endDate');
+  const localTimeZoneLabel = getLocalTimeZoneLabel();
 
   useEffect(() => {
     let cancelled = false;
@@ -1093,20 +1094,14 @@ export default function NewTaskPage() {
                       </div>
                     </div>
 
-                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                      <div className="rounded-md bg-background p-3">
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">AI</p>
-                        <p className="mt-1 text-sm font-medium">Off</p>
-                      </div>
-                      <div className="rounded-md bg-background p-3">
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Writing</p>
-                        <p className="mt-1 text-sm font-medium">Copy & paste allowed</p>
-                      </div>
-                      <div className="rounded-md bg-background p-3">
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Time</p>
-                        <p className="mt-1 text-sm font-medium">Two-week window</p>
-                      </div>
-                    </div>
+                    <AdminEnvironmentSummary
+                      className="mt-4 xl:grid-cols-3"
+                      items={[
+                        { label: 'AI', value: 'Off' },
+                        { label: 'Writing', value: 'Copy & paste allowed' },
+                        { label: 'Time', value: 'Two-week window' },
+                      ]}
+                    />
 
                     <p className="mt-4 text-sm text-muted-foreground">
                       Choose Custom to configure AI access, copy-paste rules, or task timing.
@@ -1390,44 +1385,108 @@ export default function NewTaskPage() {
                       </div>
 
                       {timeLimitEnabled && (
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <FormField
-                            control={form.control}
-                            name="startDate"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>
-                                  Task Start Date <span className="text-destructive">*</span>
-                                </FormLabel>
-                                <FormControl>
-                                  <Input type="datetime-local" {...field} disabled={isSubmitting} />
-                                </FormControl>
-                                <FormDescription>
-                                  Users see this in their own timezone. Yours is {getLocalTimeZoneLabel()}.
-                                </FormDescription>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                        <div className="rounded-md border bg-muted/30 p-3">
+                          <div className="flex items-start gap-3">
+                            <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                            <div className="min-w-0 flex-1 space-y-3">
+                              <div className="grid gap-2 text-sm">
+                                <div>
+                                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    Start
+                                  </p>
+                                  <p className="mt-0.5 font-medium">
+                                    {formatTaskWindowDate(watchedStartDate)}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    End
+                                  </p>
+                                  <p className="mt-0.5 font-medium">
+                                    {formatTaskWindowDate(watchedEndDate)}
+                                  </p>
+                                </div>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                Admin local time: {localTimeZoneLabel}
+                              </p>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                                onClick={() => setTimeWindowDialogOpen(true)}
+                                disabled={isSubmitting}
+                              >
+                                Edit Time Window
+                              </Button>
+                            </div>
+                          </div>
+                          <Dialog open={timeWindowDialogOpen} onOpenChange={setTimeWindowDialogOpen}>
+                            <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl">
+                              <DialogHeader>
+                                <DialogTitle>Task Time Window</DialogTitle>
+                                <DialogDescription>
+                                  Set when enrolled users can access and submit this task.
+                                </DialogDescription>
+                              </DialogHeader>
 
-                          <FormField
-                            control={form.control}
-                            name="endDate"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>
-                                  Task End Date <span className="text-destructive">*</span>
-                                </FormLabel>
-                                <FormControl>
-                                  <Input type="datetime-local" {...field} disabled={isSubmitting} />
-                                </FormControl>
-                                <FormDescription>
-                                  Defaults to two weeks after the start time.
-                                </FormDescription>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
+                              <div className="grid gap-5 sm:grid-cols-2">
+                                <FormField
+                                  control={form.control}
+                                  name="startDate"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>
+                                        Task Start Date <span className="text-destructive">*</span>
+                                      </FormLabel>
+                                      <FormControl>
+                                        <Input type="datetime-local" {...field} disabled={isSubmitting} />
+                                      </FormControl>
+                                      <FormDescription>
+                                        Shown in your local timezone.
+                                      </FormDescription>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+
+                                <FormField
+                                  control={form.control}
+                                  name="endDate"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>
+                                        Task End Date <span className="text-destructive">*</span>
+                                      </FormLabel>
+                                      <FormControl>
+                                        <Input type="datetime-local" {...field} disabled={isSubmitting} />
+                                      </FormControl>
+                                      <FormDescription>
+                                        Defaults to two weeks after the start time.
+                                      </FormDescription>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
+
+                              <p className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground">
+                                Students see the same absolute window converted into their own local time.
+                                Your current timezone is {localTimeZoneLabel}.
+                              </p>
+
+                              <DialogFooter>
+                                <Button
+                                  type="button"
+                                  onClick={() => setTimeWindowDialogOpen(false)}
+                                  disabled={isSubmitting}
+                                >
+                                  Done
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
                         </div>
                       )}
                     </div>

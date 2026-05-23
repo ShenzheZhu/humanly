@@ -229,6 +229,11 @@ function readBlobAsText(blob: Blob) {
   });
 }
 
+async function openEnvironmentDialog() {
+  fireEvent.click(screen.getByRole('button', { name: /edit environment/i }));
+  return screen.findByRole('dialog', { name: /edit environment/i });
+}
+
 describe('admin task overview invite code copy button', () => {
   beforeEach(() => {
     mockPush.mockClear();
@@ -480,24 +485,46 @@ describe('admin task overview invite code copy button', () => {
     expect(await screen.findByRole('heading', { name: 'Task Settings' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /export config/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Task Details' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'AI' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Environment' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Advanced AI Settings' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /edit environment/i })).toBeInTheDocument();
+    expect(screen.getByText('Window on')).toBeInTheDocument();
+    expect(screen.getByText('30 min')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/AI API Key/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Advanced AI Settings' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Task Token' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Users see this in their own timezone/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Saved as one absolute deadline/i)).not.toBeInTheDocument();
     expect(screen.getByTestId('settings-sticky-actions')).toHaveClass('sticky');
     expect(screen.getByRole('button', { name: /save settings/i })).toBeInTheDocument();
-    expect(screen.queryByLabelText(/AI API Key/i)).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText(/AI Usage Limit/i), {
+    const dialog = await openEnvironmentDialog();
+    expect(within(dialog).getByRole('heading', { name: 'AI' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('heading', { name: 'Task Availability' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('heading', { name: 'Writing Session' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('heading', { name: 'Writing Rules' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('combobox', { name: /^AI$/i })).toHaveValue('full');
+    expect(within(dialog).getByLabelText(/AI API Key/i)).toBeInTheDocument();
+    expect(within(dialog).getByRole('combobox', { name: /Provider/i })).toHaveValue('https://api.together.xyz/v1');
+    expect(within(dialog).getByRole('combobox', { name: /Model/i })).toHaveValue('moonshotai/Kimi-K2.6');
+    expect(within(dialog).getByRole('option', { name: 'moonshotai/Kimi-K2.6' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('combobox', { name: /^Time$/i })).toHaveValue('time_limited');
+    expect(within(dialog).getByRole('option', { name: 'No limitations' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('option', { name: 'Time limited' })).toBeInTheDocument();
+
+    fireEvent.change(within(dialog).getByLabelText(/AI Usage Limit/i), {
       target: { value: '17' },
     });
-    fireEvent.change(screen.getByLabelText(/Task End Date/i), {
+    fireEvent.change(within(dialog).getByLabelText(/Task End Date/i), {
       target: { value: '2026-05-20T09:30' },
     });
-    expect(screen.getByLabelText(/Time Limit \(minutes\)/i)).toHaveValue(30);
-    fireEvent.change(screen.getByLabelText(/Time Limit \(minutes\)/i), {
+    expect(within(dialog).getByLabelText(/Time Limit \(minutes\)/i)).toHaveValue(30);
+    fireEvent.change(within(dialog).getByLabelText(/Time Limit \(minutes\)/i), {
       target: { value: '45' },
     });
-    fireEvent.click(screen.getByRole('radio', { name: 'Blocked' }));
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Blocked' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: /apply/i }));
+
+    expect(mockApiPut).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: /export config/i }));
 
@@ -539,30 +566,31 @@ describe('admin task overview invite code copy button', () => {
     expect(serializedConfig).not.toContain('task_instruction_pdf');
   });
 
-  it('expands advanced AI settings when no saved key exists', async () => {
+  it('shows AI key settings when no saved key exists', async () => {
     mockSearchParams = new URLSearchParams('tab=setting');
     mockAiSettings = null;
 
     render(<TaskDetailPage />);
 
     await screen.findByRole('heading', { name: 'Clipboard Task' });
-    expect(await screen.findByRole('heading', { name: 'Advanced AI Settings' })).toBeInTheDocument();
-    expect(screen.getByLabelText(/AI API Key/i)).toBeInTheDocument();
+    const dialog = await openEnvironmentDialog();
+    expect(within(dialog).getByLabelText(/AI API Key/i)).toBeInTheDocument();
   });
 
-  it('keeps advanced AI settings open after a connection failure', async () => {
+  it('keeps AI connection details visible after a connection failure', async () => {
     mockSearchParams = new URLSearchParams('tab=setting');
     mockApiPost.mockRejectedValueOnce(new Error('Connection test failed.'));
 
     render(<TaskDetailPage />);
 
     await screen.findByRole('heading', { name: 'Clipboard Task' });
-    expect(screen.queryByLabelText(/AI API Key/i)).not.toBeInTheDocument();
+    const dialog = await openEnvironmentDialog();
+    expect(within(dialog).getByLabelText(/AI API Key/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /test connection/i }));
+    fireEvent.click(within(dialog).getByRole('button', { name: /test connection/i }));
 
     expect(await screen.findByText('Connection test failed.')).toBeInTheDocument();
-    expect(screen.getByLabelText(/AI API Key/i)).toBeInTheDocument();
+    expect(within(dialog).getByLabelText(/AI API Key/i)).toBeInTheDocument();
   });
 
   it('saves grouped setting changes with the existing task payload shape', async () => {
@@ -571,16 +599,18 @@ describe('admin task overview invite code copy button', () => {
     render(<TaskDetailPage />);
 
     await screen.findByRole('heading', { name: 'Clipboard Task' });
-    fireEvent.change(screen.getByLabelText(/AI Usage Limit/i), {
+    const dialog = await openEnvironmentDialog();
+    fireEvent.change(within(dialog).getByLabelText(/AI Usage Limit/i), {
       target: { value: '17' },
     });
-    fireEvent.change(screen.getByLabelText(/Task End Date/i), {
+    fireEvent.change(within(dialog).getByLabelText(/Task End Date/i), {
       target: { value: '2026-05-20T09:30' },
     });
-    fireEvent.change(screen.getByLabelText(/Time Limit \(minutes\)/i), {
+    fireEvent.change(within(dialog).getByLabelText(/Time Limit \(minutes\)/i), {
       target: { value: '20' },
     });
-    fireEvent.click(screen.getByRole('radio', { name: 'Blocked' }));
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Blocked' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: /apply/i }));
     fireEvent.click(screen.getByRole('button', { name: /save settings/i }));
 
     await waitFor(() => {
