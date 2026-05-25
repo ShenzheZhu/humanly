@@ -13,20 +13,28 @@ import {
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
 
+const AUTH_COOKIE_BASE_OPTIONS = {
+  httpOnly: true,
+  secure: env.nodeEnv === 'production',
+  sameSite: 'strict' as const,
+  path: '/',
+};
+
 function setAuthCookies(res: Response, accessToken: string, refreshToken: string): void {
   res.cookie('refreshToken', refreshToken, {
-    httpOnly: true,
-    secure: env.nodeEnv === 'production',
-    sameSite: 'strict',
+    ...AUTH_COOKIE_BASE_OPTIONS,
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 
   res.cookie('accessToken', accessToken, {
-    httpOnly: true,
-    secure: env.nodeEnv === 'production',
-    sameSite: 'strict',
+    ...AUTH_COOKIE_BASE_OPTIONS,
     maxAge: 24 * 60 * 60 * 1000,
   });
+}
+
+function clearAuthCookies(res: Response): void {
+  res.clearCookie('refreshToken', AUTH_COOKIE_BASE_OPTIONS);
+  res.clearCookie('accessToken', AUTH_COOKIE_BASE_OPTIONS);
 }
 
 /**
@@ -135,8 +143,7 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
   await AuthService.logout(userId, refreshToken);
 
   // Clear cookies
-  res.clearCookie('refreshToken');
-  res.clearCookie('accessToken');
+  clearAuthCookies(res);
 
   res.json({
     success: true,
