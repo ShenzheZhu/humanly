@@ -65,6 +65,10 @@ const taskFixture = {
     preset: 'custom',
     description: undefined,
     aiAccess: 'full',
+    aiProvider: {
+      provider: 'together',
+      baseUrl: 'https://api.together.xyz/v1',
+    },
     allowedModels: ['moonshotai/Kimi-K2.6'],
     customModels: [],
     instructions: {
@@ -306,6 +310,14 @@ describe('admin task overview invite code copy button', () => {
     expect(within(overviewRegion as HTMLElement).getByText('30 minutes')).toBeInTheDocument();
     expect(within(overviewRegion as HTMLElement).getByText('Final Submission Length')).toBeInTheDocument();
     expect(within(overviewRegion as HTMLElement).getByText('No limit')).toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).getByText('AI Access')).toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).getByText('Enabled')).toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).getByText('AI Model')).toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).getByText('Together AI')).toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).getByText('moonshotai/Kimi-K2.6')).toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).queryByText('deepseek-ai/DeepSeek-V3')).not.toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).getByText('AI Usage Limit')).toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).getByText('100 requests per user')).toBeInTheDocument();
     expect(overviewRegion as HTMLElement).not.toHaveTextContent(/GMT|UTC/);
     fireEvent.click(screen.getByRole('button', { name: /copy invite code/i }));
 
@@ -388,6 +400,70 @@ describe('admin task overview invite code copy button', () => {
     expect(within(overviewRegion as HTMLElement).getByText('Copy & Paste')).toBeInTheDocument();
     expect(within(overviewRegion as HTMLElement).getByText('Blocked')).toBeInTheDocument();
     expect(within(overviewRegion as HTMLElement).getByText('100-500 characters')).toBeInTheDocument();
+  });
+
+  it('does not show phantom AI model or request budget when task AI is disabled', async () => {
+    mockApiGet.mockImplementation((url: string) => {
+      if (url === '/api/v1/ai/settings') {
+        return Promise.resolve({ success: true, data: mockAiSettings });
+      }
+
+      if (url.endsWith('/files')) {
+        return Promise.resolve({ success: true, data: [] });
+      }
+
+      if (url.endsWith('/analytics/summary')) {
+        return Promise.resolve({ success: true, data: statsFixture });
+      }
+
+      if (url.endsWith('/analytics/events-timeline')) {
+        return Promise.resolve({ success: true, data: { timeline: eventsTimelineFixture } });
+      }
+
+      if (url.endsWith('/analytics/event-types')) {
+        return Promise.resolve({ success: true, data: { eventTypes: eventTypesFixture } });
+      }
+
+      if (url.endsWith('/enrollments')) {
+        return Promise.resolve({ success: true, data: { enrollments: enrollmentsFixture } });
+      }
+
+      if (url.endsWith('/submissions')) {
+        return Promise.resolve({ success: true, data: { submissions: submissionsFixture } });
+      }
+
+      return Promise.resolve({
+        success: true,
+        data: {
+          ...taskFixture,
+          allowedLlmModels: ['deepseek-ai/DeepSeek-V3'],
+          aiUsageLimit: 100,
+          environmentConfig: {
+            ...taskFixture.environmentConfig,
+            aiAccess: 'off',
+            aiProvider: undefined,
+            allowedModels: [],
+            customModels: [],
+            traceability: {
+              ...taskFixture.environmentConfig.traceability,
+              trackAiUsage: false,
+            },
+          },
+        },
+      });
+    });
+
+    render(<TaskDetailPage />);
+
+    const overviewRegion = (await screen.findByText('Task Overview')).closest('.rounded-lg');
+    expect(overviewRegion).not.toBeNull();
+    expect(within(overviewRegion as HTMLElement).getByText('AI Access')).toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).getByText('Disabled')).toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).getByText('AI is off for this task')).toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).getByText('AI disabled')).toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).queryByText('deepseek-ai/DeepSeek-V3')).not.toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).queryByText('moonshotai/Kimi-K2.6')).not.toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).queryByText('100 requests per user')).not.toBeInTheDocument();
   });
 
   it('shows a recoverable error when clipboard permission is denied', async () => {
