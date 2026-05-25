@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import TaskDetailPage from '@/app/tasks/[id]/page';
 import { getAnalyticsDateRange } from '@/app/tasks/[id]/_components/AnalyticsPanel';
@@ -236,6 +236,17 @@ function readBlobAsText(blob: Blob) {
 async function openEnvironmentDialog() {
   fireEvent.click(screen.getByRole('button', { name: /edit environment/i }));
   return screen.findByRole('dialog', { name: /edit environment/i });
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+
+  return { promise, resolve, reject };
 }
 
 describe('admin task overview invite code copy button', () => {
@@ -713,6 +724,80 @@ describe('admin task overview invite code copy button', () => {
     await screen.findByRole('heading', { name: 'Clipboard Task' });
     const dialog = await openEnvironmentDialog();
     expect(within(dialog).getByLabelText(/AI API Key/i)).toBeInTheDocument();
+  });
+
+  it('keeps the task provider and model when saved user AI settings resolve later', async () => {
+    mockSearchParams = new URLSearchParams('tab=setting');
+    const aiSettings = createDeferred<{ success: boolean; data: any }>();
+    const openRouterTask = {
+      ...taskFixture,
+      allowedLlmModels: ['qwen/qwen3.5-397b-a17b'],
+      environmentConfig: {
+        ...taskFixture.environmentConfig,
+        aiProvider: {
+          provider: 'openrouter',
+          baseUrl: 'https://openrouter.ai/api/v1',
+        },
+        allowedModels: ['qwen/qwen3.5-397b-a17b'],
+      },
+    };
+
+    mockApiGet.mockImplementation((url: string) => {
+      if (url === '/api/v1/ai/settings') {
+        return aiSettings.promise;
+      }
+
+      if (url.endsWith('/files')) {
+        return Promise.resolve({ success: true, data: [] });
+      }
+
+      if (url.endsWith('/analytics/summary')) {
+        return Promise.resolve({ success: true, data: statsFixture });
+      }
+
+      if (url.endsWith('/analytics/events-timeline')) {
+        return Promise.resolve({ success: true, data: { timeline: eventsTimelineFixture } });
+      }
+
+      if (url.endsWith('/analytics/event-types')) {
+        return Promise.resolve({ success: true, data: { eventTypes: eventTypesFixture } });
+      }
+
+      if (url.endsWith('/enrollments')) {
+        return Promise.resolve({ success: true, data: { enrollments: enrollmentsFixture } });
+      }
+
+      if (url.endsWith('/submissions')) {
+        return Promise.resolve({ success: true, data: { submissions: submissionsFixture } });
+      }
+
+      return Promise.resolve({ success: true, data: openRouterTask });
+    });
+
+    render(<TaskDetailPage />);
+
+    await screen.findByRole('heading', { name: 'Clipboard Task' });
+    const dialog = await openEnvironmentDialog();
+    expect(within(dialog).getByRole('combobox', { name: /Provider/i })).toHaveValue('https://openrouter.ai/api/v1');
+    expect(within(dialog).getByRole('combobox', { name: /Model/i })).toHaveValue('qwen/qwen3.5-397b-a17b');
+
+    await act(async () => {
+      aiSettings.resolve({
+        success: true,
+        data: {
+          hasApiKey: true,
+          maskedApiKey: 'tgp_...abcd',
+          baseUrl: 'https://api.together.xyz/v1',
+        },
+      });
+      await aiSettings.promise;
+    });
+
+    await waitFor(() => {
+      expect(within(dialog).getByLabelText(/AI API Key/i)).toHaveAttribute('placeholder', 'Current: tgp_...abcd');
+    });
+    expect(within(dialog).getByRole('combobox', { name: /Provider/i })).toHaveValue('https://openrouter.ai/api/v1');
+    expect(within(dialog).getByRole('combobox', { name: /Model/i })).toHaveValue('qwen/qwen3.5-397b-a17b');
   });
 
   it('keeps AI connection details visible after a connection failure', async () => {
