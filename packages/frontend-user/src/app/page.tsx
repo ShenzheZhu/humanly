@@ -103,27 +103,23 @@ const steps = [
 const faqs = [
   [
     'Does Humanly slow down writing?',
-    'No. The editor stays familiar while provenance is recorded in the background.',
-  ],
-  [
-    'What does a certificate prove?',
-    'It binds the final text to a signed record of typing, paste, timing, and AI assistance.',
+    'No. The editor feels like a normal writing surface while Humanly records provenance in the background.',
   ],
   [
     'Can writers still use AI?',
-    'Yes. Humanly is built for transparent human-AI collaboration, not hidden policing.',
+    'Yes. Humanly is built for transparent AI collaboration. AI use can be allowed, limited, or disabled depending on the writing environment.',
+  ],
+  [
+    'What does a certificate show?',
+    'It links the final draft to a recorded writing process: typing, paste activity, timing, and AI assistance.',
   ],
   [
     'Who controls the writing rules?',
     'For assigned tasks, the task owner sets the AI, paste, time, and character rules before writing begins.',
   ],
   [
-    'What can readers verify?',
-    'Readers can open the certificate to inspect the signed process record, activity summary, and sharing settings.',
-  ],
-  [
-    'Can I write outside an assignment?',
-    'Yes. Personal writing lets you create private documents and generate certificates when you want to share proof.',
+    'Can I use Humanly for personal writing?',
+    'Yes. You can create private writing documents, work with or without AI, and generate a certificate when you want proof of process.',
   ],
 ] as const;
 
@@ -135,16 +131,16 @@ export default function HomePage() {
 
       <section id="product" className="relative px-5 pb-14 pt-12 sm:px-8 sm:pb-16 sm:pt-16 lg:px-14 lg:pt-[58px]">
         <div className="mx-auto max-w-[940px] text-center">
-          <h1 className="text-[36px] font-semibold leading-[1.08] tracking-[-0.025em] sm:text-[50px] lg:text-[58px]">
+          <h1 className="text-[28px] font-semibold leading-[1.08] tracking-[-0.025em] sm:text-[36px] lg:text-[42px]">
             <span>Write with AI.</span>
             <br />
             <span className="text-[#a0a2a7]">Prove your process.</span>
           </h1>
-          <p className="mx-auto mt-8 max-w-[560px] text-[15px] leading-[1.7] text-muted-foreground sm:text-[19px] sm:leading-[1.55]">
+          <p className="mx-auto mt-6 max-w-[520px] text-[14px] leading-[1.7] text-muted-foreground sm:text-[16px] sm:leading-[1.6]">
             A writing workspace that quietly records how a draft came together,
             then signs it with a certificate any reader can verify.
           </p>
-          <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link href="/register" className="humanly-landing-btn">
               Start writing <Arrow />
             </Link>
@@ -414,7 +410,7 @@ function ProblemSection() {
       <div className="mx-auto max-w-[1080px]">
         <div className="mb-16 text-center">
           <Eyebrow className="mb-[22px]">Problem</Eyebrow>
-          <h2 className="text-[34px] font-semibold leading-[1.08] tracking-[-0.02em] sm:text-[44px]">
+          <h2 className="text-[28px] font-semibold leading-[1.08] tracking-[-0.02em] sm:text-[36px]">
             <span>Did you write this,</span>
             <br />
             <span className="text-[#a0a2a7]">or did AI?</span>
@@ -458,7 +454,7 @@ function TrustModelSection() {
       <div className="mx-auto max-w-[1080px]">
         <div className="mb-14 text-center">
           <Eyebrow className="mb-[22px]">Trust model</Eyebrow>
-          <h2 className="text-[34px] font-semibold leading-[1.08] tracking-[-0.02em] sm:text-[44px]">
+          <h2 className="text-[28px] font-semibold leading-[1.08] tracking-[-0.02em] sm:text-[36px]">
             <span>Process beats</span>{' '}
             <span className="text-[#a0a2a7]">prediction.</span>
           </h2>
@@ -494,7 +490,7 @@ function AudienceSection() {
       <div className="mx-auto max-w-[1080px]">
         <div className="mb-14 text-center">
           <Eyebrow className="mb-[22px]">Use cases</Eyebrow>
-          <h2 className="text-[34px] font-semibold leading-[1.08] tracking-[-0.02em] sm:text-[44px]">
+          <h2 className="text-[28px] font-semibold leading-[1.08] tracking-[-0.02em] sm:text-[36px]">
             <span>One workspace,</span>{' '}
             <span className="text-[#a0a2a7]">two modes.</span>
           </h2>
@@ -526,7 +522,7 @@ function HowItWorksSection() {
       <div className="mx-auto max-w-[1240px]">
         <div className="mb-20 text-center">
           <Eyebrow className="mb-[22px]">How it works</Eyebrow>
-          <h2 className="text-[34px] font-semibold leading-[1.08] tracking-[-0.02em] sm:text-[44px]">
+          <h2 className="text-[28px] font-semibold leading-[1.08] tracking-[-0.02em] sm:text-[36px]">
             <span>Four steps</span>{' '}
             <span className="text-[#a0a2a7]">to a signed draft.</span>
           </h2>
@@ -573,7 +569,7 @@ function FAQSection() {
       <div className="mx-auto grid max-w-[980px] gap-12 md:grid-cols-[1fr_2fr] md:gap-20">
         <div>
           <Eyebrow className="mb-[22px]">FAQ</Eyebrow>
-          <h2 className="text-[34px] font-semibold leading-[1.1] tracking-[-0.015em]">
+          <h2 className="text-[28px] font-semibold leading-[1.1] tracking-[-0.015em] sm:text-[36px]">
             <span>Common questions,</span>
             <br />
             <span className="text-[#a0a2a7]">plain answers.</span>
@@ -605,7 +601,7 @@ function CTASection() {
   return (
     <section className="px-5 py-[140px] text-center sm:px-8 lg:px-14">
       <Eyebrow className="mb-[22px]">Start writing</Eyebrow>
-      <h2 className="text-[42px] font-semibold leading-[1.02] tracking-[-0.025em] sm:text-[60px]">
+      <h2 className="text-[32px] font-semibold leading-[1.04] tracking-[-0.025em] sm:text-[46px]">
         <span>Your process,</span>
         <br />
         <span className="text-[#a0a2a7]">signed and delivered.</span>
