@@ -85,5 +85,6 @@ describe('AIAssistantPanel response loading state', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent('Thinking');
     expect(screen.getByText('Thinking')).toHaveClass('humanly-thinking-shimmer');
+    expect(screen.getByRole('status').querySelector('.animate-spin')).toBeNull();
   });
 });
