@@ -512,7 +512,7 @@ export function AIAssistantPanel({
                 aria-live="polite"
               >
                 <div className="flex items-center gap-2">
-                  <span className="humanly-thinking-shimmer font-medium">Thinking...</span>
+                  <span className="humanly-thinking-shimmer font-medium">Thinking</span>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
                 </div>
               </div>
