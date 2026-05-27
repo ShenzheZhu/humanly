@@ -162,6 +162,18 @@ describe('AuthService.login', () => {
       statusCode: 401,
     });
   });
+
+  it('throws 403 when email has not been verified', async () => {
+    const userWithPw = await makeUserWithPassword({ emailVerified: false });
+    MockUserModel.findByEmail.mockResolvedValue(userWithPw as any);
+
+    await expect(AuthService.login('alice@example.com', 'password123')).rejects.toMatchObject({
+      statusCode: 403,
+      message: 'Please verify your email before logging in',
+    });
+
+    expect(MockRefreshTokenModel.create).not.toHaveBeenCalled();
+  });
 });
 
 // ── loginWithOAuth ───────────────────────────────────────────────────────────
@@ -291,6 +303,23 @@ describe('AuthService.refreshToken', () => {
     await expect(AuthService.refreshToken(token)).rejects.toMatchObject({
       statusCode: 401,
     });
+  });
+
+  it('throws 403 and revokes the refresh token when the account is unverified', async () => {
+    const { generateRefreshToken } = require('../../utils/jwt');
+    const token = generateRefreshToken({ userId: 'user-1', email: 'alice@example.com' });
+
+    MockRefreshTokenModel.findByUserIdAndHash.mockResolvedValue({ id: 'rt-1' } as any);
+    MockRefreshTokenModel.deleteByHash.mockResolvedValue(undefined);
+    MockUserModel.findById.mockResolvedValue(makeUser({ emailVerified: false }) as any);
+
+    await expect(AuthService.refreshToken(token)).rejects.toMatchObject({
+      statusCode: 403,
+      message: 'Please verify your email before logging in',
+    });
+
+    expect(MockRefreshTokenModel.deleteByHash).toHaveBeenCalledTimes(1);
+    expect(MockRefreshTokenModel.create).not.toHaveBeenCalled();
   });
 });
 
