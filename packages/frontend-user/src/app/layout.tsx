@@ -24,7 +24,14 @@ export const metadata: Metadata = {
   description: 'Verify and certify human-written content through behavioral keystroke tracking...',
   keywords: ['human authorship', 'authorship verification', 'keystroke tracking'],
   authors: [{ name: `${BRAND.name} Team` }],
-  icons: { icon: '/icon.svg' },
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/favicon.png', type: 'image/png' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: '/favicon.ico',
+  },
 
   openGraph: {
     title: getBrandText().pageTitles.user,

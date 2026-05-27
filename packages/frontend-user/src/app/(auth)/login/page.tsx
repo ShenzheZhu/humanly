@@ -113,6 +113,11 @@ export default function LoginPage() {
       }
     >
         <AuthenticatedRedirect />
+        <OAuthButtons
+          className="mb-5"
+          separatorPosition="after"
+          separatorLabel="or use email"
+        />
         <form method="post" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {error && (
             <Alert variant={resendSuccess ? "default" : "destructive"}>
@@ -223,7 +228,6 @@ export default function LoginPage() {
             )}
           </Button>
         </form>
-        <OAuthButtons className="mt-5" />
     </AuthCard>
   );
 }
