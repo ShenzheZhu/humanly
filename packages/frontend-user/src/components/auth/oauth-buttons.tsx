@@ -19,9 +19,13 @@ type OAuthProvidersResponse = {
 export function OAuthButtons({
   next = '/documents',
   className,
+  separatorPosition = 'before',
+  separatorLabel = 'or continue with',
 }: {
   next?: string;
   className?: string;
+  separatorPosition?: 'before' | 'after';
+  separatorLabel?: string;
 }) {
   const [providers, setProviders] = useState({ google: false, github: false });
   const [loadingProvider, setLoadingProvider] = useState<'google' | 'github' | null>(null);
@@ -64,13 +68,17 @@ export function OAuthButtons({
     window.location.href = getApiUrl(`/auth/oauth/${provider}/start?${params.toString()}`);
   };
 
+  const separator = (
+    <div className="flex items-center gap-3">
+      <div className="h-px flex-1 bg-border/80" />
+      <span className="text-xs text-muted-foreground">{separatorLabel}</span>
+      <div className="h-px flex-1 bg-border/80" />
+    </div>
+  );
+
   return (
     <div className={cn('space-y-3', className)}>
-      <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-border/80" />
-        <span className="text-xs text-muted-foreground">or continue with</span>
-        <div className="h-px flex-1 bg-border/80" />
-      </div>
+      {separatorPosition === 'before' && separator}
       <div className="grid gap-2 sm:grid-cols-2">
         {providers.google && (
           <Button
@@ -106,6 +114,7 @@ export function OAuthButtons({
           </Button>
         )}
       </div>
+      {separatorPosition === 'after' && separator}
     </div>
   );
 }
