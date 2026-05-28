@@ -589,7 +589,7 @@ export default function DocumentsPage() {
               </p>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {validTaskEnrollments.map((task) => {
                 const taskName = getDisplayTaskName(task);
                 const timerState = getWritingTimerState(task, dashboardNowMs, {
@@ -598,15 +598,16 @@ export default function DocumentsPage() {
                 return (
                   <Card
                     key={`${task.id}-${task.documentId}`}
-                    className="flex h-full min-h-[18rem] p-5 transition-colors hover:border-foreground/30"
+                    data-testid="task-submission-card"
+                    className="flex h-full min-h-[18rem] min-w-0 overflow-hidden p-5 transition-colors hover:border-foreground/30"
                   >
-                    <CardContent className="flex h-full flex-1 flex-col gap-4 p-0">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 space-y-1">
+                    <CardContent className="flex h-full min-w-0 flex-1 flex-col gap-4 p-0">
+                    <div className="flex min-w-0 items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1 space-y-1">
                         <p className="humanly-eyebrow">
                           Task
                         </p>
-                        <h3 className="truncate text-lg font-semibold" title={taskName}>
+                        <h3 className="max-w-full truncate text-lg font-semibold" title={taskName}>
                           {taskName}
                         </h3>
                       </div>
@@ -616,20 +617,20 @@ export default function DocumentsPage() {
                           <BookOpen className="h-5 w-5 shrink-0 text-muted-foreground" />
                         )}
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="mb-1 humanly-eyebrow">
                           Invite Code
                         </p>
-                        <div className="rounded-lg border border-border/70 bg-muted/35 px-3 py-2 font-mono text-sm font-semibold tracking-normal">
+                        <div className="w-full max-w-full truncate rounded-lg border border-border/70 bg-muted/35 px-3 py-2 font-mono text-sm font-semibold tracking-normal">
                           {task.inviteCode}
                         </div>
                       </div>
                       {(timerState || task.startDate || task.endDate) && (
-                        <div className="grid gap-2 rounded-lg border border-border/70 bg-muted/35 p-3 text-sm">
+                        <div className="grid w-full min-w-0 gap-2 rounded-lg border border-border/70 bg-muted/35 p-3 text-sm">
                           {timerState && (
-                            <div className="flex items-start gap-2">
+                            <div className="flex min-w-0 items-start gap-2">
                               <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-                              <div className="min-w-0">
+                              <div className="min-w-0 flex-1">
                                 <p className="humanly-eyebrow">
                                   {timerState.label}
                                 </p>
@@ -639,9 +640,9 @@ export default function DocumentsPage() {
                             </div>
                           )}
                           {task.startDate && (
-                            <div className="flex items-start gap-2">
+                            <div className="flex min-w-0 items-start gap-2">
                               <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-                              <div className="min-w-0">
+                              <div className="min-w-0 flex-1">
                                 <p className="humanly-eyebrow">
                                   Starts
                                 </p>
@@ -650,9 +651,9 @@ export default function DocumentsPage() {
                             </div>
                           )}
                           {task.endDate && (
-                            <div className="flex items-start gap-2">
+                            <div className="flex min-w-0 items-start gap-2">
                               <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-                              <div className="min-w-0">
+                              <div className="min-w-0 flex-1">
                                 <p className="humanly-eyebrow">
                                   Deadline
                                 </p>
@@ -663,13 +664,14 @@ export default function DocumentsPage() {
                         </div>
                       )}
                       <div className="flex-1" />
-                      <div className="flex gap-2">
-                        <Button className="flex-1" onClick={() => router.push(`/documents/${task.documentId}`)}>
+                      <div className="flex w-full min-w-0 gap-2">
+                        <Button className="min-w-0 flex-1" onClick={() => router.push(`/documents/${task.documentId}`)}>
                           {timerState?.expired ? 'Open Read-only' : 'Open Submission'}
                         </Button>
                         <Button
                           variant="outline"
                           size="icon"
+                          className="shrink-0"
                           title="Delete task submission"
                           onClick={() => setTaskToDelete(task)}
                         >
