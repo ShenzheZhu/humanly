@@ -341,4 +341,34 @@ describe('task enrollment workflow', () => {
     await user.click(screen.getByRole('button', { name: /open read-only/i }));
     expect(mockPush).toHaveBeenCalledWith('/documents/expired-doc-1');
   });
+
+  it('keeps long task submission card content constrained inside the card', async () => {
+    const longTaskName = 'QA #351 deployed enroll 1779937231291 with an intentionally long title';
+    documents = [{ ...createdDocument, id: 'long-task-doc-1' }];
+    enrollments = [{
+      id: 'enroll-long-1',
+      name: longTaskName,
+      inviteCode: '7E414D',
+      documentId: 'long-task-doc-1',
+      joinedAt: '2026-05-14T12:00:00.000Z',
+      startDate: '2026-05-14T12:00:00.000Z',
+      endDate: '2026-05-15T12:00:00.000Z',
+      environmentConfig: { aiAccess: 'off' },
+    }];
+
+    const user = userEvent.setup();
+    render(<DocumentsPage />);
+
+    await screen.findByRole('heading', { name: /writing dashboard/i });
+    await user.click(screen.getByRole('tab', { name: /task submissions/i }));
+
+    const card = screen.getByTestId('task-submission-card');
+    expect(card).toHaveClass('min-w-0', 'overflow-hidden');
+    expect(within(card).getByTitle(longTaskName)).toHaveClass('truncate', 'max-w-full');
+    expect(within(card).getByText('7E414D')).toHaveClass('w-full', 'max-w-full', 'truncate');
+
+    const actionRow = within(card).getByRole('button', { name: /open submission/i }).parentElement;
+    expect(actionRow).toHaveClass('w-full', 'min-w-0');
+    expect(within(card).getByTitle('Delete task submission')).toHaveClass('shrink-0');
+  });
 });
