@@ -26,6 +26,20 @@ let mockAiLogs: any[] = [];
 let mockTimelineSummary: any;
 let mockTimelineItems: any[] = [];
 let mockLatestEditorProps: any;
+let mockEditorBufferedEvents: any[] = [];
+let mockFlushEditorEvents: (() => Promise<void>) | null = null;
+let mockIsAIPanelOpen = false;
+
+function createDeferred<T = void>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+
+  return { promise, resolve, reject };
+}
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -126,7 +140,7 @@ jest.mock('@/stores/auth-store', () => ({
 
 jest.mock('@/hooks/use-ai', () => ({
   useAI: () => ({
-    isPanelOpen: false,
+    isPanelOpen: mockIsAIPanelOpen,
     togglePanel: jest.fn(),
     closePanel: jest.fn(),
   }),
@@ -142,7 +156,14 @@ jest.mock('@/components/ai', () => ({
   AIAssistantButton: ({ onClick }: any) => (
     <button type="button" onClick={onClick}>AI Assistant</button>
   ),
-  AIAssistantPanel: () => null,
+  AIAssistantPanel: ({ insertAtCursor }: any) => (
+    <button
+      type="button"
+      onClick={() => insertAtCursor?.('AI inserted text', { messageId: 'message-1', logId: 'log-1' })}
+    >
+      Insert AI Message
+    </button>
+  ),
   AISelectionMenu: () => null,
 }));
 
@@ -172,32 +193,79 @@ jest.mock('@/lib/api-client', () => ({
   },
 }));
 
-jest.mock('@humanly/editor', () => ({
-  LexicalEditor: (props: any) => {
-    mockLatestEditorProps = props;
-    const { onContentChange, onEventsBuffer, onAutoSave, placeholder } = props;
-    return (
-      <textarea
-        aria-label="Document editor"
-        placeholder={placeholder}
-        onChange={(event) => {
-          const plainText = event.currentTarget.value;
-          const content = { root: { children: [{ text: plainText }] } };
-          onContentChange?.(content, plainText);
-          onAutoSave?.(content, plainText);
-          onEventsBuffer?.([
-            {
-              eventType: 'input',
-              timestamp: new Date().toISOString(),
-              keyChar: plainText.at(-1) || '',
-            },
-          ]);
-        }}
-        disabled={props.editable === false}
-      />
-    );
-  },
-}));
+jest.mock('@humanly/editor', () => {
+  const React = require('react');
+  const mockInsertAtCursor = (text: string) => ({
+    inserted: true,
+    textBefore: '',
+    textAfter: text,
+    cursorPosition: text.length,
+    selectionStart: 0,
+    selectionEnd: text.length,
+    editorStateBefore: { root: { children: [] } },
+    editorStateAfter: { root: { children: [{ text }] } },
+  });
+
+  return {
+    LexicalEditor: (props: any) => {
+      mockLatestEditorProps = props;
+      const {
+        onContentChange,
+        onEventsBuffer,
+        onAutoSave,
+        placeholder,
+        onEventFlushReady,
+        renderAIBridge,
+      } = props;
+
+      React.useEffect(() => {
+        const flushPendingEvents = async () => {
+          if (mockEditorBufferedEvents.length === 0) return;
+
+          const events = [...mockEditorBufferedEvents];
+          mockEditorBufferedEvents = [];
+
+          try {
+            await onEventsBuffer?.(events);
+          } catch (error) {
+            mockEditorBufferedEvents = [...events, ...mockEditorBufferedEvents];
+            throw error;
+          }
+        };
+
+        mockFlushEditorEvents = flushPendingEvents;
+        onEventFlushReady?.(flushPendingEvents);
+
+        return () => {
+          mockFlushEditorEvents = null;
+          onEventFlushReady?.(null);
+        };
+      }, [onEventsBuffer, onEventFlushReady]);
+
+      return (
+        <>
+          {renderAIBridge?.({ insertAtCursor: mockInsertAtCursor })}
+          <textarea
+            aria-label="Document editor"
+            placeholder={placeholder}
+            onChange={(event) => {
+              const plainText = event.currentTarget.value;
+              const content = { root: { children: [{ text: plainText }] } };
+              onContentChange?.(content, plainText);
+              onAutoSave?.(content, plainText);
+              mockEditorBufferedEvents.push({
+                eventType: 'input',
+                timestamp: new Date().toISOString(),
+                keyChar: plainText.at(-1) || '',
+              });
+            }}
+            disabled={props.editable === false}
+          />
+        </>
+      );
+    },
+  };
+});
 
 describe('editor and logs workflows', () => {
   beforeEach(() => {
@@ -273,6 +341,9 @@ describe('editor and logs workflows', () => {
       },
     ];
     mockLatestEditorProps = undefined;
+    mockEditorBufferedEvents = [];
+    mockFlushEditorEvents = null;
+    mockIsAIPanelOpen = false;
     global.fetch = jest.fn().mockResolvedValue({ ok: true }) as jest.Mock;
     mockStartWritingSession.mockImplementation(async () => ({
       id: 'doc-1',
@@ -333,13 +404,158 @@ describe('editor and logs workflows', () => {
       target: { value: 'QA editor text' },
     });
 
+    expect(mockTrackEvents).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await mockFlushEditorEvents?.();
+    });
+
     await waitFor(() => {
       expect(mockTrackEvents).toHaveBeenCalledWith(
         [expect.objectContaining({ eventType: 'input' })],
-        null
+        null,
+        { throwOnError: true }
       );
     });
     expect(screen.queryByText(/failed to fetch|document not found|application error/i)).not.toBeInTheDocument();
+  });
+
+  it('flushes pending activity logs before navigating to logs', async () => {
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/document editor/i), {
+      target: { value: 'A' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /view logs/i }));
+
+    await waitFor(() => {
+      expect(mockTrackEvents).toHaveBeenCalledWith(
+        [expect.objectContaining({ eventType: 'input' })],
+        null,
+        { throwOnError: true }
+      );
+      expect(mockPush).toHaveBeenCalledWith('/logs/doc-1');
+    });
+    expect(mockTrackEvents.mock.invocationCallOrder[0]).toBeLessThan(mockPush.mock.invocationCallOrder[0]);
+  });
+
+  it('does not navigate to logs until a delayed activity log flush finishes', async () => {
+    const deferred = createDeferred();
+    mockTrackEvents.mockReturnValueOnce(deferred.promise);
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/document editor/i), {
+      target: { value: 'A' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /view logs/i }));
+
+    expect(await screen.findByText('Saving activity...')).toBeInTheDocument();
+    expect(mockPush).not.toHaveBeenCalled();
+
+    await act(async () => {
+      deferred.resolve();
+      await deferred.promise;
+    });
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/logs/doc-1');
+    });
+  });
+
+  it('waits for existing in-flight activity log writes without duplicating the POST', async () => {
+    const deferred = createDeferred();
+    mockTrackEvents.mockReturnValueOnce(deferred.promise);
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    const inFlightWrite = mockLatestEditorProps.onEventsBuffer([
+      {
+        eventType: 'focus',
+        timestamp: new Date().toISOString(),
+      },
+    ]);
+
+    await waitFor(() => {
+      expect(mockTrackEvents).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /view logs/i }));
+
+    expect(await screen.findByText('Saving activity...')).toBeInTheDocument();
+    expect(mockTrackEvents).toHaveBeenCalledTimes(1);
+    expect(mockPush).not.toHaveBeenCalled();
+
+    await act(async () => {
+      deferred.resolve();
+      await inFlightWrite;
+    });
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/logs/doc-1');
+    });
+    expect(mockTrackEvents).toHaveBeenCalledTimes(1);
+  });
+
+  it('blocks logs navigation when activity log flush fails', async () => {
+    mockTrackEvents.mockRejectedValueOnce(new Error('event write failed'));
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/document editor/i), {
+      target: { value: 'A' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /view logs/i }));
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'Activity logs failed to save',
+        variant: 'destructive',
+      }));
+    });
+    expect(mockPush).not.toHaveBeenCalledWith('/logs/doc-1');
+    expect(await screen.findByRole('button', { name: /view logs/i })).toBeEnabled();
+  });
+
+  it('waits for pending AI insert activity writes before navigating to logs', async () => {
+    const deferred = createDeferred();
+    mockDocumentEnvironmentConfig = { aiAccess: 'full', copyPastePolicy: 'allowed' };
+    mockIsAIPanelOpen = true;
+    mockTrackEvents.mockReturnValueOnce(deferred.promise);
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /insert ai message/i }));
+
+    await waitFor(() => {
+      expect(mockTrackEvents).toHaveBeenCalledWith(
+        [expect.objectContaining({ eventType: 'ai_insert_from_chat' })],
+        null,
+        { throwOnError: true }
+      );
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /view logs/i }));
+
+    expect(await screen.findByText('Saving activity...')).toBeInTheDocument();
+    expect(mockPush).not.toHaveBeenCalled();
+
+    await act(async () => {
+      deferred.resolve();
+      await deferred.promise;
+    });
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/logs/doc-1');
+    });
   });
 
   it('uses a short editor autosave window and persists changed content', async () => {
@@ -653,6 +869,32 @@ describe('editor and logs workflows', () => {
     }));
   });
 
+  it('flushes pending activity logs before generating a certificate', async () => {
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/document editor/i), {
+      target: { value: 'Certificate text' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /generate certificate/i }));
+    fireEvent.click(screen.getByRole('button', { name: /confirm generate certificate/i }));
+
+    await waitFor(() => {
+      expect(mockTrackEvents).toHaveBeenCalledWith(
+        [expect.objectContaining({ eventType: 'input' })],
+        null,
+        { throwOnError: true }
+      );
+      expect(mockGenerateCertificate).toHaveBeenCalledWith(
+        'doc-1',
+        expect.objectContaining({ certificateType: 'full_authorship' })
+      );
+    });
+    expect(mockTrackEvents.mock.invocationCallOrder[0]).toBeLessThan(
+      mockGenerateCertificate.mock.invocationCallOrder[0]
+    );
+  });
+
   it('uses enrolled task copy-paste and time settings over stale document settings', async () => {
     mockDocumentEnvironmentConfig = {
       aiAccess: 'off',
@@ -756,6 +998,52 @@ describe('editor and logs workflows', () => {
       '/tasks/enrollments/enroll-1/submissions',
       expect.anything()
     );
+  });
+
+  it('flushes pending activity logs before task submit', async () => {
+    mockTaskEnrollments = [{
+      id: 'enroll-1',
+      documentId: 'doc-1',
+      name: 'Submit Task',
+      inviteCode: 'ABC123',
+      joinedAt: '2026-05-19T12:00:00.000Z',
+      environmentConfig: {
+        aiAccess: 'off',
+        copyPastePolicy: 'allowed',
+      },
+    }];
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith(
+        '/tasks/enrollments/enroll-1/submission-sessions',
+        { documentId: 'doc-1' }
+      );
+    });
+
+    fireEvent.change(screen.getByLabelText(/document editor/i), {
+      target: { value: 'Submitted text' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /submit/i }));
+
+    await waitFor(() => {
+      expect(mockTrackEvents).toHaveBeenCalledWith(
+        [expect.objectContaining({ eventType: 'input' })],
+        'session-1',
+        { throwOnError: true }
+      );
+      expect(mockApiPost).toHaveBeenCalledWith(
+        '/tasks/enrollments/enroll-1/submissions',
+        { documentId: 'doc-1' }
+      );
+    });
+
+    const submissionCallOrder = mockApiPost.mock.invocationCallOrder[
+      mockApiPost.mock.calls.findIndex(([path]) => path === '/tasks/enrollments/enroll-1/submissions')
+    ];
+    expect(mockTrackEvents.mock.invocationCallOrder[0]).toBeLessThan(submissionCallOrder);
   });
 
   it('shows writing events with in-place fold points for less important logs', async () => {

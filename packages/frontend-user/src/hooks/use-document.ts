@@ -3,6 +3,10 @@ import { apiClient, type HumanlyAxiosRequestConfig } from '@/lib/api-client';
 import { uploadPdfForDocument } from '@/lib/document-pdf';
 import type { AppFile, Document, DocumentEvent } from '@humanly/shared';
 
+interface TrackEventsOptions {
+  throwOnError?: boolean;
+}
+
 export function useDocument(documentId: string) {
   const [document, setDocument] = useState<Document | null>(null);
   const [linkedFile, setLinkedFile] = useState<AppFile | null>(null);
@@ -73,7 +77,11 @@ export function useDocument(documentId: string) {
     }
   }, [documentId]);
 
-  const trackEvents = useCallback(async (events: Partial<DocumentEvent>[], sessionId?: string | null) => {
+  const trackEvents = useCallback(async (
+    events: Partial<DocumentEvent>[],
+    sessionId?: string | null,
+    options: TrackEventsOptions = {}
+  ) => {
     try {
       const backgroundRequestConfig: HumanlyAxiosRequestConfig = { skipAuthRedirect: true };
 
@@ -83,6 +91,9 @@ export function useDocument(documentId: string) {
       }, backgroundRequestConfig);
     } catch (err: any) {
       console.error('Error tracking events:', err);
+      if (options.throwOnError) {
+        throw err;
+      }
     }
   }, [documentId]);
 

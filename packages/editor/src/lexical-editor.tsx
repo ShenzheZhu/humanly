@@ -662,6 +662,7 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
     onContentChange,
     onEventTracked,
     onEventsBuffer,
+    onEventFlushReady,
     onAutoSave,
     className = '',
     renderSelectionPopup,
@@ -899,6 +900,7 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
             userId={userId}
             onEvent={onEventTracked}
             onEventsBuffer={onEventsBuffer}
+            onEventFlushReady={onEventFlushReady}
             enabled={trackingEnabled}
             copyPastePolicy={copyPastePolicy}
           />
