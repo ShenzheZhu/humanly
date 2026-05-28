@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { BookOpen, Check, MessageSquare, Sparkles, Wand2 } from 'lucide-react';
 import { AuthenticatedRedirect } from '@/components/auth/authenticated-redirect';
 import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
+import { marketingHref, productAppHref } from '@/lib/app-origin';
 
 const ink = '#1a1c20';
 const muted = '#6e7176';
@@ -108,7 +109,7 @@ export default function HomePage() {
             then signs it with a certificate any reader can verify.
           </p>
           <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link href="/register" className="humanly-landing-btn">
+            <Link href={productAppHref('/register')} className="humanly-landing-btn">
               Start writing <Arrow />
             </Link>
           </div>
@@ -131,7 +132,7 @@ export default function HomePage() {
 function NavBar() {
   return (
     <header className="grid grid-cols-[1fr_auto] items-center px-5 py-5 sm:px-8 lg:grid-cols-[1fr_auto_1fr] lg:px-14 lg:py-[26px]">
-      <Link href="/" className="justify-self-start">
+      <Link href={marketingHref('/')} className="justify-self-start">
         <HumanlyWordmark size="md" />
       </Link>
 
@@ -142,10 +143,10 @@ function NavBar() {
       </nav>
 
       <div className="flex items-center gap-3 justify-self-end">
-        <Link href="/login" className="hidden text-sm font-medium text-muted-foreground hover:text-foreground sm:inline">
+        <Link href={productAppHref('/login')} className="hidden text-sm font-medium text-muted-foreground hover:text-foreground sm:inline">
           Log in
         </Link>
-        <Link href="/register" className="humanly-landing-btn px-[18px] py-[9px] text-[13px]">
+        <Link href={productAppHref('/register')} className="humanly-landing-btn px-[18px] py-[9px] text-[13px]">
           Start
         </Link>
       </div>
@@ -604,7 +605,7 @@ function CTASection() {
         <span className="text-[#a0a2a7]">signed and delivered.</span>
       </h2>
       <div className="mt-11 flex justify-center gap-3">
-        <Link href="/register" className="humanly-landing-btn">
+        <Link href={productAppHref('/register')} className="humanly-landing-btn">
           Open the editor <Arrow />
         </Link>
       </div>
@@ -616,7 +617,7 @@ function Footer() {
   return (
     <footer className="border-t border-[rgba(20,22,26,0.10)] px-5 py-9 sm:px-8 lg:px-14">
       <div className="mx-auto flex max-w-[1168px] flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-        <Link href="/">
+        <Link href={marketingHref('/')}>
           <HumanlyWordmark size="sm" />
         </Link>
         <div className="flex flex-wrap gap-5 text-xs font-medium text-muted-foreground">

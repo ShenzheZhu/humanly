@@ -262,6 +262,7 @@ jobs:
 
       - name: Verify production health endpoints
         run: |
+          curl -fsS https://writehumanly.net/health >/dev/null
           curl -fsS https://app.writehumanly.net/health >/dev/null
           curl -fsS https://admin.writehumanly.net/health >/dev/null
           curl -fsS https://api.writehumanly.net/health >/dev/null
