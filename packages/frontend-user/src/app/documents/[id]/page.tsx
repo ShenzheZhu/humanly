@@ -92,6 +92,12 @@ const API_URL =
 const SUBMISSION_SESSION_START_DELAY_MS = 250;
 const EDITOR_AUTO_SAVE_INTERVAL_MS = 750;
 type SaveStatus = 'saved' | 'saving' | 'error';
+type PendingActivityEvent = Record<string, unknown>;
+
+interface PendingActivityEventBatch {
+  events: PendingActivityEvent[];
+  sessionId?: string | null;
+}
 
 function formatTimerDuration(totalSeconds: number): string {
   const safeSeconds = Math.max(0, Math.floor(totalSeconds));
@@ -255,6 +261,7 @@ export default function DocumentEditorPage() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
   const [isGeneratingCertificate, setIsGeneratingCertificate] = useState(false);
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
+  const [isSyncingActivityLogs, setIsSyncingActivityLogs] = useState(false);
   const [showCertificateDialog, setShowCertificateDialog] = useState(false);
   const [isUploadingPdf, setIsUploadingPdf] = useState(false);
   const [taskInstructionFile, setTaskInstructionFile] = useState<TaskInstructionFile | null>(null);
@@ -272,6 +279,9 @@ export default function DocumentEditorPage() {
   const latestEditorSnapshotRef = useRef<{ content: Record<string, any>; plainText: string } | null>(null);
   const loadedDocumentIdRef = useRef<string | null>(null);
   const lastCharacterLimitToastRef = useRef(0);
+  const flushEditorEventsRef = useRef<(() => Promise<void>) | null>(null);
+  const pendingEventWriteRef = useRef<Promise<void>>(Promise.resolve());
+  const failedEventBatchesRef = useRef<PendingActivityEventBatch[]>([]);
 
   // AI Assistant
   const {
@@ -696,6 +706,60 @@ export default function DocumentEditorPage() {
     }
   };
 
+  const postEventBatch = useCallback(
+    async (batch: PendingActivityEventBatch) => {
+      await trackEvents(batch.events as any, batch.sessionId, { throwOnError: true });
+    },
+    [trackEvents]
+  );
+
+  const retryFailedEventBatches = useCallback(async () => {
+    while (failedEventBatchesRef.current.length > 0) {
+      const batches = [...failedEventBatchesRef.current];
+      failedEventBatchesRef.current = [];
+
+      for (let index = 0; index < batches.length; index += 1) {
+        try {
+          await postEventBatch(batches[index]);
+        } catch (error) {
+          failedEventBatchesRef.current = [
+            batches[index],
+            ...batches.slice(index + 1),
+            ...failedEventBatchesRef.current,
+          ];
+          throw error;
+        }
+      }
+    }
+  }, [postEventBatch]);
+
+  const enqueueEventWrite = useCallback(
+    (
+      events: PendingActivityEvent[],
+      sessionId?: string | null,
+      options: { retainOnFailure?: boolean } = {}
+    ) => {
+      if (events.length === 0) {
+        return Promise.resolve();
+      }
+
+      const batch: PendingActivityEventBatch = { events, sessionId };
+      const writePromise = pendingEventWriteRef.current
+        .catch(() => undefined)
+        .then(() => postEventBatch(batch))
+        .catch((error) => {
+          if (options.retainOnFailure) {
+            failedEventBatchesRef.current.push(batch);
+          }
+          throw error;
+        });
+
+      pendingEventWriteRef.current = writePromise.catch(() => undefined);
+      return writePromise;
+    },
+    [postEventBatch]
+  );
+
   const handleEventsBuffer = async (events: TrackedEvent[]) => {
     const currentSessionId =
       submissionSessionRef.current?.sessionId ||
@@ -716,8 +780,38 @@ export default function DocumentEditorPage() {
       editorStateAfter: event.editorStateAfter,
       metadata: event.metadata,
     }));
-    await trackEvents(mappedEvents, currentSessionId);
+    await enqueueEventWrite(mappedEvents, currentSessionId, { retainOnFailure: false });
   };
+
+  const handleEventFlushReady = useCallback((flushPendingEvents: (() => Promise<void>) | null) => {
+    flushEditorEventsRef.current = flushPendingEvents;
+  }, []);
+
+  const syncActivityLogsForAuditAction = useCallback(async (): Promise<boolean> => {
+    setIsSyncingActivityLogs(true);
+    try {
+      await flushEditorEventsRef.current?.();
+      await pendingEventWriteRef.current;
+      await retryFailedEventBatches();
+      return true;
+    } catch (error) {
+      toast({
+        title: 'Activity logs failed to save',
+        description: 'Check your connection and try again.',
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      setIsSyncingActivityLogs(false);
+    }
+  }, [retryFailedEventBatches, toast]);
+
+  const handleViewLogs = useCallback(async () => {
+    const activityLogsSynced = await syncActivityLogsForAuditAction();
+    if (!activityLogsSynced) return;
+
+    router.push(`/logs/${documentId}`);
+  }, [documentId, router, syncActivityLogsForAuditAction]);
 
   const openPanelWithQuote = useAIStore((state) => state.openPanelWithQuote);
   const handleAskAI = useCallback((selectedText: string) => openPanelWithQuote(selectedText), [openPanelWithQuote]);
@@ -767,10 +861,10 @@ export default function DocumentEditorPage() {
         },
       };
 
-      await trackEvents([event as any], currentSessionId);
+      void enqueueEventWrite([event as any], currentSessionId, { retainOnFailure: true }).catch(() => undefined);
       toast({ title: 'Inserted into document' });
     },
-    [editorInsertAtCursor, submissionSessionId, toast, trackEvents]
+    [editorInsertAtCursor, enqueueEventWrite, submissionSessionId, toast]
   );
 
   const handleCharacterLimitReached = useCallback((limit: number) => {
@@ -804,9 +898,13 @@ export default function DocumentEditorPage() {
         editorStateAfter: replacementResult?.editorStateAfter,
         metadata: { actionType, originalText, newText },
       };
-      await trackEvents([event as any], submissionSessionRef.current?.sessionId || submissionSessionId);
+      void enqueueEventWrite(
+        [event as any],
+        submissionSessionRef.current?.sessionId || submissionSessionId,
+        { retainOnFailure: true }
+      ).catch(() => undefined);
     },
-    [submissionSessionId, trackEvents]
+    [enqueueEventWrite, submissionSessionId]
   );
 
   const validateCharacterBounds = useCallback((actionLabel: string): boolean => {
@@ -836,6 +934,9 @@ export default function DocumentEditorPage() {
 
     try {
       setIsGeneratingCertificate(true);
+      const activityLogsSynced = await syncActivityLogsForAuditAction();
+      if (!activityLogsSynced) return;
+
       const certificate = await generateCertificate(documentId, {
         certificateType: 'full_authorship',
         ...options,
@@ -862,6 +963,9 @@ export default function DocumentEditorPage() {
 
     try {
       setIsSubmittingTask(true);
+      const activityLogsSynced = await syncActivityLogsForAuditAction();
+      if (!activityLogsSynced) return;
+
       if (latestEditorSnapshotRef.current) {
         await updateDocument(
           latestEditorSnapshotRef.current.content,
@@ -891,7 +995,7 @@ export default function DocumentEditorPage() {
     } finally {
       setIsSubmittingTask(false);
     }
-  }, [documentId, router, taskEnrollment, toast, updateDocument, validateCharacterBounds]);
+  }, [documentId, router, syncActivityLogsForAuditAction, taskEnrollment, toast, updateDocument, validateCharacterBounds]);
 
   useEffect(() => {
     if (!isTimeLimitExpired || !taskEnrollment || isSubmittingTask) return;
@@ -1116,11 +1220,21 @@ export default function DocumentEditorPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => router.push(`/logs/${documentId}`)}
+                onClick={handleViewLogs}
+                disabled={isSyncingActivityLogs}
                 className="sm:size-default"
               >
-                <FileText className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">View Logs</span>
+                {isSyncingActivityLogs ? (
+                  <>
+                    <Loader2 className="h-4 w-4 sm:mr-2 animate-spin" />
+                    <span className="hidden sm:inline">Saving activity...</span>
+                  </>
+                ) : (
+                  <>
+                    <FileText className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">View Logs</span>
+                  </>
+                )}
               </Button>
 
               {!taskEnrollment && (
@@ -1139,13 +1253,15 @@ export default function DocumentEditorPage() {
                 <Button
                   size="sm"
                   onClick={() => handleSubmitTask()}
-                  disabled={isSubmittingTask}
+                  disabled={isSubmittingTask || isSyncingActivityLogs}
                   className="sm:size-default"
                 >
-                  {isSubmittingTask ? (
+                  {isSubmittingTask || isSyncingActivityLogs ? (
                     <>
                       <Clock className="h-4 w-4 sm:mr-2 animate-spin" />
-                      <span className="hidden sm:inline">Submitting...</span>
+                      <span className="hidden sm:inline">
+                        {isSyncingActivityLogs ? 'Saving activity...' : 'Submitting...'}
+                      </span>
                     </>
                   ) : (
                     <>
@@ -1158,7 +1274,7 @@ export default function DocumentEditorPage() {
                 <Button
                   size="sm"
                   onClick={() => setShowCertificateDialog(true)}
-                  disabled={isGeneratingCertificate}
+                  disabled={isGeneratingCertificate || isSyncingActivityLogs}
                   className="sm:size-default"
                 >
                   {isGeneratingCertificate ? (
@@ -1259,6 +1375,7 @@ export default function DocumentEditorPage() {
                     autoSaveInterval={EDITOR_AUTO_SAVE_INTERVAL_MS}
                     onContentChange={handleContentChange}
                     onEventsBuffer={handleEventsBuffer}
+                    onEventFlushReady={handleEventFlushReady}
                     onAutoSave={handleAutoSave}
                     className="h-full"
                     renderSelectionPopup={aiEnabled && !isEditorReadOnly ? ({ selection, onClose, replaceSelection, cancelAIAction, undoLastAction }) => (
