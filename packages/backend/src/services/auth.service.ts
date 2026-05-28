@@ -200,10 +200,9 @@ export class AuthService {
       throw new AppError(401, 'Invalid email or password');
     }
 
-    // Skip email verification check for now (email service not configured)
-    // if (!userWithPassword.emailVerified) {
-    //   throw new AppError(403, 'Please verify your email before logging in');
-    // }
+    if (!userWithPassword.emailVerified) {
+      throw new AppError(403, 'Please verify your email before logging in');
+    }
 
     const user = this.toPublicUser(userWithPassword);
     const result = await this.issueTokens(user);
@@ -342,10 +341,10 @@ export class AuthService {
       throw new AppError(401, 'User not found');
     }
 
-    // Note: We don't check email verification here because:
-    // 1. User had to be verified to get a refresh token in the first place (checked at login)
-    // 2. Re-checking here causes issues when users have old tokens
-    // 3. If we need to revoke access, we should delete their refresh tokens instead
+    if (!user.emailVerified) {
+      await RefreshTokenModel.deleteByHash(tokenHash);
+      throw new AppError(403, 'Please verify your email before logging in');
+    }
 
     // Generate new tokens
     const newPayload: TokenPayload = {
