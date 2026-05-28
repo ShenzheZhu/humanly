@@ -9,7 +9,7 @@ WEBROOT_DIR="${WEBROOT_DIR:-nginx/certbot}"
 LETSENCRYPT_DIR="${LETSENCRYPT_DIR:-nginx/letsencrypt}"
 CERTBOT_CERT_NAME="${CERTBOT_CERT_NAME:-writehumanly.net}"
 CERTBOT_EMAIL="${CERTBOT_EMAIL:-support@writehumanly.net}"
-CERTBOT_DOMAINS="${CERTBOT_DOMAINS:-app.writehumanly.net admin.writehumanly.net api.writehumanly.net}"
+CERTBOT_DOMAINS="${CERTBOT_DOMAINS:-writehumanly.net app.writehumanly.net admin.writehumanly.net api.writehumanly.net}"
 CERTBOT_RENEWAL_WINDOW_DAYS="${CERTBOT_RENEWAL_WINDOW_DAYS:-30}"
 CERTBOT_DRY_RUN="${CERTBOT_DRY_RUN:-0}"
 

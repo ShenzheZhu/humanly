@@ -51,24 +51,29 @@ Production service compatibility is unchanged:
 - `frontend-user` still listens on port `3002` inside the Compose network.
 - `frontend` listens on port `3000` inside the Compose network and is served
   from `admin.writehumanly.net`.
-- `nginx` routes `app.writehumanly.net` to `frontend-user` and
+- `nginx` routes `writehumanly.net` and `app.writehumanly.net` to `frontend-user` and
   `admin.writehumanly.net` to `frontend`. `api.writehumanly.net` is the
-  supported direct API/tracker hostname. All three hostnames proxy `/api`,
+  supported direct API/tracker hostname. All four hostnames proxy `/api`,
   `/health`, `/tracker/`, and `/socket.io/` to `backend`.
 - `postgres`, `redis`, volumes, networks, health checks, and backend `.env`
   behavior are preserved.
 
 ## Production Domains
 
-Production uses subdomains under the existing `writehumanly.net` domain:
+Production uses the apex domain for public marketing plus service subdomains:
 
+- `writehumanly.net`: public homepage, served by `frontend-user`.
 - `app.writehumanly.net`: end-user portal (`frontend-user`).
 - `admin.writehumanly.net`: admin dashboard (`frontend`).
 - `api.writehumanly.net`: direct API, tracker, health, and Socket.IO host.
 
-All three records should point at the production VM external IP:
+All records should point at the production VM external IP:
 
 ```text
+Type: A
+Name: @
+Value: 34.30.217.221
+
 Type: A
 Name: app
 Value: 34.30.217.221
@@ -83,7 +88,8 @@ Value: 34.30.217.221
 ```
 
 The TLS certificate mounted at `nginx/ssl/fullchain.pem` must also include
-`app.writehumanly.net`, `admin.writehumanly.net`, and `api.writehumanly.net`.
+`writehumanly.net`, `app.writehumanly.net`, `admin.writehumanly.net`, and
+`api.writehumanly.net`.
 Docker Compose nginx is the only production owner of ports `80` and `443`.
 Do not use host-level certbot nginx renewal on this VM.
 
@@ -124,6 +130,7 @@ Validate HTTPS after any certificate repair:
 
 ```bash
 curl -fsS https://app.writehumanly.net/health
+curl -fsS https://writehumanly.net/health
 curl -fsS https://admin.writehumanly.net/health
 curl -fsS https://api.writehumanly.net/health
 curl -fsS https://api.writehumanly.net/api/v1/health

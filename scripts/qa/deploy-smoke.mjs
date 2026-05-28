@@ -17,6 +17,7 @@ import {
 } from "./lib/qa-report.mjs";
 
 const DEFAULT_APP_BASE = "https://app.writehumanly.net";
+const DEFAULT_MARKETING_BASE = "https://writehumanly.net";
 const DEFAULT_ADMIN_BASE = "https://admin.writehumanly.net";
 const DEFAULT_API_BASE = "https://api.writehumanly.net/api/v1";
 
@@ -28,6 +29,7 @@ Usage:
 
 Environment / flags:
   QA_APP_BASE / --app-base             User portal origin
+  QA_MARKETING_BASE / --marketing-base Public marketing/homepage origin
   QA_ADMIN_BASE / --admin-base         Admin portal origin
   QA_DIRECT_API_BASE / --api-base      Direct API base URL
   QA_DEPLOY_REQUIRE_DIRECT_API=0       Downgrade direct API failures to warnings
@@ -48,6 +50,10 @@ const appBase = arg(
   "app-base",
   process.env.QA_APP_BASE || DEFAULT_APP_BASE,
 ).replace(/\/+$/, "");
+const marketingBase = arg(
+  "marketing-base",
+  process.env.QA_MARKETING_BASE || DEFAULT_MARKETING_BASE,
+).replace(/\/+$/, "");
 const adminBase = arg(
   "admin-base",
   process.env.QA_ADMIN_BASE || DEFAULT_ADMIN_BASE,
@@ -67,6 +73,7 @@ const report = createQaRun({
   title: "Deploy/Ops Smoke Harness",
   config: {
     appBase,
+    marketingBase,
     adminBase,
     apiBase,
     requireDirectApi,
@@ -281,10 +288,21 @@ const appHtml = await htmlCheck(
   "User portal root is reachable",
   appBase,
 );
+const marketingHtml = await htmlCheck(
+  "marketing-root",
+  "Public marketing root is reachable",
+  marketingBase,
+);
 const adminHtml = await htmlCheck(
   "admin-root",
   "Admin portal root is reachable",
   adminBase,
+);
+await staticAssetCheck(
+  "marketing-static-asset",
+  "Public marketing static asset is reachable",
+  marketingBase,
+  marketingHtml,
 );
 await staticAssetCheck(
   "app-static-asset",
@@ -297,6 +315,11 @@ await staticAssetCheck(
   "Admin portal static asset is reachable",
   adminBase,
   adminHtml,
+);
+await healthCheck(
+  "marketing-proxy-health",
+  "Public marketing API proxy health is ok",
+  joinUrl(marketingBase, "/api/v1"),
 );
 await healthCheck(
   "app-proxy-health",
@@ -345,6 +368,11 @@ await authGuardCheck(
   "Direct API auth guard is active",
   apiBase,
   requireDirectApi,
+);
+await tlsCertificateCheck(
+  "marketing-tls-certificate",
+  "Public marketing TLS certificate covers host",
+  marketingBase,
 );
 await tlsCertificateCheck(
   "app-tls-certificate",
