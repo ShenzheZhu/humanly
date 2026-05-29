@@ -133,7 +133,7 @@ function NavBar() {
   return (
     <header className="grid grid-cols-[1fr_auto] items-center px-5 py-5 sm:px-8 lg:grid-cols-[1fr_auto_1fr] lg:px-14 lg:py-[26px]">
       <Link href={marketingHref('/')} className="justify-self-start">
-        <HumanlyWordmark size="md" />
+        <HumanlyWordmark size="md" className="max-[380px]:text-xl max-[380px]:[&_img]:h-9 max-[380px]:[&_img]:w-9" />
       </Link>
 
       <nav className="hidden items-center gap-9 text-sm font-medium text-muted-foreground lg:flex">
@@ -142,11 +142,11 @@ function NavBar() {
         <a href="#faq" className="hover:text-foreground">FAQ</a>
       </nav>
 
-      <div className="flex items-center gap-3 justify-self-end">
-        <Link href={productAppHref('/login')} className="hidden text-sm font-medium text-muted-foreground hover:text-foreground sm:inline">
+      <div className="flex items-center gap-2 justify-self-end sm:gap-3">
+        <Link href={productAppHref('/login')} className="text-[13px] font-medium text-muted-foreground hover:text-foreground sm:text-sm">
           Log in
         </Link>
-        <Link href={productAppHref('/register')} className="humanly-landing-btn px-[18px] py-[9px] text-[13px]">
+        <Link href={productAppHref('/register')} className="humanly-landing-btn px-[14px] py-[9px] text-[13px] sm:px-[18px]">
           Start
         </Link>
       </div>
@@ -616,11 +616,11 @@ function CTASection() {
 function Footer() {
   return (
     <footer className="border-t border-[rgba(20,22,26,0.10)] px-5 py-9 sm:px-8 lg:px-14">
-      <div className="mx-auto flex max-w-[1168px] flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mx-auto flex max-w-[1168px] items-center justify-between gap-4">
         <Link href={marketingHref('/')}>
           <HumanlyWordmark size="sm" />
         </Link>
-        <div className="flex flex-wrap gap-5 text-xs font-medium text-muted-foreground">
+        <div className="flex shrink-0 flex-wrap justify-end gap-5 text-xs font-medium text-muted-foreground">
           <Link href="/privacy" className="hover:text-foreground">Privacy</Link>
           <Link href="/terms" className="hover:text-foreground">Terms</Link>
         </div>

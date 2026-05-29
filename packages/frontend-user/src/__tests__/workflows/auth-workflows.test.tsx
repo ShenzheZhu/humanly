@@ -111,6 +111,25 @@ describe('user auth workflows', () => {
     });
   });
 
+  it('keeps Google and GitHub quick login side-by-side on mobile-sized auth pages', async () => {
+    mockApiGet.mockResolvedValueOnce({
+      data: {
+        providers: {
+          google: true,
+          github: true,
+        },
+      },
+    });
+
+    render(<LoginPage />);
+
+    const googleButton = await screen.findByRole('button', { name: /google/i });
+    const githubButton = await screen.findByRole('button', { name: /github/i });
+
+    expect(googleButton.parentElement).toBe(githubButton.parentElement);
+    expect(googleButton.parentElement).toHaveClass('grid-cols-2');
+  });
+
   it('redirects authenticated users away from the login page after restoring auth', async () => {
     mockIsAuthenticated = true;
 

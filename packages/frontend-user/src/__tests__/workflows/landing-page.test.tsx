@@ -85,13 +85,26 @@ describe('landing page', () => {
       'href',
       'https://writehumanly.net/'
     );
-    expect(screen.getByRole('link', { name: 'Log in' })).toHaveAttribute(
+    const loginLink = screen.getByRole('link', { name: 'Log in' });
+    expect(loginLink).toHaveAttribute(
       'href',
       'https://app.writehumanly.net/login'
     );
+    expect(loginLink).not.toHaveClass('hidden');
     for (const link of screen.getAllByRole('link', { name: /Start writing|Start|Open the editor/i })) {
       expect(link).toHaveAttribute('href', 'https://app.writehumanly.net/register');
     }
+    await waitFor(() => expect(mockCheckAuth).toHaveBeenCalled());
+  });
+
+  it('keeps the mobile footer aligned with the wordmark on the left and legal links on the right', async () => {
+    render(<HomePage />);
+
+    const footer = screen.getByRole('contentinfo');
+    expect(footer.firstElementChild).toHaveClass('items-center');
+    expect(footer.firstElementChild).toHaveClass('justify-between');
+    expect(screen.getByRole('link', { name: 'Privacy' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Terms' })).toBeInTheDocument();
     await waitFor(() => expect(mockCheckAuth).toHaveBeenCalled());
   });
 });
