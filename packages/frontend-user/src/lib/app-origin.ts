@@ -1,5 +1,6 @@
 export const DEFAULT_PRODUCT_APP_ORIGIN = 'https://app.writehumanly.net';
 export const DEFAULT_MARKETING_ORIGIN = 'https://writehumanly.net';
+export const DEFAULT_ADMIN_ORIGIN = 'https://admin.writehumanly.net';
 
 function normalizeOrigin(origin?: string): string {
   if (!origin) return '';
@@ -45,5 +46,23 @@ export function getMarketingOrigin(options: OriginOptions = {}): string {
 export function marketingHref(path: string, options: OriginOptions = {}): string {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   const origin = getMarketingOrigin(options);
+  return origin ? `${origin}${normalizedPath}` : normalizedPath;
+}
+
+export function getAdminOrigin(options: OriginOptions = {}): string {
+  const { allowRelativeInNonProduction = true } = options;
+  const configuredOrigin = normalizeOrigin(process.env.NEXT_PUBLIC_ADMIN_ORIGIN);
+  if (configuredOrigin) return configuredOrigin;
+
+  if (process.env.NODE_ENV === 'production' || !allowRelativeInNonProduction) {
+    return DEFAULT_ADMIN_ORIGIN;
+  }
+
+  return '';
+}
+
+export function adminHref(path: string, options: OriginOptions = {}): string {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const origin = getAdminOrigin(options);
   return origin ? `${origin}${normalizedPath}` : normalizedPath;
 }

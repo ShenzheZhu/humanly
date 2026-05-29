@@ -157,7 +157,7 @@ function NavBar() {
 function HeroComposition() {
   return (
     <div
-      className="relative mx-auto mt-[72px] w-full max-w-[1100px] overflow-visible"
+      className="humanly-mono relative mx-auto mt-[72px] w-full max-w-[1100px] overflow-visible"
       style={{ aspectRatio: '1100 / 720', containerType: 'inline-size' }}
     >
       <div

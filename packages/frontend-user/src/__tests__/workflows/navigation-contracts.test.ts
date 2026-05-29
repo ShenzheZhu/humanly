@@ -15,6 +15,7 @@ describe('navigation workflow contracts', () => {
       ['packages/frontend-user/src/app/certificates/page.tsx', 'Authorship records'],
       ['packages/frontend-user/src/app/terms/page.tsx', 'Terms of Service'],
       ['packages/frontend-user/src/app/privacy/page.tsx', 'Privacy Policy'],
+      ['packages/frontend-user/src/components/navigation/navbar.tsx', 'Admin portal'],
     ];
 
     for (const [file, expectedText] of userRoutes) {

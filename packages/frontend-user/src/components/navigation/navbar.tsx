@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LogOut, User, Menu } from 'lucide-react';
+import { ExternalLink, LogOut, User, Menu, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
+import { adminHref } from '@/lib/app-origin';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +31,7 @@ export function Navbar() {
   const { user, logout } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const userDisplayLabel = getUserDisplayLabel(user?.email);
+  const adminPortalUrl = adminHref('/', { allowRelativeInNonProduction: false });
 
   const handleLogout = async () => {
     await logout();
@@ -65,6 +67,14 @@ export function Navbar() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <a href={adminPortalUrl} target="_blank" rel="noreferrer">
+                      <ShieldCheck className="mr-2 h-4 w-4" />
+                      <span>Admin portal</span>
+                      <ExternalLink className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
+                    </a>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
                     Logout
@@ -91,6 +101,17 @@ export function Navbar() {
                       <div className="px-3 py-2 text-sm text-muted-foreground">
                         {userDisplayLabel}
                       </div>
+                      <Button
+                        asChild
+                        variant="ghost"
+                        className="w-full justify-start"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <a href={adminPortalUrl} target="_blank" rel="noreferrer">
+                          <ShieldCheck className="mr-2 h-4 w-4" />
+                          Admin portal
+                        </a>
+                      </Button>
                       <Button
                         variant="ghost"
                         className="w-full justify-start"
