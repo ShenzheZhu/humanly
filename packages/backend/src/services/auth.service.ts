@@ -185,15 +185,6 @@ export class AuthService {
       throw new AppError(401, 'Invalid email or password');
     }
 
-    if (requestedRole && userWithPassword.role !== requestedRole) {
-      throw new AppError(
-        403,
-        requestedRole === 'admin'
-          ? 'This email is not registered as an admin account'
-          : 'This email is not registered as a user account'
-      );
-    }
-
     // Compare password
     const isPasswordValid = await comparePassword(password, userWithPassword.passwordHash);
     if (!isPasswordValid) {
@@ -232,15 +223,6 @@ export class AuthService {
       userWithPassword = await UserModel.findByEmail(profile.email);
 
       if (userWithPassword) {
-        if (userWithPassword.role !== requestedRole) {
-          throw new AppError(
-            403,
-            requestedRole === 'admin'
-              ? 'This OAuth email is not registered as an admin account'
-              : 'This OAuth email is not registered as a user account'
-          );
-        }
-
         if (!userWithPassword.emailVerified) {
           await UserModel.verifyEmail(userWithPassword.id);
           userWithPassword = {
@@ -273,15 +255,6 @@ export class AuthService {
         providerUserId: profile.providerUserId,
         email: profile.email,
       });
-    }
-
-    if (userWithPassword.role !== requestedRole) {
-      throw new AppError(
-        403,
-        requestedRole === 'admin'
-          ? 'This OAuth account is not linked to an admin account'
-          : 'This OAuth account is not linked to a user account'
-      );
     }
 
     const user = this.toPublicUser(userWithPassword);

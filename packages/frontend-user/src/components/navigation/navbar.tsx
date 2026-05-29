@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LogOut, User, Menu } from 'lucide-react';
+import { LayoutDashboard, LogOut, User, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
 import {
@@ -17,11 +17,13 @@ import {
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { useAuthStore } from '@/stores/auth-store';
+import { adminAppHref } from '@/lib/app-origin';
 import { getUserDisplayLabel } from './user-display';
 
 export function Navbar() {
@@ -30,6 +32,8 @@ export function Navbar() {
   const { user, logout } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const userDisplayLabel = getUserDisplayLabel(user?.email);
+  const canUseAdminView = Boolean(user);
+  const adminTasksHref = adminAppHref('/tasks');
 
   const handleLogout = async () => {
     await logout();
@@ -65,6 +69,17 @@ export function Navbar() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  {canUseAdminView ? (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <a href={adminTasksHref}>
+                          <LayoutDashboard className="mr-2 h-4 w-4" />
+                          Switch to Admin View
+                        </a>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  ) : null}
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
                     Logout
@@ -85,12 +100,28 @@ export function Navbar() {
                 <SheetContent side="right">
                   <SheetHeader>
                     <SheetTitle>Menu</SheetTitle>
+                    <SheetDescription className="sr-only">
+                      Account options
+                    </SheetDescription>
                   </SheetHeader>
                   <div className="mt-6 flex flex-col space-y-4">
                     <div>
                       <div className="px-3 py-2 text-sm text-muted-foreground">
                         {userDisplayLabel}
                       </div>
+                      {canUseAdminView ? (
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start"
+                          asChild
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          <a href={adminTasksHref}>
+                            <LayoutDashboard className="mr-2 h-4 w-4" />
+                            Switch to Admin View
+                          </a>
+                        </Button>
+                      ) : null}
                       <Button
                         variant="ghost"
                         className="w-full justify-start"
