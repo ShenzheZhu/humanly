@@ -79,12 +79,12 @@ export function OAuthButtons({
   return (
     <div className={cn('space-y-3', className)}>
       {separatorPosition === 'before' && separator}
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-2">
         {providers.google && (
           <Button
             type="button"
             variant="outline"
-            className="h-11 rounded-full border-border/80 bg-white/80 font-bold hover:bg-muted/60"
+            className="h-11 rounded-full border-border/80 bg-white/80 px-3 font-bold hover:bg-muted/60"
             onClick={() => startLogin('google')}
             disabled={loadingProvider !== null}
           >
@@ -101,7 +101,7 @@ export function OAuthButtons({
           <Button
             type="button"
             variant="outline"
-            className="h-11 rounded-full border-border/80 bg-white/80 font-bold hover:bg-muted/60"
+            className="h-11 rounded-full border-border/80 bg-white/80 px-3 font-bold hover:bg-muted/60"
             onClick={() => startLogin('github')}
             disabled={loadingProvider !== null}
           >
