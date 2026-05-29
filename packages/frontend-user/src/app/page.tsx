@@ -157,7 +157,7 @@ function NavBar() {
 function HeroComposition() {
   return (
     <div
-      className="humanly-mono relative mx-auto mt-[72px] w-full max-w-[1100px] overflow-visible"
+      className="relative mx-auto mt-[72px] w-full max-w-[1100px] overflow-visible"
       style={{ aspectRatio: '1100 / 720', containerType: 'inline-size' }}
     >
       <div
@@ -697,7 +697,7 @@ function ProblemIllo2() {
         [70, 84],
         [140, 94],
       ].map(([x, y]) => (
-        <text key={`${x}-${y}`} x={x} y={y} fontFamily="var(--font-space-mono)" fontSize="6" textAnchor="middle" fill={ink}>?</text>
+        <text key={`${x}-${y}`} x={x} y={y} fontFamily="var(--font-humanly-sans)" fontSize="6" textAnchor="middle" fill={ink}>?</text>
       ))}
     </svg>
   );
@@ -732,7 +732,7 @@ function TrustIllo1() {
           <circle key={x} cx={x} cy="84" r="2" />
         ))}
       </g>
-      <text x="172" y="86" fontFamily="var(--font-space-mono)" fontSize="6" fill={muted}>→t</text>
+      <text x="172" y="86" fontFamily="var(--font-humanly-sans)" fontSize="6" fill={muted}>→t</text>
     </svg>
   );
 }
@@ -766,7 +766,7 @@ function TrustIllo3() {
         <path d="M52 44 L82 22 L150 32 L120 56 Z" />
         <path d="M120 56 L150 32 L150 104 L120 128 Z" />
       </g>
-      <text x="86" y="100" fontFamily="var(--font-space-mono)" fontSize="36" fontWeight="700" textAnchor="middle" fill={ink}>?</text>
+      <text x="86" y="100" fontFamily="var(--font-humanly-sans)" fontSize="36" fontWeight="700" textAnchor="middle" fill={ink}>?</text>
     </svg>
   );
 }
@@ -796,18 +796,18 @@ function UseIllo2() {
     <svg width="200" height="120" viewBox="0 0 200 120" aria-hidden="true">
       <rect x="38" y="12" width="124" height="96" rx="4" fill="none" stroke={ink} strokeWidth="1.4" />
       <line x1="38" y1="28" x2="162" y2="28" stroke={hairline} strokeWidth="1" />
-      <text x="46" y="24" fontFamily="var(--font-space-mono)" fontSize="6" fill={muted}>RULES</text>
+      <text x="46" y="24" fontFamily="var(--font-humanly-sans)" fontSize="6" fill={muted}>RULES</text>
       <circle cx="156" cy="22" r="1.6" fill={ink} />
 
-      <text x="46" y="48" fontFamily="var(--font-space-mono)" fontSize="7" fill={muted}>AI</text>
+      <text x="46" y="48" fontFamily="var(--font-humanly-sans)" fontSize="7" fill={muted}>AI</text>
       <rect x="118" y="42" width="34" height="11" rx="5.5" fill={ink} />
       <circle cx="146" cy="47.5" r="3.6" fill="#fff" />
 
-      <text x="46" y="70" fontFamily="var(--font-space-mono)" fontSize="7" fill={muted}>PASTE</text>
+      <text x="46" y="70" fontFamily="var(--font-humanly-sans)" fontSize="7" fill={muted}>PASTE</text>
       <rect x="118" y="64" width="34" height="11" rx="5.5" fill="none" stroke={ink} strokeWidth="1.2" />
       <circle cx="124" cy="69.5" r="3.6" fill={ink} />
 
-      <text x="46" y="92" fontFamily="var(--font-space-mono)" fontSize="7" fill={muted}>TIME</text>
+      <text x="46" y="92" fontFamily="var(--font-humanly-sans)" fontSize="7" fill={muted}>TIME</text>
       <rect x="118" y="86" width="34" height="11" rx="5.5" fill={ink} />
       <circle cx="146" cy="91.5" r="3.6" fill="#fff" />
     </svg>
@@ -836,7 +836,7 @@ function UseIllo3() {
         <circle cx="100" cy="46" r="2.4" />
         <circle cx="112" cy="46" r="2.4" />
       </g>
-      <text x="100" y="36" fontFamily="var(--font-space-mono)" fontSize="5" textAnchor="middle" fill={muted}>
+      <text x="100" y="36" fontFamily="var(--font-humanly-sans)" fontSize="5" textAnchor="middle" fill={muted}>
         paste · ai · type
       </text>
     </svg>
@@ -847,28 +847,28 @@ function StepIllo0() {
   return (
     <svg width="200" height="160" viewBox="0 0 200 160" aria-hidden="true">
       <rect x="14" y="14" width="172" height="132" rx="8" fill="#fff" stroke={ink} strokeWidth="1.2" />
-      <text x="26" y="32" fontFamily="var(--font-space-mono)" fontSize="8" fontWeight="700" fill={ink}>Document Configuration</text>
+      <text x="26" y="32" fontFamily="var(--font-humanly-sans)" fontSize="8" fontWeight="700" fill={ink}>Document Configuration</text>
       <line x1="14" y1="40" x2="186" y2="40" stroke={hairline} strokeWidth="0.8" />
-      <text x="26" y="56" fontFamily="var(--font-space-mono)" fontSize="6" fill={muted}>AI</text>
+      <text x="26" y="56" fontFamily="var(--font-humanly-sans)" fontSize="6" fill={muted}>AI</text>
       <rect x="70" y="50" width="48" height="10" rx="2" fill={ink} />
-      <text x="94" y="57" textAnchor="middle" fontFamily="var(--font-space-mono)" fontSize="6" fontWeight="700" fill="#fff">Assist only</text>
+      <text x="94" y="57" textAnchor="middle" fontFamily="var(--font-humanly-sans)" fontSize="6" fontWeight="700" fill="#fff">Assist only</text>
       <rect x="121" y="50" width="20" height="10" rx="2" fill={bg2} />
-      <text x="131" y="57" textAnchor="middle" fontFamily="var(--font-space-mono)" fontSize="6" fontWeight="700" fill={muted}>Off</text>
+      <text x="131" y="57" textAnchor="middle" fontFamily="var(--font-humanly-sans)" fontSize="6" fontWeight="700" fill={muted}>Off</text>
       <rect x="144" y="50" width="34" height="10" rx="2" fill={bg2} />
-      <text x="161" y="57" textAnchor="middle" fontFamily="var(--font-space-mono)" fontSize="6" fontWeight="700" fill={muted}>Full chat</text>
-      <text x="26" y="76" fontFamily="var(--font-space-mono)" fontSize="6" fill={muted}>Paste</text>
+      <text x="161" y="57" textAnchor="middle" fontFamily="var(--font-humanly-sans)" fontSize="6" fontWeight="700" fill={muted}>Full chat</text>
+      <text x="26" y="76" fontFamily="var(--font-humanly-sans)" fontSize="6" fill={muted}>Paste</text>
       <rect x="80" y="70" width="34" height="10" rx="2" fill={bg2} />
-      <text x="97" y="77" textAnchor="middle" fontFamily="var(--font-space-mono)" fontSize="6" fontWeight="700" fill={muted}>Allowed</text>
+      <text x="97" y="77" textAnchor="middle" fontFamily="var(--font-humanly-sans)" fontSize="6" fontWeight="700" fill={muted}>Allowed</text>
       <rect x="116" y="70" width="32" height="10" rx="2" fill={ink} />
-      <text x="132" y="77" textAnchor="middle" fontFamily="var(--font-space-mono)" fontSize="6" fontWeight="700" fill="#fff">Blocked</text>
-      <text x="26" y="96" fontFamily="var(--font-space-mono)" fontSize="6" fill={muted}>Cap</text>
+      <text x="132" y="77" textAnchor="middle" fontFamily="var(--font-humanly-sans)" fontSize="6" fontWeight="700" fill="#fff">Blocked</text>
+      <text x="26" y="96" fontFamily="var(--font-humanly-sans)" fontSize="6" fill={muted}>Cap</text>
       <rect x="80" y="90" width="92" height="10" rx="2" fill="none" stroke={hairline} />
-      <text x="86" y="97" fontFamily="var(--font-space-mono)" fontSize="6" fontWeight="700" fill={ink}>10,000 chars</text>
-      <text x="26" y="116" fontFamily="var(--font-space-mono)" fontSize="6" fill={muted}>Time</text>
+      <text x="86" y="97" fontFamily="var(--font-humanly-sans)" fontSize="6" fontWeight="700" fill={ink}>10,000 chars</text>
+      <text x="26" y="116" fontFamily="var(--font-humanly-sans)" fontSize="6" fill={muted}>Time</text>
       <rect x="80" y="110" width="60" height="10" rx="2" fill="none" stroke={hairline} />
-      <text x="86" y="117" fontFamily="var(--font-space-mono)" fontSize="6" fontWeight="700" fill={ink}>45 min</text>
+      <text x="86" y="117" fontFamily="var(--font-humanly-sans)" fontSize="6" fontWeight="700" fill={ink}>45 min</text>
       <rect x="120" y="128" width="52" height="12" rx="3" fill={ink} />
-      <text x="146" y="136" textAnchor="middle" fontFamily="var(--font-space-mono)" fontSize="7" fontWeight="700" fill="#fff">Start →</text>
+      <text x="146" y="136" textAnchor="middle" fontFamily="var(--font-humanly-sans)" fontSize="7" fontWeight="700" fill="#fff">Start →</text>
     </svg>
   );
 }
@@ -902,15 +902,15 @@ function StepIllo2() {
     <svg width="200" height="160" viewBox="0 0 200 160" aria-hidden="true">
       <rect x="14" y="14" width="172" height="132" rx="8" fill="#fff" stroke={ink} strokeWidth="1.2" />
       <line x1="14" y1="34" x2="186" y2="34" stroke={hairline} strokeWidth="1" />
-      <text x="24" y="28" fontFamily="var(--font-space-mono)" fontSize="6" fill={muted}>TIME</text>
-      <text x="60" y="28" fontFamily="var(--font-space-mono)" fontSize="6" fill={muted}>KIND</text>
-      <text x="172" y="28" textAnchor="end" fontFamily="var(--font-space-mono)" fontSize="6" fill={muted}>CHARS</text>
+      <text x="24" y="28" fontFamily="var(--font-humanly-sans)" fontSize="6" fill={muted}>TIME</text>
+      <text x="60" y="28" fontFamily="var(--font-humanly-sans)" fontSize="6" fill={muted}>KIND</text>
+      <text x="172" y="28" textAnchor="end" fontFamily="var(--font-humanly-sans)" fontSize="6" fill={muted}>CHARS</text>
       {rows.map(([time, kind, rowBg, fg, chars, y]) => (
         <g key={`${time}-${kind}`}>
-          <text x="24" y={Number(y)} fontFamily="var(--font-space-mono)" fontSize="6" fill={muted}>{time}</text>
+          <text x="24" y={Number(y)} fontFamily="var(--font-humanly-sans)" fontSize="6" fill={muted}>{time}</text>
           <rect x="58" y={Number(y) - 6} width={kind === '✦ Simplify' ? 44 : 34} height="9" rx="2" fill={rowBg} />
-          <text x={kind === '✦ Simplify' ? 80 : 75} y={Number(y) + 0.5} textAnchor="middle" fontFamily="var(--font-space-mono)" fontSize="6" fontWeight="700" fill={fg}>{kind}</text>
-          <text x="172" y={Number(y)} textAnchor="end" fontFamily="var(--font-space-mono)" fontSize="6" fill={kind === '✦ Simplify' ? muted : ink}>{chars}</text>
+          <text x={kind === '✦ Simplify' ? 80 : 75} y={Number(y) + 0.5} textAnchor="middle" fontFamily="var(--font-humanly-sans)" fontSize="6" fontWeight="700" fill={fg}>{kind}</text>
+          <text x="172" y={Number(y)} textAnchor="end" fontFamily="var(--font-humanly-sans)" fontSize="6" fill={kind === '✦ Simplify' ? muted : ink}>{chars}</text>
           {Number(y) < 130 && <line x1="20" y1={Number(y) + 8} x2="180" y2={Number(y) + 8} stroke={hairline} strokeWidth="0.5" strokeDasharray="2 2" />}
         </g>
       ))}
@@ -922,12 +922,12 @@ function StepIllo3() {
   return (
     <svg width="200" height="160" viewBox="0 0 200 160" aria-hidden="true">
       <rect x="14" y="14" width="172" height="132" rx="8" fill="#fff" stroke={ink} strokeWidth="1.2" />
-      <text x="100" y="38" textAnchor="middle" fontFamily="var(--font-space-mono)" fontSize="7" fill={ink} letterSpacing="2">CERTIFICATE</text>
+      <text x="100" y="38" textAnchor="middle" fontFamily="var(--font-humanly-sans)" fontSize="7" fill={ink} letterSpacing="2">CERTIFICATE</text>
       <line x1="42" y1="54" x2="158" y2="54" stroke={ink} strokeWidth="1.6" strokeLinecap="round" />
       <line x1="50" y1="70" x2="150" y2="70" stroke={muted} strokeWidth="1.2" strokeLinecap="round" opacity="0.65" />
       <line x1="42" y1="88" x2="158" y2="88" stroke={hairline} strokeWidth="1" />
       <g transform="translate(54 112)">
-        <text fontFamily="var(--font-space-mono)" fontSize="6" fill={muted}>SIGNED</text>
+        <text fontFamily="var(--font-humanly-sans)" fontSize="6" fill={muted}>SIGNED</text>
         <path d="M2 13 L6 17 L15 6" fill="none" stroke={ink} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
       </g>
       <g transform="translate(142 120)" stroke={ink} fill="none" strokeWidth="1">

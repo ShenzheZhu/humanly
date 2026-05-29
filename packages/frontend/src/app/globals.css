@@ -55,7 +55,7 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-space-mono), ui-monospace, "SF Mono", Menlo, monospace;
+    font-family: var(--font-humanly-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     letter-spacing: 0;
     -webkit-font-smoothing: antialiased;
   }

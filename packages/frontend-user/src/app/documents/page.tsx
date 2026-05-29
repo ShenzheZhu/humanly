@@ -559,7 +559,7 @@ export default function DocumentsPage() {
                     value={inviteCode}
                     maxLength={6}
                     placeholder="A7K2QX"
-                    className="font-mono uppercase tracking-normal"
+                    className=" uppercase tracking-normal"
                     onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') {
@@ -621,7 +621,7 @@ export default function DocumentsPage() {
                         <p className="mb-1 humanly-eyebrow">
                           Invite Code
                         </p>
-                        <div className="w-full max-w-full truncate rounded-lg border border-border/70 bg-muted/35 px-3 py-2 font-mono text-sm font-semibold tracking-normal">
+                        <div className="w-full max-w-full truncate rounded-lg border border-border/70 bg-muted/35 px-3 py-2 text-sm font-semibold tracking-normal">
                           {task.inviteCode}
                         </div>
                       </div>

@@ -102,13 +102,6 @@
     @apply transition-[transform,box-shadow,border-color] duration-200 ease-out hover:-translate-y-1.5 hover:scale-[1.012] hover:border-foreground/20 motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:hover:scale-100;
   }
 
-  .humanly-mono {
-    font-family: var(--font-space-mono), ui-monospace, "SF Mono", Menlo, monospace;
-  }
-
-  .humanly-brand-font {
-    font-family: var(--font-humanly-brand), "Courier Prime", "Courier New", monospace;
-  }
 }
 
 @layer utilities {

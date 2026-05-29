@@ -364,7 +364,7 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
 
         {/* Fallback plain text overlay for debugging */}
         {currentText && (
-          <div className="absolute inset-0 pointer-events-none p-3 sm:p-4 text-xs sm:text-sm font-mono whitespace-pre-wrap opacity-0 hover:opacity-100 transition-opacity bg-white/95 dark:bg-gray-950/95 overflow-auto">
+          <div className="absolute inset-0 pointer-events-none p-3 sm:p-4 text-xs sm:text-sm whitespace-pre-wrap opacity-0 hover:opacity-100 transition-opacity bg-white/95 dark:bg-gray-950/95 overflow-auto">
             {currentText}
           </div>
         )}

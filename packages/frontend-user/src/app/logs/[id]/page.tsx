@@ -281,7 +281,7 @@ function expandTextPreviewParts(parts: TextPreviewPart[]) {
 
 function LineBreakToken({ count }: { count: number }) {
   return (
-    <span className="inline-flex shrink-0 items-center rounded border bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+    <span className="inline-flex shrink-0 items-center rounded border bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
       Line break{count >= LINE_BREAK_COLLAPSE_THRESHOLD ? ` × ${count}` : ''}
     </span>
   );
@@ -662,7 +662,7 @@ function formatFoldTimeRange(item: FoldPointItem) {
 function RawEventTableRow({ event }: { event: DocumentEventTimelineRawEvent }) {
   return (
     <tr className="bg-muted/20 text-xs text-muted-foreground hover:bg-muted/30">
-      <td className="whitespace-nowrap px-4 py-2 font-mono">
+      <td className="whitespace-nowrap px-4 py-2">
         {format(new Date(event.timestamp), 'HH:mm:ss.SSS')}
       </td>
       <td className="px-4 py-2">
@@ -924,7 +924,7 @@ export default function DocumentLogsPage() {
                     return (
                       <Fragment key={historyItem.id}>
                         <tr>
-                          <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-muted-foreground">
+                          <td className="whitespace-nowrap px-4 py-2.5 text-xs text-muted-foreground">
                             {formatFoldTimeRange(historyItem)}
                           </td>
                           <td className="px-4 py-2.5" />
@@ -985,7 +985,7 @@ export default function DocumentLogsPage() {
                     return (
                       <Fragment key={item.id}>
                         <tr className="hover:bg-muted/30">
-                          <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-muted-foreground">
+                          <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
                             {formatTimeRange(item)}
                           </td>
                           <td className="px-4 py-3">
@@ -1084,7 +1084,7 @@ export default function DocumentLogsPage() {
                         className={canExpand ? 'cursor-pointer hover:bg-muted/30' : 'hover:bg-muted/30'}
                         onClick={canExpand ? () => toggleExpanded(log.id) : undefined}
                       >
-                        <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-muted-foreground">
+                        <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
                           <div className="flex items-center gap-2">
                             {canExpand && (
                               isExpanded ? (

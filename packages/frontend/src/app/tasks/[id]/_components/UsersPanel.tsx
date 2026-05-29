@@ -122,8 +122,8 @@ export function UsersPanel({
                         <div className="font-medium">{enrollment.email}</div>
                       </TableCell>
                       <TableCell>{formatDateTime(enrollment.joinedAt)}</TableCell>
-                      <TableCell className="text-right font-mono">{enrollment.submissionCount}</TableCell>
-                      <TableCell className="text-right font-mono">{enrollment.eventCount}</TableCell>
+                      <TableCell className="text-right">{enrollment.submissionCount}</TableCell>
+                      <TableCell className="text-right">{enrollment.eventCount}</TableCell>
                       <TableCell>
                         {enrollment.lastActivity ? formatDateTime(enrollment.lastActivity) : 'No activity yet'}
                       </TableCell>
