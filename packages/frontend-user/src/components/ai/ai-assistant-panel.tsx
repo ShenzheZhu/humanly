@@ -539,7 +539,7 @@ export function AIAssistantPanel({
                     </p>
                   )}
                   {suggestion.suggestedText && (
-                    <p className="text-xs font-mono bg-muted/50 px-1.5 py-0.5 rounded truncate">
+                    <p className="text-xs bg-muted/50 px-1.5 py-0.5 rounded truncate">
                       {suggestion.suggestedText}
                     </p>
                   )}

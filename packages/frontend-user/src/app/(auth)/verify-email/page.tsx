@@ -186,7 +186,7 @@ export default function VerifyEmailPage() {
                 value={code}
                 onChange={handleCodeChange}
                 maxLength={6}
-                className="text-center text-2xl tracking-normal font-mono"
+                className="text-center text-2xl tracking-normal"
                 autoComplete="one-time-code"
                 autoFocus
               />

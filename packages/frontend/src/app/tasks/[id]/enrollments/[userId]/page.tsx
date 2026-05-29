@@ -159,7 +159,7 @@ export default function EnrollmentSubmissionsPage() {
                 <div className="truncate text-lg font-semibold" title={enrollment.email}>
                   {enrollment.email}
                 </div>
-                <p className="mt-1 truncate font-mono text-xs text-muted-foreground" title={enrollment.userId}>
+                <p className="mt-1 truncate text-xs text-muted-foreground" title={enrollment.userId}>
                   {enrollment.userId}
                 </p>
               </CardContent>
@@ -206,7 +206,7 @@ export default function EnrollmentSubmissionsPage() {
                       <FileText className="h-4 w-4 text-muted-foreground" />
                       <span>{latestSubmission.documentTitle || enrollment.documentTitle || 'Submission Document'}</span>
                     </div>
-                    <div className="font-mono text-xs text-muted-foreground">{latestSubmission.id}</div>
+                    <div className=" text-xs text-muted-foreground">{latestSubmission.id}</div>
                   </div>
                   <div className="flex items-center gap-2">
                     {latestSubmission.certificateVerificationToken ? (
@@ -291,7 +291,7 @@ export default function EnrollmentSubmissionsPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>{submission.documentTitle || enrollment.documentTitle || 'Submission Document'}</TableCell>
-                          <TableCell className="font-mono text-xs">{submission.id}</TableCell>
+                          <TableCell className=" text-xs">{submission.id}</TableCell>
                           <TableCell className="text-right">
                             {submission.certificateVerificationToken ? (
                               <Button

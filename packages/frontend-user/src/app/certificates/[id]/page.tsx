@@ -538,7 +538,7 @@ export default function CertificateDetailPage() {
                         <>
                           {certificate.isProtected && certificate.accessCode ? (
                             <div className="flex items-center gap-1">
-                              <div className="min-w-0 flex-1 truncate rounded-lg border border-border/60 bg-background p-2 font-mono text-xs">
+                              <div className="min-w-0 flex-1 truncate rounded-lg border border-border/60 bg-background p-2 text-xs">
                                 {certificate.accessCode}
                               </div>
                               <Button
@@ -593,7 +593,7 @@ export default function CertificateDetailPage() {
                             value={editedAccessCode}
                             onChange={(e) => handleEditedAccessCodeChange(e.target.value)}
                             disabled={isUpdatingAccessCode}
-                            className="h-8 flex-1 font-mono text-xs"
+                            className="h-8 flex-1 text-xs"
                             autoFocus
                           />
                           <Button
@@ -681,15 +681,15 @@ export default function CertificateDetailPage() {
                   </div>
                   <div>
                     <p className="text-muted-foreground">Certificate ID</p>
-                    <p className="truncate font-mono">{certificate.id}</p>
+                    <p className="truncate">{certificate.id}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Document ID</p>
-                    <p className="truncate font-mono">{certificate.documentId}</p>
+                    <p className="truncate">{certificate.documentId}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Verification Token</p>
-                    <div className="mt-1 max-h-20 overflow-y-auto rounded-lg border border-border/60 bg-background p-2 font-mono text-[10px] break-all">
+                    <div className="mt-1 max-h-20 overflow-y-auto rounded-lg border border-border/60 bg-background p-2 text-[10px] break-all">
                       {certificate.verificationToken}
                     </div>
                     <Button

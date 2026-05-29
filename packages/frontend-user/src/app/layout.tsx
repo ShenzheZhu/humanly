@@ -1,14 +1,13 @@
 import type { Metadata } from 'next';
-import { Courier_Prime, Space_Mono } from 'next/font/google';
+import { Courier_Prime, Inter } from 'next/font/google';
 import { BRAND, getBrandText } from '@humanly/shared';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { PolyfillProvider } from '@/components/polyfill-provider';
 
-const spaceMono = Space_Mono({
+const inter = Inter({
   subsets: ['latin'],
-  weight: ['400', '700'],
-  variable: '--font-space-mono',
+  variable: '--font-humanly-sans',
 });
 
 const courierPrime = Courier_Prime({
@@ -47,7 +46,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${spaceMono.variable} ${courierPrime.variable}`}>
+      <body className={`${inter.variable} ${courierPrime.variable}`}>
         <PolyfillProvider>
           {children}
           <Toaster />

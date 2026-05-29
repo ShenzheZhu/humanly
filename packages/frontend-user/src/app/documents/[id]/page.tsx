@@ -1149,7 +1149,7 @@ export default function DocumentEditorPage() {
                   >
                     <Clock className="h-3.5 w-3.5 shrink-0" />
                     <span>{visibleCountdown.label}</span>
-                    <span className="font-mono font-semibold">{visibleCountdown.value}</span>
+                    <span className=" font-semibold">{visibleCountdown.value}</span>
                   </Badge>
                 )}
               </div>

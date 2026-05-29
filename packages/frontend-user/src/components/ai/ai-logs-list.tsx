@@ -212,7 +212,7 @@ function LogEntry({ log }: LogEntryProps) {
                 </p>
                 <div className="space-y-2">
                   {log.modifications.map((mod, idx) => (
-                    <div key={idx} className="text-xs bg-muted rounded p-2 font-mono">
+                    <div key={idx} className="text-xs bg-muted rounded p-2">
                       <div className="text-red-600 line-through">{mod.before}</div>
                       <div className="text-[#58715f]">{mod.after}</div>
                     </div>

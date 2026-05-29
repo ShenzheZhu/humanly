@@ -160,7 +160,7 @@ export function OverviewPanel({
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <dt className="text-sm font-medium text-muted-foreground">Task ID</dt>
-              <dd className="mt-1 font-mono text-sm">{task.id}</dd>
+              <dd className="mt-1 text-sm">{task.id}</dd>
             </div>
             <div>
               <dt className="text-sm font-medium text-muted-foreground">Created</dt>
@@ -207,7 +207,7 @@ export function OverviewPanel({
             <div>
               <dt className="text-sm font-medium text-muted-foreground">Invite Code</dt>
               <dd className="mt-1 flex items-center gap-2">
-                <span className="rounded-md border bg-muted/40 px-2 py-1 font-mono text-sm font-semibold tracking-wider">
+                <span className="rounded-md border bg-muted/40 px-2 py-1 text-sm font-semibold tracking-wider">
                   {inviteCode}
                 </span>
                 <Button
@@ -225,7 +225,7 @@ export function OverviewPanel({
               <dt className="text-sm font-medium text-muted-foreground">Public Share Link</dt>
               <dd className="mt-1 flex items-center gap-2">
                 <span
-                  className="min-w-0 truncate rounded-md border bg-muted/40 px-2 py-1 font-mono text-sm"
+                  className="min-w-0 truncate rounded-md border bg-muted/40 px-2 py-1 text-sm"
                   title={buildTaskShareUrl(task.taskToken)}
                 >
                   {buildTaskShareUrl(task.taskToken)}

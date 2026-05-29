@@ -194,7 +194,7 @@ function VerifyEmailContent() {
                 value={code}
                 onChange={handleCodeChange}
                 maxLength={6}
-                className="text-center text-2xl tracking-widest font-mono"
+                className="text-center text-2xl tracking-widest"
                 autoComplete="one-time-code"
                 autoFocus
               />

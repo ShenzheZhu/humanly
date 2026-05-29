@@ -51,7 +51,7 @@ export function ReasoningBlock({ thinking }: ReasoningBlockProps): JSX.Element |
               )}
               aria-hidden="true"
             />
-            <span className="min-w-0 flex-1 truncate font-mono text-[11px] font-medium">
+            <span className="min-w-0 flex-1 truncate text-[11px] font-medium">
               Reasoning
             </span>
             <span className="shrink-0 tabular-nums text-muted-foreground">
@@ -101,7 +101,7 @@ export function ToolCallCard({ entry }: ToolCallCardProps): JSX.Element {
               <XCircle className="h-3.5 w-3.5 shrink-0 text-red-600" />
             )}
 
-            <span className="min-w-0 flex-1 truncate font-mono text-[11px] font-medium">
+            <span className="min-w-0 flex-1 truncate text-[11px] font-medium">
               {entry.toolName}
             </span>
 
@@ -182,7 +182,7 @@ export function ToolCallTimeline({ entries }: ToolCallTimelineProps): JSX.Elemen
               <XCircle className="h-3.5 w-3.5 shrink-0 text-red-600" />
             )}
 
-            <span className="min-w-0 flex-1 truncate font-mono text-[11px] font-medium">
+            <span className="min-w-0 flex-1 truncate text-[11px] font-medium">
               {label}
             </span>
             <span className="shrink-0 tabular-nums text-muted-foreground">
