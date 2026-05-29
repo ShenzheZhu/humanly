@@ -36,7 +36,7 @@ const user = {
   updatedAt: '2026-05-19T00:00:00.000Z',
 };
 
-describe('user auth store session restore', () => {
+describe('admin auth store cross-portal session restore', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     useAuthStore.setState({
@@ -47,11 +47,11 @@ describe('user auth store session restore', () => {
     });
   });
 
-  it('refreshes from cookie before checking /auth/me when local access token is missing', async () => {
+  it('refreshes from a shared cookie before checking /auth/me when no admin token is in memory', async () => {
     mockGetAccessToken.mockReturnValue(null);
     mockApiPost.mockResolvedValueOnce({
       data: {
-        accessToken: 'fresh-access-token',
+        accessToken: 'fresh-admin-access-token',
       },
     });
     mockApiGet.mockResolvedValueOnce({
@@ -60,11 +60,11 @@ describe('user auth store session restore', () => {
       },
     });
 
-    await useAuthStore.getState().checkAuth();
+    await useAuthStore.getState().fetchUser();
 
-    expect(mockApiPost).toHaveBeenCalledWith('/auth/refresh', {}, { skipAuthRedirect: true });
-    expect(mockSetAccessToken).toHaveBeenCalledWith('fresh-access-token');
-    expect(mockApiGet).toHaveBeenCalledWith('/auth/me', { skipAuthRedirect: true });
+    expect(mockApiPost).toHaveBeenCalledWith('/api/v1/auth/refresh');
+    expect(mockSetAccessToken).toHaveBeenCalledWith('fresh-admin-access-token');
+    expect(mockApiGet).toHaveBeenCalledWith('/api/v1/auth/me');
     expect(mockInitializeSocket).toHaveBeenCalledTimes(1);
     expect(useAuthStore.getState()).toMatchObject({
       user,
@@ -74,8 +74,8 @@ describe('user auth store session restore', () => {
     });
   });
 
-  it('forces cookie refresh for portal switches even when a stale local access token exists', async () => {
-    mockGetAccessToken.mockReturnValue('stale-user-access-token');
+  it('forces shared-cookie refresh for portal switches even when a stale admin token exists', async () => {
+    mockGetAccessToken.mockReturnValue('stale-admin-access-token');
     mockApiPost.mockResolvedValueOnce({
       data: {
         accessToken: 'fresh-switched-access-token',
@@ -87,13 +87,13 @@ describe('user auth store session restore', () => {
       },
     });
 
-    await useAuthStore.getState().checkAuth({ forceRefresh: true });
+    await useAuthStore.getState().fetchUser({ forceRefresh: true });
 
     expect(mockClearTokens).toHaveBeenCalledTimes(1);
     expect(mockGetAccessToken).not.toHaveBeenCalled();
-    expect(mockApiPost).toHaveBeenCalledWith('/auth/refresh', {}, { skipAuthRedirect: true });
+    expect(mockApiPost).toHaveBeenCalledWith('/api/v1/auth/refresh');
     expect(mockSetAccessToken).toHaveBeenCalledWith('fresh-switched-access-token');
-    expect(mockApiGet).toHaveBeenCalledWith('/auth/me', { skipAuthRedirect: true });
+    expect(mockApiGet).toHaveBeenCalledWith('/api/v1/auth/me');
     expect(useAuthStore.getState()).toMatchObject({
       user,
       isAuthenticated: true,
@@ -102,15 +102,14 @@ describe('user auth store session restore', () => {
     });
   });
 
-  it('clears auth state when local token and refresh cookie are both unavailable', async () => {
+  it('clears admin session state if the shared refresh cookie is unavailable', async () => {
     mockGetAccessToken.mockReturnValue(null);
     mockApiPost.mockRejectedValueOnce(new Error('refresh failed'));
 
-    await useAuthStore.getState().checkAuth();
+    await expect(useAuthStore.getState().fetchUser()).rejects.toThrow('refresh failed');
 
-    expect(mockApiPost).toHaveBeenCalledWith('/auth/refresh', {}, { skipAuthRedirect: true });
     expect(mockApiGet).not.toHaveBeenCalled();
-    expect(mockClearTokens).toHaveBeenCalledTimes(1);
+    expect(mockClearTokens).toHaveBeenCalled();
     expect(mockInitializeSocket).not.toHaveBeenCalled();
     expect(useAuthStore.getState()).toMatchObject({
       user: null,
@@ -120,7 +119,7 @@ describe('user auth store session restore', () => {
     });
   });
 
-  it('clears the local session without calling the backend', () => {
+  it('clears the local admin session without calling the backend', () => {
     useAuthStore.setState({
       user,
       isAuthenticated: true,

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LogOut, User, Menu } from 'lucide-react';
+import { FileText, LogOut, User, Menu } from 'lucide-react';
 import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,11 +23,13 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { useAuthStore } from '@/stores/auth-store';
+import { getFrontendUserUrl } from '@/lib/certificate-url';
 
 export function Navbar() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const userDocumentsHref = `${getFrontendUserUrl()}/documents?switchSession=1`;
 
   const handleLogout = async () => {
     await logout();
@@ -56,6 +58,13 @@ export function Navbar() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <a href={userDocumentsHref}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Switch to User View
+                    </a>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
@@ -86,6 +95,17 @@ export function Navbar() {
                       <div className="px-3 py-2 text-sm text-muted-foreground">
                         {user?.email}
                       </div>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start"
+                        asChild
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <a href={userDocumentsHref}>
+                          <FileText className="mr-2 h-4 w-4" />
+                          Switch to User View
+                        </a>
+                      </Button>
                       <Button
                         variant="ghost"
                         className="w-full justify-start"

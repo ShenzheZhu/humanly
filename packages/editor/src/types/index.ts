@@ -7,7 +7,8 @@ export interface EditorTrackerConfig {
   documentId: string;
   userId?: string;
   onEvent?: (event: TrackedEvent) => void;
-  onEventsBuffer?: (events: TrackedEvent[]) => void;
+  onEventsBuffer?: (events: TrackedEvent[]) => void | Promise<void>;
+  onEventFlushReady?: (flushPendingEvents: (() => Promise<void>) | null) => void;
   batchSize?: number;
   flushInterval?: number;
   enabled?: boolean;
@@ -113,7 +114,8 @@ export interface LexicalEditorProps {
   autoSaveInterval?: number;
   onContentChange?: (content: Record<string, any>, plainText: string) => void;
   onEventTracked?: (event: TrackedEvent) => void;
-  onEventsBuffer?: (events: TrackedEvent[]) => void;
+  onEventsBuffer?: (events: TrackedEvent[]) => void | Promise<void>;
+  onEventFlushReady?: (flushPendingEvents: (() => Promise<void>) | null) => void;
   onAutoSave?: (content: Record<string, any>, plainText: string) => void;
   className?: string;
   /** Render a custom popup when text is selected */

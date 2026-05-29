@@ -1,12 +1,12 @@
 import { render, screen } from '@testing-library/react';
 
 import AuthLayout from '@/app/(auth)/layout';
-import { adminHref, marketingHref, productAppHref } from '@/lib/app-origin';
+import { adminAppHref, marketingHref, productAppHref } from '@/lib/app-origin';
 
 describe('marketing and product origins', () => {
   const originalMarketingOrigin = process.env.NEXT_PUBLIC_MARKETING_ORIGIN;
   const originalProductAppOrigin = process.env.NEXT_PUBLIC_PRODUCT_APP_ORIGIN;
-  const originalAdminOrigin = process.env.NEXT_PUBLIC_ADMIN_ORIGIN;
+  const originalAdminAppOrigin = process.env.NEXT_PUBLIC_ADMIN_APP_ORIGIN;
 
   const restoreOrigins = () => {
     if (originalMarketingOrigin === undefined) {
@@ -21,10 +21,10 @@ describe('marketing and product origins', () => {
       process.env.NEXT_PUBLIC_PRODUCT_APP_ORIGIN = originalProductAppOrigin;
     }
 
-    if (originalAdminOrigin === undefined) {
-      delete process.env.NEXT_PUBLIC_ADMIN_ORIGIN;
+    if (originalAdminAppOrigin === undefined) {
+      delete process.env.NEXT_PUBLIC_ADMIN_APP_ORIGIN;
     } else {
-      process.env.NEXT_PUBLIC_ADMIN_ORIGIN = originalAdminOrigin;
+      process.env.NEXT_PUBLIC_ADMIN_APP_ORIGIN = originalAdminAppOrigin;
     }
   };
 
@@ -35,17 +35,31 @@ describe('marketing and product origins', () => {
   it('centralizes external origin mapping without component-level hardcoding', () => {
     process.env.NEXT_PUBLIC_MARKETING_ORIGIN = 'https://writehumanly.net/';
     process.env.NEXT_PUBLIC_PRODUCT_APP_ORIGIN = 'https://app.writehumanly.net/';
-    process.env.NEXT_PUBLIC_ADMIN_ORIGIN = 'https://admin.writehumanly.net/';
+    process.env.NEXT_PUBLIC_ADMIN_APP_ORIGIN = 'https://admin.writehumanly.net/';
 
     expect(marketingHref('/')).toBe('https://writehumanly.net/');
     expect(productAppHref('/register')).toBe('https://app.writehumanly.net/register');
-    expect(adminHref('/')).toBe('https://admin.writehumanly.net/');
+    expect(adminAppHref('/tasks')).toBe('https://admin.writehumanly.net/tasks');
   });
 
-  it('falls back to the production admin portal for explicit cross-role links', () => {
-    expect(adminHref('/', { allowRelativeInNonProduction: false })).toBe(
-      'https://admin.writehumanly.net/'
-    );
+  it('infers the admin portal origin from local and deployed app hosts', () => {
+    expect(
+      adminAppHref('/tasks', {
+        protocol: 'http:',
+        hostname: 'localhost',
+        port: '3002',
+        origin: 'http://localhost:3002',
+      } as Location)
+    ).toBe('http://localhost:3000/tasks');
+
+    expect(
+      adminAppHref('/tasks', {
+        protocol: 'https:',
+        hostname: 'app.writehumanly.net',
+        port: '',
+        origin: 'https://app.writehumanly.net',
+      } as Location)
+    ).toBe('https://admin.writehumanly.net/tasks');
   });
 
   it('sends auth-layout logo clicks back to the marketing homepage', () => {

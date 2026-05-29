@@ -3,10 +3,9 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ExternalLink, LogOut, User, Menu, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, LogOut, User, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
-import { adminHref } from '@/lib/app-origin';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,11 +17,13 @@ import {
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { useAuthStore } from '@/stores/auth-store';
+import { adminAppHref } from '@/lib/app-origin';
 import { getUserDisplayLabel } from './user-display';
 
 export function Navbar() {
@@ -31,7 +32,8 @@ export function Navbar() {
   const { user, logout } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const userDisplayLabel = getUserDisplayLabel(user?.email);
-  const adminPortalUrl = adminHref('/', { allowRelativeInNonProduction: false });
+  const canUseAdminView = Boolean(user);
+  const adminTasksHref = adminAppHref('/tasks?switchSession=1');
 
   const handleLogout = async () => {
     await logout();
@@ -67,14 +69,17 @@ export function Navbar() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <a href={adminPortalUrl} target="_blank" rel="noreferrer">
-                      <ShieldCheck className="mr-2 h-4 w-4" />
-                      <span>Admin portal</span>
-                      <ExternalLink className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
-                    </a>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
+                  {canUseAdminView ? (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <a href={adminTasksHref}>
+                          <LayoutDashboard className="mr-2 h-4 w-4" />
+                          Admin portal
+                        </a>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  ) : null}
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
                     Logout
@@ -95,23 +100,28 @@ export function Navbar() {
                 <SheetContent side="right">
                   <SheetHeader>
                     <SheetTitle>Menu</SheetTitle>
+                    <SheetDescription className="sr-only">
+                      Account options
+                    </SheetDescription>
                   </SheetHeader>
                   <div className="mt-6 flex flex-col space-y-4">
                     <div>
                       <div className="px-3 py-2 text-sm text-muted-foreground">
                         {userDisplayLabel}
                       </div>
-                      <Button
-                        asChild
-                        variant="ghost"
-                        className="w-full justify-start"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        <a href={adminPortalUrl} target="_blank" rel="noreferrer">
-                          <ShieldCheck className="mr-2 h-4 w-4" />
-                          Admin portal
-                        </a>
-                      </Button>
+                      {canUseAdminView ? (
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start"
+                          asChild
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          <a href={adminTasksHref}>
+                            <LayoutDashboard className="mr-2 h-4 w-4" />
+                            Admin portal
+                          </a>
+                        </Button>
+                      ) : null}
                       <Button
                         variant="ghost"
                         className="w-full justify-start"

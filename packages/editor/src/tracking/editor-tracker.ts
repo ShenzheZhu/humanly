@@ -22,6 +22,7 @@ export class EditorTracker {
   private eventBuffer: TrackedEvent[] = [];
   private flushTimer: NodeJS.Timeout | null = null;
   private listeners: Array<() => void> = [];
+  private flushPromise: Promise<void> | null = null;
   private isTracking: boolean = false;
   private lastEventType: EventType | null = null;
   private lastKeyCode: string | null = null;
@@ -335,8 +336,24 @@ export class EditorTracker {
       this.flushTimer = null;
     }
 
-    // Flush remaining events
-    this.flush();
+    // Flush remaining events. React cleanup cannot await this, so failures are
+    // retained in the buffer for any explicit retry path that still has access.
+    void this.flush().catch(() => undefined);
+  }
+
+  async flushPendingEvents(): Promise<void> {
+    while (true) {
+      if (this.flushPromise) {
+        await this.flushPromise;
+        continue;
+      }
+
+      if (this.eventBuffer.length === 0) {
+        return;
+      }
+
+      await this.flush();
+    }
   }
 
   /**
@@ -590,33 +607,48 @@ export class EditorTracker {
     }
 
     if (this.eventBuffer.length >= (this.config.batchSize || 20)) {
-      this.flush();
+      void this.flush().catch(() => undefined);
     }
   }
 
   /**
    * Flush buffered events
    */
-  private flush(): void {
+  private flush(): Promise<void> {
+    if (this.flushPromise) {
+      return this.flushPromise;
+    }
+
     if (this.eventBuffer.length === 0) {
-      return;
+      return Promise.resolve();
     }
 
     const events = [...this.eventBuffer];
     this.eventBuffer = [];
 
-    // Notify batch callback
-    if (this.config.onEventsBuffer) {
-      this.config.onEventsBuffer(events);
-    }
+    this.flushPromise = (async () => {
+      try {
+        // Notify batch callback
+        if (this.config.onEventsBuffer) {
+          await this.config.onEventsBuffer(events);
+        }
+      } catch (error) {
+        this.eventBuffer = [...events, ...this.eventBuffer];
+        throw error;
+      } finally {
+        this.flushPromise = null;
 
-    // Reset flush timer
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer);
-      this.flushTimer = null;
-    }
+        // Reset flush timer
+        if (this.flushTimer) {
+          clearTimeout(this.flushTimer);
+          this.flushTimer = null;
+        }
 
-    this.scheduleFlush();
+        this.scheduleFlush();
+      }
+    })();
+
+    return this.flushPromise;
   }
 
   /**
@@ -628,7 +660,7 @@ export class EditorTracker {
     }
 
     this.flushTimer = setTimeout(() => {
-      this.flush();
+      void this.flush().catch(() => undefined);
     }, this.config.flushInterval || 30000);
   }
 
@@ -699,7 +731,7 @@ export class EditorTracker {
   /**
    * Manually flush events (for testing or forced save)
    */
-  forceFlush(): void {
-    this.flush();
+  forceFlush(): Promise<void> {
+    return this.flushPendingEvents();
   }
 }

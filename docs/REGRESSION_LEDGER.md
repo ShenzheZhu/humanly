@@ -47,6 +47,7 @@ QA reports should name the bucket before filing the issue.
 | #259 | Text-only AI follow-up after image history could fail with a provider corrupt-image error. | `type:regression` | current QA batch | Backend AI service tests downgrade corrupt historical image attachments and reject corrupt current image attachments before provider dispatch. |
 | #261 | Auth forms could native-submit credentials into URL query params before React hydration. | `type:new-bug` | current QA batch | Auth form safety test asserts user/admin auth forms use a POST native fallback. |
 | #262 | Admin task create/edit UI could not view or change the per-writing-session timer, and enrolled editors could hide that timer when AI usage limits used a non-time mode. | `type:old-gap` | current QA batch | Admin new-task/task-settings tests assert timer create, hydrate, export, and save payloads; frontend-user editor workflow tests assert `time.timeLimitSeconds` shows a writing timer independent of AI usage limit mode. |
+| #363 | Buffered document activity events could be read too early by logs, certificate generation, or task submit when users acted immediately after typing. | `type:old-gap` | current QA batch | Frontend editor workflow tests assert View Logs, certificate generation, and task submit await activity-log flush success before continuing. |
 
 ## How To Use
 
