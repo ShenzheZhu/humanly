@@ -40,6 +40,13 @@ const user = {
   updatedAt: '2026-05-19T00:00:00.000Z',
 };
 
+const switchedAdminUser = {
+  ...user,
+  id: 'admin-b',
+  email: 'admin-b@example.com',
+  role: 'admin' as const,
+};
+
 describe('user auth store session restore', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -78,16 +85,16 @@ describe('user auth store session restore', () => {
     });
   });
 
-  it('forces cookie refresh for portal switches even when a stale local access token exists', async () => {
-    mockGetAccessToken.mockReturnValue('stale-user-access-token');
+  it('uses the switched cookie account when a stale user-portal token belongs to another account', async () => {
+    mockGetAccessToken.mockReturnValue('stale-user-a-access-token');
     mockApiPost.mockResolvedValueOnce({
       data: {
-        accessToken: 'fresh-switched-access-token',
+        accessToken: 'fresh-admin-b-access-token',
       },
     });
     mockApiGet.mockResolvedValueOnce({
       data: {
-        user,
+        user: switchedAdminUser,
       },
     });
 
@@ -96,10 +103,10 @@ describe('user auth store session restore', () => {
     expect(mockClearTokens).not.toHaveBeenCalled();
     expect(mockGetAccessToken).toHaveBeenCalledTimes(1);
     expect(mockApiPost).toHaveBeenCalledWith('/auth/refresh', {}, { skipAuthRedirect: true });
-    expect(mockSetAccessToken).toHaveBeenCalledWith('fresh-switched-access-token');
+    expect(mockSetAccessToken).toHaveBeenCalledWith('fresh-admin-b-access-token');
     expect(mockApiGet).toHaveBeenCalledWith('/auth/me', { skipAuthRedirect: true });
     expect(useAuthStore.getState()).toMatchObject({
-      user,
+      user: switchedAdminUser,
       isAuthenticated: true,
       isLoading: false,
       error: null,
