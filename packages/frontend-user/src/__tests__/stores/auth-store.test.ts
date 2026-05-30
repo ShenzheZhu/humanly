@@ -113,6 +113,46 @@ describe('user auth store session restore', () => {
     });
   });
 
+  it('does not restore a shared cookie session when cookie refresh is disabled', async () => {
+    mockGetAccessToken.mockReturnValue(null);
+
+    await useAuthStore.getState().checkAuth({ allowCookieRefresh: false });
+
+    expect(mockApiPost).not.toHaveBeenCalled();
+    expect(mockApiGet).not.toHaveBeenCalled();
+    expect(mockClearTokens).toHaveBeenCalledTimes(1);
+    expect(mockInitializeSocket).not.toHaveBeenCalled();
+    expect(useAuthStore.getState()).toMatchObject({
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+    });
+  });
+
+  it('checks an existing app token without falling back to shared cookie refresh', async () => {
+    mockGetAccessToken.mockReturnValue('existing-user-access-token');
+    mockApiGet.mockResolvedValueOnce({
+      data: {
+        user,
+      },
+    });
+
+    await useAuthStore.getState().checkAuth({ allowCookieRefresh: false });
+
+    expect(mockApiPost).not.toHaveBeenCalled();
+    expect(mockApiGet).toHaveBeenCalledWith('/auth/me', {
+      skipAuthRedirect: true,
+      skipAuthRefresh: true,
+    });
+    expect(useAuthStore.getState()).toMatchObject({
+      user,
+      isAuthenticated: true,
+      isLoading: false,
+      error: null,
+    });
+  });
+
   it('falls back to the existing app token when a forced portal-switch refresh is unavailable', async () => {
     mockGetAccessToken.mockReturnValue('existing-user-access-token');
     mockApiPost.mockRejectedValueOnce(new Error('refresh failed'));

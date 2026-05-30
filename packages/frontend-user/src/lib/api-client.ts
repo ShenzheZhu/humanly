@@ -2,6 +2,7 @@ import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } f
 
 export type HumanlyAxiosRequestConfig = AxiosRequestConfig & {
   skipAuthRedirect?: boolean;
+  skipAuthRefresh?: boolean;
 };
 
 export const API_URL =
@@ -200,7 +201,13 @@ const createApiClient = (): AxiosInstance => {
       const isAuthEndpoint = requestUrl.includes('/auth/login')
         || requestUrl.includes('/auth/register')
         || requestUrl.includes('/auth/refresh');
-      if (error.response?.status === 401 && !originalRequest._retry && !isAIEndpoint && !isAuthEndpoint) {
+      if (
+        error.response?.status === 401
+        && !originalRequest._retry
+        && !originalRequest.skipAuthRefresh
+        && !isAIEndpoint
+        && !isAuthEndpoint
+      ) {
         originalRequest._retry = true;
 
         try {
