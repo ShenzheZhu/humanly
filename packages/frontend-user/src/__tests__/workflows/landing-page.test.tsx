@@ -90,6 +90,15 @@ describe('landing page', () => {
     expect(screen.getByRole('heading', { name: /Humanly Demo/i })).toBeInTheDocument();
     expect(screen.queryByText('Fast writing demo')).not.toBeInTheDocument();
     expect(screen.getByText(/Try the real flow in a separate demo workspace/i)).toBeInTheDocument();
+    const launchVideo = screen.getByLabelText(/Humanly product video/i);
+    expect(launchVideo).toHaveAttribute('controls');
+    expect((launchVideo as HTMLVideoElement).muted).toBe(true);
+    expect(launchVideo).toHaveAttribute('poster', '/videos/humanly-launch-poster.png');
+    expect(launchVideo).toHaveAttribute('preload', 'metadata');
+    expect(document.querySelector('video[aria-label="Humanly product video"] source')).toHaveAttribute(
+      'src',
+      '/videos/humanly-launch.mp4'
+    );
     expect(screen.queryByRole('heading', { name: /New Task/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/Task Configuration/i)).not.toBeInTheDocument();
     const faqSection = document.querySelector('#faq');
@@ -97,6 +106,8 @@ describe('landing page', () => {
     expect(faqSection).not.toBeNull();
     expect(demoSection).not.toBeNull();
     expect(faqSection?.compareDocumentPosition(demoSection as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(within(demoSection as HTMLElement).queryByText('Launch video')).not.toBeInTheDocument();
+    expect(within(demoSection as HTMLElement).queryByText('1:36')).not.toBeInTheDocument();
     expect(within(demoSection as HTMLElement).queryByText('Configure')).not.toBeInTheDocument();
     expect(within(demoSection as HTMLElement).queryByText('Write')).not.toBeInTheDocument();
     expect(within(demoSection as HTMLElement).queryByText('Record')).not.toBeInTheDocument();
