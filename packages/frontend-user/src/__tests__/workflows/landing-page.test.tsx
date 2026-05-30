@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+import FastWritingDemoPage from '@/app/demo/fast-writing/page';
 import HomePage from '@/app/page';
 
 const mockReplace = jest.fn();
@@ -76,10 +77,26 @@ describe('landing page', () => {
     await waitFor(() => expect(mockCheckAuth).toHaveBeenCalled());
   });
 
-  it('lets visitors run the fast writing demo without auth', async () => {
+  it('opens the fast writing demo in a separate tab instead of embedding it on the homepage', async () => {
+    render(<HomePage />);
+
+    expect(screen.getByRole('heading', { name: /Try the real flow in a separate demo workspace/i })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /New Task/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Task Configuration/i)).not.toBeInTheDocument();
+
+    for (const link of screen.getAllByRole('link', { name: /Try the demo|Open demo tab/i })) {
+      expect(link).toHaveAttribute('href', '/demo/fast-writing');
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
+    }
+
+    await waitFor(() => expect(mockCheckAuth).toHaveBeenCalled());
+  });
+
+  it('lets visitors run the standalone fast writing demo without auth', async () => {
     const user = userEvent.setup();
 
-    render(<HomePage />);
+    render(<FastWritingDemoPage />);
 
     expect(screen.getByRole('heading', { name: /Try the real task-to-certificate flow/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /New Task/i })).toBeInTheDocument();
@@ -108,7 +125,6 @@ describe('landing page', () => {
 
     await user.click(screen.getByRole('button', { name: /do it again/i }));
     expect(screen.getByRole('button', { name: /create task/i })).toBeInTheDocument();
-    await waitFor(() => expect(mockCheckAuth).toHaveBeenCalled());
   });
 
   it('sends marketing-page auth actions to the configured product app origin', async () => {
