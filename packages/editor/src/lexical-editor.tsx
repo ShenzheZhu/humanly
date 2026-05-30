@@ -35,6 +35,7 @@ import { ListPlugin } from './plugins/list-plugin';
 import { AlignmentPlugin } from './plugins/alignment-plugin';
 import { SelectionPopupPlugin } from './plugins/selection-popup-plugin';
 import { LexicalEditorProps, EditorTheme, EditorInsertResult } from './types';
+import { TRACKING_TEXT_CHANGE_METADATA_COMMAND } from './commands/formatting-commands';
 import {
   createSerializedMarkdownNodes,
   editorNodes,
@@ -476,10 +477,18 @@ function MarkdownPastePromptPlugin({
 
       const selection = $getSelection();
       if ($isRangeSelection(selection)) {
+        editor.dispatchCommand(TRACKING_TEXT_CHANGE_METADATA_COMMAND, {
+          textRenderMode: 'plain',
+          sourceText: text,
+        });
         selection.insertRawText(text);
         return;
       }
 
+      editor.dispatchCommand(TRACKING_TEXT_CHANGE_METADATA_COMMAND, {
+        textRenderMode: 'plain',
+        sourceText: text,
+      });
       const paragraph = $createParagraphNode();
       paragraph.append($createTextNode(text));
       $getRoot().append(paragraph);
@@ -502,6 +511,10 @@ function MarkdownPastePromptPlugin({
       }
 
       insertSerializedNodesAtSelection(serializedNodes);
+      editor.dispatchCommand(TRACKING_TEXT_CHANGE_METADATA_COMMAND, {
+        textRenderMode: 'markdown',
+        sourceText: text,
+      });
     }, { discrete: true });
     setPendingMarkdownPaste(null);
     editor.focus();
@@ -903,6 +916,7 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
             onEventFlushReady={onEventFlushReady}
             enabled={trackingEnabled}
             copyPastePolicy={copyPastePolicy}
+            textRenderMode={markdownEnabled ? 'markdown' : 'plain'}
           />
         )}
 

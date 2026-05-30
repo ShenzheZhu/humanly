@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import type { SelectionReplacementResult } from '@humanly/editor';
+import type { SelectionReplacementOptions, SelectionReplacementResult } from '@humanly/editor';
 import { Sparkles, Check, Wand2, BookOpen, Loader2, MessageSquare, AlertCircle, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -20,7 +20,11 @@ interface AISelectionMenuProps {
   documentId: string;
   selection: SelectionInfo;
   onClose: () => void;
-  replaceSelection: (newText: string, keepOpen?: boolean) => SelectionReplacementResult | undefined;
+  replaceSelection: (
+    newText: string,
+    keepOpen?: boolean,
+    options?: SelectionReplacementOptions
+  ) => SelectionReplacementResult | undefined;
   cancelAIAction: () => void;
   undoLastAction: () => void;
   onActionApplied?: (
@@ -252,7 +256,9 @@ export function AISelectionMenu({
       return;
     }
 
-    const replacementResult = replaceSelection(improvedText, true);
+    const replacementResult = replaceSelection(improvedText, true, {
+      suppressTextChangeTracking: true,
+    });
 
     // Track the action in event history (local tracking)
     if (onActionApplied) {

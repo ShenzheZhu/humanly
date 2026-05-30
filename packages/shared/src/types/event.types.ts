@@ -60,6 +60,8 @@ export type EventType =
   // AI chat insert events
   | 'ai_insert_from_chat';
 
+export type TextRenderMode = 'plain' | 'markdown';
+
 export interface TrackerEvent {
   eventType: EventType;
   timestamp: Date | string;
