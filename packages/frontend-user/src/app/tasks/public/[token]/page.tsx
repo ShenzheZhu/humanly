@@ -11,8 +11,9 @@ import api, { ApiError, TokenManager } from '@/lib/api-client';
 interface PublicTaskStartResponse {
   success: boolean;
   data: {
-    accessToken: string;
+    accessToken?: string;
     publicSessionId: string;
+    mode?: 'guest' | 'signed-in';
     task: {
       id: string;
       name: string;
@@ -62,8 +63,10 @@ export default function PublicTaskDocumentStartPage() {
 
       const documentId = response.data.document.id;
       const existingAccessToken = TokenManager.getAccessToken();
-      TokenManager.setPublicDocumentAccessToken(documentId, response.data.accessToken);
-      if (!existingAccessToken) {
+      if (response.data.accessToken) {
+        TokenManager.setPublicDocumentAccessToken(documentId, response.data.accessToken);
+      }
+      if (!existingAccessToken && response.data.accessToken) {
         TokenManager.setAccessToken(response.data.accessToken);
       }
       setTaskName(response.data.task.name);

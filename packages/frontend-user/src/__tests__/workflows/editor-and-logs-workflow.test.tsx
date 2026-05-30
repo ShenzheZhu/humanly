@@ -608,6 +608,22 @@ describe('editor and logs workflows', () => {
     expect(screen.getByText('Saved')).toBeInTheDocument();
   });
 
+  it('keeps a blank unchanged editor in the saved state', async () => {
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    expect(screen.getByText('Saved')).toBeInTheDocument();
+
+    await act(async () => {
+      mockLatestEditorProps.onContentChange({ root: { children: [{ text: '' }] } }, '');
+      await mockLatestEditorProps.onAutoSave({ root: { children: [{ text: '' }] } }, '');
+    });
+
+    expect(screen.queryByText('Saving...')).not.toBeInTheDocument();
+    expect(screen.getByText('Saved')).toBeInTheDocument();
+    expect(mockUpdateDocument).not.toHaveBeenCalled();
+  });
+
   it('opens a document with an empty Lexical root without passing invalid editor state', async () => {
     mockDocumentContent = { root: { children: [] } };
 

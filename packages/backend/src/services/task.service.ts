@@ -133,6 +133,10 @@ export interface PublicTaskStartData {
   sessionId?: string;
 }
 
+export interface PublicTaskAuthenticatedUser {
+  userId: string;
+}
+
 export interface SubmitTaskDocumentOptions {
   allowAfterDeadline?: boolean;
   bypassCharacterBounds?: boolean;
@@ -636,40 +640,54 @@ export class TaskService {
   /**
    * Start a public share-link writing session in the normal Humanly editor.
    *
-   * This maps one browser session to a synthetic user, enrolls that user in the
-   * task, creates or reuses the task draft document, and returns standard auth
-   * tokens so the existing document editor, tracking, autosave, AI, and submit
-   * flows can run unchanged.
+   * Signed-in users are enrolled directly so their normal certificate route
+   * keeps working. Anonymous browser sessions still map to synthetic guest users
+   * and receive standard auth tokens so the existing editor flow can run
+   * unchanged.
    */
   static async startPublicTaskDocument(
     taskToken: string,
-    data: PublicTaskStartData = {}
+    data: PublicTaskStartData = {},
+    authenticatedUser?: PublicTaskAuthenticatedUser
   ) {
     const task = await this.getPublicTask(taskToken);
     this.assertTaskAcceptsPublicWriters(task);
 
     const publicSessionId = normalizePublicSessionId(data.sessionId);
-    const guestUser = await this.getOrCreatePublicGuestUser(task, publicSessionId);
+    const signedInUser = authenticatedUser
+      ? await UserModel.findById(authenticatedUser.userId)
+      : null;
 
-    await TaskModel.enrollUser(task.id, guestUser.id);
+    if (authenticatedUser && !signedInUser) {
+      throw new AppError(401, 'Authentication required');
+    }
 
-    const enrollment = await TaskModel.findEnrollmentForUserTask(task.id, guestUser.id);
+    const isGuestMode = !signedInUser;
+    const participantUser = signedInUser || (await this.getOrCreatePublicGuestUser(task, publicSessionId));
+
+    await TaskModel.enrollUser(task.id, participantUser.id);
+
+    const enrollment = await TaskModel.findEnrollmentForUserTask(task.id, participantUser.id);
     if (!enrollment) {
       throw new AppError(500, 'Failed to create task enrollment');
     }
 
     let document = enrollment.documentId
-      ? await DocumentModel.findByIdAndUserId(enrollment.documentId, guestUser.id)
+      ? await DocumentModel.findByIdAndUserId(enrollment.documentId, participantUser.id)
       : null;
 
     if (!document) {
-      const titleSuffix = `Guest ${publicSessionId.slice(0, 8)}`;
+      const titleSuffix = isGuestMode
+        ? `Guest ${publicSessionId.slice(0, 8)}`
+        : sanitizeDocumentTitlePart(participantUser.email) || 'Signed-in writer';
       const content = createLexicalContentFromPlainText('');
 
       document = await DocumentModel.create({
-        userId: guestUser.id,
+        userId: participantUser.id,
         title: `${task.name} Submission - ${titleSuffix}`,
-        description: 'Public task share-link document.',
+        description: isGuestMode
+          ? 'Public task share-link document.'
+          : 'Public task share-link document opened by a signed-in user.',
         content,
         plainText: '',
         status: 'draft',
@@ -678,16 +696,19 @@ export class TaskService {
         environmentConfig: task.environmentConfig || null,
       });
 
-      await TaskModel.linkSubmissionDocument(task.id, guestUser.id, document.id);
+      await TaskModel.linkSubmissionDocument(task.id, participantUser.id, document.id);
     }
 
-    const tokens = await this.issuePublicGuestTokens(guestUser);
+    const tokens = isGuestMode
+      ? await this.issuePublicGuestTokens(participantUser)
+      : null;
     await this.invalidateAnalytics(task.id);
 
     return {
-      user: guestUser,
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
+      user: participantUser,
+      mode: isGuestMode ? 'guest' as const : 'signed-in' as const,
+      accessToken: tokens?.accessToken,
+      refreshToken: tokens?.refreshToken,
       task: {
         id: task.id,
         name: task.name,

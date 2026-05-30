@@ -189,6 +189,14 @@ function normalizeEditorInitialContent(content: unknown): string | Record<string
   return typeof content === 'string' ? content : content as Record<string, any>;
 }
 
+function serializeEditorSnapshot(content: unknown): string {
+  try {
+    return JSON.stringify(content || {});
+  } catch {
+    return '';
+  }
+}
+
 interface EditorAIBridgeCaptureProps {
   insertAtCursor: EditorAIBridgeAPI['insertAtCursor'] | null;
   onInsertAtCursorChange: (insertAtCursor: EditorAIBridgeAPI['insertAtCursor'] | null) => void;
@@ -308,6 +316,7 @@ export default function DocumentEditorPage() {
   const autoSubmittedTimeLimitRef = useRef<string | null>(null);
   const quickActionTriggerRef = useRef<((type: ActionType) => void) | null>(null);
   const latestEditorSnapshotRef = useRef<{ content: Record<string, any>; plainText: string } | null>(null);
+  const lastSavedEditorSnapshotRef = useRef<{ contentKey: string; plainText: string } | null>(null);
   const loadedDocumentIdRef = useRef<string | null>(null);
   const lastCharacterLimitToastRef = useRef(0);
   const flushEditorEventsRef = useRef<(() => Promise<void>) | null>(null);
@@ -445,6 +454,10 @@ export default function DocumentEditorPage() {
       setTimerStartedAtMs(getTimestampMs(document.writingStartedAt));
       latestEditorSnapshotRef.current = {
         content: document.content,
+        plainText: document.plainText || '',
+      };
+      lastSavedEditorSnapshotRef.current = {
+        contentKey: serializeEditorSnapshot(document.content),
         plainText: document.plainText || '',
       };
     }
@@ -721,15 +734,38 @@ export default function DocumentEditorPage() {
 
   const handleContentChange = async (content: Record<string, any>, plainText: string) => {
     latestEditorSnapshotRef.current = { content, plainText };
-    setSaveStatus('saving');
     setCharacterCount(plainText.length);
+
+    const lastSavedSnapshot = lastSavedEditorSnapshotRef.current;
+    if (
+      lastSavedSnapshot &&
+      plainText === lastSavedSnapshot.plainText &&
+      (plainText.length === 0 || serializeEditorSnapshot(content) === lastSavedSnapshot.contentKey)
+    ) {
+      setSaveStatus('saved');
+      return;
+    }
+
+    setSaveStatus('saving');
   };
 
   const handleAutoSave = async (content: Record<string, any>, plainText: string) => {
     try {
-      setSaveStatus('saving');
       latestEditorSnapshotRef.current = { content, plainText };
+      const contentKey = serializeEditorSnapshot(content);
+      const lastSavedSnapshot = lastSavedEditorSnapshotRef.current;
+      if (
+        lastSavedSnapshot &&
+        plainText === lastSavedSnapshot.plainText &&
+        (plainText.length === 0 || contentKey === lastSavedSnapshot.contentKey)
+      ) {
+        setSaveStatus('saved');
+        return;
+      }
+
+      setSaveStatus('saving');
       await updateDocument(content, plainText);
+      lastSavedEditorSnapshotRef.current = { contentKey, plainText };
       setSaveStatus('saved');
     } catch (err) {
       setSaveStatus('error');

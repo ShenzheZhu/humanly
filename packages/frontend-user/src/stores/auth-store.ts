@@ -261,12 +261,9 @@ export const useAuthStore = create<AuthState>()(
       checkAuth: async (options: { forceRefresh?: boolean } = {}) => {
         set({ isLoading: true });
 
-        if (options.forceRefresh) {
-          TokenManager.clearTokens();
-        }
-
-        const token = options.forceRefresh ? null : TokenManager.getAccessToken();
-        if (!token) {
+        const existingToken = TokenManager.getAccessToken();
+        let token = options.forceRefresh ? null : existingToken;
+        if (!token || options.forceRefresh) {
           try {
             const refreshResponse = await api.post<{
               success: boolean;
@@ -275,16 +272,32 @@ export const useAuthStore = create<AuthState>()(
               };
             }>('/auth/refresh', {}, { skipAuthRedirect: true });
             TokenManager.setAccessToken(refreshResponse.data.accessToken);
+            token = refreshResponse.data.accessToken;
           } catch {
-            TokenManager.clearTokens();
-            set({
-              user: null,
-              isAuthenticated: false,
-              isLoading: false,
-              error: null,
-            });
-            return;
+            if (options.forceRefresh && existingToken) {
+              token = existingToken;
+            } else {
+              TokenManager.clearTokens();
+              set({
+                user: null,
+                isAuthenticated: false,
+                isLoading: false,
+                error: null,
+              });
+              return;
+            }
           }
+        }
+
+        if (!token) {
+          TokenManager.clearTokens();
+          set({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+            error: null,
+          });
+          return;
         }
 
         try {

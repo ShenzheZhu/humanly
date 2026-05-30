@@ -336,6 +336,77 @@ describe('TaskService.autoSubmitExpiredTimedTaskEnrollments', () => {
 });
 
 describe('TaskService.startPublicTaskDocument', () => {
+  it('uses the signed-in user for public task drafts when auth is present', async () => {
+    const task = makeTask({
+      taskToken: 'share-token-1',
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 60_000),
+      environmentConfig: {
+        aiAccess: 'full',
+        allowedModels: ['GPT-4o mini'],
+      },
+    });
+    const user = {
+      id: 'user-1',
+      email: 'writer@example.com',
+      role: 'user',
+      emailVerified: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const document = makeDocument({
+      id: 'signed-in-doc-1',
+      userId: 'user-1',
+      title: 'Task Submission - writer@example.com',
+      plainText: '',
+      wordCount: 0,
+      characterCount: 0,
+    });
+
+    MockTaskModel.findByToken.mockResolvedValue(task);
+    MockUserModel.findById.mockResolvedValue(user);
+    MockTaskModel.enrollUser.mockResolvedValue(undefined);
+    MockTaskModel.findEnrollmentForUserTask.mockResolvedValue({
+      id: 'enrollment-1',
+      taskId: 'task-1',
+      userId: 'user-1',
+      documentId: null,
+      joinedAt: new Date(),
+    });
+    MockDocumentModel.create.mockResolvedValue(document);
+    MockTaskModel.linkSubmissionDocument.mockResolvedValue(true);
+
+    const result = await TaskService.startPublicTaskDocument(
+      'share-token-1',
+      { sessionId: 'browser-session-1' },
+      { userId: 'user-1' }
+    );
+
+    expect(result.mode).toBe('signed-in');
+    expect(result.accessToken).toBeUndefined();
+    expect(result.refreshToken).toBeUndefined();
+    expect(result.user.id).toBe('user-1');
+    expect(result.document.id).toBe('signed-in-doc-1');
+    expect(MockUserModel.findByEmail).not.toHaveBeenCalled();
+    expect(MockTaskModel.enrollUser).toHaveBeenCalledWith('task-1', 'user-1');
+    expect(MockDocumentModel.create).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'user-1',
+      title: 'Task Submission - writer@example.com',
+      status: 'draft',
+      plainText: '',
+      wordCount: 0,
+      characterCount: 0,
+      environmentConfig: task.environmentConfig,
+    }));
+    expect(MockTaskModel.linkSubmissionDocument).toHaveBeenCalledWith(
+      'task-1',
+      'user-1',
+      'signed-in-doc-1'
+    );
+    expect(MockRefreshTokenModel.create).not.toHaveBeenCalled();
+    expect(mockCacheDelPattern).toHaveBeenCalledWith('analytics:task-1:*');
+  });
+
   it('creates a guest draft document and returns auth for the normal editor', async () => {
     const task = makeTask({
       taskToken: 'share-token-1',
