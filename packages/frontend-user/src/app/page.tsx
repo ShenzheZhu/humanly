@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { BookOpen, Check, MessageSquare, Sparkles, Wand2 } from 'lucide-react';
 import { AuthenticatedRedirect } from '@/components/auth/authenticated-redirect';
 import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
+import { HeroShowcase } from '@/components/marketing/hero-showcase';
 import { marketingHref, productAppHref } from '@/lib/app-origin';
 
 const ink = '#1a1c20';
@@ -11,6 +12,7 @@ const hairline = 'rgba(20,22,26,0.10)';
 const bg2 = '#ebede4';
 const good = '#6f8a78';
 const fastDemoHref = '/demo/fast-writing';
+const launchVideoSrc = '/videos/humanly-launch.mp4';
 
 const logRows = [
   ['12:41:48', 'input', '#dde6df', '#4a655a', '796'],
@@ -124,7 +126,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <HeroComposition />
+        <HeroShowcase video={<HeroVideoComposition />} workspace={<HeroComposition />} />
       </section>
 
       <ProblemSection />
@@ -141,41 +143,25 @@ export default function HomePage() {
 function DemoLaunchSection() {
   return (
     <section id="demo" className="bg-background px-5 py-[104px] sm:px-8 lg:px-14">
-      <div className="mx-auto grid max-w-[1080px] gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
-        <div>
-          <Eyebrow className="mb-[22px]">Interactive demo</Eyebrow>
-          <h2 className="text-[28px] font-semibold leading-[1.08] tracking-normal sm:text-[36px]">
-            Humanly Demo
-          </h2>
-          <p className="mt-5 max-w-[560px] text-[15px] leading-[1.7] text-muted-foreground sm:text-[17px]">
-            Try the real flow in a separate demo workspace. Configure a task,
-            write in a Humanly-style editor, inspect the activity log, and
-            generate a local certificate preview.
-          </p>
-          <div className="mt-8">
-            <Link
-              href={fastDemoHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="humanly-landing-btn bg-[#6f8a78] hover:bg-[#607869]"
-            >
-              Open Demo <Arrow />
-            </Link>
-          </div>
-        </div>
-
-        <div className="grid gap-3">
-          {steps.map(([number, title, description]) => (
-            <div key={number} className="grid grid-cols-[48px_1fr] gap-4 rounded-[10px] border border-[rgba(20,22,26,0.08)] bg-white p-4 shadow-[0_18px_42px_-34px_rgba(20,22,26,0.48)]">
-              <span className="grid h-10 w-10 place-items-center rounded-full bg-foreground text-[11px] font-bold text-white">
-                {number}
-              </span>
-              <div>
-                <h3 className="text-[15px] font-semibold tracking-normal">{title}</h3>
-                <p className="mt-1 text-[13px] leading-[1.55] text-muted-foreground">{description}</p>
-              </div>
-            </div>
-          ))}
+      <div className="mx-auto max-w-[720px] text-center">
+        <Eyebrow className="mb-[22px]">Interactive demo</Eyebrow>
+        <h2 className="text-[28px] font-semibold leading-[1.08] tracking-normal sm:text-[36px]">
+          Humanly Demo
+        </h2>
+        <p className="mx-auto mt-5 max-w-[560px] text-[15px] leading-[1.7] text-muted-foreground sm:text-[17px]">
+          Try the real flow in a separate demo workspace. Configure a task,
+          write in a Humanly-style editor, inspect the activity log, and
+          generate a local certificate preview.
+        </p>
+        <div className="mt-8 flex justify-center">
+          <Link
+            href={fastDemoHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="humanly-landing-btn bg-[#6f8a78] hover:bg-[#607869]"
+          >
+            Open Demo <Arrow />
+          </Link>
         </div>
       </div>
     </section>
@@ -211,7 +197,7 @@ function NavBar() {
 function HeroComposition() {
   return (
     <div
-      className="relative mx-auto mt-[72px] w-full max-w-[1100px] overflow-visible"
+      className="relative mx-auto w-full max-w-[1100px] overflow-visible"
       style={{ aspectRatio: '1100 / 720', containerType: 'inline-size' }}
     >
       <div
@@ -234,6 +220,42 @@ function HeroComposition() {
         <AIAssistCard />
         <TrackingCard />
         <CertificateCard />
+      </div>
+    </div>
+  );
+}
+
+function HeroVideoComposition() {
+  return (
+    <div
+      className="relative mx-auto w-full max-w-[1100px] overflow-visible"
+      style={{ aspectRatio: '1100 / 720', containerType: 'inline-size' }}
+    >
+      <div
+        className="absolute left-1/2 top-0 h-[720px] w-[1100px] origin-top"
+        style={{ transform: 'translateX(-50%) scale(min(1, calc(100cqw / 1100px)))' }}
+      >
+        <div
+          className="absolute inset-0 rotate-[-0.6deg] rounded-md bg-cover bg-center"
+          style={{
+            backgroundImage: "url('/brand/monet-windmills.jpg')",
+            boxShadow:
+              '0 36px 80px -30px rgba(40,32,18,0.40), 0 0 0 8px #fbf9f1, 0 0 0 9px rgba(40,32,18,0.10)',
+          }}
+        />
+        <div className="absolute left-1/2 top-1/2 z-20 w-[88%] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-[16px] border border-[rgba(20,22,26,0.10)] bg-white p-2 shadow-[0_30px_80px_-34px_rgba(20,22,26,0.55)]">
+          <video
+            aria-label="Humanly product video"
+            className="aspect-video w-full rounded-[12px] bg-foreground object-cover"
+            controls
+            muted
+            poster="/videos/humanly-launch-poster.png"
+            playsInline
+            preload="metadata"
+          >
+            <source src={launchVideoSrc} type="video/mp4" />
+          </video>
+        </div>
       </div>
     </div>
   );
