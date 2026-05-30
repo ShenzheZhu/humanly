@@ -82,11 +82,26 @@ describe('public task share link workflow', () => {
 
   it('preserves an existing signed-in access token when opening a public task document', async () => {
     (TokenManager.getAccessToken as jest.Mock).mockReturnValue('signed-in-access-token');
+    mockApiPost.mockResolvedValueOnce({
+      success: true,
+      data: {
+        publicSessionId: 'browser-session-1',
+        mode: 'signed-in',
+        task: {
+          id: 'task-1',
+          name: 'Public Reflection',
+        },
+        document: {
+          id: 'document-1',
+          title: 'Public Reflection Submission',
+        },
+      },
+    });
 
     render(<PublicTaskDocumentStartPage />);
 
     await waitFor(() => {
-      expect(TokenManager.setPublicDocumentAccessToken).toHaveBeenCalledWith('document-1', 'access-token-1');
+      expect(TokenManager.setPublicDocumentAccessToken).not.toHaveBeenCalled();
       expect(TokenManager.setAccessToken).not.toHaveBeenCalled();
       expect(mockRouterReplace).toHaveBeenCalledWith('/documents/document-1');
     });

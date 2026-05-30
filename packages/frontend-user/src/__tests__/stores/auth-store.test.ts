@@ -89,10 +89,33 @@ describe('user auth store session restore', () => {
 
     await useAuthStore.getState().checkAuth({ forceRefresh: true });
 
-    expect(mockClearTokens).toHaveBeenCalledTimes(1);
-    expect(mockGetAccessToken).not.toHaveBeenCalled();
+    expect(mockClearTokens).not.toHaveBeenCalled();
+    expect(mockGetAccessToken).toHaveBeenCalledTimes(1);
     expect(mockApiPost).toHaveBeenCalledWith('/auth/refresh', {}, { skipAuthRedirect: true });
     expect(mockSetAccessToken).toHaveBeenCalledWith('fresh-switched-access-token');
+    expect(mockApiGet).toHaveBeenCalledWith('/auth/me', { skipAuthRedirect: true });
+    expect(useAuthStore.getState()).toMatchObject({
+      user,
+      isAuthenticated: true,
+      isLoading: false,
+      error: null,
+    });
+  });
+
+  it('falls back to the existing app token when a forced portal-switch refresh is unavailable', async () => {
+    mockGetAccessToken.mockReturnValue('existing-user-access-token');
+    mockApiPost.mockRejectedValueOnce(new Error('refresh failed'));
+    mockApiGet.mockResolvedValueOnce({
+      data: {
+        user,
+      },
+    });
+
+    await useAuthStore.getState().checkAuth({ forceRefresh: true });
+
+    expect(mockApiPost).toHaveBeenCalledWith('/auth/refresh', {}, { skipAuthRedirect: true });
+    expect(mockSetAccessToken).not.toHaveBeenCalled();
+    expect(mockClearTokens).not.toHaveBeenCalled();
     expect(mockApiGet).toHaveBeenCalledWith('/auth/me', { skipAuthRedirect: true });
     expect(useAuthStore.getState()).toMatchObject({
       user,

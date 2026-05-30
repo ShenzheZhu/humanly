@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticate, optionalAuth } from '../middleware/auth.middleware';
 import { asyncHandler } from '../middleware/error-handler';
 import { createRateLimiter } from '../middleware/rate-limit';
 import {
@@ -37,7 +37,7 @@ const publicTaskRateLimiter = createRateLimiter({
  * unauthenticated participation link pattern and must stay before authenticate.
  */
 router.get('/public/:token', publicTaskRateLimiter, asyncHandler(getPublicTask));
-router.post('/public/:token/start', publicTaskRateLimiter, asyncHandler(startPublicTaskDocument));
+router.post('/public/:token/start', publicTaskRateLimiter, optionalAuth, asyncHandler(startPublicTaskDocument));
 router.post('/public/:token/submissions', publicTaskRateLimiter, asyncHandler(submitPublicTaskDocument));
 
 // Remaining routes require authentication

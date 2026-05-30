@@ -98,30 +98,39 @@ export async function startPublicTaskDocument(req: Request, res: Response): Prom
   }
 
   const data = validate(publicTaskStartSchema, req.body || {});
-  const result = await TaskService.startPublicTaskDocument(taskToken, data);
+  const result = await TaskService.startPublicTaskDocument(
+    taskToken,
+    data,
+    req.user ? { userId: req.user.userId } : undefined
+  );
 
-  res.cookie('refreshToken', result.refreshToken, {
-    httpOnly: true,
-    secure: env.nodeEnv === 'production',
-    sameSite: 'strict',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
+  if (result.refreshToken) {
+    res.cookie('refreshToken', result.refreshToken, {
+      httpOnly: true,
+      secure: env.nodeEnv === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+  }
 
-  res.cookie('accessToken', result.accessToken, {
-    httpOnly: true,
-    secure: env.nodeEnv === 'production',
-    sameSite: 'strict',
-    maxAge: 24 * 60 * 60 * 1000,
-  });
+  if (result.accessToken) {
+    res.cookie('accessToken', result.accessToken, {
+      httpOnly: true,
+      secure: env.nodeEnv === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+  }
 
   res.status(201).json({
     success: true,
     data: {
       user: result.user,
-      accessToken: result.accessToken,
+      ...(result.accessToken ? { accessToken: result.accessToken } : {}),
       task: result.task,
       document: result.document,
       publicSessionId: result.publicSessionId,
+      mode: result.mode,
     },
     message: 'Task document started successfully',
   });
