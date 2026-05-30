@@ -115,6 +115,9 @@ describe('landing page', () => {
     expect(screen.queryByText(/Allow guest submissions/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Writing Session Timer/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Edit Time Window/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /back to home/i })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: /^cancel$/i })).toHaveAttribute('href', '/');
+    expect(screen.queryByRole('button', { name: '' })).not.toBeInTheDocument();
 
     const writeText = jest.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', {
@@ -141,6 +144,11 @@ describe('landing page', () => {
     const anchorClick = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
 
     await user.click(screen.getByRole('button', { name: /create writing/i }));
+    expect(screen.getByRole('button', { name: /back to setup/i })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: /reflection-brief\.pdf/i })).not.toBeInTheDocument();
+    expect(screen.getByText('reflection-brief.pdf')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /view log/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /^generate certificate$/i })).toBeEnabled();
     await user.type(
       screen.getByRole('textbox', { name: /demo writing editor/i }),
       'This draft records process evidence.'
