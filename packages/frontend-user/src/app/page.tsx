@@ -128,11 +128,11 @@ export default function HomePage() {
       </section>
 
       <ProblemSection />
-      <DemoLaunchSection />
       <TrustModelSection />
       <AudienceSection />
       <HowItWorksSection />
       <FAQSection />
+      <DemoLaunchSection />
       <Footer />
     </main>
   );
@@ -159,7 +159,7 @@ function DemoLaunchSection() {
               rel="noopener noreferrer"
               className="humanly-landing-btn bg-[#6f8a78] hover:bg-[#607869]"
             >
-              Open demo tab <Arrow />
+              Open Demo <Arrow />
             </Link>
           </div>
         </div>
