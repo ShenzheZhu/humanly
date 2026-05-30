@@ -31,6 +31,7 @@ interface AuthState {
   login: (email: string, password: string, role?: 'admin' | 'user') => Promise<void>;
   register: (email: string, password: string, role?: 'admin' | 'user') => Promise<void>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   verifyEmail: (code: string) => Promise<void>;
   resendVerificationEmail: (email?: string) => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
@@ -154,6 +155,31 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
             error: null,
           });
+        }
+      },
+
+      /**
+       * Delete the current account and clear local session state.
+       */
+      deleteAccount: async () => {
+        try {
+          set({ isLoading: true, error: null });
+
+          await api.delete('/auth/me');
+
+          TokenManager.clearTokens();
+          disconnectSocket();
+
+          set({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+            error: null,
+          });
+        } catch (error) {
+          const errorMessage = error instanceof ApiError ? error.message : 'Failed to delete account';
+          set({ isLoading: false, error: errorMessage });
+          throw error;
         }
       },
 

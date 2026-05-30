@@ -11,6 +11,7 @@ import {
   resetPassword,
   getCurrentUser,
   updateCurrentUser,
+  deleteCurrentUser,
   getOAuthProviders,
   startOAuth,
   handleOAuthCallback,
@@ -114,5 +115,6 @@ router.get('/oauth/:provider/callback', loginRateLimiter, handleOAuthCallback);
  */
 router.get('/me', authenticate, getCurrentUser);
 router.patch('/me', authenticate, updateCurrentUser);
+router.delete('/me', authenticate, deleteCurrentUser);
 
 export default router;

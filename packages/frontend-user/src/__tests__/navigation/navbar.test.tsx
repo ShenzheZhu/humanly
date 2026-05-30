@@ -6,6 +6,7 @@ import { Navbar } from '@/components/navigation/navbar';
 const mockPush = jest.fn();
 const mockLogout = jest.fn();
 const mockUpdateUser = jest.fn();
+const mockDeleteAccount = jest.fn();
 let mockPathname = '/documents';
 let mockUser: { email: string; role?: 'admin' | 'user'; name?: string | null; profileCompleted?: boolean } | null = {
   email: 'writer@mail.com',
@@ -23,6 +24,7 @@ jest.mock('@/stores/auth-store', () => ({
   useAuthStore: () => ({
     user: mockUser,
     logout: mockLogout,
+    deleteAccount: mockDeleteAccount,
     updateUser: mockUpdateUser,
   }),
 }));
@@ -33,6 +35,8 @@ describe('user navbar', () => {
   beforeEach(() => {
     mockPush.mockClear();
     mockLogout.mockClear();
+    mockDeleteAccount.mockReset();
+    mockDeleteAccount.mockResolvedValue(undefined);
     mockUpdateUser.mockReset();
     mockUpdateUser.mockResolvedValue(undefined);
     mockPathname = '/documents';
@@ -89,7 +93,7 @@ describe('user navbar', () => {
     render(<Navbar />);
 
     await user.click(screen.getByRole('button', { name: /writer one/i }));
-    await user.click(screen.getByRole('menuitem', { name: /edit profile/i }));
+    await user.click(screen.getByRole('menuitem', { name: /settings/i }));
 
     expect(screen.getByRole('heading', { name: /my account/i })).toBeInTheDocument();
     const displayName = screen.getByLabelText(/display name/i);
@@ -100,6 +104,31 @@ describe('user navbar', () => {
     await waitFor(() => {
       expect(mockUpdateUser).toHaveBeenCalledWith({ name: 'Writer Two' });
     });
+  });
+
+  it('deletes the account from My Account settings after confirmation', async () => {
+    mockUser = {
+      email: 'writer@mail.com',
+      name: 'Writer One',
+      role: 'user',
+      profileCompleted: true,
+    };
+    const user = userEvent.setup();
+
+    render(<Navbar />);
+
+    await user.click(screen.getByRole('button', { name: /writer one/i }));
+    await user.click(screen.getByRole('menuitem', { name: /settings/i }));
+    await user.click(screen.getByRole('button', { name: /delete my account/i }));
+
+    expect(screen.getByRole('heading', { name: /delete account/i })).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/type delete to confirm/i), 'DELETE');
+    await user.click(screen.getByRole('button', { name: /^delete account$/i }));
+
+    await waitFor(() => {
+      expect(mockDeleteAccount).toHaveBeenCalledTimes(1);
+    });
+    expect(mockPush).toHaveBeenCalledWith('/login');
   });
 
   it('shows the admin portal switch in the mobile menu for regular users', () => {
@@ -129,6 +158,7 @@ describe('user navbar', () => {
 
     expect(screen.queryByText(/admin portal/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/logout/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/edit profile/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/delete my account/i)).not.toBeInTheDocument();
   });
 });

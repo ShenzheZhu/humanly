@@ -1,4 +1,4 @@
-import { query, queryOne } from '../config/database';
+import { query, queryOne, transaction } from '../config/database';
 import { User, UserRole, UserWithPassword } from '@humanly/shared';
 import { PASSWORD_RESET_TOKEN_TTL_MS } from '../constants/auth';
 
@@ -323,10 +323,22 @@ export class UserModel {
   }
 
   /**
-   * Delete user
+   * Delete a user account and rows that are not covered by current FK cascades.
    */
-  static async delete(id: string): Promise<void> {
-    const sql = 'DELETE FROM users WHERE id = $1';
-    await query(sql, [id]);
+  static async deleteAccount(id: string): Promise<boolean> {
+    return transaction(async (client) => {
+      await client.query('DELETE FROM paper_access_logs WHERE reviewer_id = $1', [id]);
+      await client.query('DELETE FROM review_recordings WHERE reviewer_id = $1', [id]);
+      await client.query('DELETE FROM review_ai_interaction_logs WHERE reviewer_id = $1', [id]);
+      await client.query('DELETE FROM review_ai_sessions WHERE reviewer_id = $1', [id]);
+      await client.query('DELETE FROM review_comments WHERE reviewer_id = $1', [id]);
+      await client.query('DELETE FROM review_events WHERE reviewer_id = $1', [id]);
+      await client.query('DELETE FROM reviews WHERE reviewer_id = $1', [id]);
+      await client.query('DELETE FROM paper_reviewers WHERE reviewer_id = $1 OR assigned_by = $1', [id]);
+      await client.query('DELETE FROM papers WHERE uploaded_by = $1', [id]);
+
+      const result = await client.query('DELETE FROM users WHERE id = $1', [id]);
+      return result.rowCount > 0;
+    });
   }
 }

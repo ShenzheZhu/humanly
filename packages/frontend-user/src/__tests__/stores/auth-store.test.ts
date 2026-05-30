@@ -1,6 +1,7 @@
 const mockApiGet = jest.fn();
 const mockApiPost = jest.fn();
 const mockApiPatch = jest.fn();
+const mockApiDelete = jest.fn();
 const mockGetAccessToken = jest.fn();
 const mockSetAccessToken = jest.fn();
 const mockClearTokens = jest.fn();
@@ -13,6 +14,7 @@ jest.mock('@/lib/api-client', () => ({
     get: (...args: any[]) => mockApiGet(...args),
     post: (...args: any[]) => mockApiPost(...args),
     patch: (...args: any[]) => mockApiPatch(...args),
+    delete: (...args: any[]) => mockApiDelete(...args),
   },
   TokenManager: {
     getAccessToken: (...args: any[]) => mockGetAccessToken(...args),
@@ -191,6 +193,31 @@ describe('user auth store session restore', () => {
     expect(useAuthStore.getState()).toMatchObject({
       user: updatedUser,
       isAuthenticated: true,
+      isLoading: false,
+      error: null,
+    });
+  });
+
+  it('deletes the account through /auth/me and clears local session state', async () => {
+    useAuthStore.setState({
+      user,
+      isAuthenticated: true,
+      isLoading: false,
+      error: null,
+    });
+    mockApiDelete.mockResolvedValueOnce({
+      success: true,
+      message: 'Account deleted successfully',
+    });
+
+    await useAuthStore.getState().deleteAccount();
+
+    expect(mockApiDelete).toHaveBeenCalledWith('/auth/me');
+    expect(mockClearTokens).toHaveBeenCalledTimes(1);
+    expect(mockDisconnectSocket).toHaveBeenCalledTimes(1);
+    expect(useAuthStore.getState()).toMatchObject({
+      user: null,
+      isAuthenticated: false,
       isLoading: false,
       error: null,
     });

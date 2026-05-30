@@ -18,8 +18,10 @@ import {
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 import { UserAISettingsModel } from '../models/user-ai-settings.model';
+import { FileModel } from '../models/file.model';
 import { OAuthProfile } from './oauth.service';
 import { PASSWORD_RESET_TOKEN_TTL_MS } from '../constants/auth';
+import { FileStorageService } from './file-storage.service';
 
 export class AuthService {
   private static async initializeDefaultAISettings(userId: string): Promise<void> {
@@ -488,5 +490,40 @@ export class AuthService {
       throw new AppError(404, 'User not found');
     }
     return user;
+  }
+
+  /**
+   * Delete the current user's account and revoke all refresh tokens.
+   */
+  static async deleteCurrentUser(userId: string): Promise<void> {
+    logger.info('Attempting account deletion', { userId });
+
+    const files = await FileModel.findByOwner(userId);
+    await RefreshTokenModel.deleteByUserId(userId);
+    const deleted = await UserModel.deleteAccount(userId);
+    if (!deleted) {
+      throw new AppError(404, 'User not found');
+    }
+
+    await Promise.all(
+      files
+        .filter((file) => !file.legacySourceId)
+        .map(async (file) => {
+          try {
+            await FileStorageService.delete(file);
+          } catch (error) {
+            logger.error('Failed to delete account file storage object', {
+              error,
+              userId,
+              fileId: file.id,
+              storageProvider: file.storageProvider,
+              storageBucket: file.storageBucket,
+              storageKey: file.storageKey,
+            });
+          }
+        })
+    );
+
+    logger.info('Account deleted successfully', { userId });
   }
 }
