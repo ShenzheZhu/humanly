@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function FastWritingDemoPage() {
   return (
-    <main className="min-h-screen bg-[#f7f2e8] text-foreground">
+    <main className="min-h-screen bg-background text-foreground">
       <FastWritingDemo />
     </main>
   );

@@ -144,13 +144,14 @@ function DemoLaunchSection() {
     <section id="demo" className="bg-[#f7f2e8] px-5 py-[104px] sm:px-8 lg:px-14">
       <div className="mx-auto grid max-w-[1080px] gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
         <div>
-          <Eyebrow className="mb-[22px]">Humanly Demo</Eyebrow>
+          <Eyebrow className="mb-[22px]">Interactive demo</Eyebrow>
           <h2 className="text-[28px] font-semibold leading-[1.08] tracking-normal sm:text-[36px]">
-            Try the real flow in a separate demo workspace.
+            Humanly Demo
           </h2>
           <p className="mt-5 max-w-[560px] text-[15px] leading-[1.7] text-muted-foreground sm:text-[17px]">
-            Open a standalone demo tab, configure a task, write in a Humanly-style
-            editor, inspect the activity log, and generate a local certificate preview.
+            Try the real flow in a separate demo workspace. Configure a task,
+            write in a Humanly-style editor, inspect the activity log, and
+            generate a local certificate preview.
           </p>
           <div className="mt-8">
             <Link
