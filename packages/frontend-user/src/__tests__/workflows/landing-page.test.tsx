@@ -92,8 +92,13 @@ describe('landing page', () => {
     expect(screen.getByText(/Try the real flow in a separate demo workspace/i)).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /New Task/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/Task Configuration/i)).not.toBeInTheDocument();
+    const faqSection = document.querySelector('#faq');
+    const demoSection = document.querySelector('#demo');
+    expect(faqSection).not.toBeNull();
+    expect(demoSection).not.toBeNull();
+    expect(faqSection?.compareDocumentPosition(demoSection as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
 
-    for (const link of screen.getAllByRole('link', { name: /Try the demo|Open demo tab/i })) {
+    for (const link of screen.getAllByRole('link', { name: /Try the demo|Open Demo/i })) {
       expect(link).toHaveAttribute('href', '/demo/fast-writing');
       expect(link).toHaveAttribute('target', '_blank');
       expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
