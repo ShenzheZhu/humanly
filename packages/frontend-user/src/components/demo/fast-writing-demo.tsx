@@ -371,7 +371,7 @@ export function FastWritingDemo() {
   };
 
   return (
-    <section id="demo" className="min-h-screen bg-[#f7f2e8] px-4 py-4 sm:px-6 lg:px-8">
+    <section id="demo" className="min-h-screen bg-background px-4 py-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-[1180px]">
         <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
