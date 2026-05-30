@@ -18,7 +18,6 @@ import {
   Settings2,
   Share2,
   Upload,
-  X,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -409,6 +408,7 @@ export function FastWritingDemo() {
             saveStatus={saveStatus}
             onDraftChange={handleDraftChange}
             onPaste={handlePaste}
+            onBackToSetup={handleRestart}
             onViewLogs={() => setStep('log')}
             onOpenCertificateDialog={() => setCertificateDialogOpen(true)}
           />
@@ -491,9 +491,11 @@ function DemoTaskSetup({
   return (
     <div className="mx-auto w-full max-w-6xl">
       <div className="mb-6">
-        <Button type="button" variant="ghost" className="mb-4 px-0 hover:bg-transparent" disabled>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Workspace
+        <Button asChild variant="ghost" className="mb-4 px-0 hover:bg-transparent">
+          <a href="/">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Home
+          </a>
         </Button>
         <p className="humanly-eyebrow">Personal writing</p>
         <h3 className="mt-2 text-3xl font-bold tracking-normal">Create Writing</h3>
@@ -551,9 +553,6 @@ function DemoTaskSetup({
                   <p className="truncate text-sm font-medium">reflection-source.pdf</p>
                   <p className="text-xs text-muted-foreground">Demo source PDF</p>
                 </div>
-                <Button type="button" variant="ghost" size="icon" disabled>
-                  <X className="h-4 w-4" />
-                </Button>
               </div>
             </div>
           </section>
@@ -649,8 +648,10 @@ function DemoTaskSetup({
           </div>
         </CardContent>
         <CardFooter className="mt-4 flex justify-end gap-3 border-t border-border/70 bg-muted/20 px-5 pb-5 pt-7 sm:pt-7">
-          <Button type="button" variant="outline" disabled>
-            Cancel
+          <Button asChild variant="outline">
+            <a href="/">
+              Cancel
+            </a>
           </Button>
           <Button type="button" onClick={onCreateTask}>
             Create Writing
@@ -691,6 +692,7 @@ function DemoWritingEditor({
   saveStatus,
   onDraftChange,
   onPaste,
+  onBackToSetup,
   onViewLogs,
   onOpenCertificateDialog,
 }: {
@@ -700,6 +702,7 @@ function DemoWritingEditor({
   saveStatus: SaveStatus;
   onDraftChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
   onPaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void;
+  onBackToSetup: () => void;
   onViewLogs: () => void;
   onOpenCertificateDialog: () => void;
 }) {
@@ -709,7 +712,14 @@ function DemoWritingEditor({
         <div className="px-4 py-3">
           <div className="flex items-center justify-between gap-4">
             <div className="flex min-w-0 items-center gap-3">
-              <Button variant="outline" size="icon" aria-label="Back to Documents" disabled>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label="Back to setup"
+                title="Back to setup"
+                onClick={onBackToSetup}
+              >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div className="min-w-0 flex-1">
@@ -730,11 +740,24 @@ function DemoWritingEditor({
               <Badge variant="secondary" className="rounded-md">
                 {stats.totalCharacters.toLocaleString()}/{settings.maxCharacters.toLocaleString()} characters
               </Badge>
-              <Button type="button" variant="outline" size="sm" onClick={onViewLogs} className="sm:size-default">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                aria-label="View Logs"
+                onClick={onViewLogs}
+                className="sm:size-default"
+              >
                 <FileText className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">View Logs</span>
               </Button>
-              <Button type="button" size="sm" onClick={onOpenCertificateDialog} className="sm:size-default">
+              <Button
+                type="button"
+                size="sm"
+                aria-label="Generate Certificate"
+                onClick={onOpenCertificateDialog}
+                className="sm:size-default"
+              >
                 <Award className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Generate Certificate</span>
               </Button>
@@ -747,9 +770,10 @@ function DemoWritingEditor({
         <div className="grid h-full overflow-hidden rounded-lg border border-border/80 bg-card lg:grid-cols-[38%_1fr]">
           <div className="hidden min-h-0 flex-col overflow-hidden border-r border-border/70 bg-card lg:flex">
             <div className="shrink-0 border-b border-border/70 bg-muted/30 px-3 py-2">
-              <Button type="button" variant="default" size="sm" className="max-w-[240px] justify-start truncate">
-                reflection-brief.pdf
-              </Button>
+              <div className="inline-flex max-w-[240px] items-center gap-2 truncate rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground">
+                <FileText className="h-4 w-4 shrink-0" />
+                <span className="truncate">reflection-brief.pdf</span>
+              </div>
             </div>
             <div className="min-h-0 flex-1 overflow-auto bg-[#f8f8f6] p-5">
               <div className="mx-auto min-h-[560px] max-w-[390px] rounded-sm bg-white p-6 shadow-sm ring-1 ring-border/70">
