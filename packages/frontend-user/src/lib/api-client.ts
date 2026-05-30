@@ -28,12 +28,13 @@ export class ApiError extends Error {
 }
 
 const PUBLIC_DOCUMENT_ACCESS_TOKENS_KEY = 'humanlyPublicDocumentAccessTokens';
+const PUBLIC_CERTIFICATE_ACCESS_TOKENS_KEY = 'humanlyPublicCertificateAccessTokens';
 
-const readPublicDocumentAccessTokens = (): Record<string, string> => {
+const readScopedAccessTokens = (storageKey: string): Record<string, string> => {
   if (typeof window === 'undefined') return {};
 
   try {
-    const raw = sessionStorage.getItem(PUBLIC_DOCUMENT_ACCESS_TOKENS_KEY);
+    const raw = sessionStorage.getItem(storageKey);
     if (!raw) return {};
 
     const parsed = JSON.parse(raw);
@@ -49,16 +50,25 @@ const readPublicDocumentAccessTokens = (): Record<string, string> => {
   }
 };
 
-const writePublicDocumentAccessTokens = (tokens: Record<string, string>): void => {
+const writeScopedAccessTokens = (storageKey: string, tokens: Record<string, string>): void => {
   if (typeof window === 'undefined') return;
 
   try {
-    sessionStorage.setItem(PUBLIC_DOCUMENT_ACCESS_TOKENS_KEY, JSON.stringify(tokens));
+    sessionStorage.setItem(storageKey, JSON.stringify(tokens));
   } catch {
     // Session storage can be unavailable in hardened browser contexts. In that
     // case the anonymous fallback still works through the normal access token.
   }
 };
+
+const readPublicDocumentAccessTokens = () => readScopedAccessTokens(PUBLIC_DOCUMENT_ACCESS_TOKENS_KEY);
+const writePublicDocumentAccessTokens = (tokens: Record<string, string>) => (
+  writeScopedAccessTokens(PUBLIC_DOCUMENT_ACCESS_TOKENS_KEY, tokens)
+);
+const readPublicCertificateAccessTokens = () => readScopedAccessTokens(PUBLIC_CERTIFICATE_ACCESS_TOKENS_KEY);
+const writePublicCertificateAccessTokens = (tokens: Record<string, string>) => (
+  writeScopedAccessTokens(PUBLIC_CERTIFICATE_ACCESS_TOKENS_KEY, tokens)
+);
 
 /**
  * Token management utilities
@@ -95,6 +105,7 @@ export const TokenManager = {
     localStorage.removeItem('refreshToken');
     try {
       sessionStorage.removeItem(PUBLIC_DOCUMENT_ACCESS_TOKENS_KEY);
+      sessionStorage.removeItem(PUBLIC_CERTIFICATE_ACCESS_TOKENS_KEY);
     } catch {
       // Ignore storage failures during logout/session cleanup.
     }
@@ -118,6 +129,26 @@ export const TokenManager = {
     const tokens = readPublicDocumentAccessTokens();
     delete tokens[documentId];
     writePublicDocumentAccessTokens(tokens);
+  },
+
+  getPublicCertificateAccessToken: (certificateId: string): string | null => {
+    if (!certificateId) return null;
+    return readPublicCertificateAccessTokens()[certificateId] || null;
+  },
+
+  setPublicCertificateAccessToken: (certificateId: string, token: string): void => {
+    if (!certificateId || !token) return;
+    writePublicCertificateAccessTokens({
+      ...readPublicCertificateAccessTokens(),
+      [certificateId]: token,
+    });
+  },
+
+  clearPublicCertificateAccessToken: (certificateId: string): void => {
+    if (!certificateId) return;
+    const tokens = readPublicCertificateAccessTokens();
+    delete tokens[certificateId];
+    writePublicCertificateAccessTokens(tokens);
   },
 };
 

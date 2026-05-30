@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useCertificate } from '@/hooks/use-certificates';
 import { Button } from '@/components/ui/button';
@@ -38,13 +38,47 @@ import { format } from 'date-fns';
 import QRCode from 'qrcode';
 import { Input } from '@/components/ui/input';
 import { copyTextToClipboard } from '@/lib/clipboard';
-import { getApiUrl } from '@/lib/api-client';
+import { getApiUrl, TokenManager } from '@/lib/api-client';
+import { useAuthStore } from '@/stores/auth-store';
+import { isGuestUserEmail } from '@/components/navigation/user-display';
+
+function usePublicCertificateToken(certificateId: string) {
+  const previousAccessTokenRef = useRef<string | null | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    const publicCertificateAccessToken = TokenManager.getPublicCertificateAccessToken(certificateId);
+    if (!publicCertificateAccessToken) return undefined;
+
+    const currentAccessToken = TokenManager.getAccessToken();
+    if (currentAccessToken === publicCertificateAccessToken) return undefined;
+
+    previousAccessTokenRef.current = currentAccessToken;
+    TokenManager.setAccessToken(publicCertificateAccessToken);
+
+    return () => {
+      if (TokenManager.getAccessToken() !== publicCertificateAccessToken) {
+        previousAccessTokenRef.current = undefined;
+        return;
+      }
+
+      const previousAccessToken = previousAccessTokenRef.current;
+      if (previousAccessToken) {
+        TokenManager.setAccessToken(previousAccessToken);
+      } else {
+        TokenManager.clearAccessToken();
+      }
+      previousAccessTokenRef.current = undefined;
+    };
+  }, [certificateId]);
+}
 
 export default function CertificateDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
   const certificateId = params.id as string;
+  const { user } = useAuthStore();
+  usePublicCertificateToken(certificateId);
   const { certificate, aiStats, isLoading, isLoadingAiStats, error, downloadJSON, updateAccessCode, updateDisplayOptions } = useCertificate(certificateId);
   const [qrCodeDataURL, setQrCodeDataURL] = useState<string>('');
   const [copied, setCopied] = useState(false);
@@ -53,6 +87,8 @@ export default function CertificateDetailPage() {
   const [isUpdatingAccessCode, setIsUpdatingAccessCode] = useState(false);
   const [isUpdatingDisplay, setIsUpdatingDisplay] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const isGuestCertificateView = isGuestUserEmail(user?.email)
+    || Boolean(TokenManager.getPublicCertificateAccessToken(certificateId));
 
   const generateAccessCode = () => {
     const fallbackCode = () => Math.floor(Math.random() * 10000);
@@ -299,14 +335,16 @@ export default function CertificateDetailPage() {
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
           <h2 className="text-lg font-semibold text-destructive">Error</h2>
           <p className="mt-2 text-sm">{error || 'Certificate not found'}</p>
-          <Button
-            onClick={() => router.push('/certificates')}
-            variant="outline"
-            className="mt-4"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Certificates
-          </Button>
+          {!isGuestCertificateView && (
+            <Button
+              onClick={() => router.push('/certificates')}
+              variant="outline"
+              className="mt-4"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Certificates
+            </Button>
+          )}
         </div>
       </div>
     );
@@ -333,15 +371,17 @@ export default function CertificateDetailPage() {
   return (
     <div className="mx-auto max-w-6xl px-5 pb-6 pt-5 sm:px-8 lg:px-10">
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <Button
-          onClick={() => router.push('/certificates')}
-          variant="outline"
-          size="sm"
-          className="w-fit"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Certificates
-        </Button>
+        {!isGuestCertificateView && (
+          <Button
+            onClick={() => router.push('/certificates')}
+            variant="outline"
+            size="sm"
+            className="w-fit"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Certificates
+          </Button>
+        )}
 
         <div className="grid grid-cols-3 gap-2 sm:w-auto">
           <Button onClick={handleShareVerificationLink} variant="outline" size="sm" className="w-full sm:w-36">

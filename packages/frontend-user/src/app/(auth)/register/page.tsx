@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -58,6 +58,10 @@ const registerSchema = z
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
+const getSafeNextPath = (value: string | null) => (
+  value && value.startsWith('/') && !value.startsWith('//') ? value : '/documents'
+);
+
 // Password strength indicator
 function getPasswordStrength(password: string): {
   strength: number;
@@ -93,6 +97,7 @@ function getPasswordStrength(password: string): {
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const register = useAuthStore((state) => state.register);
   const isLoading = useAuthStore((state) => state.isLoading);
 
@@ -113,6 +118,15 @@ export default function RegisterPage() {
 
   const watchPassword = form.watch('password');
   const passwordStrength = getPasswordStrength(watchPassword);
+  const safeNext = getSafeNextPath(searchParams.get('next'));
+  const loginHref = safeNext === '/documents'
+    ? '/login'
+    : `/login?next=${encodeURIComponent(safeNext)}`;
+  const verifyEmailHref = (email: string) => (
+    safeNext === '/documents'
+      ? `/verify-email?email=${encodeURIComponent(email)}`
+      : `/verify-email?email=${encodeURIComponent(email)}&next=${encodeURIComponent(safeNext)}`
+  );
 
   async function onSubmit(values: RegisterFormValues) {
     try {
@@ -125,7 +139,7 @@ export default function RegisterPage() {
       }
 
       setTimeout(() => {
-        router.push(`/verify-email?email=${encodeURIComponent(values.email)}`);
+        router.push(verifyEmailHref(values.email));
       }, 1200);
     } catch (err: any) {
       setError(err?.message || 'Registration failed. Please try again.');
@@ -172,6 +186,7 @@ export default function RegisterPage() {
       </CardHeader>
       <CardContent>
         <OAuthButtons
+          next={safeNext}
           className="mb-5"
           separatorPosition="after"
           separatorLabel="or use email"
@@ -354,7 +369,7 @@ export default function RegisterPage() {
       <CardFooter className="flex flex-col space-y-4">
         <div className="text-sm text-center text-muted-foreground">
           Already have an account?{' '}
-          <Link href="/login" className="text-primary hover:underline">
+          <Link href={loginHref} className="text-primary hover:underline">
             Sign in
           </Link>
         </div>

@@ -67,6 +67,7 @@ function makeTask(overrides: Partial<any> = {}): any {
     startDate: new Date(),
     endDate: new Date(),
     environmentConfig: null,
+    allowGuestSubmissions: true,
     isActive: true,
     enrolledUserCount: 0,
     createdAt: new Date(),
@@ -521,6 +522,49 @@ describe('TaskService.startPublicTaskDocument', () => {
     expect(MockDocumentModel.create).not.toHaveBeenCalled();
     expect(MockTaskModel.linkSubmissionDocument).not.toHaveBeenCalled();
   });
+
+  it('rejects guest mode when the task share link requires sign-in', async () => {
+    const task = makeTask({
+      taskToken: 'share-token-1',
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 60_000),
+      allowGuestSubmissions: false,
+    });
+
+    MockTaskModel.findByToken.mockResolvedValue(task);
+
+    await expect(TaskService.startPublicTaskDocument('share-token-1', {
+      sessionId: 'browser-session-1',
+      mode: 'guest',
+    })).rejects.toMatchObject({
+      statusCode: 403,
+      message: 'Guest submissions are not enabled for this task link',
+    });
+
+    expect(MockUserModel.findByEmail).not.toHaveBeenCalled();
+    expect(MockTaskModel.enrollUser).not.toHaveBeenCalled();
+  });
+
+  it('requires authentication for explicit signed-in public task starts', async () => {
+    const task = makeTask({
+      taskToken: 'share-token-1',
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 60_000),
+    });
+
+    MockTaskModel.findByToken.mockResolvedValue(task);
+
+    await expect(TaskService.startPublicTaskDocument('share-token-1', {
+      sessionId: 'browser-session-1',
+      mode: 'signed-in',
+    })).rejects.toMatchObject({
+      statusCode: 401,
+      message: 'Sign in is required to start this task link',
+    });
+
+    expect(MockUserModel.findByEmail).not.toHaveBeenCalled();
+    expect(MockTaskModel.enrollUser).not.toHaveBeenCalled();
+  });
 });
 
 describe('TaskService.updateTask active state', () => {
@@ -656,6 +700,29 @@ describe('TaskService.submitPublicTaskDocument', () => {
     ).rejects.toMatchObject({
       statusCode: 400,
       message: 'Submission must be at most 10 characters. Current length is 16 characters.',
+    });
+
+    expect(MockUserModel.findByEmail).not.toHaveBeenCalled();
+    expect(MockDocumentModel.create).not.toHaveBeenCalled();
+    expect(MockSubmissionModel.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects unauthenticated public submissions when guest submissions are disabled', async () => {
+    MockTaskModel.findByToken.mockResolvedValue(makeTask({
+      taskToken: 'share-token-1',
+      startDate: new Date(Date.now() - 60_000),
+      endDate: new Date(Date.now() + 60_000),
+      allowGuestSubmissions: false,
+    }));
+
+    await expect(
+      TaskService.submitPublicTaskDocument('share-token-1', {
+        plainText: 'A public submission body.',
+        sessionId: 'browser-session-1',
+      })
+    ).rejects.toMatchObject({
+      statusCode: 403,
+      message: 'Guest submissions are not enabled for this task link',
     });
 
     expect(MockUserModel.findByEmail).not.toHaveBeenCalled();

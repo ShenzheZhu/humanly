@@ -241,7 +241,9 @@ export function OverviewPanel({
                 </Button>
               </dd>
               <p className="mt-1 text-xs text-muted-foreground">
-                Anyone with this link can write and submit without registering.
+                {task.allowGuestSubmissions === false
+                  ? 'Visitors must sign in or create an account before writing from this link.'
+                  : 'Anyone with this link can write and submit without registering.'}
               </p>
             </div>
             <div>

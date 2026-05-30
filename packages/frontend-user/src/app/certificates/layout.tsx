@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
 import { Navbar } from '@/components/navigation/navbar';
+import { TokenManager } from '@/lib/api-client';
 
 export default function CertificatesLayout({
   children,
@@ -11,9 +12,15 @@ export default function CertificatesLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
   const [hasChecked, setHasChecked] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const certificateIdMatch = pathname.match(/^\/certificates\/([^/]+)/);
+  const publicCertificateId = certificateIdMatch?.[1] || '';
+  const isPublicGuestCertificateRoute = Boolean(
+    publicCertificateId && TokenManager.getPublicCertificateAccessToken(publicCertificateId)
+  );
 
   useEffect(() => {
     if (!hasChecked) {
@@ -47,7 +54,7 @@ export default function CertificatesLayout({
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
+      <Navbar forceGuest={isPublicGuestCertificateRoute} />
       <main className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
         {children}
       </main>

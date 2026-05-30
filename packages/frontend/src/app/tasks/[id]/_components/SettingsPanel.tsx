@@ -71,6 +71,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/components/ui/use-toast';
 import {
   AdminEnvironmentDialogSection,
@@ -388,6 +389,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
   const [testedAiModels, setTestedAiModels] = useState<string[]>([]);
   const [timeLimitEnabled, setTimeLimitEnabled] = useState(false);
   const [writingTimeLimitMinutesInput, setWritingTimeLimitMinutesInput] = useState('60');
+  const [allowGuestSubmissions, setAllowGuestSubmissions] = useState(true);
 
   const form = useForm<TaskSettingsFormData>({
     resolver: zodResolver(taskSettingsSchema),
@@ -494,6 +496,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
         );
 
         setTask(taskFromApi);
+        setAllowGuestSubmissions(taskFromApi.allowGuestSubmissions !== false);
         if (mergedConfig.aiProvider?.baseUrl) {
           setAiBaseUrl(mergedConfig.aiProvider.baseUrl);
         }
@@ -942,6 +945,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
         aiUsageLimit: data.aiUsageLimit,
         startDate: startTime,
         endDate: endTime,
+        allowGuestSubmissions,
         environmentConfig: nextEnvironmentConfig,
       });
 
@@ -1178,6 +1182,25 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                       ))}
                     </div>
                   )}
+                </div>
+
+                <div className="rounded-md border border-border/80 bg-muted/20 p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <FormLabel htmlFor="settings-allow-guest-submissions" className="text-sm font-medium">
+                        Allow guest submissions from public link
+                      </FormLabel>
+                      <FormDescription className="mt-1">
+                        When off, visitors must sign in or create an account before writing from the share link.
+                      </FormDescription>
+                    </div>
+                    <Checkbox
+                      id="settings-allow-guest-submissions"
+                      checked={allowGuestSubmissions}
+                      onCheckedChange={(checked) => setAllowGuestSubmissions(checked === true)}
+                      disabled={isSaving}
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>

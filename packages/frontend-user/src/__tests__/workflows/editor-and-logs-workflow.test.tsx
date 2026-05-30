@@ -193,6 +193,7 @@ jest.mock('@/lib/api-client', () => ({
     setAccessToken: jest.fn(),
     clearAccessToken: jest.fn(),
     getPublicDocumentAccessToken: jest.fn(() => null),
+    setPublicCertificateAccessToken: jest.fn(),
   },
 }));
 

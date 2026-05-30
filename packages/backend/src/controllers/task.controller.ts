@@ -12,6 +12,7 @@ import {
 
 const publicTaskStartSchema = z.object({
   sessionId: z.string().max(128).optional().or(z.literal('')),
+  mode: z.enum(['guest', 'signed-in']).optional(),
 });
 
 const publicTaskSubmissionSchema = z.object({
@@ -81,6 +82,7 @@ export async function getPublicTask(req: Request, res: Response): Promise<void> 
         startDate: task.startDate,
         endDate: task.endDate,
         environmentConfig: task.environmentConfig,
+        allowGuestSubmissions: task.allowGuestSubmissions,
         isActive: task.isActive,
       },
     },
@@ -104,7 +106,9 @@ export async function startPublicTaskDocument(req: Request, res: Response): Prom
     req.user ? { userId: req.user.userId } : undefined
   );
 
-  if (result.refreshToken) {
+  const shouldSetAuthCookies = result.mode === 'guest' && !req.user;
+
+  if (shouldSetAuthCookies && result.refreshToken) {
     res.cookie('refreshToken', result.refreshToken, {
       httpOnly: true,
       secure: env.nodeEnv === 'production',
@@ -113,7 +117,7 @@ export async function startPublicTaskDocument(req: Request, res: Response): Prom
     });
   }
 
-  if (result.accessToken) {
+  if (shouldSetAuthCookies && result.accessToken) {
     res.cookie('accessToken', result.accessToken, {
       httpOnly: true,
       secure: env.nodeEnv === 'production',

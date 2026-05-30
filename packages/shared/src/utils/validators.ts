@@ -254,6 +254,7 @@ export const createTaskSchema = z.object({
   startDate: z.coerce.date(),
   endDate: z.coerce.date(),
   environmentConfig: writingEnvironmentConfigSchema.optional(),
+  allowGuestSubmissions: z.boolean().optional(),
 }).refine((data) => data.endDate > data.startDate, {
   message: 'Task end date must be after start date',
   path: ['endDate'],
@@ -270,6 +271,7 @@ export const updateTaskSchema = z.object({
   startDate: z.coerce.date().optional(),
   endDate: z.coerce.date().optional(),
   environmentConfig: writingEnvironmentConfigSchema.optional(),
+  allowGuestSubmissions: z.boolean().optional(),
   isActive: z.boolean().optional(),
 }).refine((data) => {
   if (!data.startDate || !data.endDate) return true;

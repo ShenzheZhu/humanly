@@ -112,4 +112,23 @@ describe('user navbar', () => {
     const switchLink = screen.getByRole('link', { name: /admin portal/i });
     expect(switchLink).toHaveAttribute('href', 'http://localhost:3000/tasks?switchSession=1');
   });
+
+  it('renders guest mode as a disabled account button without account actions', async () => {
+    mockUser = {
+      email: 'public-task-guest@guest.humanly.local',
+      role: 'user',
+    };
+    const user = userEvent.setup();
+
+    render(<Navbar />);
+
+    const guestButtons = screen.getAllByRole('button', { name: /guest/i });
+    expect(guestButtons[0]).toBeDisabled();
+
+    await user.click(guestButtons[0]);
+
+    expect(screen.queryByText(/admin portal/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/logout/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/edit profile/i)).not.toBeInTheDocument();
+  });
 });

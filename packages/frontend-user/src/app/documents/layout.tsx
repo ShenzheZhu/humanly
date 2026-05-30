@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import { BasicInfoDialog } from '@/components/account/basic-info-dialog';
 import { Navbar } from '@/components/navigation/navbar';
 import { isGuestUserEmail } from '@/components/navigation/user-display';
+import { TokenManager } from '@/lib/api-client';
 
 export default function DocumentsLayout({
   children,
@@ -18,6 +19,11 @@ export default function DocumentsLayout({
   const [hasChecked, setHasChecked] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isBasicInfoOpen, setIsBasicInfoOpen] = useState(false);
+  const documentIdMatch = pathname.match(/^\/documents\/([^/]+)/);
+  const publicDocumentId = documentIdMatch?.[1] || '';
+  const isPublicGuestDocumentRoute = Boolean(
+    publicDocumentId && TokenManager.getPublicDocumentAccessToken(publicDocumentId)
+  );
   const isGuestWorkspaceRoute =
     isAuthenticated &&
     isGuestUserEmail(user?.email) &&
@@ -25,7 +31,8 @@ export default function DocumentsLayout({
   const requiresBasicInfo =
     isAuthenticated &&
     user?.profileCompleted === false &&
-    !isGuestUserEmail(user?.email);
+    !isGuestUserEmail(user?.email) &&
+    !isPublicGuestDocumentRoute;
 
   useEffect(() => {
     if (!hasChecked) {
@@ -79,7 +86,7 @@ export default function DocumentsLayout({
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
+      <Navbar forceGuest={isPublicGuestDocumentRoute} />
       <BasicInfoDialog
         open={isBasicInfoOpen}
         mode="complete"
