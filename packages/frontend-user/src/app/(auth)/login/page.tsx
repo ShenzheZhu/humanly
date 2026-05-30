@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -24,17 +24,29 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>;
 
+const getSafeNextPath = (value: string | null) => (
+  value && value.startsWith('/') && !value.startsWith('//') ? value : '/documents'
+);
+
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [showResendVerification, setShowResendVerification] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
   const [userEmail, setUserEmail] = useState<string>('');
   const { login, resendVerificationEmail, isLoading } = useAuthStore();
+  const safeNext = getSafeNextPath(searchParams.get('next'));
+  const nextQuerySuffix = safeNext === '/documents' ? '' : `&next=${encodeURIComponent(safeNext)}`;
   const verificationHref = userEmail
-    ? `/verify-email?email=${encodeURIComponent(userEmail)}`
-    : '/verify-email';
+    ? `/verify-email?email=${encodeURIComponent(userEmail)}${nextQuerySuffix}`
+    : safeNext === '/documents'
+      ? '/verify-email'
+      : `/verify-email?next=${encodeURIComponent(safeNext)}`;
+  const registerHref = safeNext === '/documents'
+    ? '/register'
+    : `/register?next=${encodeURIComponent(safeNext)}`;
 
   const {
     register,
@@ -54,8 +66,7 @@ export default function LoginPage() {
       
       await login(data.email, data.password, 'user');
 
-      // Redirect to documents on success
-      router.push('/documents');
+      router.push(safeNext);
     } catch (err: any) {
       const errorMessage = err?.message || 'Login failed. Please check your credentials and try again.';
       setError(errorMessage);
@@ -103,7 +114,7 @@ export default function LoginPage() {
           <p className="text-sm text-muted-foreground">
             Do not have an account?{' '}
             <Link
-              href="/register"
+              href={registerHref}
               className="font-medium text-foreground hover:underline"
             >
               Sign up
@@ -118,8 +129,9 @@ export default function LoginPage() {
         </>
       }
     >
-        <AuthenticatedRedirect />
+        <AuthenticatedRedirect to={safeNext} />
         <OAuthButtons
+          next={safeNext}
           className="mb-5"
           separatorPosition="after"
           separatorLabel="or use email"

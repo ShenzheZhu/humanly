@@ -13,6 +13,10 @@ import { Label } from '@/components/ui/label';
 
 type VerificationState = 'idle' | 'loading' | 'success' | 'error';
 
+const getSafeNextPath = (value: string | null) => (
+  value && value.startsWith('/') && !value.startsWith('//') ? value : '/documents'
+);
+
 export default function VerifyEmailPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -26,6 +30,10 @@ export default function VerifyEmailPage() {
   const [userEmail, setUserEmail] = useState<string>('');
 
   const emailParam = searchParams.get('email');
+  const safeNext = getSafeNextPath(searchParams.get('next'));
+  const loginHref = safeNext === '/documents'
+    ? '/login'
+    : `/login?next=${encodeURIComponent(safeNext)}`;
 
   useEffect(() => {
     // Get email from URL param, user state, or localStorage
@@ -58,7 +66,7 @@ export default function VerifyEmailPage() {
       
       // Redirect to login after 2 seconds
       setTimeout(() => {
-        router.push('/login');
+        router.push(loginHref);
       }, 2000);
     } catch (error: any) {
       setState('error');
@@ -140,7 +148,7 @@ export default function VerifyEmailPage() {
           </CardContent>
           <CardFooter className="flex flex-col gap-2">
             <Button asChild className="w-full">
-              <Link href="/login">Continue to Login</Link>
+              <Link href={loginHref}>Continue to Login</Link>
             </Button>
           </CardFooter>
         </Card>
@@ -231,7 +239,7 @@ export default function VerifyEmailPage() {
             )}
           </Button>
           <Button asChild variant="ghost" className="w-full">
-            <Link href="/login">Back to Login</Link>
+            <Link href={loginHref}>Back to Login</Link>
           </Button>
         </CardFooter>
       </Card>

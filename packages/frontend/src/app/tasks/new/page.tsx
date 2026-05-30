@@ -37,6 +37,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -274,6 +275,7 @@ export default function NewTaskPage() {
   const [timeLimitEnabled, setTimeLimitEnabled] = useState(true);
   const [timeWindowDialogOpen, setTimeWindowDialogOpen] = useState(false);
   const [writingTimeLimitMinutesInput, setWritingTimeLimitMinutesInput] = useState('60');
+  const [allowGuestSubmissions, setAllowGuestSubmissions] = useState(true);
   const [environmentSelection, setEnvironmentSelection] = useState<EnvironmentSelection>('default_writing');
   const [environmentConfig, setEnvironmentConfig] = useState<WritingEnvironmentConfig>(
     getAdminEnvironmentConfig('default_writing')
@@ -698,6 +700,7 @@ export default function NewTaskPage() {
         aiUsageLimit: data.aiUsageLimit,
         startDate: startTime,
         endDate: endTime,
+        allowGuestSubmissions,
         environmentConfig: {
           ...environmentConfig,
           taskType: 'admin_assigned',
@@ -928,6 +931,25 @@ export default function NewTaskPage() {
                       ))}
                     </div>
                   )}
+                </div>
+
+                <div className="rounded-lg border border-border/80 bg-muted/20 p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <FormLabel htmlFor="allow-guest-submissions" className="text-sm font-medium">
+                        Allow guest submissions from public link
+                      </FormLabel>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        When off, visitors must sign in or create an account before writing from the share link.
+                      </p>
+                    </div>
+                    <Checkbox
+                      id="allow-guest-submissions"
+                      checked={allowGuestSubmissions}
+                      onCheckedChange={(checked) => setAllowGuestSubmissions(checked === true)}
+                      disabled={isSubmitting}
+                    />
+                  </div>
                 </div>
               </section>
 

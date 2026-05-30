@@ -1008,6 +1008,10 @@ export default function DocumentEditorPage() {
         certificateType: 'full_authorship',
         ...options,
       });
+      const publicDocumentAccessToken = TokenManager.getPublicDocumentAccessToken(documentId);
+      if (certificate?.id && publicDocumentAccessToken) {
+        TokenManager.setPublicCertificateAccessToken(certificate.id, publicDocumentAccessToken);
+      }
 
       toast({ title: 'Success', description: 'Certificate generated successfully' });
       setShowCertificateDialog(false);
@@ -1044,6 +1048,10 @@ export default function DocumentEditorPage() {
         ...(options.automatic ? { automatic: true } : {}),
       });
       const certificate = response.data.data?.certificate;
+      const publicDocumentAccessToken = TokenManager.getPublicDocumentAccessToken(documentId);
+      if (certificate?.id && publicDocumentAccessToken) {
+        TokenManager.setPublicCertificateAccessToken(certificate.id, publicDocumentAccessToken);
+      }
       toast({
         title: options.automatic ? 'Auto-submitted' : 'Submitted',
         description: options.automatic

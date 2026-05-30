@@ -129,6 +129,7 @@ describe('admin new task page', () => {
     expect(screen.getAllByText('Environment').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Default Environment').length).toBeGreaterThan(0);
     expect(screen.getByText('Two-week window')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /allow guest submissions/i })).toBeChecked();
     expect(screen.queryByLabelText(/AI Usage Limit/i)).not.toBeInTheDocument();
 
     await act(async () => {
@@ -145,6 +146,7 @@ describe('admin new task page', () => {
         '/api/v1/tasks',
         expect.objectContaining({
           name: 'Two Week Draft',
+          allowGuestSubmissions: true,
           environmentConfig: expect.objectContaining({
             taskType: 'admin_assigned',
             aiAccess: 'off',
@@ -164,6 +166,34 @@ describe('admin new task page', () => {
     expect(payload.environmentConfig.time.startTime).toBe(payload.startDate);
     expect(payload.environmentConfig.time.endTime).toBe(payload.endDate);
     expect(payload.environmentConfig.time.timeLimitSeconds).toBeUndefined();
+  });
+
+  it('can require sign-in for public share links when creating a task', async () => {
+    render(<NewTaskPage />);
+
+    expect(await screen.findByRole('heading', { name: 'New Task' })).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('checkbox', { name: /allow guest submissions/i }));
+    });
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Task Name/i), {
+        target: { value: 'Signed In Share Link' },
+      });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Create Task$/i }));
+    });
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith(
+        '/api/v1/tasks',
+        expect.objectContaining({
+          name: 'Signed In Share Link',
+          allowGuestSubmissions: false,
+        })
+      );
+    });
   });
 
   it('edits custom task availability in a dialog before creating the task', async () => {

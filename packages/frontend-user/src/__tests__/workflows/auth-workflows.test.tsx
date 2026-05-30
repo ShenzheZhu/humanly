@@ -12,12 +12,14 @@ const mockResendVerificationEmail = jest.fn();
 const mockApiGet = jest.fn();
 const mockCheckAuth = jest.fn();
 let mockIsAuthenticated = false;
+let mockSearchParams = new URLSearchParams();
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
     push: mockPush,
     replace: mockReplace,
   }),
+  useSearchParams: () => mockSearchParams,
 }));
 
 jest.mock('@/stores/auth-store', () => {
@@ -66,6 +68,7 @@ describe('user auth workflows', () => {
     mockCheckAuth.mockReset();
     mockCheckAuth.mockResolvedValue(undefined);
     mockIsAuthenticated = false;
+    mockSearchParams = new URLSearchParams();
     mockApiGet.mockResolvedValue({
       data: {
         providers: {

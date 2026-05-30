@@ -13,6 +13,7 @@ export interface CreateTaskData {
   startDate: Date;
   endDate: Date;
   environmentConfig?: WritingEnvironmentConfig | null;
+  allowGuestSubmissions?: boolean;
 }
 
 export interface UpdateTaskData {
@@ -26,6 +27,7 @@ export interface UpdateTaskData {
   startDate?: Date;
   endDate?: Date;
   environmentConfig?: WritingEnvironmentConfig | null;
+  allowGuestSubmissions?: boolean;
   isActive?: boolean;
 }
 
@@ -98,6 +100,7 @@ export class TaskModel {
     p.allowed_llm_models as "allowedLlmModels", p.ai_usage_limit as "aiUsageLimit",
     p.start_date as "startDate", p.end_date as "endDate",
     p.environment_config as "environmentConfig",
+    p.allow_guest_submissions as "allowGuestSubmissions",
     p.is_active as "isActive",
     COALESCE(pe.enrolled_user_count, 0)::int as "enrolledUserCount",
     COALESCE(ps.document_count, 0)::int as "documentCount",
@@ -147,15 +150,17 @@ export class TaskModel {
       INSERT INTO tasks (
         user_id, name, description, task_token, user_id_key,
         external_service_type, external_service_url,
-        allowed_llm_models, ai_usage_limit, start_date, end_date, environment_config, is_active
+        allowed_llm_models, ai_usage_limit, start_date, end_date, environment_config,
+        allow_guest_submissions, is_active
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, TRUE)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, TRUE)
       RETURNING id, user_id as "userId", name, description, task_token as "taskToken",
                 user_id_key as "userIdKey", external_service_type as "externalServiceType",
                 external_service_url as "externalServiceUrl",
                 allowed_llm_models as "allowedLlmModels", ai_usage_limit as "aiUsageLimit",
                 start_date as "startDate", end_date as "endDate",
                 environment_config as "environmentConfig",
+                allow_guest_submissions as "allowGuestSubmissions",
                 is_active as "isActive",
                 0 as "enrolledUserCount",
                 0 as "documentCount",
@@ -177,6 +182,7 @@ export class TaskModel {
       data.startDate,
       data.endDate,
       data.environmentConfig ? JSON.stringify(data.environmentConfig) : null,
+      data.allowGuestSubmissions ?? true,
     ]);
 
     if (!task) throw new Error('Failed to create task');
@@ -590,6 +596,11 @@ export class TaskModel {
     if (data.environmentConfig !== undefined) {
       updates.push(`environment_config = $${paramIndex++}`);
       values.push(data.environmentConfig ? JSON.stringify(data.environmentConfig) : null);
+    }
+
+    if (data.allowGuestSubmissions !== undefined) {
+      updates.push(`allow_guest_submissions = $${paramIndex++}`);
+      values.push(data.allowGuestSubmissions);
     }
 
     if (data.isActive !== undefined) {

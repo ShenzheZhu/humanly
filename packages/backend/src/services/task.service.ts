@@ -131,6 +131,7 @@ export interface PublicTaskSubmissionData {
 
 export interface PublicTaskStartData {
   sessionId?: string;
+  mode?: 'guest' | 'signed-in';
 }
 
 export interface PublicTaskAuthenticatedUser {
@@ -656,15 +657,24 @@ export class TaskService {
     this.assertTaskAcceptsPublicWriters(task);
 
     const publicSessionId = normalizePublicSessionId(data.sessionId);
-    const signedInUser = authenticatedUser
+    const requestedMode = data.mode || (authenticatedUser ? 'signed-in' : 'guest');
+    const signedInUser = requestedMode === 'signed-in' && authenticatedUser
       ? await UserModel.findById(authenticatedUser.userId)
       : null;
 
-    if (authenticatedUser && !signedInUser) {
+    if (requestedMode === 'signed-in' && !authenticatedUser) {
+      throw new AppError(401, 'Sign in is required to start this task link');
+    }
+
+    if (requestedMode === 'signed-in' && authenticatedUser && !signedInUser) {
       throw new AppError(401, 'Authentication required');
     }
 
-    const isGuestMode = !signedInUser;
+    const isGuestMode = requestedMode === 'guest';
+    if (isGuestMode && task.allowGuestSubmissions === false) {
+      throw new AppError(403, 'Guest submissions are not enabled for this task link');
+    }
+
     const participantUser = signedInUser || (await this.getOrCreatePublicGuestUser(task, publicSessionId));
 
     await TaskModel.enrollUser(task.id, participantUser.id);
@@ -741,6 +751,9 @@ export class TaskService {
   ) {
     const task = await this.getPublicTask(taskToken);
     this.assertTaskAcceptsPublicWriters(task);
+    if (task.allowGuestSubmissions === false) {
+      throw new AppError(403, 'Guest submissions are not enabled for this task link');
+    }
 
     const plainText = data.plainText.trim();
     if (!plainText) {

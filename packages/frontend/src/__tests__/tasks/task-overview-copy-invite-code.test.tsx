@@ -100,6 +100,7 @@ const taskFixture = {
     },
     copyPastePolicy: 'allowed',
   },
+  allowGuestSubmissions: true,
   isActive: true,
   enrolledUserCount: 2,
   createdAt: new Date('2026-05-01T11:00:00.000Z'),
@@ -355,6 +356,43 @@ describe('admin task overview invite code copy button', () => {
       );
     });
     expect(await screen.findByRole('status')).toHaveTextContent('Share link copied to clipboard.');
+  });
+
+  it('explains when public share links require sign-in', async () => {
+    mockApiGet.mockImplementation((url: string) => {
+      if (url === '/api/v1/ai/settings') {
+        return Promise.resolve({ success: true, data: mockAiSettings });
+      }
+
+      if (url.endsWith('/files')) {
+        return Promise.resolve({ success: true, data: [] });
+      }
+
+      if (url.endsWith('/analytics/summary')) {
+        return Promise.resolve({ success: true, data: statsFixture });
+      }
+
+      if (url.endsWith('/enrollments')) {
+        return Promise.resolve({ success: true, data: { enrollments: enrollmentsFixture } });
+      }
+
+      if (url.endsWith('/submissions')) {
+        return Promise.resolve({ success: true, data: { submissions: submissionsFixture } });
+      }
+
+      return Promise.resolve({
+        success: true,
+        data: {
+          ...taskFixture,
+          allowGuestSubmissions: false,
+        },
+      });
+    });
+
+    render(<TaskDetailPage />);
+
+    await screen.findByRole('heading', { name: 'Clipboard Task' });
+    expect(screen.getByText('Visitors must sign in or create an account before writing from this link.')).toBeInTheDocument();
   });
 
   it('renders overview writing rules for legacy environment configs without time settings', async () => {
@@ -634,6 +672,7 @@ describe('admin task overview invite code copy button', () => {
     expect(await screen.findByRole('heading', { name: 'Task Settings' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /export config/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Task Details' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /allow guest submissions/i })).toBeChecked();
     expect(screen.getByRole('heading', { name: 'Environment' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /edit environment/i })).toBeInTheDocument();
     expect(screen.getByText('Window on')).toBeInTheDocument();
