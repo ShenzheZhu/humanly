@@ -140,6 +140,73 @@ function deriveFrontendAdminUrl(): string {
   return 'http://localhost:3000';
 }
 
+function hostnameFromOrigin(origin?: string): string | undefined {
+  if (!origin) {
+    return undefined;
+  }
+
+  try {
+    return new URL(origin).hostname.toLowerCase();
+  } catch {
+    return undefined;
+  }
+}
+
+function isLocalCookieHost(hostname: string): boolean {
+  return hostname === 'localhost'
+    || hostname.endsWith('.localhost')
+    || hostname === '127.0.0.1'
+    || hostname === '::1'
+    || hostname.startsWith('[')
+    || hostname.includes(':');
+}
+
+export function deriveSharedCookieDomain(
+  frontendUserUrl?: string,
+  frontendAdminUrl?: string
+): string | undefined {
+  const userHost = hostnameFromOrigin(frontendUserUrl);
+  const adminHost = hostnameFromOrigin(frontendAdminUrl);
+
+  if (!userHost || !adminHost || userHost === adminHost) {
+    return undefined;
+  }
+
+  if (isLocalCookieHost(userHost) || isLocalCookieHost(adminHost)) {
+    return undefined;
+  }
+
+  const userLabels = userHost.split('.');
+  const adminLabels = adminHost.split('.');
+  if (userLabels.length < 2 || adminLabels.length < 2) {
+    return undefined;
+  }
+
+  const userRoot = userLabels.slice(-2).join('.');
+  const adminRoot = adminLabels.slice(-2).join('.');
+  if (userRoot !== adminRoot) {
+    return undefined;
+  }
+
+  return `.${userRoot}`;
+}
+
+export function resolveAuthCookieDomain(): string | undefined {
+  const configuredDomain = process.env.AUTH_COOKIE_DOMAIN?.trim();
+  if (configuredDomain) {
+    return configuredDomain;
+  }
+
+  if ((process.env.NODE_ENV || 'development') !== 'production') {
+    return undefined;
+  }
+
+  return deriveSharedCookieDomain(
+    process.env.FRONTEND_USER_URL,
+    deriveFrontendAdminUrl()
+  );
+}
+
 export const env: EnvConfig = {
   // Server
   nodeEnv: getEnv('NODE_ENV', 'development'),
@@ -158,7 +225,7 @@ export const env: EnvConfig = {
   jwtSecret: getEnv('JWT_SECRET'),
   jwtAccessExpires: getEnv('JWT_ACCESS_EXPIRES', '1d'),
   jwtRefreshExpires: getEnv('JWT_REFRESH_EXPIRES', '7d'),
-  authCookieDomain: process.env.AUTH_COOKIE_DOMAIN || undefined,
+  authCookieDomain: resolveAuthCookieDomain(),
 
   // CORS
   corsOrigin: getEnv('CORS_ORIGIN', 'http://localhost:3000'),

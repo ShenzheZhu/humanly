@@ -36,6 +36,12 @@ const user = {
   updatedAt: '2026-05-19T00:00:00.000Z',
 };
 
+const switchedUserPortalAccount = {
+  ...user,
+  id: 'user-b',
+  email: 'writer-b@example.com',
+};
+
 describe('admin auth store cross-portal session restore', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -74,16 +80,16 @@ describe('admin auth store cross-portal session restore', () => {
     });
   });
 
-  it('forces shared-cookie refresh for portal switches even when a stale admin token exists', async () => {
-    mockGetAccessToken.mockReturnValue('stale-admin-access-token');
+  it('uses the switched cookie account when a stale admin token belongs to another account', async () => {
+    mockGetAccessToken.mockReturnValue('stale-admin-a-access-token');
     mockApiPost.mockResolvedValueOnce({
       data: {
-        accessToken: 'fresh-switched-access-token',
+        accessToken: 'fresh-user-b-access-token',
       },
     });
     mockApiGet.mockResolvedValueOnce({
       data: {
-        user,
+        user: switchedUserPortalAccount,
       },
     });
 
@@ -92,10 +98,10 @@ describe('admin auth store cross-portal session restore', () => {
     expect(mockClearTokens).toHaveBeenCalledTimes(1);
     expect(mockGetAccessToken).not.toHaveBeenCalled();
     expect(mockApiPost).toHaveBeenCalledWith('/api/v1/auth/refresh');
-    expect(mockSetAccessToken).toHaveBeenCalledWith('fresh-switched-access-token');
+    expect(mockSetAccessToken).toHaveBeenCalledWith('fresh-user-b-access-token');
     expect(mockApiGet).toHaveBeenCalledWith('/api/v1/auth/me');
     expect(useAuthStore.getState()).toMatchObject({
-      user,
+      user: switchedUserPortalAccount,
       isAuthenticated: true,
       isLoading: false,
       error: null,
