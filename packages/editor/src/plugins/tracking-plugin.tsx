@@ -12,6 +12,7 @@ export function TrackingPlugin(props: EditorTrackerConfig): null {
     onEvent: props.onEvent,
     onEventsBuffer: props.onEventsBuffer,
     onEventFlushReady: props.onEventFlushReady,
+    textRenderMode: props.textRenderMode,
   });
 
   useEffect(() => {
@@ -19,8 +20,9 @@ export function TrackingPlugin(props: EditorTrackerConfig): null {
       onEvent: props.onEvent,
       onEventsBuffer: props.onEventsBuffer,
       onEventFlushReady: props.onEventFlushReady,
+      textRenderMode: props.textRenderMode,
     };
-  }, [props.onEvent, props.onEventsBuffer, props.onEventFlushReady]);
+  }, [props.onEvent, props.onEventsBuffer, props.onEventFlushReady, props.textRenderMode]);
 
   useEffect(() => {
     if (!props.enabled) {
@@ -29,6 +31,7 @@ export function TrackingPlugin(props: EditorTrackerConfig): null {
 
     const tracker = new EditorTracker(editor, {
       ...props,
+      getTextRenderMode: () => callbacksRef.current.textRenderMode || 'plain',
       onEvent: (event) => callbacksRef.current.onEvent?.(event),
       onEventsBuffer: (events) => callbacksRef.current.onEventsBuffer?.(events),
     });

@@ -1,6 +1,6 @@
 import { LexicalEditor, EditorState, $getRoot, $getSelection, $isRangeSelection, COMMAND_PRIORITY_LOW, COMMAND_PRIORITY_HIGH, KEY_DOWN_COMMAND, PASTE_COMMAND, COPY_COMMAND, CUT_COMMAND, SELECTION_CHANGE_COMMAND, FOCUS_COMMAND, BLUR_COMMAND, INDENT_CONTENT_COMMAND, OUTDENT_CONTENT_COMMAND, FORMAT_TEXT_COMMAND, TextFormatType } from 'lexical';
-import { EventType } from '@humanly/shared';
-import { EditorTrackerConfig, TrackedEvent } from '../types';
+import { EventType, TextRenderMode } from '@humanly/shared';
+import { EditorTrackerConfig, EventMetadata, TrackedEvent } from '../types';
 import {
   HEADING_CHANGE_COMMAND,
   FONT_FAMILY_CHANGE_COMMAND,
@@ -11,6 +11,8 @@ import {
   LIST_DELETE_COMMAND,
   LIST_ITEM_CHECK_COMMAND,
   ALIGNMENT_CHANGE_COMMAND,
+  TRACKING_TEXT_CHANGE_METADATA_COMMAND,
+  TRACKING_SUPPRESS_NEXT_TEXT_CHANGE_COMMAND,
 } from '../commands/formatting-commands';
 
 /**
@@ -30,6 +32,8 @@ export class EditorTracker {
   private lastSelectionStart: number = 0;
   private lastSelectionEnd: number = 0;
   private lastSelectedText: string = '';
+  private pendingTextChangeMetadata: EventMetadata | null = null;
+  private suppressNextTextChange: boolean = false;
 
   private get copyPastePolicy() {
     return this.config.copyPastePolicy === 'blocked' ? 'blocked' : 'allowed';
@@ -41,6 +45,37 @@ export class EditorTracker {
 
   private shouldTrackClipboard(): boolean {
     return !this.shouldBlockClipboard();
+  }
+
+  private getTextRenderMode(): TextRenderMode {
+    return this.config.getTextRenderMode?.() || this.config.textRenderMode || 'plain';
+  }
+
+  private setPendingTextChangeMetadata(metadata: EventMetadata): void {
+    this.pendingTextChangeMetadata = {
+      ...(this.pendingTextChangeMetadata || {}),
+      ...metadata,
+    };
+  }
+
+  private buildTextChangeMetadata(metadata?: EventMetadata): EventMetadata | undefined {
+    const nextMetadata: EventMetadata = {};
+    const textRenderMode = this.getTextRenderMode();
+
+    if (textRenderMode === 'markdown') {
+      nextMetadata.textRenderMode = 'markdown';
+    }
+
+    if (metadata) {
+      Object.assign(nextMetadata, metadata);
+    }
+
+    if (this.pendingTextChangeMetadata) {
+      Object.assign(nextMetadata, this.pendingTextChangeMetadata);
+      this.pendingTextChangeMetadata = null;
+    }
+
+    return Object.keys(nextMetadata).length > 0 ? nextMetadata : undefined;
   }
 
   constructor(editor: LexicalEditor, config: EditorTrackerConfig) {
@@ -280,6 +315,24 @@ export class EditorTracker {
       COMMAND_PRIORITY_HIGH
     );
 
+    const removeTrackingTextChangeMetadataListener = this.editor.registerCommand(
+      TRACKING_TEXT_CHANGE_METADATA_COMMAND,
+      (metadata) => {
+        this.setPendingTextChangeMetadata(metadata);
+        return false;
+      },
+      COMMAND_PRIORITY_HIGH
+    );
+
+    const removeTrackingSuppressNextTextChangeListener = this.editor.registerCommand(
+      TRACKING_SUPPRESS_NEXT_TEXT_CHANGE_COMMAND,
+      (suppress = true) => {
+        this.suppressNextTextChange = suppress !== false;
+        return false;
+      },
+      COMMAND_PRIORITY_HIGH
+    );
+
     // Track editor updates (text changes)
     const removeUpdateListener = this.editor.registerUpdateListener(
       ({ editorState, prevEditorState, dirtyElements, dirtyLeaves }) => {
@@ -309,6 +362,8 @@ export class EditorTracker {
       removeListOutdentListener,
       removeListItemCheckListener,
       removeAlignmentListener,
+      removeTrackingTextChangeMetadataListener,
+      removeTrackingSuppressNextTextChangeListener,
       removeUpdateListener
     );
 
@@ -558,6 +613,15 @@ export class EditorTracker {
       return;
     }
 
+    if (this.suppressNextTextChange) {
+      this.suppressNextTextChange = false;
+      this.pendingTextChangeMetadata = null;
+      this.lastEventType = null;
+      this.lastKeyCode = null;
+      this.lastKeyChar = null;
+      return;
+    }
+
     const { cursorPosition, selectionStart, selectionEnd } = this.getSelectionInfo(currentState);
     const selectedTextBeforeChange = this.getSelectedText(prevState);
 
@@ -585,11 +649,13 @@ export class EditorTracker {
       selectionEnd,
       editorStateBefore: prevState.toJSON(),
       editorStateAfter: currentState.toJSON(),
-      metadata: selectedTextBeforeChange
-        ? {
-            selectedText: selectedTextBeforeChange,
-          }
-        : undefined,
+      metadata: this.buildTextChangeMetadata(
+        selectedTextBeforeChange
+          ? {
+              selectedText: selectedTextBeforeChange,
+            }
+          : undefined
+      ),
     };
 
     this.addEvent(event);

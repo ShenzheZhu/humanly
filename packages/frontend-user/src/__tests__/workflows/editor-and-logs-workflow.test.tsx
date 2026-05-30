@@ -63,9 +63,11 @@ jest.mock('react-markdown', () => ({
     const source = String(children ?? '');
 
     if (remarkPlugins?.length && source.includes('| Metric | Value |')) {
+      const heading = source.match(/^##\s+(.+)$/m)?.[1] || 'Markdown heading';
+
       return (
         <div>
-          <h2>Markdown heading</h2>
+          <h2>{heading}</h2>
           <p>
             Rendered <strong>bold text</strong>.
           </p>
@@ -541,7 +543,12 @@ describe('editor and logs workflows', () => {
 
     await waitFor(() => {
       expect(mockTrackEvents).toHaveBeenCalledWith(
-        [expect.objectContaining({ eventType: 'ai_insert_from_chat' })],
+        [
+          expect.objectContaining({
+            eventType: 'ai_insert_from_chat',
+            metadata: expect.objectContaining({ textRenderMode: 'markdown' }),
+          }),
+        ],
         null,
         { throwOnError: true }
       );
@@ -1732,6 +1739,147 @@ describe('editor and logs workflows', () => {
     expect(pastedPanel).not.toBeNull();
     expect(within(pastedPanel as HTMLElement).getByText(/## Markdown heading/)).toBeInTheDocument();
     expect(within(pastedPanel as HTMLElement).getByText(/\| Metric \| Value \|/)).toBeInTheDocument();
+  });
+
+  it('keeps markdown-mode paste and delete full text raw', async () => {
+    const pastedMarkdown = [
+      '## Pasted Markdown',
+      '',
+      'Rendered **bold text**.',
+      '',
+      '| Metric | Value |',
+      '| --- | --- |',
+      '| Revenue | 42 |',
+      '',
+      'Additional context keeps the rendered paste expandable.',
+    ].join('\n');
+    const deletedMarkdown = [
+      '## Deleted Markdown',
+      '',
+      'Rendered **bold text**.',
+      '',
+      '| Metric | Value |',
+      '| --- | --- |',
+      '| Revenue | 42 |',
+      '',
+      'Additional context keeps the rendered deletion expandable.',
+    ].join('\n');
+
+    mockTimelineItems = [
+      {
+        id: 'delete-markdown-mode',
+        kind: 'delete',
+        label: 'Deleted text',
+        timestamp: '2026-05-14T12:00:04.000Z',
+        startTimestamp: '2026-05-14T12:00:04.000Z',
+        endTimestamp: '2026-05-14T12:00:04.000Z',
+        text: deletedMarkdown,
+        charCount: deletedMarkdown.length,
+        rawEventCount: 1,
+        rawEvents: [],
+        metadata: {
+          textRenderMode: 'markdown',
+        },
+      },
+      {
+        id: 'paste-markdown-mode',
+        kind: 'paste',
+        label: 'Pasted text',
+        timestamp: '2026-05-14T12:00:03.000Z',
+        startTimestamp: '2026-05-14T12:00:03.000Z',
+        endTimestamp: '2026-05-14T12:00:03.000Z',
+        text: 'Pasted Markdown\nRendered bold text.\nMetric Value Revenue 42',
+        charCount: 55,
+        rawEventCount: 1,
+        rawEvents: [],
+        metadata: {
+          textRenderMode: 'markdown',
+          sourceText: pastedMarkdown,
+        },
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByText('Pasted')).toBeInTheDocument();
+    const viewButtons = screen.getAllByRole('button', { name: /view full text/i });
+    expect(viewButtons).toHaveLength(2);
+    fireEvent.click(viewButtons[0]);
+    fireEvent.click(viewButtons[1]);
+
+    const pastedPanel = screen.getByText('Pasted text').closest('div.rounded-md');
+    const deletedPanel = screen.getByText('Deleted text').closest('div.rounded-md');
+    expect(pastedPanel).not.toBeNull();
+    expect(deletedPanel).not.toBeNull();
+
+    expect(pastedPanel).toHaveTextContent('## Pasted Markdown');
+    expect(pastedPanel).toHaveTextContent('| Metric | Value |');
+    expect(deletedPanel).toHaveTextContent('## Deleted Markdown');
+    expect(deletedPanel).toHaveTextContent('| Metric | Value |');
+    expect(within(pastedPanel as HTMLElement).queryByRole('heading', { name: 'Pasted Markdown' })).not.toBeInTheDocument();
+    expect(within(deletedPanel as HTMLElement).queryByRole('heading', { name: 'Deleted Markdown' })).not.toBeInTheDocument();
+    expect(within(pastedPanel as HTMLElement).queryByRole('table')).not.toBeInTheDocument();
+    expect(within(deletedPanel as HTMLElement).queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('keeps markdown-mode replacements raw before and after text', async () => {
+    const beforeMarkdown = [
+      '## Before Markdown',
+      '',
+      'Rendered **bold text**.',
+      '',
+      '| Metric | Value |',
+      '| --- | --- |',
+      '| Revenue | 42 |',
+      '',
+      'Previous rendered content stays expandable.',
+    ].join('\n');
+    const afterMarkdown = [
+      '## After Markdown',
+      '',
+      'Rendered **bold text**.',
+      '',
+      '| Metric | Value |',
+      '| --- | --- |',
+      '| Revenue | 42 |',
+      '',
+      'Updated rendered content stays expandable.',
+    ].join('\n');
+
+    mockTimelineItems = [
+      {
+        id: 'replace-markdown-mode',
+        kind: 'replace',
+        label: 'Replaced text',
+        timestamp: '2026-05-14T12:00:04.000Z',
+        startTimestamp: '2026-05-14T12:00:04.000Z',
+        endTimestamp: '2026-05-14T12:00:04.000Z',
+        text: 'After Markdown\nRendered bold text.\nMetric Value Revenue 42',
+        charCount: 54,
+        wordCount: 8,
+        rawEventCount: 1,
+        rawEvents: [],
+        metadata: {
+          textRenderMode: 'markdown',
+          replacedText: beforeMarkdown,
+          sourceText: afterMarkdown,
+        },
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByText('Replaced')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /view full text/i }));
+
+    const replacementPanel = screen.getByText('Replacement').closest('div.rounded-md');
+    expect(replacementPanel).not.toBeNull();
+    expect(replacementPanel).toHaveTextContent('## Before Markdown');
+    expect(replacementPanel).toHaveTextContent('## After Markdown');
+    expect(replacementPanel).toHaveTextContent('| Metric | Value |');
+    expect(within(replacementPanel as HTMLElement).queryByRole('heading', { name: 'Before Markdown' })).not.toBeInTheDocument();
+    expect(within(replacementPanel as HTMLElement).queryByRole('heading', { name: 'After Markdown' })).not.toBeInTheDocument();
+    expect(within(replacementPanel as HTMLElement).queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('keeps AI logs in the grouped logs timeline', async () => {
