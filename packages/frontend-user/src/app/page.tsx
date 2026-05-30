@@ -3,7 +3,6 @@ import Link from 'next/link';
 import { BookOpen, Check, MessageSquare, Sparkles, Wand2 } from 'lucide-react';
 import { AuthenticatedRedirect } from '@/components/auth/authenticated-redirect';
 import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
-import { FastWritingDemo } from '@/components/demo/fast-writing-demo';
 import { marketingHref, productAppHref } from '@/lib/app-origin';
 
 const ink = '#1a1c20';
@@ -11,6 +10,7 @@ const muted = '#6e7176';
 const hairline = 'rgba(20,22,26,0.10)';
 const bg2 = '#ebede4';
 const good = '#6f8a78';
+const fastDemoHref = '/demo/fast-writing';
 
 const logRows = [
   ['12:41:48', 'input', '#dde6df', '#4a655a', '796'],
@@ -110,9 +110,14 @@ export default function HomePage() {
             then signs it with a certificate any reader can verify.
           </p>
           <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <a href="#demo" className="humanly-landing-btn bg-[#6f8a78] hover:bg-[#607869]">
+            <Link
+              href={fastDemoHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="humanly-landing-btn bg-[#6f8a78] hover:bg-[#607869]"
+            >
               Try the demo <Arrow />
-            </a>
+            </Link>
             <Link href={productAppHref('/register')} className="humanly-landing-btn">
               Start writing <Arrow />
             </Link>
@@ -123,7 +128,7 @@ export default function HomePage() {
       </section>
 
       <ProblemSection />
-      <FastWritingDemo />
+      <DemoLaunchSection />
       <TrustModelSection />
       <AudienceSection />
       <HowItWorksSection />
@@ -131,6 +136,49 @@ export default function HomePage() {
       <CTASection />
       <Footer />
     </main>
+  );
+}
+
+function DemoLaunchSection() {
+  return (
+    <section id="demo" className="bg-[#f7f2e8] px-5 py-[104px] sm:px-8 lg:px-14">
+      <div className="mx-auto grid max-w-[1080px] gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+        <div>
+          <Eyebrow className="mb-[22px]">Fast writing demo</Eyebrow>
+          <h2 className="text-[28px] font-semibold leading-[1.08] tracking-normal sm:text-[36px]">
+            Try the real flow in a separate demo workspace.
+          </h2>
+          <p className="mt-5 max-w-[560px] text-[15px] leading-[1.7] text-muted-foreground sm:text-[17px]">
+            Open a standalone demo tab, configure a task, write in a Humanly-style
+            editor, inspect the activity log, and generate a local certificate preview.
+          </p>
+          <div className="mt-8">
+            <Link
+              href={fastDemoHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="humanly-landing-btn bg-[#6f8a78] hover:bg-[#607869]"
+            >
+              Open demo tab <Arrow />
+            </Link>
+          </div>
+        </div>
+
+        <div className="grid gap-3">
+          {steps.map(([number, title, description]) => (
+            <div key={number} className="grid grid-cols-[48px_1fr] gap-4 rounded-[10px] border border-[rgba(20,22,26,0.08)] bg-white p-4 shadow-[0_18px_42px_-34px_rgba(20,22,26,0.48)]">
+              <span className="grid h-10 w-10 place-items-center rounded-full bg-foreground text-[11px] font-bold text-white">
+                {number}
+              </span>
+              <div>
+                <h3 className="text-[15px] font-semibold tracking-normal">{title}</h3>
+                <p className="mt-1 text-[13px] leading-[1.55] text-muted-foreground">{description}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
