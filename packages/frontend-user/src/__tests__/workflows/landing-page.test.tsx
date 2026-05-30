@@ -97,6 +97,10 @@ describe('landing page', () => {
     expect(faqSection).not.toBeNull();
     expect(demoSection).not.toBeNull();
     expect(faqSection?.compareDocumentPosition(demoSection as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(within(demoSection as HTMLElement).queryByText('Configure')).not.toBeInTheDocument();
+    expect(within(demoSection as HTMLElement).queryByText('Write')).not.toBeInTheDocument();
+    expect(within(demoSection as HTMLElement).queryByText('Record')).not.toBeInTheDocument();
+    expect(within(demoSection as HTMLElement).queryByText('Certify')).not.toBeInTheDocument();
 
     for (const link of screen.getAllByRole('link', { name: /Try the demo|Open Demo/i })) {
       expect(link).toHaveAttribute('href', '/demo/fast-writing');
