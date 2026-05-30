@@ -133,7 +133,6 @@ export default function HomePage() {
       <AudienceSection />
       <HowItWorksSection />
       <FAQSection />
-      <CTASection />
       <Footer />
     </main>
   );
@@ -645,24 +644,6 @@ function FAQSection() {
             </details>
           ))}
         </div>
-      </div>
-    </section>
-  );
-}
-
-function CTASection() {
-  return (
-    <section className="px-5 py-[140px] text-center sm:px-8 lg:px-14">
-      <Eyebrow className="mb-[22px]">Start writing</Eyebrow>
-      <h2 className="text-[32px] font-semibold leading-[1.04] tracking-[-0.025em] sm:text-[46px]">
-        <span>Your process,</span>
-        <br />
-        <span className="text-[#a0a2a7]">signed and delivered.</span>
-      </h2>
-      <div className="mt-11 flex justify-center gap-3">
-        <Link href={productAppHref('/register')} className="humanly-landing-btn">
-          Open the editor <Arrow />
-        </Link>
       </div>
     </section>
   );

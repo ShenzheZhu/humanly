@@ -212,7 +212,10 @@ describe('landing page', () => {
       'https://app.writehumanly.net/login'
     );
     expect(loginLink).not.toHaveClass('hidden');
-    for (const link of screen.getAllByRole('link', { name: /Start writing|Start|Open the editor/i })) {
+    expect(screen.queryByText('Your process,')).not.toBeInTheDocument();
+    expect(screen.queryByText('signed and delivered.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Open the editor/i })).not.toBeInTheDocument();
+    for (const link of screen.getAllByRole('link', { name: /Start writing|Start/i })) {
       expect(link).toHaveAttribute('href', 'https://app.writehumanly.net/register');
     }
     await waitFor(() => expect(mockCheckAuth).toHaveBeenCalled());
