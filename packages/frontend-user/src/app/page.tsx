@@ -141,41 +141,25 @@ export default function HomePage() {
 function DemoLaunchSection() {
   return (
     <section id="demo" className="bg-background px-5 py-[104px] sm:px-8 lg:px-14">
-      <div className="mx-auto grid max-w-[1080px] gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
-        <div>
-          <Eyebrow className="mb-[22px]">Interactive demo</Eyebrow>
-          <h2 className="text-[28px] font-semibold leading-[1.08] tracking-normal sm:text-[36px]">
-            Humanly Demo
-          </h2>
-          <p className="mt-5 max-w-[560px] text-[15px] leading-[1.7] text-muted-foreground sm:text-[17px]">
-            Try the real flow in a separate demo workspace. Configure a task,
-            write in a Humanly-style editor, inspect the activity log, and
-            generate a local certificate preview.
-          </p>
-          <div className="mt-8">
-            <Link
-              href={fastDemoHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="humanly-landing-btn bg-[#6f8a78] hover:bg-[#607869]"
-            >
-              Open Demo <Arrow />
-            </Link>
-          </div>
-        </div>
-
-        <div className="grid gap-3">
-          {steps.map(([number, title, description]) => (
-            <div key={number} className="grid grid-cols-[48px_1fr] gap-4 rounded-[10px] border border-[rgba(20,22,26,0.08)] bg-white p-4 shadow-[0_18px_42px_-34px_rgba(20,22,26,0.48)]">
-              <span className="grid h-10 w-10 place-items-center rounded-full bg-foreground text-[11px] font-bold text-white">
-                {number}
-              </span>
-              <div>
-                <h3 className="text-[15px] font-semibold tracking-normal">{title}</h3>
-                <p className="mt-1 text-[13px] leading-[1.55] text-muted-foreground">{description}</p>
-              </div>
-            </div>
-          ))}
+      <div className="mx-auto max-w-[720px] text-center">
+        <Eyebrow className="mb-[22px]">Interactive demo</Eyebrow>
+        <h2 className="text-[28px] font-semibold leading-[1.08] tracking-normal sm:text-[36px]">
+          Humanly Demo
+        </h2>
+        <p className="mx-auto mt-5 max-w-[560px] text-[15px] leading-[1.7] text-muted-foreground sm:text-[17px]">
+          Try the real flow in a separate demo workspace. Configure a task,
+          write in a Humanly-style editor, inspect the activity log, and
+          generate a local certificate preview.
+        </p>
+        <div className="mt-8 flex justify-center">
+          <Link
+            href={fastDemoHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="humanly-landing-btn bg-[#6f8a78] hover:bg-[#607869]"
+          >
+            Open Demo <Arrow />
+          </Link>
         </div>
       </div>
     </section>
