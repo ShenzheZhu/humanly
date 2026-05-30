@@ -289,6 +289,30 @@ export const updateCurrentUser = asyncHandler(async (req: Request, res: Response
 });
 
 /**
+ * Delete current user account
+ * DELETE /api/v1/auth/me
+ */
+export const deleteCurrentUser = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    res.status(401).json({
+      success: false,
+      error: 'Unauthorized',
+      message: 'Authentication required',
+    });
+    return;
+  }
+
+  await AuthService.deleteCurrentUser(userId);
+  clearAuthCookies(res);
+
+  res.json({
+    success: true,
+    message: 'Account deleted successfully',
+  });
+});
+
+/**
  * List configured OAuth providers
  * GET /api/v1/auth/oauth/providers
  */

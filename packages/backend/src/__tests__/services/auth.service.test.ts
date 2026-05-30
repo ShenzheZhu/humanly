@@ -10,6 +10,8 @@
 jest.mock('../../models/user.model');
 jest.mock('../../models/refresh-token.model');
 jest.mock('../../models/user-ai-settings.model');
+jest.mock('../../models/file.model');
+jest.mock('../../services/file-storage.service');
 jest.mock('../../services/email.service', () => ({
   emailService: {
     sendVerificationEmail: jest.fn().mockResolvedValue(undefined),
@@ -28,12 +30,16 @@ import { emailService } from '../../services/email.service';
 import { UserModel } from '../../models/user.model';
 import { RefreshTokenModel } from '../../models/refresh-token.model';
 import { UserAISettingsModel } from '../../models/user-ai-settings.model';
+import { FileModel } from '../../models/file.model';
+import { FileStorageService } from '../../services/file-storage.service';
 import { hashPassword } from '../../utils/crypto';
 import { PASSWORD_RESET_TOKEN_TTL_MS } from '../../constants/auth';
 
 const MockUserModel = UserModel as jest.Mocked<typeof UserModel>;
 const MockRefreshTokenModel = RefreshTokenModel as jest.Mocked<typeof RefreshTokenModel>;
 const MockUserAISettingsModel = UserAISettingsModel as jest.Mocked<typeof UserAISettingsModel>;
+const MockFileModel = FileModel as jest.Mocked<typeof FileModel>;
+const MockFileStorageService = FileStorageService as jest.Mocked<typeof FileStorageService>;
 const MockEmailService = emailService as jest.Mocked<typeof emailService>;
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -388,6 +394,45 @@ describe('AuthService.logout', () => {
     MockRefreshTokenModel.deleteByUserId.mockResolvedValue(undefined);
     await AuthService.logout('user-1');
     expect(MockRefreshTokenModel.deleteByUserId).toHaveBeenCalledWith('user-1');
+  });
+});
+
+// ── deleteCurrentUser ───────────────────────────────────────────────────────
+
+describe('AuthService.deleteCurrentUser', () => {
+  it('revokes refresh tokens and deletes the user account', async () => {
+    MockFileModel.findByOwner.mockResolvedValue([
+      {
+        id: 'file-1',
+        storageProvider: 'local',
+        storageKey: 'files/file-1.pdf',
+        storageBucket: null,
+        legacySourceId: null,
+      } as any,
+    ]);
+    MockRefreshTokenModel.deleteByUserId.mockResolvedValue(undefined);
+    MockUserModel.deleteAccount.mockResolvedValue(true);
+    MockFileStorageService.delete.mockResolvedValue(undefined);
+
+    await AuthService.deleteCurrentUser('user-1');
+
+    expect(MockFileModel.findByOwner).toHaveBeenCalledWith('user-1');
+    expect(MockRefreshTokenModel.deleteByUserId).toHaveBeenCalledWith('user-1');
+    expect(MockUserModel.deleteAccount).toHaveBeenCalledWith('user-1');
+    expect(MockFileStorageService.delete).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'file-1',
+      storageKey: 'files/file-1.pdf',
+    }));
+  });
+
+  it('throws 404 when the user cannot be found', async () => {
+    MockFileModel.findByOwner.mockResolvedValue([]);
+    MockRefreshTokenModel.deleteByUserId.mockResolvedValue(undefined);
+    MockUserModel.deleteAccount.mockResolvedValue(false);
+
+    await expect(AuthService.deleteCurrentUser('missing-user')).rejects.toMatchObject({
+      statusCode: 404,
+    });
   });
 });
 

@@ -88,7 +88,7 @@ export function Navbar({ forceGuest = false }: { forceGuest?: boolean }) {
                         }}
                       >
                         <UserCog className="mr-2 h-4 w-4" />
-                        Edit profile
+                        Settings
                       </DropdownMenuItem>
                       {canUseAdminView ? (
                         <>
@@ -146,7 +146,7 @@ export function Navbar({ forceGuest = false }: { forceGuest?: boolean }) {
                             }}
                           >
                             <UserCog className="mr-2 h-4 w-4" />
-                            Edit profile
+                            Settings
                           </Button>
                           {canUseAdminView ? (
                             <Button

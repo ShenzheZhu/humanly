@@ -12,7 +12,13 @@ jest.mock('../../utils/logger', () => ({
 }));
 
 import { Request, Response, NextFunction } from 'express';
-import { handleOAuthCallback, login, logout, updateCurrentUser } from '../../controllers/auth.controller';
+import {
+  deleteCurrentUser,
+  handleOAuthCallback,
+  login,
+  logout,
+  updateCurrentUser,
+} from '../../controllers/auth.controller';
 import { AuthService } from '../../services/auth.service';
 import { OAuthService } from '../../services/oauth.service';
 
@@ -251,6 +257,35 @@ describe('auth controller cookies', () => {
     expect(res.json).toHaveBeenCalledWith({
       success: true,
       data: { user: updatedUser },
+    });
+  });
+
+  it('deletes the current user account and clears auth cookies', async () => {
+    MockAuthService.deleteCurrentUser.mockResolvedValue(undefined);
+
+    const req = makeReq({
+      user: { userId: 'user-1', email: 'writer@mail.com' },
+    } as any);
+    const res = makeRes();
+
+    await runController(deleteCurrentUser, req, res);
+
+    expect(MockAuthService.deleteCurrentUser).toHaveBeenCalledWith('user-1');
+    expect(res.clearCookie).toHaveBeenCalledWith('refreshToken', expect.objectContaining({
+      httpOnly: true,
+      secure: false,
+      sameSite: 'strict',
+      path: '/',
+    }));
+    expect(res.clearCookie).toHaveBeenCalledWith('accessToken', expect.objectContaining({
+      httpOnly: true,
+      secure: false,
+      sameSite: 'strict',
+      path: '/',
+    }));
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      message: 'Account deleted successfully',
     });
   });
 });
