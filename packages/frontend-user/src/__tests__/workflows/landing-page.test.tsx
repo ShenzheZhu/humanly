@@ -98,11 +98,42 @@ describe('landing page', () => {
 
     render(<FastWritingDemoPage />);
 
-    expect(screen.getByRole('heading', { name: /Try the real task-to-certificate flow/i })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /New Task/i })).toBeInTheDocument();
-    expect(screen.getByText(/Task Configuration/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Try the real writing-to-certificate flow/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/Personal writing/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole('heading', { name: /Create Writing/i })).toBeInTheDocument();
+    expect(screen.getByText(/Document setup/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Document Name/i)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /New Task/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Task Configuration/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Allow guest submissions/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Writing Session Timer/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Edit Time Window/i)).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /create task/i }));
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    const openWindow = jest.fn();
+    Object.defineProperty(window, 'open', {
+      configurable: true,
+      value: openWindow,
+    });
+    const createObjectURL = jest
+      .fn()
+      .mockReturnValueOnce('blob:demo-certificate-pdf')
+      .mockReturnValueOnce('blob:demo-certificate-json');
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: createObjectURL,
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: jest.fn(),
+    });
+    const anchorClick = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
+    await user.click(screen.getByRole('button', { name: /create writing/i }));
     await user.type(
       screen.getByRole('textbox', { name: /demo writing editor/i }),
       'This draft records process evidence.'
@@ -120,11 +151,25 @@ describe('landing page', () => {
     expect(await screen.findByText(/A verifiable snapshot of typing activity/i)).toBeInTheDocument();
     expect(screen.getByText(/demo identifiers/i)).toBeInTheDocument();
 
+    await user.click(screen.getByRole('button', { name: /share link/i }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(expect.stringContaining('/demo/fast-writing#demo-certificate-local')));
+    expect(screen.getByRole('status')).toHaveTextContent(/share link copied/i);
+
+    await user.click(screen.getByRole('button', { name: /open pdf/i }));
+    expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    expect(openWindow).toHaveBeenCalledWith('blob:demo-certificate-pdf', '_blank', 'noopener,noreferrer');
+
+    await user.click(screen.getByRole('button', { name: /json data/i }));
+    expect(anchorClick).toHaveBeenCalled();
+    expect(createObjectURL).toHaveBeenCalledTimes(2);
+
     await user.click(screen.getByRole('button', { name: /end demo/i }));
     expect(screen.getByText(/local session has ended/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /do it again/i }));
-    expect(screen.getByRole('button', { name: /create task/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /create writing/i })).toBeInTheDocument();
+
+    anchorClick.mockRestore();
   });
 
   it('sends marketing-page auth actions to the configured product app origin', async () => {
