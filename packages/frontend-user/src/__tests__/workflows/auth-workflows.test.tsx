@@ -139,9 +139,21 @@ describe('user auth workflows', () => {
     render(<LoginPage />);
 
     await waitFor(() => {
-      expect(mockCheckAuth).toHaveBeenCalled();
+      expect(mockCheckAuth).toHaveBeenCalledWith({ allowCookieRefresh: false });
       expect(mockReplace).toHaveBeenCalledWith('/documents');
     });
+    expect(screen.getByRole('heading', { name: /welcome back/i })).toBeInTheDocument();
+  });
+
+  it('does not restore a shared admin cookie on the user login page', async () => {
+    mockIsAuthenticated = false;
+
+    render(<LoginPage />);
+
+    await waitFor(() => {
+      expect(mockCheckAuth).toHaveBeenCalledWith({ allowCookieRefresh: false });
+    });
+    expect(mockReplace).not.toHaveBeenCalled();
     expect(screen.getByRole('heading', { name: /welcome back/i })).toBeInTheDocument();
   });
 

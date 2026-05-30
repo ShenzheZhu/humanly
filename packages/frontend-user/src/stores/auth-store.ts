@@ -37,7 +37,7 @@ interface AuthState {
   forgotPassword: (email: string) => Promise<void>;
   validatePasswordResetToken: (token: string) => Promise<void>;
   resetPassword: (token: string, newPassword: string) => Promise<void>;
-  checkAuth: (options?: { forceRefresh?: boolean }) => Promise<void>;
+  checkAuth: (options?: { forceRefresh?: boolean; allowCookieRefresh?: boolean }) => Promise<void>;
   fetchUser: () => Promise<void>;
   updateUser: (data: Partial<User>) => Promise<void>;
   clearLocalSession: () => void;
@@ -285,12 +285,26 @@ export const useAuthStore = create<AuthState>()(
       /**
        * Check authentication status
        */
-      checkAuth: async (options: { forceRefresh?: boolean } = {}) => {
+      checkAuth: async (
+        options: { forceRefresh?: boolean; allowCookieRefresh?: boolean } = {}
+      ) => {
         set({ isLoading: true });
 
+        const allowCookieRefresh = options.allowCookieRefresh ?? true;
         const existingToken = TokenManager.getAccessToken();
         let token = options.forceRefresh ? null : existingToken;
         if (!token || options.forceRefresh) {
+          if (!allowCookieRefresh) {
+            TokenManager.clearTokens();
+            set({
+              user: null,
+              isAuthenticated: false,
+              isLoading: false,
+              error: null,
+            });
+            return;
+          }
+
           try {
             const refreshResponse = await api.post<{
               success: boolean;
@@ -328,12 +342,15 @@ export const useAuthStore = create<AuthState>()(
         }
 
         try {
+          const authRequestConfig = allowCookieRefresh
+            ? { skipAuthRedirect: true }
+            : { skipAuthRedirect: true, skipAuthRefresh: true };
           const response = await api.get<{
             success: boolean;
             data: {
               user: User;
             };
-          }>('/auth/me', { skipAuthRedirect: true });
+          }>('/auth/me', authRequestConfig);
 
           set({
             user: response.data?.user || null,
