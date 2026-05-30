@@ -115,7 +115,7 @@ export function BasicInfoDialog({ open, mode, onOpenChange }: BasicInfoDialogPro
             />
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-3 sm:gap-2 sm:space-x-0">
             {!isCompletionMode ? (
               <Button
                 type="button"
