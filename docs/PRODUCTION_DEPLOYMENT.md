@@ -339,6 +339,11 @@ Required backend auth/email values on the VM:
 
 - `FRONTEND_USER_URL`: `https://app.writehumanly.net`, used in password reset
   links and OAuth handoff redirects.
+- `AUTH_COOKIE_DOMAIN`: optional explicit shared auth-cookie domain. Use
+  `.writehumanly.net` if you need to override automatic derivation. When this
+  is empty in production, the backend derives `.writehumanly.net` from
+  `FRONTEND_USER_URL` and the admin frontend URL so `app.writehumanly.net` and
+  `admin.writehumanly.net` can share login refresh cookies.
 - `PUBLIC_API_URL`: `https://app.writehumanly.net/api/v1`, used as the OAuth
   callback base URL behind nginx.
 - `EMAIL_SERVICE`: `sendgrid` or `smtp` in production. `console` is treated as
