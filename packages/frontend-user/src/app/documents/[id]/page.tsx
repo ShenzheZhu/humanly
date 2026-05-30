@@ -925,6 +925,7 @@ export default function DocumentEditorPage() {
           messageId: source.messageId,
           logId: source.logId,
           insertedTextLength: text.length,
+          textRenderMode: 'markdown',
         },
       };
 

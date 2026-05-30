@@ -25,6 +25,7 @@ import type {
   DocumentEventTimelineItem,
   DocumentEventTimelineRawEvent,
   DocumentEventTimelineSummary,
+  TextRenderMode,
 } from '@humanly/shared';
 
 const EMPTY_SUMMARY: DocumentEventTimelineSummary = {
@@ -319,6 +320,29 @@ function getReplacedText(item: DocumentEventTimelineItem) {
   return typeof replacedText === 'string' ? replacedText : '';
 }
 
+function getMetadataText(item: DocumentEventTimelineItem, key: string) {
+  const value = item.metadata?.[key];
+  return typeof value === 'string' ? value : '';
+}
+
+function getTimelineTextRenderMode(item: DocumentEventTimelineItem): TextRenderMode {
+  if (item.kind === 'ai_insert') return 'markdown';
+  return 'plain';
+}
+
+function getTimelineSourceText(item: DocumentEventTimelineItem) {
+  const sourceText = getMetadataText(item, 'sourceText');
+  return sourceText || item.text || '';
+}
+
+function getReplacementAfterText(item: DocumentEventTimelineItem) {
+  return getTimelineSourceText(item);
+}
+
+function getReplacementBeforeText(item: DocumentEventTimelineItem) {
+  return getMetadataText(item, 'replacedSourceText') || getReplacedText(item);
+}
+
 function isMultilineText(text?: string) {
   return Boolean(text && /[\r\n]/.test(text));
 }
@@ -417,18 +441,22 @@ function getTimelineCount(item: DocumentEventTimelineItem) {
 
 function canExpandTimelineText(item: DocumentEventTimelineItem) {
   if (item.kind === 'replace') {
+    const previousText = getReplacementBeforeText(item);
+    const newText = getReplacementAfterText(item);
+
     return (
-      isMultilineText(getReplacedText(item)) ||
-      isMultilineText(item.text) ||
-      normalizeVisibleText(getReplacedText(item)).length > LONG_TEXT_PREVIEW_THRESHOLD ||
-      normalizeVisibleText(item.text).length > LONG_TEXT_PREVIEW_THRESHOLD
+      isMultilineText(previousText) ||
+      isMultilineText(newText) ||
+      normalizeVisibleText(previousText).length > LONG_TEXT_PREVIEW_THRESHOLD ||
+      normalizeVisibleText(newText).length > LONG_TEXT_PREVIEW_THRESHOLD
     );
   }
 
   if (item.kind !== 'paste' && item.kind !== 'delete' && item.kind !== 'ai_insert') return false;
   if (item.kind === 'delete' && item.metadata?.deleteScope === 'all_text' && item.text) return true;
-  if ((item.kind === 'paste' || item.kind === 'ai_insert') && isMultilineText(item.text)) return true;
-  return normalizeVisibleText(item.text).length > LONG_TEXT_PREVIEW_THRESHOLD;
+  const sourceText = getTimelineSourceText(item);
+  if ((item.kind === 'paste' || item.kind === 'ai_insert') && isMultilineText(sourceText)) return true;
+  return normalizeVisibleText(sourceText).length > LONG_TEXT_PREVIEW_THRESHOLD;
 }
 
 function getTimelineTextPreview(item: DocumentEventTimelineItem) {
@@ -501,6 +529,30 @@ function getFullTextMeta(item: DocumentEventTimelineItem) {
   }
 
   return parts.join(' · ');
+}
+
+function RenderableFullText({
+  text,
+  renderMode,
+  className = '',
+}: {
+  text: string;
+  renderMode: TextRenderMode;
+  className?: string;
+}) {
+  if (renderMode === 'markdown') {
+    return (
+      <div className={`max-h-80 overflow-auto text-sm ${className}`}>
+        <MarkdownContent>{text || '—'}</MarkdownContent>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`max-h-80 overflow-auto whitespace-pre-wrap break-words text-sm ${className}`}>
+      {text || '—'}
+    </div>
+  );
 }
 
 function renderRawDetail(event: DocumentEventTimelineRawEvent) {
@@ -1037,29 +1089,28 @@ export default function DocumentLogsPage() {
                                       <p className="mb-1 text-xs font-medium text-muted-foreground">
                                         Before
                                       </p>
-                                      <div className="max-h-80 overflow-auto rounded border bg-muted/20 p-3 whitespace-pre-wrap break-words text-sm">
-                                        {getReplacedText(item) || '—'}
-                                      </div>
+                                      <RenderableFullText
+                                        text={getReplacementBeforeText(item)}
+                                        renderMode={getTimelineTextRenderMode(item)}
+                                        className="rounded border bg-muted/20 p-3"
+                                      />
                                     </div>
                                     <div>
                                       <p className="mb-1 text-xs font-medium text-muted-foreground">
                                         After
                                       </p>
-                                      <div className="max-h-80 overflow-auto rounded border bg-muted/20 p-3 whitespace-pre-wrap break-words text-sm">
-                                        {item.text || '—'}
-                                      </div>
+                                      <RenderableFullText
+                                        text={getReplacementAfterText(item)}
+                                        renderMode={getTimelineTextRenderMode(item)}
+                                        className="rounded border bg-muted/20 p-3"
+                                      />
                                     </div>
                                   </div>
-                                ) : item.kind === 'ai_insert' ? (
-                                  <div className="max-h-80 overflow-auto text-sm">
-                                    <MarkdownContent>
-                                      {item.text || ''}
-                                    </MarkdownContent>
-                                  </div>
                                 ) : (
-                                  <div className="max-h-80 overflow-auto whitespace-pre-wrap break-words text-sm">
-                                    {item.text}
-                                  </div>
+                                  <RenderableFullText
+                                    text={getTimelineSourceText(item)}
+                                    renderMode={getTimelineTextRenderMode(item)}
+                                  />
                                 )}
                               </div>
                             </td>

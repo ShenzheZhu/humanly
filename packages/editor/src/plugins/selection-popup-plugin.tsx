@@ -11,6 +11,7 @@ import {
   UNDO_COMMAND,
 } from 'lexical';
 import { createPortal } from 'react-dom';
+import { TRACKING_SUPPRESS_NEXT_TEXT_CHANGE_COMMAND } from '../commands/formatting-commands';
 
 export interface SelectionInfo {
   text: string;
@@ -27,6 +28,10 @@ export interface SelectionReplacementResult {
   editorStateAfter?: Record<string, any>;
 }
 
+export interface SelectionReplacementOptions {
+  suppressTextChangeTracking?: boolean;
+}
+
 export interface SelectionPopupPluginProps {
   onSelectionChange?: (selection: SelectionInfo | null) => void;
   maxCharacters?: number | null;
@@ -34,7 +39,11 @@ export interface SelectionPopupPluginProps {
   renderPopup?: (props: {
     selection: SelectionInfo;
     onClose: () => void;
-    replaceSelection: (newText: string, keepOpen?: boolean) => SelectionReplacementResult | undefined;
+    replaceSelection: (
+      newText: string,
+      keepOpen?: boolean,
+      options?: SelectionReplacementOptions
+    ) => SelectionReplacementResult | undefined;
     cancelAIAction: () => void;
     undoLastAction: () => void;
   }) => React.ReactNode;
@@ -135,7 +144,11 @@ export function SelectionPopupPlugin({
 
   // Replace the current selection with new text
   // keepOpen: if true, don't close the popup (for inline review mode)
-  const replaceSelection = useCallback((newText: string, keepOpen?: boolean): SelectionReplacementResult | undefined => {
+  const replaceSelection = useCallback((
+    newText: string,
+    keepOpen?: boolean,
+    options?: SelectionReplacementOptions
+  ): SelectionReplacementResult | undefined => {
     // Store the selection info before updating, in case it gets cleared
     const storedSelectionInfo = selectionInfo;
 
@@ -163,8 +176,16 @@ export function SelectionPopupPlugin({
       }
     }
 
+    const shouldSuppressTextChange =
+      options?.suppressTextChangeTracking === true && newText !== storedSelectionInfo.text;
+    let didReplace = false;
+
     // Set flag to prevent popup from closing during AI dialog interaction
     isProcessingAIAction.current = true;
+
+    if (shouldSuppressTextChange) {
+      editor.dispatchCommand(TRACKING_SUPPRESS_NEXT_TEXT_CHANGE_COMMAND, true);
+    }
 
     editor.update(() => {
       const selection = $getSelection();
@@ -172,6 +193,7 @@ export function SelectionPopupPlugin({
       // If selection is still active, use it directly
       if ($isRangeSelection(selection) && !selection.isCollapsed()) {
         selection.insertText(newText);
+        didReplace = true;
       } else {
         // Selection was lost (e.g., user clicked on dialog), restore it using stored offsets
         const root = $getRoot();
@@ -206,6 +228,7 @@ export function SelectionPopupPlugin({
 
             // Now insert the new text
             newSelection.insertText(newText);
+            didReplace = true;
             break;
           }
 
@@ -215,6 +238,10 @@ export function SelectionPopupPlugin({
 
       editorStateAfter = editor.getEditorState().toJSON();
     });
+
+    if (shouldSuppressTextChange && !didReplace) {
+      editor.dispatchCommand(TRACKING_SUPPRESS_NEXT_TEXT_CHANGE_COMMAND, false);
+    }
 
     if (keepOpen) {
       // Keep popup open for inline review (Undo/Keep)

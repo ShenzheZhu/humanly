@@ -1,4 +1,4 @@
-import { CopyPastePolicy, EventType } from '@humanly/shared';
+import { CopyPastePolicy, EventType, TextRenderMode } from '@humanly/shared';
 
 /**
  * Configuration for the editor tracker
@@ -13,6 +13,8 @@ export interface EditorTrackerConfig {
   flushInterval?: number;
   enabled?: boolean;
   copyPastePolicy?: CopyPastePolicy;
+  textRenderMode?: TextRenderMode;
+  getTextRenderMode?: () => TextRenderMode;
 }
 
 /**
@@ -42,6 +44,10 @@ export interface EventMetadata {
   // Line spacing & indentation
   lineSpacing?: number;
   indentLevel?: number;
+  // Text display mode captured for audit-log full text rendering
+  textRenderMode?: TextRenderMode;
+  sourceText?: string;
+  replacedSourceText?: string;
   // Extensible for other metadata
   [key: string]: any;
 }
@@ -80,6 +86,10 @@ export interface SelectionReplacementResult {
   cursorPosition: number;
   editorStateBefore?: Record<string, any>;
   editorStateAfter?: Record<string, any>;
+}
+
+export interface SelectionReplacementOptions {
+  suppressTextChangeTracking?: boolean;
 }
 
 export interface EditorInsertResult {
@@ -122,7 +132,11 @@ export interface LexicalEditorProps {
   renderSelectionPopup?: (props: {
     selection: SelectionPopupInfo;
     onClose: () => void;
-    replaceSelection: (newText: string, keepOpen?: boolean) => SelectionReplacementResult | undefined;
+    replaceSelection: (
+      newText: string,
+      keepOpen?: boolean,
+      options?: SelectionReplacementOptions
+    ) => SelectionReplacementResult | undefined;
     cancelAIAction: () => void;
     undoLastAction: () => void;
   }) => React.ReactNode;
