@@ -141,7 +141,7 @@ export default function HomePage() {
 
 function DemoLaunchSection() {
   return (
-    <section id="demo" className="bg-[#f7f2e8] px-5 py-[104px] sm:px-8 lg:px-14">
+    <section id="demo" className="bg-background px-5 py-[104px] sm:px-8 lg:px-14">
       <div className="mx-auto grid max-w-[1080px] gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
         <div>
           <Eyebrow className="mb-[22px]">Interactive demo</Eyebrow>
