@@ -2,31 +2,61 @@
 
 import { ChangeEvent, ClipboardEvent, useMemo, useState } from 'react';
 import {
+  ArrowLeft,
+  Award,
+  Calendar,
+  CalendarClock,
   Check,
-  ClipboardList,
-  FileCheck2,
-  Keyboard,
-  ListChecks,
-  PenLine,
+  CheckCircle,
+  CheckCircle2,
+  Clock,
+  Copy,
+  FileJson,
+  FileText,
+  History,
+  Loader2,
   RotateCcw,
   Settings2,
+  Share2,
   ShieldCheck,
+  Upload,
+  X,
 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  CertificateGenerationDialog,
+  type CertificateGenerationOptions,
+} from '@/components/certificates/certificate-generation-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 
-type DemoStep = 'settings' | 'writing' | 'log' | 'certificate' | 'done';
-type AiAccess = 'off' | 'readonly' | 'full';
+type DemoStep = 'setup' | 'writing' | 'log' | 'certificate' | 'done';
+type AiAccess = 'off' | 'full';
 type PastePolicy = 'allowed' | 'blocked';
 type LogKind = 'setting' | 'input' | 'paste' | 'blocked-paste' | 'certificate';
+type SaveStatus = 'saved' | 'saving';
 
 interface DemoSettings {
-  title: string;
+  taskName: string;
+  description: string;
   aiAccess: AiAccess;
   pastePolicy: PastePolicy;
-  targetCharacters: number;
+  allowGuestSubmissions: boolean;
+  minCharacters: number;
+  maxCharacters: number;
+  writingTimerMinutes: number;
 }
 
 interface DemoLogEntry {
@@ -43,25 +73,29 @@ interface DemoStats {
   typedCharacters: number;
   pastedCharacters: number;
   logCount: number;
-  completion: number;
+  typedPercentage: number;
+  pastedPercentage: number;
 }
 
 const initialSettings: DemoSettings = {
-  title: 'Fast provenance draft',
-  aiAccess: 'readonly',
+  taskName: 'Research Reflection Assignment',
+  description: 'Write a short reflection and generate a process certificate.',
+  aiAccess: 'off',
   pastePolicy: 'allowed',
-  targetCharacters: 600,
+  allowGuestSubmissions: true,
+  minCharacters: 120,
+  maxCharacters: 1200,
+  writingTimerMinutes: 45,
 };
 
 const aiAccessLabels: Record<AiAccess, string> = {
-  off: 'AI off',
-  readonly: 'Read-only AI',
-  full: 'Full AI',
+  off: 'AI Off',
+  full: 'AI On',
 };
 
 const pastePolicyLabels: Record<PastePolicy, string> = {
-  allowed: 'Paste allowed',
-  blocked: 'Paste blocked',
+  allowed: 'Copy & paste allowed',
+  blocked: 'Copy & paste blocked',
 };
 
 function formatTime(date = new Date()) {
@@ -86,11 +120,27 @@ function countWords(text: string) {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
+function formatDate(value: Date) {
+  return value.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
 export function FastWritingDemo() {
-  const [step, setStep] = useState<DemoStep>('settings');
+  const [step, setStep] = useState<DemoStep>('setup');
   const [settings, setSettings] = useState<DemoSettings>(initialSettings);
   const [draft, setDraft] = useState('');
   const [logs, setLogs] = useState<DemoLogEntry[]>([]);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
+  const [certificateDialogOpen, setCertificateDialogOpen] = useState(false);
+  const [isGeneratingCertificate, setIsGeneratingCertificate] = useState(false);
+  const [certificateOptions, setCertificateOptions] = useState<CertificateGenerationOptions>({
+    includeFullText: true,
+    includeEditHistory: true,
+  });
 
   const stats = useMemo(() => {
     const pastedCharacters = logs
@@ -99,6 +149,7 @@ export function FastWritingDemo() {
     const typedCharacters = logs
       .filter((entry) => entry.kind === 'input')
       .reduce((total, entry) => total + entry.characters, 0);
+    const authoredCharacters = typedCharacters + pastedCharacters;
 
     return {
       totalCharacters: draft.length,
@@ -106,20 +157,26 @@ export function FastWritingDemo() {
       typedCharacters,
       pastedCharacters,
       logCount: logs.length,
-      completion: Math.min(100, Math.round((draft.length / settings.targetCharacters) * 100)),
+      typedPercentage: authoredCharacters > 0 ? Math.round((typedCharacters / authoredCharacters) * 100) : 0,
+      pastedPercentage: authoredCharacters > 0 ? Math.round((pastedCharacters / authoredCharacters) * 100) : 0,
     };
-  }, [draft, logs, settings.targetCharacters]);
+  }, [draft, logs]);
 
   const appendLog = (entry: DemoLogEntry) => {
     setLogs((current) => [entry, ...current].slice(0, 80));
   };
 
-  const handleStart = () => {
+  const updateSettings = (patch: Partial<DemoSettings>) => {
+    setSettings((current) => ({ ...current, ...patch }));
+  };
+
+  const handleCreateTask = () => {
     setStep('writing');
+    setSaveStatus('saved');
     appendLog(
       makeEntry(
         'setting',
-        `${aiAccessLabels[settings.aiAccess]}, ${pastePolicyLabels[settings.pastePolicy]}, ${settings.targetCharacters} character target`
+        `${aiAccessLabels[settings.aiAccess]}, ${pastePolicyLabels[settings.pastePolicy]}, ${settings.writingTimerMinutes} minute writing timer`
       )
     );
   };
@@ -129,9 +186,10 @@ export function FastWritingDemo() {
     const delta = nextDraft.length - draft.length;
 
     setDraft(nextDraft);
+    setSaveStatus('saved');
 
     if (delta > 0) {
-      appendLog(makeEntry('input', 'Typed in the demo editor', delta));
+      appendLog(makeEntry('input', 'Typed in the Humanly editor', delta));
     }
   };
 
@@ -140,91 +198,114 @@ export function FastWritingDemo() {
 
     if (settings.pastePolicy === 'blocked') {
       event.preventDefault();
-      appendLog(makeEntry('blocked-paste', 'Paste was blocked by the demo setting', pastedText.length));
+      appendLog(makeEntry('blocked-paste', 'Paste blocked by task environment', pastedText.length));
       return;
     }
 
-    appendLog(makeEntry('paste', 'Pasted text into the demo editor', pastedText.length));
+    appendLog(makeEntry('paste', 'Pasted text into the Humanly editor', pastedText.length));
   };
 
-  const handleGenerateCertificate = () => {
-    appendLog(makeEntry('certificate', 'Generated a local demo certificate', draft.length));
-    setStep('certificate');
+  const handleGenerateCertificate = (options: CertificateGenerationOptions) => {
+    setIsGeneratingCertificate(true);
+    setCertificateOptions(options);
+    appendLog(makeEntry('certificate', 'Generated a demo authorship certificate', draft.length));
+    window.setTimeout(() => {
+      setIsGeneratingCertificate(false);
+      setCertificateDialogOpen(false);
+      setStep('certificate');
+    }, 180);
   };
 
   const handleRestart = () => {
-    setStep('settings');
+    setStep('setup');
     setSettings(initialSettings);
     setDraft('');
     setLogs([]);
+    setSaveStatus('saved');
+    setCertificateOptions({
+      includeFullText: true,
+      includeEditHistory: true,
+    });
+    setCertificateDialogOpen(false);
+    setIsGeneratingCertificate(false);
   };
+
+  const startDate = useMemo(() => new Date(), []);
+  const endDate = useMemo(() => {
+    const date = new Date(startDate);
+    date.setDate(date.getDate() + 14);
+    return date;
+  }, [startDate]);
 
   return (
     <section id="demo" className="bg-[#f7f2e8] px-5 py-[110px] sm:px-8 lg:px-14">
-      <div className="mx-auto max-w-[1168px]">
+      <div className="mx-auto max-w-[1180px]">
         <div className="mb-9 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-          <div className="max-w-[680px]">
+          <div className="max-w-[720px]">
             <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
               Fast writing demo
             </p>
-            <h2 className="text-[28px] font-semibold leading-[1.08] tracking-[-0.02em] sm:text-[36px]">
-              Try the provenance loop without signing in.
+            <h2 className="text-[28px] font-semibold leading-[1.08] tracking-normal sm:text-[36px]">
+              Try the real task-to-certificate flow without signing in.
             </h2>
             <p className="mt-5 text-[15px] leading-[1.7] text-muted-foreground sm:text-[17px]">
-              Configure a short writing session, type in the demo editor, inspect the local event log,
-              then generate a certificate preview. The demo resets when you are done.
+              Configure a local task, write in a Humanly-style editor, inspect the activity log,
+              and generate a certificate preview. The demo resets when you are done.
             </p>
           </div>
-          <div className="grid grid-cols-4 gap-2 text-[11px] text-muted-foreground sm:min-w-[420px]">
-            <StepBadge active={step === 'settings'} complete={step !== 'settings'} Icon={Settings2} label="Setting" />
-            <StepBadge active={step === 'writing'} complete={['log', 'certificate', 'done'].includes(step)} Icon={PenLine} label="Writing" />
-            <StepBadge active={step === 'log'} complete={['certificate', 'done'].includes(step)} Icon={ClipboardList} label="Log" />
-            <StepBadge active={step === 'certificate' || step === 'done'} complete={step === 'done'} Icon={FileCheck2} label="Certificate" />
+          <div className="grid grid-cols-4 gap-2 text-[11px] text-muted-foreground sm:min-w-[430px]">
+            <StepBadge active={step === 'setup'} complete={step !== 'setup'} Icon={Settings2} label="New Task" />
+            <StepBadge active={step === 'writing'} complete={['log', 'certificate', 'done'].includes(step)} Icon={FileText} label="Writing" />
+            <StepBadge active={step === 'log'} complete={['certificate', 'done'].includes(step)} Icon={History} label="Logs" />
+            <StepBadge active={step === 'certificate' || step === 'done'} complete={step === 'done'} Icon={Award} label="Certificate" />
           </div>
         </div>
 
-        <div className="grid overflow-hidden rounded-[8px] border border-[rgba(20,22,26,0.12)] bg-white shadow-[0_34px_80px_-56px_rgba(20,22,26,0.75)] lg:grid-cols-[0.92fr_1.08fr]">
-          <div className="border-b border-[rgba(20,22,26,0.08)] bg-[#fbfaf6] p-5 sm:p-7 lg:border-b-0 lg:border-r">
-            {step === 'settings' ? (
-              <SettingsPanel settings={settings} onSettingsChange={setSettings} onStart={handleStart} />
-            ) : step === 'done' ? (
-              <DonePanel onRestart={handleRestart} />
-            ) : (
-              <SessionSummary settings={settings} stats={stats} onRestart={handleRestart} />
-            )}
-          </div>
-
-          <div className="min-h-[520px] p-5 sm:p-7">
-            {step === 'settings' ? (
-              <PreviewPanel />
-            ) : step === 'writing' ? (
-              <WritingPanel
-                draft={draft}
-                onDraftChange={handleDraftChange}
-                onPaste={handlePaste}
-                onViewLog={() => setStep('log')}
-                onGenerateCertificate={handleGenerateCertificate}
-              />
-            ) : step === 'log' ? (
-              <LogPanel
-                logs={logs}
-                onBackToWriting={() => setStep('writing')}
-                onGenerateCertificate={handleGenerateCertificate}
-              />
-            ) : step === 'certificate' ? (
-              <CertificatePanel
-                title={settings.title}
-                stats={stats}
-                latestLogs={logs.slice(0, 4)}
-                onEnd={() => setStep('done')}
-                onRestart={handleRestart}
-              />
-            ) : (
-              <CompletionPreview />
-            )}
-          </div>
-        </div>
+        {step === 'setup' ? (
+          <DemoTaskSetup
+            settings={settings}
+            startDate={startDate}
+            endDate={endDate}
+            onSettingsChange={updateSettings}
+            onCreateTask={handleCreateTask}
+          />
+        ) : step === 'writing' ? (
+          <DemoWritingEditor
+            settings={settings}
+            draft={draft}
+            stats={stats}
+            saveStatus={saveStatus}
+            onDraftChange={handleDraftChange}
+            onPaste={handlePaste}
+            onViewLogs={() => setStep('log')}
+            onOpenCertificateDialog={() => setCertificateDialogOpen(true)}
+          />
+        ) : step === 'log' ? (
+          <DemoActivityLog
+            logs={logs}
+            onBackToWriting={() => setStep('writing')}
+            onOpenCertificateDialog={() => setCertificateDialogOpen(true)}
+          />
+        ) : step === 'certificate' ? (
+          <DemoCertificatePreview
+            title={settings.taskName}
+            stats={stats}
+            logs={logs}
+            options={certificateOptions}
+            onEnd={() => setStep('done')}
+            onRestart={handleRestart}
+          />
+        ) : (
+          <DonePanel onRestart={handleRestart} />
+        )}
       </div>
+
+      <CertificateGenerationDialog
+        open={certificateDialogOpen}
+        onOpenChange={setCertificateDialogOpen}
+        onGenerate={handleGenerateCertificate}
+        isGenerating={isGeneratingCertificate}
+      />
     </section>
   );
 }
@@ -256,290 +337,439 @@ function StepBadge({
   );
 }
 
-function SettingsPanel({
+function SectionHeading({ title, description }: { title: string; description: string }) {
+  return (
+    <div>
+      <h3 className="text-base font-semibold tracking-normal">{title}</h3>
+      <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
+    </div>
+  );
+}
+
+function DemoTaskSetup({
   settings,
+  startDate,
+  endDate,
   onSettingsChange,
-  onStart,
+  onCreateTask,
 }: {
   settings: DemoSettings;
-  onSettingsChange: (settings: DemoSettings) => void;
-  onStart: () => void;
+  startDate: Date;
+  endDate: Date;
+  onSettingsChange: (patch: Partial<DemoSettings>) => void;
+  onCreateTask: () => void;
 }) {
   return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-xl font-semibold tracking-[-0.01em]">Set the writing rules</h3>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          The real product stores these settings with a document. This demo keeps them only in memory.
+    <div className="mx-auto w-full max-w-6xl">
+      <div className="mb-6">
+        <Button type="button" variant="ghost" className="mb-4 px-0 hover:bg-transparent" disabled>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Tasks
+        </Button>
+        <h3 className="text-3xl font-bold tracking-normal">New Task</h3>
+        <p className="mt-2 text-muted-foreground">
+          Create an admin-managed writing task and configure its writing environment.
         </p>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="demo-title">Draft title</Label>
-        <Input
-          id="demo-title"
-          value={settings.title}
-          onChange={(event) => onSettingsChange({ ...settings, title: event.target.value })}
-          className="h-11 rounded-[8px]"
-        />
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Task Configuration</CardTitle>
+          <CardDescription>
+            Demo-only settings. Nothing is saved, but the flow matches the real task setup.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.25fr)] xl:items-start">
+          <section className="space-y-4">
+            <SectionHeading
+              title="Basic Information"
+              description="Name the task and attach optional PDF instructions for enrolled users."
+            />
 
-      <SegmentedControl
-        label="AI access"
-        value={settings.aiAccess}
-        options={[
-          ['off', 'Off'],
-          ['readonly', 'Read-only'],
-          ['full', 'Full'],
-        ]}
-        onChange={(aiAccess) => onSettingsChange({ ...settings, aiAccess })}
-      />
-
-      <SegmentedControl
-        label="Paste policy"
-        value={settings.pastePolicy}
-        options={[
-          ['allowed', 'Allowed'],
-          ['blocked', 'Blocked'],
-        ]}
-        onChange={(pastePolicy) => onSettingsChange({ ...settings, pastePolicy })}
-      />
-
-      <div className="space-y-2">
-        <Label htmlFor="demo-target">Target characters</Label>
-        <Input
-          id="demo-target"
-          type="number"
-          min={120}
-          max={4000}
-          value={settings.targetCharacters}
-          onChange={(event) => {
-            const nextValue = Number(event.target.value);
-            onSettingsChange({
-              ...settings,
-              targetCharacters: Number.isFinite(nextValue) ? Math.max(120, nextValue) : 120,
-            });
-          }}
-          className="h-11 rounded-[8px]"
-        />
-      </div>
-
-      <Button type="button" className="h-11 rounded-full px-6 font-bold" onClick={onStart}>
-        <Keyboard className="mr-2 h-4 w-4" />
-        Start demo
-      </Button>
-    </div>
-  );
-}
-
-function SegmentedControl<T extends string>({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: T;
-  options: Array<[T, string]>;
-  onChange: (value: T) => void;
-}) {
-  return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
-      <div className="grid gap-2 sm:grid-cols-3">
-        {options.map(([optionValue, optionLabel]) => (
-          <button
-            key={optionValue}
-            type="button"
-            onClick={() => onChange(optionValue)}
-            className={`min-h-[42px] rounded-[8px] border px-3 text-sm font-medium transition-colors ${
-              value === optionValue
-                ? 'border-foreground bg-foreground text-white'
-                : 'border-[rgba(20,22,26,0.12)] bg-white text-foreground hover:border-foreground/50'
-            }`}
-          >
-            {optionLabel}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function PreviewPanel() {
-  return (
-    <div className="flex h-full min-h-[460px] flex-col justify-between">
-      <div>
-        <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-          What happens next
-        </p>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {[
-            ['Write', 'Type, revise, or paste into the demo editor.'],
-            ['Inspect', 'Open the local log to see what was recorded.'],
-            ['Certify', 'Generate a certificate preview from this session.'],
-          ].map(([title, body]) => (
-            <div key={title} className="rounded-[8px] border border-[rgba(20,22,26,0.10)] bg-[#fbfaf6] p-4">
-              <h4 className="font-semibold">{title}</h4>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">{body}</p>
+            <div className="space-y-2">
+              <Label htmlFor="demo-task-name">Task Name</Label>
+              <Input
+                id="demo-task-name"
+                value={settings.taskName}
+                onChange={(event) => onSettingsChange({ taskName: event.target.value })}
+                placeholder="Research Reflection Assignment"
+              />
             </div>
-          ))}
-        </div>
-      </div>
-      <div className="mt-8 rounded-[8px] border border-dashed border-[rgba(20,22,26,0.20)] bg-white p-5">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <ShieldCheck className="h-4 w-4 text-[#6f8a78]" />
-          Demo sessions are local
-        </div>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          The text and log below are not saved to your account. Refreshing or restarting the demo clears them.
-        </p>
-      </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="demo-task-description">Description</Label>
+              <Textarea
+                id="demo-task-description"
+                value={settings.description}
+                onChange={(event) => onSettingsChange({ description: event.target.value })}
+                placeholder="Describe the writing task..."
+                className="resize-none"
+              />
+            </div>
+
+            <div className="rounded-lg border border-dashed border-border/80 bg-muted/20 p-4">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Upload className="h-4 w-4 text-muted-foreground" />
+                Files
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                The demo includes a sample instruction file in the writing workspace.
+              </p>
+              <div className="mt-3 flex items-center gap-3 rounded-lg border border-border/70 bg-muted/40 p-3">
+                <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">reflection-brief.pdf</p>
+                  <p className="text-xs text-muted-foreground">Demo instruction PDF</p>
+                </div>
+                <Button type="button" variant="ghost" size="icon" disabled>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border/80 bg-muted/20 p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <Label htmlFor="demo-guest-submissions" className="text-sm font-medium">
+                    Allow guest submissions from public link
+                  </Label>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Visitors can choose guest mode in the demo share-link flow.
+                  </p>
+                </div>
+                <Checkbox
+                  id="demo-guest-submissions"
+                  checked={settings.allowGuestSubmissions}
+                  onCheckedChange={(checked) => onSettingsChange({ allowGuestSubmissions: checked === true })}
+                />
+              </div>
+            </div>
+          </section>
+
+          <div className="space-y-5 rounded-md border p-4">
+            <SectionHeading
+              title="Environment"
+              description="Choose the writing controls before the demo task opens."
+            />
+
+            <div className="grid gap-2">
+              <Label>Environment</Label>
+              <Select value="custom">
+                <SelectTrigger>
+                  <SelectValue placeholder="Select environment" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-2">
+              <div className="space-y-4 rounded-md border p-4 xl:col-span-2">
+                <SectionHeading title="AI" description="Control whether enrolled users can use assistant support." />
+                <div className="grid gap-2">
+                  <Label>AI</Label>
+                  <Select
+                    value={settings.aiAccess}
+                    onValueChange={(value) => onSettingsChange({ aiAccess: value as AiAccess })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="AI access" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="off">AI Off</SelectItem>
+                      <SelectItem value="full">AI On</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-4 rounded-md border p-4">
+                <SectionHeading title="Copy & Paste" description="Choose whether paste activity is allowed." />
+                <div className="grid gap-2">
+                  <Label>Copy & Paste</Label>
+                  <Select
+                    value={settings.pastePolicy}
+                    onValueChange={(value) => onSettingsChange({ pastePolicy: value as PastePolicy })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Copy-paste policy" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="allowed">Allowed</SelectItem>
+                      <SelectItem value="blocked">Blocked</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-4 rounded-md border p-4">
+                <SectionHeading title="Submission" description="Set final character limits." />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-2">
+                    <Label htmlFor="demo-min-characters">Minimum Characters</Label>
+                    <Input
+                      id="demo-min-characters"
+                      type="number"
+                      min={1}
+                      value={settings.minCharacters}
+                      onChange={(event) => onSettingsChange({ minCharacters: Number(event.target.value) || 1 })}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="demo-max-characters">Maximum Characters</Label>
+                    <Input
+                      id="demo-max-characters"
+                      type="number"
+                      min={1}
+                      value={settings.maxCharacters}
+                      onChange={(event) => onSettingsChange({ maxCharacters: Number(event.target.value) || 1 })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4 rounded-md border p-4">
+                <SectionHeading title="Time" description="Set the task availability window shown to users." />
+                <div className="rounded-md border bg-muted/30 p-3">
+                  <div className="flex items-start gap-3">
+                    <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0 flex-1 space-y-3">
+                      <div className="grid gap-2 text-sm">
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Start</p>
+                          <p className="mt-0.5 font-medium">{formatDate(startDate)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">End</p>
+                          <p className="mt-0.5 font-medium">{formatDate(endDate)}</p>
+                        </div>
+                      </div>
+                      <Button type="button" variant="outline" size="sm" className="w-full" disabled>
+                        Edit Time Window
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4 rounded-md border p-4">
+                <SectionHeading title="Writing Session Timer" description="Set a countdown shown while users write." />
+                <div className="grid gap-2">
+                  <Label htmlFor="demo-timer">Time Limit (minutes)</Label>
+                  <Input
+                    id="demo-timer"
+                    type="number"
+                    min={1}
+                    value={settings.writingTimerMinutes}
+                    onChange={(event) => onSettingsChange({ writingTimerMinutes: Number(event.target.value) || 1 })}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+        <CardFooter className="flex justify-end gap-3 border-t border-border/70 pt-4">
+          <Button type="button" variant="outline" disabled>
+            Cancel
+          </Button>
+          <Button type="button" onClick={onCreateTask}>
+            Create Task
+          </Button>
+        </CardFooter>
+      </Card>
     </div>
   );
 }
 
-function SessionSummary({
+function SaveStatusIndicator({ status }: { status: SaveStatus }) {
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium ${
+        status === 'saving' ? 'text-muted-foreground' : 'text-emerald-700'
+      }`}
+      aria-live="polite"
+    >
+      {status === 'saving' ? (
+        <>
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <span>Saving...</span>
+        </>
+      ) : (
+        <>
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          <span>Saved</span>
+        </>
+      )}
+    </span>
+  );
+}
+
+function DemoWritingEditor({
   settings,
-  stats,
-  onRestart,
-}: {
-  settings: DemoSettings;
-  stats: DemoStats;
-  onRestart: () => void;
-}) {
-  return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Demo session</p>
-        <h3 className="mt-2 text-xl font-semibold tracking-[-0.01em]">{settings.title || 'Untitled demo'}</h3>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <StatTile label="Characters" value={stats.totalCharacters.toLocaleString()} />
-        <StatTile label="Words" value={stats.words.toLocaleString()} />
-        <StatTile label="Typed" value={stats.typedCharacters.toLocaleString()} />
-        <StatTile label="Pasted" value={stats.pastedCharacters.toLocaleString()} />
-      </div>
-      <div className="rounded-[8px] border border-[rgba(20,22,26,0.10)] bg-white p-4">
-        <div className="mb-2 flex items-center justify-between text-sm">
-          <span className="font-medium">Target progress</span>
-          <span className="text-muted-foreground">{stats.completion}%</span>
-        </div>
-        <div className="h-2 rounded-full bg-[#e7e2d8]">
-          <div
-            className="h-2 rounded-full bg-[#6f8a78]"
-            style={{ width: `${Math.max(4, stats.completion)}%` }}
-          />
-        </div>
-      </div>
-      <Button type="button" variant="outline" className="rounded-full" onClick={onRestart}>
-        <RotateCcw className="mr-2 h-4 w-4" />
-        Restart demo
-      </Button>
-    </div>
-  );
-}
-
-function StatTile({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[8px] border border-[rgba(20,22,26,0.10)] bg-white p-4">
-      <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">{label}</div>
-      <div className="mt-1 text-2xl font-semibold tracking-[-0.02em]">{value}</div>
-    </div>
-  );
-}
-
-function WritingPanel({
   draft,
+  stats,
+  saveStatus,
   onDraftChange,
   onPaste,
-  onViewLog,
-  onGenerateCertificate,
+  onViewLogs,
+  onOpenCertificateDialog,
 }: {
+  settings: DemoSettings;
   draft: string;
+  stats: DemoStats;
+  saveStatus: SaveStatus;
   onDraftChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
   onPaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void;
-  onViewLog: () => void;
-  onGenerateCertificate: () => void;
+  onViewLogs: () => void;
+  onOpenCertificateDialog: () => void;
 }) {
   return (
-    <div className="flex h-full min-h-[460px] flex-col">
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h3 className="text-xl font-semibold tracking-[-0.01em]">Write in the demo editor</h3>
-          <p className="mt-1 text-sm text-muted-foreground">Typing and paste activity are recorded locally.</p>
-        </div>
-        <div className="flex gap-2">
-          <Button type="button" variant="outline" className="rounded-full" onClick={onViewLog}>
-            <ListChecks className="mr-2 h-4 w-4" />
-            View log
-          </Button>
-          <Button type="button" className="rounded-full font-bold" onClick={onGenerateCertificate}>
-            <FileCheck2 className="mr-2 h-4 w-4" />
-            Generate certificate
-          </Button>
+    <div className="flex h-[760px] flex-col overflow-hidden rounded-lg border border-border/80 bg-background shadow-[0_34px_80px_-56px_rgba(20,22,26,0.75)]">
+      <div className="shrink-0 border-b border-border/70 bg-card">
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <Button variant="outline" size="icon" aria-label="Back to Documents" disabled>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 items-center gap-2">
+                  <h3 className="min-w-0 truncate text-lg font-semibold tracking-normal">
+                    {settings.taskName || 'Untitled Task'}
+                  </h3>
+                  <SaveStatusIndicator status={saveStatus} />
+                </div>
+                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span>Starts now</span>
+                  <span>Deadline in 14 days</span>
+                </div>
+                <Badge variant="outline" className="mt-2 inline-flex max-w-full items-center gap-1.5 rounded-md">
+                  <Clock className="h-3.5 w-3.5 shrink-0" />
+                  <span>Writing time left</span>
+                  <span className="font-semibold">{settings.writingTimerMinutes}:00</span>
+                </Badge>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+              <Badge variant="secondary" className="rounded-md">
+                {stats.totalCharacters.toLocaleString()}/{settings.maxCharacters.toLocaleString()} characters
+              </Badge>
+              <Button type="button" variant="outline" size="sm" onClick={onViewLogs} className="sm:size-default">
+                <FileText className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">View Logs</span>
+              </Button>
+              <Button type="button" size="sm" onClick={onOpenCertificateDialog} className="sm:size-default">
+                <Award className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Generate Certificate</span>
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
-      <Textarea
-        aria-label="Demo writing editor"
-        value={draft}
-        onChange={onDraftChange}
-        onPaste={onPaste}
-        placeholder="Start typing a short draft here..."
-        className="min-h-[340px] flex-1 resize-none rounded-[8px] border-[rgba(20,22,26,0.14)] bg-[#fbfaf6] p-5 text-base leading-7"
-      />
+
+      <div className="min-h-0 flex-1 overflow-hidden p-3">
+        <div className="grid h-full overflow-hidden rounded-lg border border-border/80 bg-card lg:grid-cols-[38%_1fr]">
+          <div className="hidden min-h-0 flex-col overflow-hidden border-r border-border/70 bg-card lg:flex">
+            <div className="shrink-0 border-b border-border/70 bg-muted/30 px-3 py-2">
+              <Button type="button" variant="default" size="sm" className="max-w-[240px] justify-start truncate">
+                reflection-brief.pdf
+              </Button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto bg-[#f8f8f6] p-5">
+              <div className="mx-auto min-h-[560px] max-w-[390px] rounded-sm bg-white p-6 shadow-sm ring-1 ring-border/70">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Assignment Brief
+                </p>
+                <h4 className="mt-4 text-lg font-semibold">Reflection Prompt</h4>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                  Write a short reflection that explains your reasoning process. Humanly records typing,
+                  paste activity, timing, and AI assistance as provenance evidence.
+                </p>
+                <Separator className="my-5" />
+                <div className="space-y-3 text-sm leading-6">
+                  <p><span className="font-medium">AI:</span> {aiAccessLabels[settings.aiAccess]}</p>
+                  <p><span className="font-medium">Paste:</span> {pastePolicyLabels[settings.pastePolicy]}</p>
+                  <p><span className="font-medium">Length:</span> {settings.minCharacters}-{settings.maxCharacters} characters</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="min-h-0 overflow-auto bg-background">
+            <div className="h-full px-4 py-4 sm:px-6 sm:py-6">
+              <Textarea
+                aria-label="Demo writing editor"
+                value={draft}
+                onChange={onDraftChange}
+                onPaste={onPaste}
+                placeholder="Start writing with your instruction file open..."
+                className="h-full min-h-[580px] resize-none rounded-lg border-border/80 bg-card p-6 text-base leading-7 shadow-sm"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-function LogPanel({
+function DemoActivityLog({
   logs,
   onBackToWriting,
-  onGenerateCertificate,
+  onOpenCertificateDialog,
 }: {
   logs: DemoLogEntry[];
   onBackToWriting: () => void;
-  onGenerateCertificate: () => void;
+  onOpenCertificateDialog: () => void;
 }) {
   return (
-    <div className="flex h-full min-h-[460px] flex-col">
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mx-auto max-w-6xl rounded-lg border border-border/80 bg-card shadow-[0_34px_80px_-56px_rgba(20,22,26,0.75)]">
+      <div className="flex flex-col gap-3 border-b border-border/70 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-xl font-semibold tracking-[-0.01em]">Demo event log</h3>
-          <p className="mt-1 text-sm text-muted-foreground">Newest events appear first.</p>
+          <h3 className="text-2xl font-semibold tracking-normal">Activity Logs</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Local demo events are shown in the same audit-oriented shape as Humanly writing logs.
+          </p>
         </div>
         <div className="flex gap-2">
-          <Button type="button" variant="outline" className="rounded-full" onClick={onBackToWriting}>
-            Keep writing
+          <Button type="button" variant="outline" onClick={onBackToWriting}>
+            Back to Writing
           </Button>
-          <Button type="button" className="rounded-full font-bold" onClick={onGenerateCertificate}>
-            Generate certificate
+          <Button type="button" onClick={onOpenCertificateDialog}>
+            <Award className="mr-2 h-4 w-4" />
+            Generate Certificate
           </Button>
         </div>
       </div>
-      <div className="overflow-hidden rounded-[8px] border border-[rgba(20,22,26,0.10)]">
-        <div className="grid grid-cols-[92px_1fr_88px] bg-[#fbfaf6] px-4 py-3 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">
+
+      <div className="overflow-hidden">
+        <div className="grid grid-cols-[94px_150px_1fr_92px] bg-muted/35 px-5 py-3 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">
           <span>Time</span>
           <span>Event</span>
+          <span>Detail</span>
           <span className="text-right">Chars</span>
         </div>
-        <div className="max-h-[360px] overflow-auto">
+        <div className="max-h-[520px] overflow-auto">
           {logs.length ? (
             logs.map((entry) => (
               <div
                 key={entry.id}
-                className="grid grid-cols-[92px_1fr_88px] border-t border-[rgba(20,22,26,0.08)] px-4 py-3 text-sm"
+                className="grid grid-cols-[94px_150px_1fr_92px] border-t border-border/70 px-5 py-3 text-sm"
               >
                 <span className="text-muted-foreground">{entry.time}</span>
                 <span>
-                  <span className="font-medium">{entry.kind}</span>
-                  <span className="ml-2 text-muted-foreground">{entry.detail}</span>
+                  <Badge variant="secondary" className="rounded-md">
+                    {entry.kind}
+                  </Badge>
                 </span>
+                <span className="min-w-0 truncate text-muted-foreground">{entry.detail}</span>
                 <span className="text-right text-muted-foreground">{entry.characters}</span>
               </div>
             ))
           ) : (
-            <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+            <div className="px-5 py-12 text-center text-sm text-muted-foreground">
               No events yet. Go back and type a few words.
             </div>
           )}
@@ -549,65 +779,182 @@ function LogPanel({
   );
 }
 
-function CertificatePanel({
+function StatTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 text-2xl font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function DemoCertificatePreview({
   title,
   stats,
-  latestLogs,
+  logs,
+  options,
   onEnd,
   onRestart,
 }: {
   title: string;
   stats: DemoStats;
-  latestLogs: DemoLogEntry[];
+  logs: DemoLogEntry[];
+  options: CertificateGenerationOptions;
   onEnd: () => void;
   onRestart: () => void;
 }) {
+  const editingMinutes = Math.max(1, Math.ceil(stats.logCount / 3));
+  const latestLogs = logs.slice(0, 4);
+
   return (
-    <div className="flex min-h-[460px] flex-col justify-between">
-      <div className="rounded-[8px] border border-[rgba(20,22,26,0.12)] bg-[#fdfcf7] p-6">
-        <div className="mb-5 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-              Demo certificate
-            </p>
-            <h3 className="mt-2 text-2xl font-semibold tracking-[-0.02em]">{title || 'Untitled demo'}</h3>
-          </div>
-          <div className="grid h-12 w-12 place-items-center rounded-full bg-[#dde6df] text-[#4a655a]">
-            <ShieldCheck className="h-6 w-6" />
-          </div>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-4">
-          <StatTile label="Chars" value={stats.totalCharacters.toLocaleString()} />
-          <StatTile label="Words" value={stats.words.toLocaleString()} />
-          <StatTile label="Typed" value={stats.typedCharacters.toLocaleString()} />
-          <StatTile label="Pasted" value={stats.pastedCharacters.toLocaleString()} />
-        </div>
-        <div className="mt-5 rounded-[8px] border border-[rgba(20,22,26,0.10)] bg-white p-4">
-          <p className="mb-3 text-sm font-semibold">Recent proof events</p>
-          <div className="space-y-2">
-            {latestLogs.length ? (
-              latestLogs.map((entry) => (
-                <div key={entry.id} className="flex items-center justify-between gap-3 text-sm">
-                  <span className="truncate text-muted-foreground">{entry.detail}</span>
-                  <span className="shrink-0 font-medium">{entry.time}</span>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground">No events were recorded before this certificate.</p>
-            )}
-          </div>
-        </div>
-        <p className="mt-5 text-sm leading-6 text-muted-foreground">
-          This is a local preview, not a public verification certificate.
-        </p>
-      </div>
-      <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
-        <Button type="button" variant="outline" className="rounded-full" onClick={onRestart}>
-          Do it again
-        </Button>
-        <Button type="button" className="rounded-full font-bold" onClick={onEnd}>
+    <div className="mx-auto max-w-6xl rounded-lg border border-border/80 bg-background p-5 shadow-[0_34px_80px_-56px_rgba(20,22,26,0.75)] sm:p-6">
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <Button type="button" variant="outline" size="sm" onClick={onEnd} className="w-fit">
           End demo
         </Button>
+
+        <div className="grid grid-cols-3 gap-2 sm:w-auto">
+          <Button type="button" variant="outline" size="sm" className="w-full sm:w-36">
+            <Share2 className="mr-2 h-4 w-4" />
+            Share Link
+          </Button>
+          <Button type="button" size="sm" className="w-full sm:w-36">
+            <FileText className="mr-2 h-4 w-4" />
+            Open PDF
+          </Button>
+          <Button type="button" variant="outline" size="sm" className="w-full sm:w-36">
+            <FileJson className="mr-2 h-4 w-4" />
+            JSON Data
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <Card>
+          <CardContent className="space-y-4 p-4 sm:p-5">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start gap-3">
+                  <Award className="mt-1 h-6 w-6 shrink-0 text-accent" />
+                  <div className="min-w-0">
+                    <h3 className="break-words text-2xl font-semibold tracking-normal">{title || 'Untitled Task'}</h3>
+                    <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                      <Calendar className="h-4 w-4" />
+                      Generated just now
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <p className="max-w-full text-sm text-muted-foreground lg:ml-6 lg:shrink-0 lg:whitespace-nowrap lg:text-right">
+                A verifiable snapshot of typing activity, pasted text, and AI assistance.
+              </p>
+            </div>
+
+            <Separator />
+
+            <div className="grid gap-2 sm:grid-cols-4">
+              <StatTile label="Typed" value={`${stats.typedPercentage}%`} />
+              <StatTile label="Pasted" value={`${stats.pastedPercentage}%`} />
+              <StatTile label="Final Text" value={stats.totalCharacters.toLocaleString()} />
+              <StatTile label="Writing Time" value={`${editingMinutes} min`} />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Typed vs pasted composition</span>
+                <span className="font-medium">
+                  {stats.typedCharacters.toLocaleString()} typed · {stats.pastedCharacters.toLocaleString()} pasted
+                </span>
+              </div>
+              <div className="flex h-3 overflow-hidden rounded-full bg-secondary">
+                <div className="bg-primary" style={{ width: `${stats.typedPercentage}%` }} />
+                <div className="bg-[#b9774f]" style={{ width: `${stats.pastedPercentage}%` }} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">More details</CardTitle>
+            <CardDescription>Verification, display, and recent proof events.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+            <div className="grid gap-4 rounded-lg border border-border/70 bg-muted/20 p-4 lg:grid-cols-[minmax(190px,0.8fr)_minmax(280px,1.2fr)]">
+              <div className="space-y-3">
+                <div>
+                  <h4 className="text-sm font-medium">Verification</h4>
+                  <p className="text-xs text-muted-foreground">Share or scan this link to verify the certificate.</p>
+                </div>
+                <div className="flex h-36 w-36 items-center justify-center rounded bg-white text-muted-foreground ring-1 ring-border/70">
+                  <ShieldCheck className="h-10 w-10" />
+                </div>
+                <Button type="button" variant="outline" size="sm" className="w-full max-w-56 bg-background">
+                  <Share2 className="mr-2 h-4 w-4" />
+                  Copy Link
+                </Button>
+              </div>
+
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">Public Display</h4>
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <p className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-emerald-700" />
+                      {options.includeFullText ? 'Full text included' : 'Full text hidden'}
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-emerald-700" />
+                      {options.includeEditHistory ? 'Edit history included' : 'Edit history hidden'}
+                    </p>
+                  </div>
+                </div>
+                <Separator />
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">Recent proof events</h4>
+                  {latestLogs.length ? (
+                    <div className="space-y-2">
+                      {latestLogs.map((entry) => (
+                        <div key={entry.id} className="flex items-center justify-between gap-3 text-sm">
+                          <span className="min-w-0 truncate text-muted-foreground">{entry.detail}</span>
+                          <span className="shrink-0 font-medium">{entry.time}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No events were recorded before this certificate.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3 rounded-lg border border-border/70 bg-muted/20 p-4 text-xs">
+              <div>
+                <h4 className="text-sm font-medium">Identifiers</h4>
+                <p className="text-xs text-muted-foreground">Demo identifiers for audit and support.</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Certificate ID</p>
+                <p className="truncate">demo-certificate-local</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Document ID</p>
+                <p className="truncate">demo-document-local</p>
+              </div>
+              <Button type="button" variant="outline" size="sm" className="mt-2 w-full">
+                <Copy className="mr-2 h-4 w-4" />
+                Copy Token
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <Button type="button" variant="outline" onClick={onRestart}>
+            <RotateCcw className="mr-2 h-4 w-4" />
+            Do it again
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -615,29 +962,16 @@ function CertificatePanel({
 
 function DonePanel({ onRestart }: { onRestart: () => void }) {
   return (
-    <div className="flex min-h-[420px] flex-col justify-center">
+    <div className="mx-auto max-w-3xl rounded-lg border border-border/80 bg-card p-8 text-center shadow-[0_34px_80px_-56px_rgba(20,22,26,0.75)]">
       <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Demo complete</p>
-      <h3 className="mt-3 text-2xl font-semibold tracking-[-0.02em]">The local session has ended.</h3>
-      <p className="mt-4 text-sm leading-6 text-muted-foreground">
-        Start another run to configure a fresh setting, write again, inspect a new log, and generate a new preview.
+      <h3 className="mt-3 text-2xl font-semibold tracking-normal">The local session has ended.</h3>
+      <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-muted-foreground">
+        Start another run to configure a fresh task, write again, inspect new logs, and generate a new preview.
       </p>
-      <Button type="button" className="mt-6 w-fit rounded-full font-bold" onClick={onRestart}>
+      <Button type="button" className="mt-6 font-bold" onClick={onRestart}>
         <RotateCcw className="mr-2 h-4 w-4" />
         Do it again
       </Button>
-    </div>
-  );
-}
-
-function CompletionPreview() {
-  return (
-    <div className="grid h-full min-h-[460px] place-items-center text-center">
-      <div>
-        <h3 className="text-2xl font-semibold tracking-[-0.02em]">Ready for another run?</h3>
-        <p className="mx-auto mt-4 max-w-sm text-sm leading-6 text-muted-foreground">
-          The last demo text and log are cleared when you start again.
-        </p>
-      </div>
     </div>
   );
 }
