@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import FastWritingDemoPage from '@/app/demo/fast-writing/page';
@@ -120,6 +120,29 @@ describe('landing page', () => {
     }
 
     await waitFor(() => expect(mockCheckAuth).toHaveBeenCalled());
+  });
+
+  it('keeps the hero showcase on the selected mode until visitors switch it manually', () => {
+    jest.useFakeTimers();
+
+    try {
+      render(<HomePage />);
+
+      const videoToggle = screen.getByRole('button', { name: 'Show product video' });
+      const workspaceToggle = screen.getByRole('button', { name: 'Show product workspace' });
+
+      expect(videoToggle).toHaveAttribute('aria-pressed', 'true');
+      expect(workspaceToggle).toHaveAttribute('aria-pressed', 'false');
+
+      act(() => {
+        jest.advanceTimersByTime(30000);
+      });
+
+      expect(videoToggle).toHaveAttribute('aria-pressed', 'true');
+      expect(workspaceToggle).toHaveAttribute('aria-pressed', 'false');
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('lets visitors run the standalone fast writing demo without auth', async () => {
