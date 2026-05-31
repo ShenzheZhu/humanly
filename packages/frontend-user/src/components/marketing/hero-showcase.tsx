@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
 type HeroShowcaseSlide = 'video' | 'workspace';
 
@@ -12,39 +12,15 @@ export function HeroShowcase({
   workspace: ReactNode;
 }) {
   const [activeSlide, setActiveSlide] = useState<HeroShowcaseSlide>('video');
-  const [locked, setLocked] = useState(false);
-  const [paused, setPaused] = useState(false);
-
-  useEffect(() => {
-    if (locked || paused) {
-      return;
-    }
-
-    const timer = window.setInterval(() => {
-      setActiveSlide((current) => (current === 'video' ? 'workspace' : 'video'));
-    }, 9000);
-
-    return () => window.clearInterval(timer);
-  }, [locked, paused]);
-
-  const showSlide = (slide: HeroShowcaseSlide) => {
-    setActiveSlide(slide);
-    setLocked(true);
-  };
 
   return (
-    <div
-      className="relative mx-auto mt-[72px] w-full max-w-[1100px] overflow-visible pb-16"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-    >
+    <div className="relative mx-auto mt-[72px] w-full max-w-[1100px] overflow-visible pb-16">
       <div className="relative" style={{ aspectRatio: '1100 / 720' }}>
         <div
           aria-hidden={activeSlide !== 'video'}
           className={`absolute inset-0 transition-opacity duration-700 ease-out ${
             activeSlide === 'video' ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
           }`}
-          onPointerDownCapture={() => setLocked(true)}
         >
           {video}
         </div>
@@ -74,7 +50,7 @@ export function HeroShowcase({
                 ? 'bg-[#6f8a78] text-white shadow-[0_10px_24px_-18px_rgba(20,22,26,0.70)]'
                 : 'text-muted-foreground hover:bg-[rgba(20,22,26,0.05)] hover:text-foreground'
             }`}
-            onClick={() => showSlide(slide)}
+            onClick={() => setActiveSlide(slide)}
           >
             {label}
           </button>
