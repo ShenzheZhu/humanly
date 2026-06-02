@@ -50,6 +50,7 @@ const WRITING_TIMELINE_KINDS = new Set<DocumentEventTimelineItem['kind']>([
 const FOLD_POINT_MIN_RAW_EVENT_COUNT = 4;
 const LONG_TEXT_PREVIEW_THRESHOLD = 110;
 const LINE_BREAK_COLLAPSE_THRESHOLD = 4;
+const AI_MIRROR_REPLACE_TIME_WINDOW_MS = 10 * 60 * 1000;
 
 const TIMELINE_COLORS: Partial<Record<DocumentEventTimelineItem['kind'], string>> = {
   typing_burst: 'bg-teal-100 text-teal-800',
@@ -77,10 +78,16 @@ const AI_ACTION_LABELS: Record<string, string> = {
   expand: 'Expand',
   translate: 'Translate',
   format: 'Format',
-  question: 'Question',
-  reference: 'Reference',
+  question: 'Chat',
+  reference: 'Chat',
   other: 'Chat',
 };
+
+const CHAT_QUERY_TYPES = new Set<AIInteractionLog['queryType']>([
+  'question',
+  'reference',
+  'other',
+]);
 
 type HistoryItem =
   | {
@@ -128,6 +135,90 @@ function normalizeForComparison(text?: string) {
   return normalizeVisibleText(text);
 }
 
+function normalizeAIMirrorBoundaryText(text?: string) {
+  return normalizeForComparison(text)
+    .replace(/^[\s"'“”‘’.,!?;:…。！？；：、，]+/g, '')
+    .replace(/[\s"'“”‘’.,!?;:…。！？；：、，]+$/g, '')
+    .trim();
+}
+
+function textMatchesAIMirror(logText?: string, timelineText?: string) {
+  const normalizedLogText = normalizeForComparison(logText);
+  const normalizedTimelineText = normalizeForComparison(timelineText);
+  if (!normalizedLogText || !normalizedTimelineText) return false;
+  if (normalizedLogText === normalizedTimelineText) return true;
+
+  return (
+    normalizeAIMirrorBoundaryText(normalizedLogText) ===
+    normalizeAIMirrorBoundaryText(normalizedTimelineText)
+  );
+}
+
+function getMinimalTextDelta(beforeText?: string, afterText?: string) {
+  const before = normalizeForComparison(beforeText);
+  const after = normalizeForComparison(afterText);
+  let prefix = 0;
+
+  while (prefix < before.length && prefix < after.length && before[prefix] === after[prefix]) {
+    prefix += 1;
+  }
+
+  let suffix = 0;
+  while (
+    suffix < before.length - prefix &&
+    suffix < after.length - prefix &&
+    before[before.length - 1 - suffix] === after[after.length - 1 - suffix]
+  ) {
+    suffix += 1;
+  }
+
+  return {
+    deletedText: before.slice(prefix, before.length - suffix),
+    insertedText: after.slice(prefix, after.length - suffix),
+  };
+}
+
+function aiMirrorReplacementMatches(
+  logBeforeText: string,
+  logAfterText: string,
+  timelineBeforeText: string,
+  timelineAfterText: string
+) {
+  if (
+    textMatchesAIMirror(logBeforeText, timelineBeforeText) &&
+    textMatchesAIMirror(logAfterText, timelineAfterText)
+  ) {
+    return true;
+  }
+
+  const logDelta = getMinimalTextDelta(logBeforeText, logAfterText);
+  return (
+    textMatchesAIMirror(logDelta.deletedText, timelineBeforeText) &&
+    textMatchesAIMirror(logDelta.insertedText, timelineAfterText)
+  );
+}
+
+function timestampMs(value?: string | Date) {
+  if (!value) return null;
+  const time = value instanceof Date ? value.getTime() : new Date(value).getTime();
+  return Number.isFinite(time) ? time : null;
+}
+
+function isNearAIReplacement(item: DocumentEventTimelineItem, log: AIInteractionLog) {
+  const itemTimes = [item.timestamp, item.startTimestamp, item.endTimestamp]
+    .map(timestampMs)
+    .filter((time): time is number => time !== null);
+  const logTimes = [log.timestamp, ...(log.modifications || []).map((modification) => modification.timestamp)]
+    .map(timestampMs)
+    .filter((time): time is number => time !== null);
+
+  if (itemTimes.length === 0 || logTimes.length === 0) return true;
+
+  return itemTimes.some((itemTime) =>
+    logTimes.some((logTime) => Math.abs(itemTime - logTime) <= AI_MIRROR_REPLACE_TIME_WINDOW_MS)
+  );
+}
+
 function isAIAppliedMirrorReplace(
   item: DocumentEventTimelineItem,
   aiLogs: AIInteractionLog[]
@@ -140,21 +231,25 @@ function isAIAppliedMirrorReplace(
 
   return aiLogs.some((log) => {
     if (!log.modificationsApplied) return false;
+    if (!isNearAIReplacement(item, log)) return false;
 
     return (
-      normalizeForComparison(getSelectionText(log)) === replacedText &&
-      normalizeForComparison(getSuggestedText(log)) === newText
+      aiMirrorReplacementMatches(getSelectionText(log), getSuggestedText(log), replacedText, newText)
     );
   });
 }
 
 function getAILogLabel(log: AIInteractionLog) {
+  if (isChatAILog(log)) return 'Chat';
   if (log.queryType === 'grammar_check') return 'Fix grammar';
-  if (log.queryType === 'other') return 'Chat';
   if (log.query.toLowerCase().includes('simplify')) return 'Simplify';
   if (log.query.toLowerCase().includes('formal')) return 'Make formal';
   if (log.query.toLowerCase().includes('improve')) return 'Improve writing';
   return AI_ACTION_LABELS[log.queryType] || log.queryType;
+}
+
+function isChatAILog(log: AIInteractionLog) {
+  return CHAT_QUERY_TYPES.has(log.queryType);
 }
 
 function getAIStatusLabel(log: AIInteractionLog) {
@@ -322,6 +417,11 @@ function getReplacedText(item: DocumentEventTimelineItem) {
 
 function getMetadataText(item: DocumentEventTimelineItem, key: string) {
   const value = item.metadata?.[key];
+  return typeof value === 'string' ? value : '';
+}
+
+function getRawEventMetadataText(event: DocumentEventTimelineRawEvent, key: string) {
+  const value = event.metadata?.[key];
   return typeof value === 'string' ? value : '';
 }
 
@@ -556,6 +656,14 @@ function RenderableFullText({
 }
 
 function renderRawDetail(event: DocumentEventTimelineRawEvent) {
+  if (event.eventType === 'ai_query_sent') {
+    const query = getRawEventMetadataText(event, 'query');
+    return query ? renderTextPreview(query, 'AI question') : null;
+  }
+  if (event.eventType === 'ai_response_received') return null;
+  if (event.eventType === 'ai_panel_open') return null;
+  if (event.eventType === 'ai_panel_close') return null;
+
   if (event.eventType === 'focus') return 'Editor focused';
   if (event.eventType === 'blur') return 'Editor lost focus';
   if (event.eventType === 'select') {
@@ -612,51 +720,68 @@ function renderRawDetail(event: DocumentEventTimelineRawEvent) {
   return '—';
 }
 
-function getHiddenEventCategory(item: DocumentEventTimelineItem) {
-  const eventTypes = item.rawEvents.map((event) => event.eventType);
+function getRawEventDisplayType(event: DocumentEventTimelineRawEvent) {
+  if (event.eventType === 'ai_query_sent') return 'AI question sent';
+  if (event.eventType === 'ai_response_received') return 'AI response received';
+  if (event.eventType === 'ai_panel_open') return 'AI panel opened';
+  if (event.eventType === 'ai_panel_close') return 'AI panel closed';
+  if (event.eventType === 'ai_selection_action') return 'AI quick action';
+  if (event.eventType === 'ai_insert_from_chat') return 'AI inserted text';
+  return event.eventType;
+}
 
-  if (eventTypes.some((eventType) => eventType === 'focus' || eventType === 'blur')) {
+function isDuplicateAIQueryRawEvent(
+  event: DocumentEventTimelineRawEvent,
+  visibleAILogIds: Set<string>
+) {
+  if (event.eventType !== 'ai_query_sent') return false;
+  const logId = event.metadata?.logId;
+  return typeof logId === 'string' && visibleAILogIds.has(logId);
+}
+
+function getHiddenRawEventCategory(event: DocumentEventTimelineRawEvent) {
+  const eventType = event.eventType;
+
+  if (eventType === 'focus' || eventType === 'blur') {
     return 'focus/blur';
   }
 
-  if (eventTypes.some((eventType) => ['select', 'copy', 'cut'].includes(eventType))) {
+  if (['select', 'copy', 'cut'].includes(eventType)) {
     return 'selection/copy/cut';
   }
 
-  if (eventTypes.some((eventType) => eventType.startsWith('ai_'))) {
+  if (eventType.startsWith('ai_')) {
     return 'AI system';
   }
 
-  if (item.label.toLowerCase().includes('line break')) {
+  if (eventType === 'keydown' && (event.keyCode === 'Enter' || event.keyChar === 'Enter')) {
     return 'line break';
   }
 
   if (
-    eventTypes.some((eventType) =>
-      [
-        'bold',
-        'italic',
-        'underline',
-        'strikethrough',
-        'code',
-        'subscript',
-        'superscript',
-        'heading-change',
-        'font-family-change',
-        'font-size-change',
-        'text-color-change',
-        'highlight-color-change',
-        'list-create',
-        'list-delete',
-        'list-indent',
-        'list-outdent',
-        'list-item-check',
-        'alignment-change',
-        'line-spacing-change',
-        'indent-change',
-        'clear-formatting',
-      ].includes(eventType)
-    )
+    [
+      'bold',
+      'italic',
+      'underline',
+      'strikethrough',
+      'code',
+      'subscript',
+      'superscript',
+      'heading-change',
+      'font-family-change',
+      'font-size-change',
+      'text-color-change',
+      'highlight-color-change',
+      'list-create',
+      'list-delete',
+      'list-indent',
+      'list-outdent',
+      'list-item-check',
+      'alignment-change',
+      'line-spacing-change',
+      'indent-change',
+      'clear-formatting',
+    ].includes(eventType)
   ) {
     return 'formatting';
   }
@@ -664,11 +789,11 @@ function getHiddenEventCategory(item: DocumentEventTimelineItem) {
   return 'other';
 }
 
-function summarizeFoldPoint(items: DocumentEventTimelineItem[]) {
-  const counts = items.reduce<Record<string, number>>((acc, item) => {
-    const category = getHiddenEventCategory(item);
+function summarizeFoldPoint(rawEvents: DocumentEventTimelineRawEvent[]) {
+  const counts = rawEvents.reduce<Record<string, number>>((acc, event) => {
+    const category = getHiddenRawEventCategory(event);
 
-    acc[category] = (acc[category] || 0) + item.rawEventCount;
+    acc[category] = (acc[category] || 0) + 1;
     return acc;
   }, {});
 
@@ -677,17 +802,22 @@ function summarizeFoldPoint(items: DocumentEventTimelineItem[]) {
     .join(' · ');
 }
 
-function makeFoldPoint(items: DocumentEventTimelineItem[]): FoldPointItem {
+function makeFoldPoint(
+  items: DocumentEventTimelineItem[],
+  rawEventsOverride?: DocumentEventTimelineRawEvent[]
+): FoldPointItem {
   const sortedItems = [...items].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
-  const rawEvents = sortedItems
-    .flatMap((item) => item.rawEvents)
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  const rawEvents =
+    rawEventsOverride ||
+    sortedItems
+      .flatMap((item) => item.rawEvents)
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   const startTimestamp =
     sortedItems[sortedItems.length - 1]?.startTimestamp || sortedItems[0]?.timestamp;
   const endTimestamp = sortedItems[0]?.endTimestamp || sortedItems[0]?.timestamp;
-  const rawEventCount = sortedItems.reduce((total, item) => total + item.rawEventCount, 0);
+  const rawEventCount = rawEvents.length;
 
   return {
     kind: 'fold',
@@ -712,6 +842,8 @@ function formatFoldTimeRange(item: FoldPointItem) {
 }
 
 function RawEventTableRow({ event }: { event: DocumentEventTimelineRawEvent }) {
+  const detail = renderRawDetail(event);
+
   return (
     <tr className="bg-muted/20 text-xs text-muted-foreground hover:bg-muted/30">
       <td className="whitespace-nowrap px-4 py-2">
@@ -724,12 +856,12 @@ function RawEventTableRow({ event }: { event: DocumentEventTimelineRawEvent }) {
       </td>
       <td className="max-w-[760px] px-4 py-2">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="shrink-0 font-medium text-foreground/70">{event.eventType}</span>
-          <span className="min-w-0 truncate">{renderRawDetail(event)}</span>
+          <span className="shrink-0 font-medium text-foreground/70">{getRawEventDisplayType(event)}</span>
+          {detail && <span className="min-w-0 truncate">{detail}</span>}
         </div>
       </td>
       <td className="px-4 py-2">
-        {event.cursorPosition === undefined ? '—' : `Cursor ${event.cursorPosition}`}
+        {event.cursorPosition == null ? '—' : `Cursor ${event.cursorPosition}`}
       </td>
     </tr>
   );
@@ -810,6 +942,8 @@ export default function DocumentLogsPage() {
   }, [aiLogs]);
 
   const timelineDisplayItems = useMemo<TimelineDisplayItem[]>(() => {
+    const visibleAILogIds = new Set(visibleAILogs.map((log) => log.id));
+
     type TimelineSourceItem =
       | {
           kind: 'primary';
@@ -870,10 +1004,16 @@ export default function DocumentLogsPage() {
       if (hiddenBuffer.length === 0) return;
       const rawEvents = hiddenBuffer
         .flatMap((item) => item.rawEvents)
+        .filter((event) => !isDuplicateAIQueryRawEvent(event, visibleAILogIds))
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
+      if (rawEvents.length === 0) {
+        hiddenBuffer = [];
+        return;
+      }
+
       if (rawEvents.length >= FOLD_POINT_MIN_RAW_EVENT_COUNT) {
-        displayItems.push(makeFoldPoint(hiddenBuffer));
+        displayItems.push(makeFoldPoint(hiddenBuffer, rawEvents));
       } else {
         displayItems.push(
           ...rawEvents.map((event) => ({
@@ -971,7 +1111,7 @@ export default function DocumentLogsPage() {
                 {timelineDisplayItems.map((historyItem) => {
                   if (historyItem.kind === 'fold') {
                     const isExpanded = expandedIds.has(historyItem.id);
-                    const summary = summarizeFoldPoint(historyItem.items);
+                    const summary = summarizeFoldPoint(historyItem.rawEvents);
 
                     return (
                       <Fragment key={historyItem.id}>
@@ -1125,7 +1265,7 @@ export default function DocumentLogsPage() {
                   const beforeText = getSelectionText(log);
                   const afterText = getSuggestedText(log);
                   const label = getAILogLabel(log);
-                  const isChatLog = log.queryType === 'other';
+                  const isChatLog = isChatAILog(log);
                   const detailBeforeText = isChatLog ? log.query : beforeText;
                   const canExpand = canExpandAILog(log);
 
@@ -1154,9 +1294,24 @@ export default function DocumentLogsPage() {
                           </span>
                         </td>
                         <td className="max-w-[760px] px-4 py-3 text-sm text-foreground">
-                          <span className="block truncate">
-                            {formatSnippet(detailBeforeText || log.query, 'AI interaction')}
-                          </span>
+                          <div className="flex min-w-0 items-center gap-3">
+                            <span className="block min-w-0 flex-1 truncate">
+                              {formatSnippet(detailBeforeText || log.query, 'AI interaction')}
+                            </span>
+                            {canExpand && (
+                              <button
+                                type="button"
+                                className="shrink-0 text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  toggleExpanded(log.id);
+                                }}
+                                aria-expanded={isExpanded}
+                              >
+                                {isExpanded ? 'Hide Full Text' : 'View Full Text'}
+                              </button>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-xs text-muted-foreground">
                           {getAIStatusLabel(log)}
@@ -1178,9 +1333,15 @@ export default function DocumentLogsPage() {
                                 <p className="mb-1 text-xs font-medium text-muted-foreground">
                                   {isChatLog ? 'AI response' : 'AI modified text'}
                                 </p>
-                                <div className="rounded border bg-background p-3 text-sm whitespace-pre-wrap">
-                                  {afterText || '—'}
-                                </div>
+                                {isChatLog ? (
+                                  <div className="rounded border bg-background p-3 text-sm">
+                                    <MarkdownContent>{afterText || '—'}</MarkdownContent>
+                                  </div>
+                                ) : (
+                                  <div className="rounded border bg-background p-3 text-sm whitespace-pre-wrap">
+                                    {afterText || '—'}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </td>

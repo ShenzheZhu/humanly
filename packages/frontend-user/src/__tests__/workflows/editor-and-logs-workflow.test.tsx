@@ -1638,6 +1638,102 @@ describe('editor and logs workflows', () => {
     expect(screen.getByText('Am I okay?')).toBeInTheDocument();
   });
 
+  it('hides AI quick action replacement rows with boundary punctuation differences', async () => {
+    mockTimelineItems = [
+      {
+        id: 'ai-simplify-mirror-replace',
+        kind: 'replace',
+        label: 'Replaced text',
+        timestamp: '2026-05-14T12:00:02.500Z',
+        startTimestamp: '2026-05-14T12:00:02.500Z',
+        endTimestamp: '2026-05-14T12:00:02.500Z',
+        text: 'To be honest, I agree',
+        charCount: 21,
+        wordCount: 5,
+        rawEventCount: 1,
+        rawEvents: [],
+        metadata: {
+          replacedText: 'So honestly, yes, okay',
+        },
+      },
+    ];
+    mockAiLogs = [
+      {
+        id: 'ai-applied-simplify',
+        queryType: 'rewrite',
+        query: 'Simplify text: So honestly, yes, okay.',
+        response: 'To be honest, I agree.',
+        timestamp: '2026-05-14T12:00:02.000Z',
+        status: 'success',
+        modificationsApplied: true,
+        modifications: [
+          {
+            id: 'mod-simplify',
+            type: 'replace',
+            before: 'So honestly, yes, okay.',
+            after: 'To be honest, I agree.',
+            location: { startOffset: 0, endOffset: 22 },
+            timestamp: '2026-05-14T12:00:02.500Z',
+          },
+        ],
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByText('Simplify')).toBeInTheDocument();
+    expect(screen.queryByText('Replaced')).not.toBeInTheDocument();
+    expect(screen.queryByText(/So honestly, yes, okay.*To be honest, I agree/)).not.toBeInTheDocument();
+  });
+
+  it('hides AI quick action replacement rows collapsed to the minimal text diff', async () => {
+    mockTimelineItems = [
+      {
+        id: 'ai-simplify-minimal-diff-replace',
+        kind: 'replace',
+        label: 'Replaced text',
+        timestamp: '2026-05-14T12:00:02.500Z',
+        startTimestamp: '2026-05-14T12:00:02.500Z',
+        endTimestamp: '2026-05-14T12:00:02.500Z',
+        text: 'ay',
+        charCount: 2,
+        wordCount: 1,
+        rawEventCount: 1,
+        rawEvents: [],
+        metadata: {
+          replacedText: 'but',
+        },
+      },
+    ];
+    mockAiLogs = [
+      {
+        id: 'ai-applied-simplify-minimal-diff',
+        queryType: 'rewrite',
+        query: "Simplify text: This report is ok but , but now it's good.",
+        response: "This report is okay, but now it's good.",
+        timestamp: '2026-05-14T12:00:02.000Z',
+        status: 'success',
+        modificationsApplied: true,
+        modifications: [
+          {
+            id: 'mod-simplify-minimal-diff',
+            type: 'replace',
+            before: "This report is ok but , but now it's good.",
+            after: "This report is okay, but now it's good.",
+            location: { startOffset: 0, endOffset: 41 },
+            timestamp: '2026-05-14T12:00:02.500Z',
+          },
+        ],
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByText('Simplify')).toBeInTheDocument();
+    expect(screen.queryByText('Replaced')).not.toBeInTheDocument();
+    expect(screen.queryByText(/"but"\s*→\s*"ay"/)).not.toBeInTheDocument();
+  });
+
   it('shows AI chat insertions as primary timeline rows', async () => {
     mockTimelineItems = [
       {
@@ -1901,9 +1997,142 @@ describe('editor and logs workflows', () => {
     expect(screen.getByText(/AI actions logged:/)).toBeInTheDocument();
     expect(screen.getByText('What does this paragraph mean?')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('row', { name: /chat what does this paragraph mean/i }));
+    const chatRow = screen.getByRole('row', { name: /chat what does this paragraph mean/i });
+    fireEvent.click(within(chatRow).getByRole('button', { name: /view full text/i }));
 
+    expect(await screen.findByText('Question')).toBeInTheDocument();
+    expect(screen.getByText('AI response')).toBeInTheDocument();
     expect(await screen.findByText('It explains the core argument.')).toBeInTheDocument();
+    expect(within(chatRow).getByRole('button', { name: /hide full text/i })).toBeInTheDocument();
+  });
+
+  it('shows question AI logs as Chat and renders AI response Markdown', async () => {
+    const markdownResponse = [
+      '## Markdown heading',
+      '',
+      'Rendered **bold text**.',
+      '',
+      '| Metric | Value |',
+      '| --- | --- |',
+      '| Revenue | 42 |',
+    ].join('\n');
+
+    mockAiLogs = [
+      {
+        id: 'ai-log-question',
+        queryType: 'question',
+        query: 'What is Bombardier?',
+        response: markdownResponse,
+        timestamp: '2026-05-14T12:00:02.000Z',
+        status: 'success',
+        modificationsApplied: false,
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    const chatRow = await screen.findByRole('row', { name: /chat what is bombardier/i });
+    expect(within(chatRow).getByText('Chat')).toBeInTheDocument();
+    expect(within(chatRow).queryByText('Question')).not.toBeInTheDocument();
+
+    fireEvent.click(within(chatRow).getByRole('button', { name: /view full text/i }));
+
+    expect(await screen.findByText('Question')).toBeInTheDocument();
+    expect(screen.getByText('AI response')).toBeInTheDocument();
+    expect(screen.queryByText('Previous text')).not.toBeInTheDocument();
+    expect(screen.queryByText('AI modified text')).not.toBeInTheDocument();
+
+    const responseSection = screen.getByText('AI response').closest('div');
+    expect(responseSection).not.toBeNull();
+    expect(within(responseSection as HTMLElement).getByRole('heading', { name: 'Markdown heading' })).toBeInTheDocument();
+    expect(within(responseSection as HTMLElement).getByText('bold text')).toBeInTheDocument();
+    const markdownTable = within(responseSection as HTMLElement)
+      .getAllByRole('table')
+      .find((table) => table.textContent?.includes('Revenue'));
+    expect(markdownTable).toBeTruthy();
+    expect(markdownTable).toHaveTextContent('42');
+  });
+
+  it('hides duplicate AI query raw events when the matching AI log is visible', async () => {
+    mockTimelineItems = [
+      {
+        id: 'raw-ai-query-mirror',
+        kind: 'event',
+        label: 'AI question sent',
+        timestamp: '2026-05-14T12:00:04.000Z',
+        startTimestamp: '2026-05-14T12:00:04.000Z',
+        endTimestamp: '2026-05-14T12:00:04.000Z',
+        text: '',
+        rawEventCount: 1,
+        rawEvents: [
+          {
+            id: 'raw-ai-query-mirror-event',
+            eventType: 'ai_query_sent',
+            timestamp: '2026-05-14T12:00:04.000Z',
+            cursorPosition: null,
+            metadata: {
+              logId: 'ai-log-1',
+              query: 'Explain my report',
+            },
+          },
+        ],
+      },
+    ];
+    mockAiLogs = [
+      {
+        id: 'ai-log-1',
+        queryType: 'other',
+        query: 'Explain my report',
+        response: 'Here is the explanation.',
+        timestamp: '2026-05-14T12:00:02.000Z',
+        status: 'success',
+        modificationsApplied: false,
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByRole('row', { name: /chat explain my report .*success/i })).toBeInTheDocument();
+    expect(screen.queryByText('raw event')).not.toBeInTheDocument();
+    expect(screen.queryByText('ai_query_sent')).not.toBeInTheDocument();
+    expect(screen.queryByText('Cursor null')).not.toBeInTheDocument();
+  });
+
+  it('keeps unmatched AI query raw events visible with friendly detail text', async () => {
+    mockTimelineItems = [
+      {
+        id: 'raw-ai-query-unmatched',
+        kind: 'event',
+        label: 'AI question sent',
+        timestamp: '2026-05-14T12:00:04.000Z',
+        startTimestamp: '2026-05-14T12:00:04.000Z',
+        endTimestamp: '2026-05-14T12:00:04.000Z',
+        text: '',
+        rawEventCount: 1,
+        rawEvents: [
+          {
+            id: 'raw-ai-query-unmatched-event',
+            eventType: 'ai_query_sent',
+            timestamp: '2026-05-14T12:00:04.000Z',
+            cursorPosition: null,
+            metadata: {
+              logId: 'missing-ai-log',
+              query: 'Explain my report',
+            },
+          },
+        ],
+      },
+    ];
+    mockAiLogs = [];
+
+    render(<DocumentLogsPage />);
+
+    const rawRow = await screen.findByRole('row', {
+      name: /raw event ai question sent "explain my report" —/i,
+    });
+    expect(rawRow).toBeInTheDocument();
+    expect(screen.queryByText('ai_query_sent')).not.toBeInTheDocument();
+    expect(screen.queryByText('Cursor null')).not.toBeInTheDocument();
   });
 
   it('treats timezone-less AI log timestamps as UTC before displaying local time', async () => {
