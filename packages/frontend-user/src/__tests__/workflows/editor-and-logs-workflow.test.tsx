@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 
 import DocumentEditorPage from '@/app/documents/[id]/page';
 import DocumentLogsPage from '@/app/logs/[id]/page';
+import { TokenManager } from '@/lib/api-client';
 
 const mockPush = jest.fn();
 const mockUseParams = jest.fn(() => ({ id: 'doc-1' }));
@@ -29,6 +30,7 @@ let mockLatestEditorProps: any;
 let mockEditorBufferedEvents: any[] = [];
 let mockFlushEditorEvents: (() => Promise<void>) | null = null;
 let mockIsAIPanelOpen = false;
+const mockTokenManager = TokenManager as jest.Mocked<typeof TokenManager>;
 
 function createDeferred<T = void>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -350,6 +352,11 @@ describe('editor and logs workflows', () => {
     mockEditorBufferedEvents = [];
     mockFlushEditorEvents = null;
     mockIsAIPanelOpen = false;
+    mockTokenManager.getAccessToken.mockReturnValue('token');
+    mockTokenManager.setAccessToken.mockClear();
+    mockTokenManager.clearAccessToken.mockClear();
+    mockTokenManager.getPublicDocumentAccessToken.mockReturnValue(null);
+    mockTokenManager.setPublicCertificateAccessToken.mockClear();
     global.fetch = jest.fn().mockResolvedValue({ ok: true }) as jest.Mock;
     mockStartWritingSession.mockImplementation(async () => ({
       id: 'doc-1',
@@ -1093,6 +1100,24 @@ describe('editor and logs workflows', () => {
     expect(screen.queryByText('Raw events')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /raw audit events/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/failed to load logs/i)).not.toBeInTheDocument();
+  });
+
+  it('uses a scoped public document token while loading guest document logs', async () => {
+    mockTokenManager.getPublicDocumentAccessToken.mockReturnValue('guest-document-token');
+    mockTokenManager.getAccessToken
+      .mockReturnValueOnce('signed-in-token')
+      .mockReturnValue('guest-document-token');
+
+    const { unmount } = render(<DocumentLogsPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    expect(mockTokenManager.setAccessToken).toHaveBeenCalledWith('guest-document-token');
+    expect(mockApiGet).toHaveBeenCalledWith('/documents/doc-1');
+    expect(mockApiGet).toHaveBeenCalledWith('/documents/doc-1/events/timeline?limit=10000');
+
+    unmount();
+
+    expect(mockTokenManager.setAccessToken).toHaveBeenCalledWith('signed-in-token');
   });
 
   it('labels delete raw events with inserted text as replacements', async () => {
