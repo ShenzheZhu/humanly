@@ -335,16 +335,22 @@ export class UserModel {
            OR task_id IN (${ownedTasks})
            OR document_id IN (${ownedDocuments})
       `;
+      const deleteIfTableExists = async (tableName: string, sql: string) => {
+        const table = await client.query('SELECT to_regclass($1) AS "tableName"', [`public.${tableName}`]);
+        if (table.rows?.[0]?.tableName) {
+          await client.query(sql, [id]);
+        }
+      };
 
-      await client.query('DELETE FROM paper_access_logs WHERE reviewer_id = $1', [id]);
-      await client.query('DELETE FROM review_recordings WHERE reviewer_id = $1', [id]);
-      await client.query('DELETE FROM review_ai_interaction_logs WHERE reviewer_id = $1', [id]);
-      await client.query('DELETE FROM review_ai_sessions WHERE reviewer_id = $1', [id]);
-      await client.query('DELETE FROM review_comments WHERE reviewer_id = $1', [id]);
-      await client.query('DELETE FROM review_events WHERE reviewer_id = $1', [id]);
-      await client.query('DELETE FROM reviews WHERE reviewer_id = $1', [id]);
-      await client.query('DELETE FROM paper_reviewers WHERE reviewer_id = $1 OR assigned_by = $1', [id]);
-      await client.query('DELETE FROM papers WHERE uploaded_by = $1', [id]);
+      await deleteIfTableExists('paper_access_logs', 'DELETE FROM paper_access_logs WHERE reviewer_id = $1');
+      await deleteIfTableExists('review_recordings', 'DELETE FROM review_recordings WHERE reviewer_id = $1');
+      await deleteIfTableExists('review_ai_interaction_logs', 'DELETE FROM review_ai_interaction_logs WHERE reviewer_id = $1');
+      await deleteIfTableExists('review_ai_sessions', 'DELETE FROM review_ai_sessions WHERE reviewer_id = $1');
+      await deleteIfTableExists('review_comments', 'DELETE FROM review_comments WHERE reviewer_id = $1');
+      await deleteIfTableExists('review_events', 'DELETE FROM review_events WHERE reviewer_id = $1');
+      await deleteIfTableExists('reviews', 'DELETE FROM reviews WHERE reviewer_id = $1');
+      await deleteIfTableExists('paper_reviewers', 'DELETE FROM paper_reviewers WHERE reviewer_id = $1 OR assigned_by = $1');
+      await deleteIfTableExists('papers', 'DELETE FROM papers WHERE uploaded_by = $1');
 
       await client.query(`
         UPDATE submissions

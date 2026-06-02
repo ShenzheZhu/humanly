@@ -21,13 +21,16 @@ describe('UserModel.deleteAccount', () => {
 
   it('cleans dependent account rows before deleting the user row', async () => {
     mockClient.query.mockImplementation(async (sql: string) => ({
+      rows: sql.includes('to_regclass') ? [{ tableName: 'public.optional_table' }] : [],
       rowCount: sql.includes('DELETE FROM users') ? 1 : 0,
     }));
 
     await expect(UserModel.deleteAccount('user-1')).resolves.toBe(true);
 
     const statements = mockClient.query.mock.calls.map(([sql]) => sql);
-    expect(statements.slice(0, 9)).toEqual([
+    const normalizedStatements = statements.map((sql) => sql.replace(/\s+/g, ' ').trim());
+    expect(normalizedStatements).toEqual(expect.arrayContaining([
+      'SELECT to_regclass($1) AS "tableName"',
       'DELETE FROM paper_access_logs WHERE reviewer_id = $1',
       'DELETE FROM review_recordings WHERE reviewer_id = $1',
       'DELETE FROM review_ai_interaction_logs WHERE reviewer_id = $1',
@@ -37,9 +40,6 @@ describe('UserModel.deleteAccount', () => {
       'DELETE FROM reviews WHERE reviewer_id = $1',
       'DELETE FROM paper_reviewers WHERE reviewer_id = $1 OR assigned_by = $1',
       'DELETE FROM papers WHERE uploaded_by = $1',
-    ]);
-    const normalizedStatements = statements.map((sql) => sql.replace(/\s+/g, ' ').trim());
-    expect(normalizedStatements).toEqual(expect.arrayContaining([
       expect.stringContaining('UPDATE submissions SET certificate_id = NULL'),
       expect.stringContaining('UPDATE certificates SET submission_id = NULL'),
       expect.stringContaining('DELETE FROM certificates'),
@@ -62,8 +62,30 @@ describe('UserModel.deleteAccount', () => {
     expect(mockTransaction).toHaveBeenCalledTimes(1);
   });
 
+  it('skips optional peer-review cleanup when those tables are absent', async () => {
+    mockClient.query.mockImplementation(async (sql: string) => ({
+      rows: sql.includes('to_regclass') ? [{ tableName: null }] : [],
+      rowCount: sql.includes('DELETE FROM users') ? 1 : 0,
+    }));
+
+    await expect(UserModel.deleteAccount('user-1')).resolves.toBe(true);
+
+    const statements = mockClient.query.mock.calls.map(([sql]) => sql.replace(/\s+/g, ' ').trim());
+    expect(statements).not.toContain('DELETE FROM paper_access_logs WHERE reviewer_id = $1');
+    expect(statements).not.toContain('DELETE FROM review_recordings WHERE reviewer_id = $1');
+    expect(statements).toEqual(expect.arrayContaining([
+      expect.stringContaining('UPDATE submissions SET certificate_id = NULL'),
+      expect.stringContaining('DELETE FROM certificates'),
+      expect.stringContaining('DELETE FROM submissions'),
+      'DELETE FROM users WHERE id = $1',
+    ]));
+  });
+
   it('returns false when no user row was deleted', async () => {
-    mockClient.query.mockResolvedValue({ rowCount: 0 });
+    mockClient.query.mockImplementation(async (sql: string) => ({
+      rows: sql.includes('to_regclass') ? [{ tableName: null }] : [],
+      rowCount: 0,
+    }));
 
     await expect(UserModel.deleteAccount('missing-user')).resolves.toBe(false);
   });
