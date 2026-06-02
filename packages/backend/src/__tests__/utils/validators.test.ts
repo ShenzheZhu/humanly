@@ -1,6 +1,7 @@
 import {
   createTaskSchema,
   DEFAULT_WRITING_ENVIRONMENT_CONFIG,
+  TASK_START_DATE_PAST_ERROR_MESSAGE,
   SUBMISSION_MAX_CHARACTERS_MAX,
   SUBMISSION_MIN_CHARACTERS_MAX,
 } from '@humanly/shared';
@@ -8,8 +9,8 @@ import {
 describe('writing environment validators', () => {
   const baseTaskPayload = {
     name: 'Minimum character task',
-    startDate: new Date('2026-05-19T12:00:00.000Z'),
-    endDate: new Date('2026-05-20T12:00:00.000Z'),
+    startDate: new Date('2099-05-19T12:00:00.000Z'),
+    endDate: new Date('2099-05-20T12:00:00.000Z'),
   };
 
   it('accepts optional minimum and maximum submission character counts', () => {
@@ -71,5 +72,48 @@ describe('writing environment validators', () => {
         },
       },
     })).toThrow('Maximum characters must be greater than or equal to minimum characters');
+  });
+});
+
+describe('task time window validators', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-06-02T12:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  const baseTaskPayload = {
+    name: 'Scheduled task',
+    startDate: new Date('2026-06-02T12:00:00.000Z'),
+    endDate: new Date('2026-06-03T12:00:00.000Z'),
+  };
+
+  it('rejects create task start dates outside the grace window', () => {
+    expect(() => createTaskSchema.parse({
+      ...baseTaskPayload,
+      startDate: new Date('2026-06-02T11:57:59.000Z'),
+      endDate: new Date('2026-06-03T12:00:00.000Z'),
+    })).toThrow(TASK_START_DATE_PAST_ERROR_MESSAGE);
+  });
+
+  it('accepts create task start dates inside the two-minute grace window', () => {
+    const result = createTaskSchema.parse({
+      ...baseTaskPayload,
+      startDate: new Date('2026-06-02T11:58:00.000Z'),
+      endDate: new Date('2026-06-03T12:00:00.000Z'),
+    });
+
+    expect(result.startDate).toEqual(new Date('2026-06-02T11:58:00.000Z'));
+  });
+
+  it('still rejects task windows where end date is not after start date', () => {
+    expect(() => createTaskSchema.parse({
+      ...baseTaskPayload,
+      startDate: new Date('2026-06-02T12:00:00.000Z'),
+      endDate: new Date('2026-06-02T12:00:00.000Z'),
+    })).toThrow('Task end date must be after start date');
   });
 });

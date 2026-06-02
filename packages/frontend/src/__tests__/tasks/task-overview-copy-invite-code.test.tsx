@@ -190,6 +190,7 @@ const adminLocalTimeFormatter = new Intl.DateTimeFormat('en-US', {
   hour: 'numeric',
   minute: '2-digit',
 });
+const localTimeZoneLabel = Intl.DateTimeFormat().resolvedOptions().timeZone || 'local time';
 
 function mockTaskOverviewResponses() {
   mockApiGet.mockImplementation((url: string) => {
@@ -313,6 +314,9 @@ describe('admin task overview invite code copy button', () => {
     expect(within(overviewRegion as HTMLElement).getByText(
       adminLocalTimeFormatter.format(taskFixture.endDate)
     )).toBeInTheDocument();
+    expect(within(overviewRegion as HTMLElement).getByText(
+      `Times shown in your local timezone: ${localTimeZoneLabel}`
+    )).toBeInTheDocument();
     expect(within(overviewRegion as HTMLElement).queryByText('Instruction Files')).not.toBeInTheDocument();
     expect(within(overviewRegion as HTMLElement).queryByText('Ready for task files API')).not.toBeInTheDocument();
     expect(within(overviewRegion as HTMLElement).queryByText('External Service')).not.toBeInTheDocument();
@@ -330,7 +334,6 @@ describe('admin task overview invite code copy button', () => {
     expect(within(overviewRegion as HTMLElement).queryByText('deepseek-ai/DeepSeek-V3')).not.toBeInTheDocument();
     expect(within(overviewRegion as HTMLElement).getByText('AI Usage Limit')).toBeInTheDocument();
     expect(within(overviewRegion as HTMLElement).getByText('100 requests per user')).toBeInTheDocument();
-    expect(overviewRegion as HTMLElement).not.toHaveTextContent(/GMT|UTC/);
     fireEvent.click(screen.getByRole('button', { name: /copy invite code/i }));
 
     await waitFor(() => {
@@ -688,6 +691,9 @@ describe('admin task overview invite code copy button', () => {
     const dialog = await openEnvironmentDialog();
     expect(within(dialog).getByRole('heading', { name: 'AI' })).toBeInTheDocument();
     expect(within(dialog).getByRole('heading', { name: 'Task Availability' })).toBeInTheDocument();
+    expect(within(dialog).getByText(
+      `Set the task availability window shown to enrolled users. Times are shown in your local timezone: ${localTimeZoneLabel}.`
+    )).toBeInTheDocument();
     expect(within(dialog).getByRole('heading', { name: 'Writing Session' })).toBeInTheDocument();
     expect(within(dialog).getByRole('heading', { name: 'Writing Rules' })).toBeInTheDocument();
     expect(within(dialog).getByRole('combobox', { name: /^AI$/i })).toHaveValue('full');
@@ -853,6 +859,28 @@ describe('admin task overview invite code copy button', () => {
 
     expect(await screen.findByText('Connection test failed.')).toBeInTheDocument();
     expect(within(dialog).getByLabelText(/AI API Key/i)).toBeInTheDocument();
+  });
+
+  it('rejects changing task start date to the past in settings', async () => {
+    mockSearchParams = new URLSearchParams('tab=setting');
+
+    render(<TaskDetailPage />);
+
+    await screen.findByRole('heading', { name: 'Clipboard Task' });
+    const dialog = await openEnvironmentDialog();
+
+    fireEvent.change(within(dialog).getByLabelText(/Task Start Date/i), {
+      target: { value: '2000-01-01T09:30' },
+    });
+    fireEvent.change(within(dialog).getByLabelText(/Task End Date/i), {
+      target: { value: '2000-01-02T09:30' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: /apply/i }));
+    fireEvent.click(screen.getByRole('button', { name: /save settings/i }));
+
+    const reopenedDialog = await screen.findByRole('dialog', { name: /edit environment/i });
+    expect(within(reopenedDialog).getByText('Task start date cannot be in the past.')).toBeInTheDocument();
+    expect(mockApiPut).not.toHaveBeenCalledWith('/api/v1/tasks/task-123', expect.anything());
   });
 
   it('saves grouped setting changes with the existing task payload shape', async () => {

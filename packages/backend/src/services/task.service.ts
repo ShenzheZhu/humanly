@@ -16,7 +16,13 @@ import { UserModel } from '../models/user.model';
 import { RefreshTokenModel } from '../models/refresh-token.model';
 import { CertificateService } from './certificate.service';
 import type { AppFile, Document, Task, TaskWithSnippets, User } from '@humanly/shared';
-import { BRAND, getTrackerComment, getIframeComment } from '@humanly/shared';
+import {
+  BRAND,
+  TASK_START_DATE_PAST_ERROR_MESSAGE,
+  getIframeComment,
+  getTrackerComment,
+  isTaskStartDateTooFarInPast,
+} from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
@@ -25,6 +31,42 @@ import { FileStorageService } from './file-storage.service';
 import { buildDocumentEventTimeline } from './document-event-timeline.service';
 import { generateToken, hashPassword, hashToken } from '../utils/crypto';
 import { generateAccessToken, generateRefreshToken, TokenPayload } from '../utils/jwt';
+
+const TASK_END_DATE_ERROR_MESSAGE = 'Task end date must be after start date';
+
+const getDateMs = (value: Date | string | number): number => new Date(value).getTime();
+
+const areDatesInSameMinute = (
+  left: Date | string | number,
+  right: Date | string | number
+): boolean => {
+  const leftMs = getDateMs(left);
+  const rightMs = getDateMs(right);
+
+  if (!Number.isFinite(leftMs) || !Number.isFinite(rightMs)) {
+    return false;
+  }
+
+  return Math.floor(leftMs / 60_000) === Math.floor(rightMs / 60_000);
+};
+
+const assertTaskStartDateNotInPast = (startDate: Date | string | number): void => {
+  if (isTaskStartDateTooFarInPast(startDate)) {
+    throw new AppError(400, TASK_START_DATE_PAST_ERROR_MESSAGE);
+  }
+};
+
+const assertTaskEndDateAfterStartDate = (
+  startDate: Date | string | number,
+  endDate: Date | string | number
+): void => {
+  const startMs = getDateMs(startDate);
+  const endMs = getDateMs(endDate);
+
+  if (Number.isFinite(startMs) && Number.isFinite(endMs) && endMs <= startMs) {
+    throw new AppError(400, TASK_END_DATE_ERROR_MESSAGE);
+  }
+};
 
 const getMinimumSubmissionCharacters = (task: Task): number | null => {
   const configuredMinimum = (task.environmentConfig?.submission as { minCharacters?: number } | undefined)?.minCharacters;
@@ -75,14 +117,6 @@ const sanitizeDocumentTitlePart = (value?: string): string => {
   return (value || '').trim().replace(/\s+/g, ' ').slice(0, 80);
 };
 
-const calculateWordCount = (text: string): number => (
-  text
-    .trim()
-    .replace(/\s+/g, ' ')
-    .split(' ')
-    .filter(Boolean).length
-);
-
 const createLexicalContentFromPlainText = (plainText: string) => {
   const paragraphs = plainText
     .replace(/\r\n/g, '\n')
@@ -120,14 +154,6 @@ const createLexicalContentFromPlainText = (plainText: string) => {
     },
   };
 };
-
-export interface PublicTaskSubmissionData {
-  title?: string;
-  authorName?: string;
-  authorEmail?: string;
-  plainText: string;
-  sessionId?: string;
-}
 
 export interface PublicTaskStartData {
   sessionId?: string;
@@ -222,6 +248,9 @@ export class TaskService {
   ): Promise<TaskWithSnippets> {
     try {
       logger.info('Creating task', { userId, taskName: data.name });
+
+      assertTaskStartDateNotInPast(data.startDate);
+      assertTaskEndDateAfterStartDate(data.startDate, data.endDate);
 
       const task = await TaskModel.create(userId, data);
 
@@ -737,96 +766,6 @@ export class TaskService {
     };
   }
 
-  /**
-   * Create a task submission from a public share link.
-   *
-   * Public links intentionally do not authenticate a Humanly account. To keep the
-   * existing document/submission schema intact, each browser session is mapped to
-   * a synthetic guest user and then uses the normal task enrollment/submission
-   * records that the admin dashboard already reads.
-   */
-  static async submitPublicTaskDocument(
-    taskToken: string,
-    data: PublicTaskSubmissionData
-  ) {
-    const task = await this.getPublicTask(taskToken);
-    this.assertTaskAcceptsPublicWriters(task);
-    if (task.allowGuestSubmissions === false) {
-      throw new AppError(403, 'Guest submissions are not enabled for this task link');
-    }
-
-    const plainText = data.plainText.trim();
-    if (!plainText) {
-      throw new AppError(400, 'Document text is required');
-    }
-
-    assertSubmissionCharacterBounds(task, plainText.length);
-
-    const publicSessionId = normalizePublicSessionId(data.sessionId);
-    const guestUser = await this.getOrCreatePublicGuestUser(task, publicSessionId);
-
-    await TaskModel.enrollUser(task.id, guestUser.id);
-
-    const authorName = sanitizeDocumentTitlePart(data.authorName);
-    const authorEmail = sanitizeDocumentTitlePart(data.authorEmail);
-    const requestedTitle = sanitizeDocumentTitlePart(data.title);
-    const titleSuffix = authorName || authorEmail || `Guest ${publicSessionId.slice(0, 8)}`;
-    const documentTitle = requestedTitle || `${task.name} Submission - ${titleSuffix}`;
-    const content = createLexicalContentFromPlainText(plainText);
-
-    const document = await DocumentModel.create({
-      userId: guestUser.id,
-      title: documentTitle,
-      description: [
-        authorName ? `Author name: ${authorName}` : null,
-        authorEmail ? `Author email: ${authorEmail}` : null,
-        `Public task share token submission.`,
-      ].filter(Boolean).join('\n'),
-      content,
-      plainText,
-      status: 'published',
-      wordCount: calculateWordCount(plainText),
-      characterCount: plainText.length,
-      environmentConfig: task.environmentConfig || null,
-    });
-
-    await TaskModel.linkSubmissionDocument(task.id, guestUser.id, document.id);
-    const latestSubmission = await SubmissionModel.findLatestForUserTask(task.id, guestUser.id);
-    await SubmissionModel.markHistoricalForUserTask(task.id, guestUser.id);
-
-    const submission = await SubmissionModel.create({
-      taskId: task.id,
-      userId: guestUser.id,
-      documentId: document.id,
-      payloadSnapshot: {
-        ...content,
-        publicSubmission: {
-          sessionId: publicSessionId,
-          authorName: authorName || null,
-          authorEmail: authorEmail || null,
-        },
-      },
-      plainTextSnapshot: plainText,
-      supersedesSubmissionId: latestSubmission?.id || null,
-      status: 'active',
-    });
-
-    await this.invalidateAnalytics(task.id);
-
-    return {
-      task: {
-        id: task.id,
-        name: task.name,
-      },
-      document: {
-        id: document.id,
-        title: document.title,
-      },
-      submission,
-      publicSessionId,
-    };
-  }
-
   static async listTaskSubmissions(taskId: string, adminUserId: string, enrolledUserId?: string) {
     const task = await TaskModel.findById(taskId);
 
@@ -907,6 +846,14 @@ export class TaskService {
     if (task.userId !== userId) {
       throw new AppError(403, 'Access denied to this task');
     }
+
+    const nextStartDate = data.startDate ?? task.startDate;
+    const nextEndDate = data.endDate ?? task.endDate;
+
+    if (data.startDate && !areDatesInSameMinute(data.startDate, task.startDate)) {
+      assertTaskStartDateNotInPast(data.startDate);
+    }
+    assertTaskEndDateAfterStartDate(nextStartDate, nextEndDate);
 
     logger.info('Updating task', { taskId, userId });
 

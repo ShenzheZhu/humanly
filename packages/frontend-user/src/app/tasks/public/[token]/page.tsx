@@ -12,15 +12,18 @@ import { useAuthStore, type User } from '@/stores/auth-store';
 import { getUserDisplayLabel, isGuestUserEmail } from '@/components/navigation/user-display';
 
 type PublicTaskStartMode = 'guest' | 'signed-in';
+type PublicTaskAvailabilityStatus = 'scheduled' | 'open' | 'ended';
 
 interface PublicTaskResponse {
   success: boolean;
   data: {
     task: {
-      id: string;
       name: string;
-      description?: string | null;
-      allowGuestSubmissions?: boolean;
+      description: string | null;
+      startDate: string;
+      endDate: string;
+      allowGuestSubmissions: boolean;
+      availabilityStatus: PublicTaskAvailabilityStatus;
     };
   };
 }
@@ -79,6 +82,8 @@ export default function PublicTaskDocumentStartPage() {
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const allowGuestSubmissions = task?.allowGuestSubmissions !== false;
+  const availabilityStatus = task?.availabilityStatus || 'open';
+  const isTaskOpen = availabilityStatus === 'open';
   const sharePath = getSafeSharePath(token);
   const loginHref = `/login?next=${encodeURIComponent(sharePath)}`;
   const registerHref = `/register?next=${encodeURIComponent(sharePath)}`;
@@ -118,6 +123,14 @@ export default function PublicTaskDocumentStartPage() {
 
   const startDocument = useCallback(async (mode: PublicTaskStartMode) => {
     if (!token) return;
+    if (!isTaskOpen) {
+      setError(
+        availabilityStatus === 'scheduled'
+          ? 'This task is not open for submissions yet.'
+          : 'The submission deadline has passed.'
+      );
+      return;
+    }
     if (mode === 'guest' && !allowGuestSubmissions) {
       setError('Guest submissions are not enabled for this task link.');
       return;
@@ -152,7 +165,7 @@ export default function PublicTaskDocumentStartPage() {
       setError(apiError.message || 'This task link is unavailable.');
       setIsStarting(false);
     }
-  }, [allowGuestSubmissions, loginHref, router, signedInUser, token]);
+  }, [allowGuestSubmissions, availabilityStatus, isTaskOpen, loginHref, router, signedInUser, token]);
 
   useEffect(() => {
     void loadTask();
@@ -163,7 +176,7 @@ export default function PublicTaskDocumentStartPage() {
   }, [checkSignedInStatus]);
 
   useEffect(() => {
-    if (!task || isCheckingAuth || isLoadingTask || hasStartedRef.current) return;
+    if (!task || isCheckingAuth || isLoadingTask || hasStartedRef.current || !isTaskOpen) return;
     if (allowGuestSubmissions) return;
 
     if (!signedInUser) {
@@ -175,6 +188,7 @@ export default function PublicTaskDocumentStartPage() {
     void startDocument('signed-in');
   }, [
     allowGuestSubmissions,
+    isTaskOpen,
     isCheckingAuth,
     isLoadingTask,
     loginHref,
@@ -191,7 +205,7 @@ export default function PublicTaskDocumentStartPage() {
   };
 
   const isInitializing = isLoadingTask || isCheckingAuth;
-  const isRedirectingToAuth = task && !allowGuestSubmissions && !signedInUser && !isInitializing;
+  const isRedirectingToAuth = task && isTaskOpen && !allowGuestSubmissions && !signedInUser && !isInitializing;
   const heading = error
     ? 'Task link unavailable'
     : isStarting || isRedirectingToAuth
@@ -242,58 +256,76 @@ export default function PublicTaskDocumentStartPage() {
           <div className="space-y-4 rounded-lg border border-border/70 bg-card p-5">
             <div>
               <p className="text-sm text-muted-foreground">
-                Choose how you want to write this submission.
+                {isTaskOpen
+                  ? 'Choose how you want to write this submission.'
+                  : availabilityStatus === 'scheduled'
+                    ? 'This task is not open for submissions yet.'
+                    : 'The submission deadline has passed.'}
               </p>
               {task.description ? (
                 <p className="mt-2 text-sm text-foreground">{task.description}</p>
               ) : null}
             </div>
 
-            <div className="grid gap-3">
-              {signedInUser ? (
-                <Button
-                  type="button"
-                  className="h-12 w-full justify-start rounded-md"
-                  onClick={() => {
-                    hasStartedRef.current = true;
-                    void startDocument('signed-in');
-                  }}
-                >
-                  <UserRound className="mr-3 h-4 w-4" />
-                  Continue as {signedInUser.name?.trim() || getUserDisplayLabel(signedInUser.email)}
-                </Button>
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Button asChild className="h-12 rounded-md">
-                    <Link href={loginHref}>
-                      <LogIn className="mr-2 h-4 w-4" />
-                      Sign in
-                    </Link>
+            {isTaskOpen ? (
+              <div className="grid gap-3">
+                {signedInUser ? (
+                  <Button
+                    type="button"
+                    className="h-12 w-full justify-start rounded-md"
+                    onClick={() => {
+                      hasStartedRef.current = true;
+                      void startDocument('signed-in');
+                    }}
+                  >
+                    <UserRound className="mr-3 h-4 w-4" />
+                    Continue as {signedInUser.name?.trim() || getUserDisplayLabel(signedInUser.email)}
                   </Button>
-                  <Button asChild variant="outline" className="h-12 rounded-md">
-                    <Link href={registerHref}>
-                      <UserRound className="mr-2 h-4 w-4" />
-                      Create account
-                    </Link>
-                  </Button>
-                </div>
-              )}
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Button asChild className="h-12 rounded-md">
+                      <Link href={loginHref}>
+                        <LogIn className="mr-2 h-4 w-4" />
+                        Sign in
+                      </Link>
+                    </Button>
+                    <Button asChild variant="outline" className="h-12 rounded-md">
+                      <Link href={registerHref}>
+                        <UserRound className="mr-2 h-4 w-4" />
+                        Create account
+                      </Link>
+                    </Button>
+                  </div>
+                )}
 
-              {allowGuestSubmissions ? (
-                <Button
-                  type="button"
-                  variant={signedInUser ? 'outline' : 'secondary'}
-                  className="h-12 w-full justify-start rounded-md"
-                  onClick={() => {
-                    hasStartedRef.current = true;
-                    void startDocument('guest');
-                  }}
-                >
-                  <FileText className="mr-3 h-4 w-4" />
-                  Continue as guest
-                </Button>
-              ) : null}
-            </div>
+                {allowGuestSubmissions ? (
+                  <Button
+                    type="button"
+                    variant={signedInUser ? 'outline' : 'secondary'}
+                    className="h-12 w-full justify-start rounded-md"
+                    onClick={() => {
+                      hasStartedRef.current = true;
+                      void startDocument('guest');
+                    }}
+                  >
+                    <FileText className="mr-3 h-4 w-4" />
+                    Continue as guest
+                  </Button>
+                ) : null}
+              </div>
+            ) : (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>
+                  {availabilityStatus === 'scheduled' ? 'Task not open yet' : 'Task ended'}
+                </AlertTitle>
+                <AlertDescription>
+                  {availabilityStatus === 'scheduled'
+                    ? 'Return after the task begins to start writing from this link.'
+                    : 'This share link no longer accepts new writing sessions.'}
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
         ) : (
           <div className="flex justify-center">

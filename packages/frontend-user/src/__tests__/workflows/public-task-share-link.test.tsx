@@ -67,10 +67,12 @@ describe('public task share link workflow', () => {
       success: true,
       data: {
         task: {
-          id: 'task-1',
           name: 'Public Reflection',
-          description: null,
+          description: 'Write a short reflection.',
+          startDate: new Date(Date.now() - 60_000).toISOString(),
+          endDate: new Date(Date.now() + 60_000).toISOString(),
           allowGuestSubmissions: true,
+          availabilityStatus: 'open',
         },
       },
     });
@@ -96,6 +98,7 @@ describe('public task share link workflow', () => {
     render(<PublicTaskDocumentStartPage />);
 
     expect(await screen.findByRole('heading', { name: 'Public Reflection' })).toBeInTheDocument();
+    expect(screen.getByText('Write a short reflection.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /sign in/i })).toHaveAttribute(
       'href',
       '/login?next=%2Ftasks%2Fpublic%2Fshare-token-123'
@@ -171,8 +174,11 @@ describe('public task share link workflow', () => {
       success: true,
       data: {
         task: {
-          id: 'task-1',
           name: 'Private Reflection',
+          description: null,
+          startDate: new Date(Date.now() - 60_000).toISOString(),
+          endDate: new Date(Date.now() + 60_000).toISOString(),
+          availabilityStatus: 'open',
           allowGuestSubmissions: false,
         },
       },
@@ -198,8 +204,11 @@ describe('public task share link workflow', () => {
       success: true,
       data: {
         task: {
-          id: 'task-1',
           name: 'Private Reflection',
+          description: null,
+          startDate: new Date(Date.now() - 60_000).toISOString(),
+          endDate: new Date(Date.now() + 60_000).toISOString(),
+          availabilityStatus: 'open',
           allowGuestSubmissions: false,
         },
       },
@@ -229,5 +238,54 @@ describe('public task share link workflow', () => {
         { skipAuthRedirect: true }
       );
     });
+  });
+
+  it('shows scheduled tasks without start actions', async () => {
+    mockApiGet.mockResolvedValueOnce({
+      success: true,
+      data: {
+        task: {
+          name: 'Scheduled Reflection',
+          description: 'Come back later.',
+          startDate: new Date(Date.now() + 60_000).toISOString(),
+          endDate: new Date(Date.now() + 120_000).toISOString(),
+          allowGuestSubmissions: true,
+          availabilityStatus: 'scheduled',
+        },
+      },
+    });
+
+    render(<PublicTaskDocumentStartPage />);
+
+    expect(await screen.findByRole('heading', { name: 'Scheduled Reflection' })).toBeInTheDocument();
+    expect(screen.getByText('This task is not open for submissions yet.')).toBeInTheDocument();
+    expect(screen.getByText('Come back later.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /continue as guest/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /sign in/i })).not.toBeInTheDocument();
+    expect(mockApiPost).not.toHaveBeenCalled();
+  });
+
+  it('shows ended tasks without start actions', async () => {
+    mockApiGet.mockResolvedValueOnce({
+      success: true,
+      data: {
+        task: {
+          name: 'Ended Reflection',
+          description: null,
+          startDate: new Date(Date.now() - 120_000).toISOString(),
+          endDate: new Date(Date.now() - 60_000).toISOString(),
+          allowGuestSubmissions: true,
+          availabilityStatus: 'ended',
+        },
+      },
+    });
+
+    render(<PublicTaskDocumentStartPage />);
+
+    expect(await screen.findByRole('heading', { name: 'Ended Reflection' })).toBeInTheDocument();
+    expect(screen.getByText('The submission deadline has passed.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /continue as guest/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /sign in/i })).not.toBeInTheDocument();
+    expect(mockApiPost).not.toHaveBeenCalled();
   });
 });

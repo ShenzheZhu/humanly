@@ -73,8 +73,10 @@ import {
   AI_SHORTCUT_MAX_TOKENS_DEFAULT,
   SUBMISSION_MAX_CHARACTERS_MAX,
   SUBMISSION_MIN_CHARACTERS_MAX,
+  TASK_START_DATE_PAST_ERROR_MESSAGE,
   WRITING_AI_MODELS,
   WRITING_ENVIRONMENT_PRESETS,
+  isTaskStartDateTooFarInPast,
   normalizeCopyPastePolicy,
   validateWritingEnvironmentImportTemplate,
   type Task,
@@ -116,6 +118,10 @@ const USE_EXISTING_AI_KEY = '__use_existing__';
 const IMPORT_ENVIRONMENT_VALUE = 'import_environment';
 const DEFAULT_TASK_WINDOW_DAYS = 14;
 const UNLIMITED_TASK_WINDOW_YEARS = 100;
+
+const isLocalStartDateTooFarInPast = (value?: string): boolean => (
+  !!value && isTaskStartDateTooFarInPast(localDateTimeInputToISOString(value))
+);
 
 const fallbackWritingModels = () => (
   WRITING_AI_MODELS.filter((model) => model !== 'Custom models')
@@ -253,7 +259,14 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
   };
 };
 
-const getDefaultEndDate = () => new Date(Date.now() + DEFAULT_TASK_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+const getDefaultTaskWindowValues = (startDate = new Date()) => {
+  const endDate = new Date(startDate.getTime() + DEFAULT_TASK_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+
+  return {
+    startDate: toLocalDateTimeInputValue(startDate),
+    endDate: toLocalDateTimeInputValue(endDate),
+  };
+};
 
 const formatTaskWindowDate = (value?: string) => formatDateTime(value);
 
@@ -276,10 +289,12 @@ export default function NewTaskPage() {
   const [timeWindowDialogOpen, setTimeWindowDialogOpen] = useState(false);
   const [writingTimeLimitMinutesInput, setWritingTimeLimitMinutesInput] = useState('60');
   const [allowGuestSubmissions, setAllowGuestSubmissions] = useState(true);
+  const [timeWindowTouched, setTimeWindowTouched] = useState(false);
   const [environmentSelection, setEnvironmentSelection] = useState<EnvironmentSelection>('default_writing');
   const [environmentConfig, setEnvironmentConfig] = useState<WritingEnvironmentConfig>(
     getAdminEnvironmentConfig('default_writing')
   );
+  const initialDefaultTaskWindow = useMemo(() => getDefaultTaskWindowValues(), []);
 
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
@@ -287,8 +302,8 @@ export default function NewTaskPage() {
       name: '',
       description: '',
       aiUsageLimit: 100,
-      startDate: toLocalDateTimeInputValue(new Date()),
-      endDate: toLocalDateTimeInputValue(getDefaultEndDate()),
+      startDate: initialDefaultTaskWindow.startDate,
+      endDate: initialDefaultTaskWindow.endDate,
     },
   });
 
@@ -296,6 +311,33 @@ export default function NewTaskPage() {
   const watchedStartDate = form.watch('startDate');
   const watchedEndDate = form.watch('endDate');
   const localTimeZoneLabel = getLocalTimeZoneLabel();
+
+  const validateStartDateWithinCreateWindow = (startDate?: string): boolean => {
+    if (!timeLimitEnabled || !startDate) {
+      form.clearErrors('startDate');
+      return true;
+    }
+
+    if (isLocalStartDateTooFarInPast(startDate)) {
+      setTimeWindowDialogOpen(true);
+      form.setError('startDate', {
+        type: 'validate',
+        message: TASK_START_DATE_PAST_ERROR_MESSAGE,
+      });
+      return false;
+    }
+
+    form.clearErrors('startDate');
+    return true;
+  };
+
+  const setDefaultTaskWindow = () => {
+    const defaultWindow = getDefaultTaskWindowValues();
+    form.setValue('startDate', defaultWindow.startDate, { shouldDirty: false });
+    form.setValue('endDate', defaultWindow.endDate, { shouldDirty: false });
+    setTimeWindowTouched(false);
+    return defaultWindow;
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -405,8 +447,7 @@ export default function NewTaskPage() {
     form.setValue('aiUsageLimit', config.aiUsageLimit.maxRequests || 100);
     if (preset === 'default_writing') {
       setTimeLimitEnabled(true);
-      form.setValue('startDate', toLocalDateTimeInputValue(new Date()));
-      form.setValue('endDate', toLocalDateTimeInputValue(getDefaultEndDate()));
+      setDefaultTaskWindow();
     }
   };
 
@@ -639,6 +680,17 @@ export default function NewTaskPage() {
     try {
       setError(null);
 
+      const submittedData = timeLimitEnabled && !timeWindowTouched
+        ? {
+            ...data,
+            ...setDefaultTaskWindow(),
+          }
+        : data;
+
+      if (!validateStartDateWithinCreateWindow(submittedData.startDate)) {
+        throw new Error(TASK_START_DATE_PAST_ERROR_MESSAGE);
+      }
+
       if (aiAccess !== 'off') {
         if (!aiApiKey.trim() && !hasExistingAiKey) {
           throw new Error('Enter an AI API key before creating an AI-enabled task.');
@@ -668,7 +720,7 @@ export default function NewTaskPage() {
       const resolvedAiProvider = aiAccess === 'off'
         ? undefined
         : resolveAiProviderConfig(selectedAiModel, aiBaseUrl, environmentConfig.aiProvider);
-      if (timeLimitEnabled && (!data.startDate || !data.endDate)) {
+      if (timeLimitEnabled && (!submittedData.startDate || !submittedData.endDate)) {
         throw new Error('Select both start and end time when Time is on.');
       }
 
@@ -676,11 +728,11 @@ export default function NewTaskPage() {
       const fallbackEnd = new Date(fallbackStart);
       fallbackEnd.setFullYear(fallbackEnd.getFullYear() + UNLIMITED_TASK_WINDOW_YEARS);
 
-      const startTime = timeLimitEnabled && data.startDate
-        ? localDateTimeInputToISOString(data.startDate)
+      const startTime = timeLimitEnabled && submittedData.startDate
+        ? localDateTimeInputToISOString(submittedData.startDate)
         : fallbackStart.toISOString();
-      const endTime = timeLimitEnabled && data.endDate
-        ? localDateTimeInputToISOString(data.endDate)
+      const endTime = timeLimitEnabled && submittedData.endDate
+        ? localDateTimeInputToISOString(submittedData.endDate)
         : fallbackEnd.toISOString();
       const configStartTime = timeLimitEnabled ? startTime : undefined;
       const configEndTime = timeLimitEnabled ? endTime : undefined;
@@ -693,11 +745,11 @@ export default function NewTaskPage() {
 
       // Clean up the data - remove empty strings for optional fields
       const payload = {
-        name: data.name,
-        description: data.description || undefined,
+        name: submittedData.name,
+        description: submittedData.description || undefined,
         userIdKey: 'userId',
         allowedLlmModels: allowedModels.length ? allowedModels : undefined,
-        aiUsageLimit: data.aiUsageLimit,
+        aiUsageLimit: submittedData.aiUsageLimit,
         startDate: startTime,
         endDate: endTime,
         allowGuestSubmissions,
@@ -1351,10 +1403,22 @@ export default function NewTaskPage() {
                                         Task Start Date <span className="text-destructive">*</span>
                                       </FormLabel>
                                       <FormControl>
-                                        <Input type="datetime-local" {...field} disabled={isSubmitting} />
+                                        <Input
+                                          type="datetime-local"
+                                          {...field}
+                                          disabled={isSubmitting}
+                                          onChange={(event) => {
+                                            setTimeWindowTouched(true);
+                                            field.onChange(event);
+                                          }}
+                                          onBlur={(event) => {
+                                            field.onBlur();
+                                            validateStartDateWithinCreateWindow(event.target.value);
+                                          }}
+                                        />
                                       </FormControl>
                                       <FormDescription>
-                                        Shown in your local timezone.
+                                        Shown in your local timezone: {localTimeZoneLabel}.
                                       </FormDescription>
                                       <FormMessage />
                                     </FormItem>
@@ -1370,10 +1434,18 @@ export default function NewTaskPage() {
                                         Task End Date <span className="text-destructive">*</span>
                                       </FormLabel>
                                       <FormControl>
-                                        <Input type="datetime-local" {...field} disabled={isSubmitting} />
+                                        <Input
+                                          type="datetime-local"
+                                          {...field}
+                                          disabled={isSubmitting}
+                                          onChange={(event) => {
+                                            setTimeWindowTouched(true);
+                                            field.onChange(event);
+                                          }}
+                                        />
                                       </FormControl>
                                       <FormDescription>
-                                        Defaults to two weeks after the start time.
+                                        Defaults to two weeks after the start time. Shown in your local timezone: {localTimeZoneLabel}.
                                       </FormDescription>
                                       <FormMessage />
                                     </FormItem>

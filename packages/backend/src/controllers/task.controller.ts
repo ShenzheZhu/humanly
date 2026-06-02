@@ -9,19 +9,35 @@ import {
   updateTaskSchema,
   validate,
 } from '@humanly/shared';
+import type { Task } from '@humanly/shared';
 
 const publicTaskStartSchema = z.object({
   sessionId: z.string().max(128).optional().or(z.literal('')),
   mode: z.enum(['guest', 'signed-in']).optional(),
 });
 
-const publicTaskSubmissionSchema = z.object({
-  title: z.string().max(255).optional().or(z.literal('')),
-  authorName: z.string().max(120).optional().or(z.literal('')),
-  authorEmail: z.string().email().max(255).optional().or(z.literal('')),
-  plainText: z.string().min(1, 'Document text is required').max(200_000),
-  sessionId: z.string().max(128).optional().or(z.literal('')),
-});
+type PublicTaskAvailabilityStatus = 'scheduled' | 'open' | 'ended';
+
+function getPublicTaskAvailabilityStatus(task: Task): PublicTaskAvailabilityStatus {
+  const now = Date.now();
+  const startMs = new Date(task.startDate).getTime();
+  const endMs = new Date(task.endDate).getTime();
+
+  if (Number.isFinite(startMs) && now < startMs) return 'scheduled';
+  if (Number.isFinite(endMs) && now > endMs) return 'ended';
+  return 'open';
+}
+
+function serializePublicTaskPreview(task: Task) {
+  return {
+    name: task.name,
+    description: task.description,
+    startDate: task.startDate,
+    endDate: task.endDate,
+    allowGuestSubmissions: task.allowGuestSubmissions,
+    availabilityStatus: getPublicTaskAvailabilityStatus(task),
+  };
+}
 
 /**
  * Create a new task
@@ -75,16 +91,7 @@ export async function getPublicTask(req: Request, res: Response): Promise<void> 
   res.json({
     success: true,
     data: {
-      task: {
-        id: task.id,
-        name: task.name,
-        description: task.description,
-        startDate: task.startDate,
-        endDate: task.endDate,
-        environmentConfig: task.environmentConfig,
-        allowGuestSubmissions: task.allowGuestSubmissions,
-        isActive: task.isActive,
-      },
+      task: serializePublicTaskPreview(task),
     },
   });
 }
@@ -141,7 +148,7 @@ export async function startPublicTaskDocument(req: Request, res: Response): Prom
 }
 
 /**
- * Submit a task document from a public share link.
+ * Direct public submissions are disabled; public writers must start a document first.
  */
 export async function submitPublicTaskDocument(req: Request, res: Response): Promise<void> {
   const taskToken = req.params.token;
@@ -150,13 +157,10 @@ export async function submitPublicTaskDocument(req: Request, res: Response): Pro
     throw new AppError(400, 'Task token is required');
   }
 
-  const data = validate(publicTaskSubmissionSchema, req.body);
-  const result = await TaskService.submitPublicTaskDocument(taskToken, data);
-
-  res.status(201).json({
-    success: true,
-    data: result,
-    message: 'Task document submitted successfully',
+  res.status(410).json({
+    success: false,
+    error: 'Direct public submissions are no longer supported. Start the task document first.',
+    message: 'Direct public submissions are no longer supported. Start the task document first.',
   });
 }
 

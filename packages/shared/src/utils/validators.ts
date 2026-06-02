@@ -13,6 +13,23 @@ import type {
   WritingTaskType,
 } from '../types/environment.types';
 
+export const TASK_START_DATE_PAST_GRACE_MS = 2 * 60 * 1000;
+export const TASK_START_DATE_PAST_ERROR_MESSAGE = 'Task start date cannot be in the past.';
+
+export const isTaskStartDateTooFarInPast = (
+  startDate: Date | string | number,
+  now: Date | string | number = new Date()
+): boolean => {
+  const startMs = new Date(startDate).getTime();
+  const nowMs = new Date(now).getTime();
+
+  if (!Number.isFinite(startMs) || !Number.isFinite(nowMs)) {
+    return false;
+  }
+
+  return startMs < nowMs - TASK_START_DATE_PAST_GRACE_MS;
+};
+
 const writingSubmissionConfigSchema = z.object({
   mode: z.enum(['single', 'multiple']),
   minCharacters: z.number().int().min(1).max(SUBMISSION_MIN_CHARACTERS_MAX).optional(),
@@ -255,6 +272,9 @@ export const createTaskSchema = z.object({
   endDate: z.coerce.date(),
   environmentConfig: writingEnvironmentConfigSchema.optional(),
   allowGuestSubmissions: z.boolean().optional(),
+}).refine((data) => !isTaskStartDateTooFarInPast(data.startDate), {
+  message: TASK_START_DATE_PAST_ERROR_MESSAGE,
+  path: ['startDate'],
 }).refine((data) => data.endDate > data.startDate, {
   message: 'Task end date must be after start date',
   path: ['endDate'],

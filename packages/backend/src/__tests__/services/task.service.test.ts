@@ -65,7 +65,7 @@ function makeTask(overrides: Partial<any> = {}): any {
     allowedLlmModels: ['GPT-4o mini'],
     aiUsageLimit: 100,
     startDate: new Date(),
-    endDate: new Date(),
+    endDate: new Date(Date.now() + 60_000),
     environmentConfig: null,
     allowGuestSubmissions: true,
     isActive: true,
@@ -586,148 +586,130 @@ describe('TaskService.updateTask active state', () => {
   });
 });
 
-describe('TaskService.submitPublicTaskDocument', () => {
-  it('creates a guest document and task submission for a public share link', async () => {
-    const task = makeTask({
-      taskToken: 'share-token-1',
-      startDate: new Date(Date.now() - 60_000),
-      endDate: new Date(Date.now() + 60_000),
-    });
-    const document = makeDocument({
-      id: 'public-doc-1',
-      userId: 'guest-user-1',
-      title: 'Public Essay',
-      plainText: 'A public submission body.',
-      characterCount: 25,
-    });
-    const submission = makeSubmission({
-      id: 'public-submission-1',
-      userId: 'guest-user-1',
-      documentId: 'public-doc-1',
-      plainTextSnapshot: 'A public submission body.',
-    });
-
-    MockTaskModel.findByToken.mockResolvedValue(task);
-    MockUserModel.findByEmail.mockResolvedValue({
-      id: 'guest-user-1',
-      email: 'public-task-1-browser-session-1@guest.humanly.local',
-      role: 'user',
-      passwordHash: 'hash',
-      emailVerified: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-    MockTaskModel.enrollUser.mockResolvedValue(undefined);
-    MockDocumentModel.create.mockResolvedValue(document);
-    MockTaskModel.linkSubmissionDocument.mockResolvedValue(true);
-    MockSubmissionModel.findLatestForUserTask.mockResolvedValue(null);
-    MockSubmissionModel.markHistoricalForUserTask.mockResolvedValue(undefined);
-    MockSubmissionModel.create.mockResolvedValue(submission);
-
-    const result = await TaskService.submitPublicTaskDocument('share-token-1', {
-      title: 'Public Essay',
-      authorName: 'Guest Writer',
-      authorEmail: 'guest@example.com',
-      plainText: 'A public submission body.',
-      sessionId: 'browser-session-1',
-    });
-
-    expect(result.submission.id).toBe('public-submission-1');
-    expect(MockTaskModel.findByToken).toHaveBeenCalledWith('share-token-1');
-    expect(MockTaskModel.enrollUser).toHaveBeenCalledWith('task-1', 'guest-user-1');
-    expect(MockDocumentModel.create).toHaveBeenCalledWith(expect.objectContaining({
-      userId: 'guest-user-1',
-      title: 'Public Essay',
-      plainText: 'A public submission body.',
-      status: 'published',
-      wordCount: 4,
-      characterCount: 25,
-    }));
-    expect(MockSubmissionModel.create).toHaveBeenCalledWith(expect.objectContaining({
-      taskId: 'task-1',
-      userId: 'guest-user-1',
-      documentId: 'public-doc-1',
-      plainTextSnapshot: 'A public submission body.',
-      status: 'active',
-    }));
-    expect(mockCacheDelPattern).toHaveBeenCalledWith('analytics:task-1:*');
+describe('TaskService task time window validation', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-06-02T12:00:00.000Z'));
+    MockTaskModel.create.mockReset();
+    MockTaskModel.findById.mockReset();
+    MockTaskModel.update.mockReset();
   });
 
-  it('rejects a public submission below the configured minimum character count', async () => {
-    MockTaskModel.findByToken.mockResolvedValue(makeTask({
-      startDate: new Date(Date.now() - 60_000),
-      endDate: new Date(Date.now() + 60_000),
-      environmentConfig: {
-        submission: {
-          mode: 'multiple',
-          minCharacters: 50,
-        },
-      },
-    }));
+  afterEach(() => {
+    jest.useRealTimers();
+  });
 
-    await expect(
-      TaskService.submitPublicTaskDocument('share-token-1', {
-        plainText: 'Too short',
-        sessionId: 'browser-session-1',
-      })
-    ).rejects.toMatchObject({
+  it('rejects create task start dates outside the grace window', async () => {
+    await expect(TaskService.createTask('admin-1', {
+      name: 'Past task',
+      startDate: new Date('2026-06-02T11:57:59.000Z'),
+      endDate: new Date('2026-06-03T12:00:00.000Z'),
+    })).rejects.toMatchObject({
       statusCode: 400,
-      message: 'Submission must be at least 50 characters. Current length is 9 characters.',
+      message: 'Task start date cannot be in the past.',
     });
 
-    expect(MockUserModel.findByEmail).not.toHaveBeenCalled();
-    expect(MockDocumentModel.create).not.toHaveBeenCalled();
-    expect(MockSubmissionModel.create).not.toHaveBeenCalled();
+    expect(MockTaskModel.create).not.toHaveBeenCalled();
   });
 
-  it('rejects a public submission above the configured maximum character count', async () => {
-    MockTaskModel.findByToken.mockResolvedValue(makeTask({
-      startDate: new Date(Date.now() - 60_000),
-      endDate: new Date(Date.now() + 60_000),
-      environmentConfig: {
-        submission: {
-          mode: 'multiple',
-          maxCharacters: 10,
-        },
-      },
+  it('allows create task start dates inside the two-minute grace window', async () => {
+    const startDate = new Date('2026-06-02T11:58:00.000Z');
+    const endDate = new Date('2026-06-03T12:00:00.000Z');
+    MockTaskModel.create.mockResolvedValue(makeTask({ startDate, endDate }));
+
+    const task = await TaskService.createTask('admin-1', {
+      name: 'Immediate task',
+      startDate,
+      endDate,
+    });
+
+    expect(task.startDate).toEqual(startDate);
+    expect(MockTaskModel.create).toHaveBeenCalledWith('admin-1', {
+      name: 'Immediate task',
+      startDate,
+      endDate,
+    });
+  });
+
+  it('allows preserving an existing past start date while saving other task settings', async () => {
+    const existingTask = makeTask({
+      startDate: new Date('2026-06-02T10:00:30.000Z'),
+      endDate: new Date('2026-06-03T12:00:00.000Z'),
+    });
+    const updatedTask = makeTask({
+      ...existingTask,
+      name: 'Updated name',
+      startDate: new Date('2026-06-02T10:00:00.000Z'),
+    });
+    const updatePayload = {
+      name: 'Updated name',
+      startDate: new Date('2026-06-02T10:00:00.000Z'),
+      endDate: existingTask.endDate,
+    };
+
+    MockTaskModel.findById.mockResolvedValue(existingTask);
+    MockTaskModel.update.mockResolvedValue(updatedTask);
+
+    const task = await TaskService.updateTask('task-1', 'admin-1', updatePayload);
+
+    expect(task.name).toBe('Updated name');
+    expect(MockTaskModel.update).toHaveBeenCalledWith('task-1', updatePayload);
+  });
+
+  it('rejects changing a task start date into the past', async () => {
+    MockTaskModel.findById.mockResolvedValue(makeTask({
+      startDate: new Date('2026-06-02T10:00:00.000Z'),
+      endDate: new Date('2026-06-03T12:00:00.000Z'),
     }));
 
-    await expect(
-      TaskService.submitPublicTaskDocument('share-token-1', {
-        plainText: 'This is too long',
-        sessionId: 'browser-session-1',
-      })
-    ).rejects.toMatchObject({
+    await expect(TaskService.updateTask('task-1', 'admin-1', {
+      startDate: new Date('2026-06-02T11:00:00.000Z'),
+      endDate: new Date('2026-06-03T12:00:00.000Z'),
+    })).rejects.toMatchObject({
       statusCode: 400,
-      message: 'Submission must be at most 10 characters. Current length is 16 characters.',
+      message: 'Task start date cannot be in the past.',
     });
 
-    expect(MockUserModel.findByEmail).not.toHaveBeenCalled();
-    expect(MockDocumentModel.create).not.toHaveBeenCalled();
-    expect(MockSubmissionModel.create).not.toHaveBeenCalled();
+    expect(MockTaskModel.update).not.toHaveBeenCalled();
   });
 
-  it('rejects unauthenticated public submissions when guest submissions are disabled', async () => {
-    MockTaskModel.findByToken.mockResolvedValue(makeTask({
-      taskToken: 'share-token-1',
-      startDate: new Date(Date.now() - 60_000),
-      endDate: new Date(Date.now() + 60_000),
-      allowGuestSubmissions: false,
-    }));
-
-    await expect(
-      TaskService.submitPublicTaskDocument('share-token-1', {
-        plainText: 'A public submission body.',
-        sessionId: 'browser-session-1',
-      })
-    ).rejects.toMatchObject({
-      statusCode: 403,
-      message: 'Guest submissions are not enabled for this task link',
+  it('allows changing a task start date into the future', async () => {
+    const existingTask = makeTask({
+      startDate: new Date('2026-06-02T10:00:00.000Z'),
+      endDate: new Date('2026-06-03T12:00:00.000Z'),
+    });
+    const updatePayload = {
+      startDate: new Date('2026-06-02T13:00:00.000Z'),
+      endDate: new Date('2026-06-02T14:00:00.000Z'),
+    };
+    const updatedTask = makeTask({
+      ...existingTask,
+      ...updatePayload,
     });
 
-    expect(MockUserModel.findByEmail).not.toHaveBeenCalled();
-    expect(MockDocumentModel.create).not.toHaveBeenCalled();
-    expect(MockSubmissionModel.create).not.toHaveBeenCalled();
+    MockTaskModel.findById.mockResolvedValue(existingTask);
+    MockTaskModel.update.mockResolvedValue(updatedTask);
+
+    const task = await TaskService.updateTask('task-1', 'admin-1', updatePayload);
+
+    expect(task.startDate).toEqual(updatePayload.startDate);
+    expect(MockTaskModel.update).toHaveBeenCalledWith('task-1', updatePayload);
+  });
+
+  it('rejects task updates whose effective end date is not after the start date', async () => {
+    MockTaskModel.findById.mockResolvedValue(makeTask({
+      startDate: new Date('2026-06-02T13:00:00.000Z'),
+      endDate: new Date('2026-06-03T12:00:00.000Z'),
+    }));
+
+    await expect(TaskService.updateTask('task-1', 'admin-1', {
+      endDate: new Date('2026-06-02T13:00:00.000Z'),
+    })).rejects.toMatchObject({
+      statusCode: 400,
+      message: 'Task end date must be after start date',
+    });
+
+    expect(MockTaskModel.update).not.toHaveBeenCalled();
   });
 });
 

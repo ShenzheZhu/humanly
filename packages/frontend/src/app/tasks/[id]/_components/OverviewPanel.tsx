@@ -7,7 +7,7 @@ import { normalizeCopyPastePolicy, type Task } from '@humanly/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { buildTaskShareUrl } from '@/lib/certificate-url';
-import { formatDateTime } from '@/lib/utils';
+import { formatDateTime, getLocalTimeZoneLabel } from '@/lib/utils';
 
 import type { AdminSubmission, TaskStats } from './types';
 
@@ -95,6 +95,7 @@ export function OverviewPanel({
     : 'Allowed';
   const writingSessionSummary = formatWritingSessionLimit(task.environmentConfig?.time?.timeLimitSeconds);
   const characterBoundsSummary = formatCharacterBounds(task.environmentConfig?.submission);
+  const localTimeZoneLabel = getLocalTimeZoneLabel();
 
   const copyInviteCode = async () => {
     setCopyFeedback(null);
@@ -155,6 +156,9 @@ export function OverviewPanel({
         <CardHeader>
           <CardTitle>Task Overview</CardTitle>
           <CardDescription>Admin metadata, invite code, and writing-task settings</CardDescription>
+          <p className="text-xs text-muted-foreground">
+            Times shown in your local timezone: {localTimeZoneLabel}
+          </p>
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

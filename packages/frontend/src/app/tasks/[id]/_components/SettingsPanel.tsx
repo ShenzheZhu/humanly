@@ -24,7 +24,9 @@ import {
   DEFAULT_WRITING_ENVIRONMENT_CONFIG,
   SUBMISSION_MAX_CHARACTERS_MAX,
   SUBMISSION_MIN_CHARACTERS_MAX,
+  TASK_START_DATE_PAST_ERROR_MESSAGE,
   WRITING_AI_MODELS,
+  isTaskStartDateTooFarInPast,
   normalizeCopyPastePolicy,
   type Task,
   type UserAISettings,
@@ -39,6 +41,7 @@ import { MODEL_WHITELIST, getWhitelist } from '@/lib/ai-models';
 import { downloadBlob } from '@/lib/download';
 import {
   cn,
+  getLocalTimeZoneLabel,
   localDateTimeInputToISOString,
   toLocalDateTimeInputValue,
 } from '@/lib/utils';
@@ -107,6 +110,20 @@ const CUSTOM_MODEL_VALUE = '__custom_model__';
 const CUSTOM_PROVIDER_VALUE = '__custom_provider__';
 const USE_EXISTING_AI_KEY = '__use_existing__';
 const UNLIMITED_TASK_WINDOW_YEARS = 100;
+
+const toLocalDateInputMinute = (value: string): number => {
+  const valueMs = new Date(localDateTimeInputToISOString(value)).getTime();
+  return Number.isFinite(valueMs) ? Math.floor(valueMs / 60_000) : Number.NaN;
+};
+
+const areLocalDateInputsSameMinute = (left?: string, right?: string | null): boolean => {
+  if (!left || !right) return left === right;
+  return toLocalDateInputMinute(left) === toLocalDateInputMinute(right);
+};
+
+const isLocalStartDateTooFarInPast = (value?: string): boolean => (
+  !!value && isTaskStartDateTooFarInPast(localDateTimeInputToISOString(value))
+);
 
 const fallbackWritingModels = () => (
   WRITING_AI_MODELS.filter((model) => model !== 'Custom models')
@@ -388,6 +405,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
   const [aiConnectionResult, setAiConnectionResult] = useState<AiConnectionResult | null>(null);
   const [testedAiModels, setTestedAiModels] = useState<string[]>([]);
   const [timeLimitEnabled, setTimeLimitEnabled] = useState(false);
+  const [loadedStartDateInput, setLoadedStartDateInput] = useState<string | null>(null);
   const [writingTimeLimitMinutesInput, setWritingTimeLimitMinutesInput] = useState('60');
   const [allowGuestSubmissions, setAllowGuestSubmissions] = useState(true);
 
@@ -407,6 +425,30 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
   const selectedAiProvider = AI_PROVIDER_OPTIONS.some((option) => option.value === aiBaseUrl)
     ? aiBaseUrl
     : CUSTOM_PROVIDER_VALUE;
+
+  const validateStartDateWithinEditWindow = (startDate?: string): boolean => {
+    if (!timeLimitEnabled || !startDate) {
+      form.clearErrors('startDate');
+      return true;
+    }
+
+    if (areLocalDateInputsSameMinute(startDate, loadedStartDateInput)) {
+      form.clearErrors('startDate');
+      return true;
+    }
+
+    if (isLocalStartDateTooFarInPast(startDate)) {
+      setEnvironmentDialogOpen(true);
+      form.setError('startDate', {
+        type: 'validate',
+        message: TASK_START_DATE_PAST_ERROR_MESSAGE,
+      });
+      return false;
+    }
+
+    form.clearErrors('startDate');
+    return true;
+  };
 
   const aiModelOptions = useMemo(() => {
     const whitelist = getWhitelist(aiBaseUrl);
@@ -494,8 +536,15 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
           taskFromApi.aiUsageLimit ||
           100
         );
+        const startDateInput = mergedConfig.time.startTime || taskFromApi.startDate
+          ? toLocalDateTimeInputValue(mergedConfig.time.startTime || taskFromApi.startDate)
+          : toLocalDateTimeInputValue(new Date());
+        const endDateInput = mergedConfig.time.endTime || taskFromApi.endDate
+          ? toLocalDateTimeInputValue(mergedConfig.time.endTime || taskFromApi.endDate)
+          : toLocalDateTimeInputValue(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
 
         setTask(taskFromApi);
+        setLoadedStartDateInput(startDateInput);
         setAllowGuestSubmissions(taskFromApi.allowGuestSubmissions !== false);
         if (mergedConfig.aiProvider?.baseUrl) {
           setAiBaseUrl(mergedConfig.aiProvider.baseUrl);
@@ -518,12 +567,8 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
           name: taskFromApi.name,
           description: taskFromApi.description || '',
           aiUsageLimit: existingLimit,
-          startDate: mergedConfig.time.startTime || taskFromApi.startDate
-            ? toLocalDateTimeInputValue(mergedConfig.time.startTime || taskFromApi.startDate)
-            : toLocalDateTimeInputValue(new Date()),
-          endDate: mergedConfig.time.endTime || taskFromApi.endDate
-            ? toLocalDateTimeInputValue(mergedConfig.time.endTime || taskFromApi.endDate)
-            : toLocalDateTimeInputValue(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)),
+          startDate: startDateInput,
+          endDate: endDateInput,
         });
 
         await fetchInstructionFiles();
@@ -879,6 +924,10 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
       setIsSaving(true);
       setError(null);
 
+      if (!validateStartDateWithinEditWindow(data.startDate)) {
+        throw new Error(TASK_START_DATE_PAST_ERROR_MESSAGE);
+      }
+
       if (aiAccess !== 'off') {
         if (!aiApiKey.trim() && !hasExistingAiKey) {
           throw new Error('Enter an AI API key before saving an AI-enabled task.');
@@ -953,6 +1002,11 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
 
       setTask(response.data);
       setEnvironmentConfig(nextEnvironmentConfig);
+      setLoadedStartDateInput(
+        nextEnvironmentConfig.time.startTime || response.data.startDate
+          ? toLocalDateTimeInputValue(nextEnvironmentConfig.time.startTime || response.data.startDate)
+          : null
+      );
       onTaskUpdated?.(response.data);
       toast({
         title: uploadFailed ? 'Task settings saved' : 'Success',
@@ -1007,6 +1061,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
   }
 
   const isSubmitting = isSaving || isUploadingFiles;
+  const localTimeZoneLabel = getLocalTimeZoneLabel();
   const watchedStartDate = form.watch('startDate');
   const watchedEndDate = form.watch('endDate');
   const writingSessionMinutes = getTimeLimitMinutesValue(environmentConfig.time.timeLimitSeconds);
@@ -1492,7 +1547,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
 
               <AdminEnvironmentDialogSection
                 title="Task Availability"
-                description="Set the task availability window shown to enrolled users."
+                description={`Set the task availability window shown to enrolled users. Times are shown in your local timezone: ${localTimeZoneLabel}.`}
               >
                 <SettingRow label="Time">
                   <SegmentedControl
@@ -1516,8 +1571,19 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                         <FormItem>
                           <FormLabel>Task Start Date</FormLabel>
                           <FormControl>
-                            <Input type="datetime-local" {...field} disabled={isSubmitting} />
+                            <Input
+                              type="datetime-local"
+                              {...field}
+                              disabled={isSubmitting}
+                              onBlur={(event) => {
+                                field.onBlur();
+                                validateStartDateWithinEditWindow(event.target.value);
+                              }}
+                            />
                           </FormControl>
+                          <FormDescription>
+                            Shown in your local timezone: {localTimeZoneLabel}.
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1532,6 +1598,9 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                           <FormControl>
                             <Input type="datetime-local" {...field} disabled={isSubmitting} />
                           </FormControl>
+                          <FormDescription>
+                            Shown in your local timezone: {localTimeZoneLabel}.
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}

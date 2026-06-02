@@ -1,7 +1,8 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import NewTaskPage from '@/app/tasks/new/page';
+import { toLocalDateTimeInputValue } from '@/lib/utils';
 
 const mockPush = jest.fn();
 const mockToast = jest.fn();
@@ -137,6 +138,9 @@ describe('admin new task page', () => {
         target: { value: 'Two Week Draft' },
       });
     });
+
+    jest.setSystemTime(new Date('2026-05-19T16:01:45.000Z'));
+
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /^Create Task$/i }));
     });
@@ -162,6 +166,7 @@ describe('admin new task page', () => {
     expect(payload).toBeTruthy();
     const startDate = new Date(payload.startDate);
     const endDate = new Date(payload.endDate);
+    expect(payload.startDate).toBe('2026-05-19T16:01:00.000Z');
     expect(endDate.getTime() - startDate.getTime()).toBe(14 * 24 * 60 * 60 * 1000);
     expect(payload.environmentConfig.time.startTime).toBe(payload.startDate);
     expect(payload.environmentConfig.time.endTime).toBe(payload.endDate);
@@ -246,6 +251,45 @@ describe('admin new task page', () => {
     expect(payload.endDate).toBe(new Date('2026-06-15T17:45').toISOString());
     expect(payload.environmentConfig.time.startTime).toBe(payload.startDate);
     expect(payload.environmentConfig.time.endTime).toBe(payload.endDate);
+  });
+
+  it('shows a start date error and does not create when the start date is in the past', async () => {
+    render(<NewTaskPage />);
+
+    expect(await screen.findByRole('heading', { name: 'New Task' })).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Task Name/i), {
+        target: { value: 'Past Window Task' },
+      });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('option', { name: 'Custom' }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Edit Time Window/i }));
+    });
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Task Start Date/i), {
+        target: { value: toLocalDateTimeInputValue(new Date(Date.now() - 3 * 60 * 1000)) },
+      });
+    });
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Task End Date/i), {
+        target: { value: toLocalDateTimeInputValue(new Date(Date.now() + 24 * 60 * 60 * 1000)) },
+      });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Create Task$/i }));
+    });
+
+    const reopenedDialog = await screen.findByRole('dialog', { name: /task time window/i });
+    expect(within(reopenedDialog).getByText('Task start date cannot be in the past.')).toBeInTheDocument();
+    expect(mockApiPost).not.toHaveBeenCalledWith('/api/v1/tasks', expect.anything());
   });
 
   it('creates tasks with an optional writing session timer', async () => {
