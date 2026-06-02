@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticate, optionalAuth } from '../middleware/auth.middleware';
+import { authenticate, optionalAuth, requireRole } from '../middleware/auth.middleware';
 import { asyncHandler } from '../middleware/error-handler';
 import { createRateLimiter } from '../middleware/rate-limit';
 import {
@@ -26,6 +26,7 @@ import {
 } from '../controllers/task.controller';
 
 const router: Router = Router();
+const requireAdminRole = requireRole('admin');
 const publicTaskRateLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 120,
@@ -51,14 +52,14 @@ router.use(authenticate);
  * - limit: number (default: 20, max: 100)
  * - search: string (optional, searches name and description)
  */
-router.get('/', asyncHandler(listTasks));
+router.get('/', requireAdminRole, asyncHandler(listTasks));
 
 /**
  * POST /api/v1/tasks
  * Create a new task
  * Body: { name, description?, userIdKey?, externalServiceType?, externalServiceUrl? }
  */
-router.post('/', asyncHandler(createTask));
+router.post('/', requireAdminRole, asyncHandler(createTask));
 
 /**
  * POST /api/v1/tasks/join
@@ -106,49 +107,49 @@ router.post('/enrollments/:taskId/submissions', asyncHandler(submitTaskDocument)
  * GET /api/v1/tasks/:id/enrollments
  * List enrolled users for a task.
  */
-router.get('/:id/enrollments', asyncHandler(listTaskEnrollments));
+router.get('/:id/enrollments', requireAdminRole, asyncHandler(listTaskEnrollments));
 
 /**
  * GET /api/v1/tasks/:id/submissions
  * List submissions for a task. Optional query: userId.
  */
-router.get('/:id/submissions', asyncHandler(listTaskSubmissions));
+router.get('/:id/submissions', requireAdminRole, asyncHandler(listTaskSubmissions));
 
 /**
  * GET /api/v1/tasks/:id/submissions/:submissionId/events
  * Get document events up to the selected submission timestamp.
  */
-router.get('/:id/submissions/:submissionId/events', asyncHandler(getTaskSubmissionEvents));
+router.get('/:id/submissions/:submissionId/events', requireAdminRole, asyncHandler(getTaskSubmissionEvents));
 
 /**
  * GET /api/v1/tasks/:id
  * Get task details by ID
  */
-router.get('/:id', asyncHandler(getTask));
+router.get('/:id', requireAdminRole, asyncHandler(getTask));
 
 /**
  * PUT /api/v1/tasks/:id
  * Update task
  * Body: { name?, description?, userIdKey?, externalServiceType?, externalServiceUrl?, isActive? }
  */
-router.put('/:id', asyncHandler(updateTask));
+router.put('/:id', requireAdminRole, asyncHandler(updateTask));
 
 /**
  * DELETE /api/v1/tasks/:id
  * Delete task
  */
-router.delete('/:id', asyncHandler(deleteTask));
+router.delete('/:id', requireAdminRole, asyncHandler(deleteTask));
 
 /**
  * POST /api/v1/tasks/:id/regenerate-token
  * Regenerate task token
  */
-router.post('/:id/regenerate-token', asyncHandler(regenerateToken));
+router.post('/:id/regenerate-token', requireAdminRole, asyncHandler(regenerateToken));
 
 /**
  * GET /api/v1/tasks/:id/snippet
  * Get tracking snippets (JavaScript and iframe)
  */
-router.get('/:id/snippet', asyncHandler(getSnippets));
+router.get('/:id/snippet', requireAdminRole, asyncHandler(getSnippets));
 
 export default router;
