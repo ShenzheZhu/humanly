@@ -33,9 +33,10 @@ import { AIAssistantButton, AIAssistantPanel, AISelectionMenu, type ActionType }
 import { useAI } from '@/hooks/use-ai';
 import { useAIStore } from '@/stores/ai-store';
 import type { TrackedEvent } from '@humanly/editor';
-import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect, type ChangeEvent } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, type ChangeEvent } from 'react';
 import dynamic from 'next/dynamic';
 import { apiClient, TokenManager } from '@/lib/api-client';
+import { usePublicDocumentToken } from '@/hooks/use-public-document-token';
 import {
   AI_PROVIDER_OPTIONS,
   getProviderValueForBaseUrl,
@@ -244,43 +245,13 @@ function SaveStatusIndicator({ status }: { status: SaveStatus }) {
   );
 }
 
-function usePublicTaskDocumentToken(documentId: string) {
-  const previousAccessTokenRef = useRef<string | null | undefined>(undefined);
-
-  useLayoutEffect(() => {
-    const publicDocumentAccessToken = TokenManager.getPublicDocumentAccessToken(documentId);
-    if (!publicDocumentAccessToken) return undefined;
-
-    const currentAccessToken = TokenManager.getAccessToken();
-    if (currentAccessToken === publicDocumentAccessToken) return undefined;
-
-    previousAccessTokenRef.current = currentAccessToken;
-    TokenManager.setAccessToken(publicDocumentAccessToken);
-
-    return () => {
-      if (TokenManager.getAccessToken() !== publicDocumentAccessToken) {
-        previousAccessTokenRef.current = undefined;
-        return;
-      }
-
-      const previousAccessToken = previousAccessTokenRef.current;
-      if (previousAccessToken) {
-        TokenManager.setAccessToken(previousAccessToken);
-      } else {
-        TokenManager.clearAccessToken();
-      }
-      previousAccessTokenRef.current = undefined;
-    };
-  }, [documentId]);
-}
-
 export default function DocumentEditorPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
   const documentId = params.id as string;
   const { user } = useAuthStore();
-  usePublicTaskDocumentToken(documentId);
+  usePublicDocumentToken(documentId);
   const {
     document,
     linkedFile,

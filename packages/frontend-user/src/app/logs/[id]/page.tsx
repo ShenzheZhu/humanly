@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MarkdownContent } from '@/components/markdown-content';
 import { apiClient } from '@/lib/api-client';
+import { usePublicDocumentToken } from '@/hooks/use-public-document-token';
 import { useAuthStore } from '@/stores/auth-store';
 import type {
   AIInteractionLog,
@@ -740,6 +741,7 @@ export default function DocumentLogsPage() {
   const router = useRouter();
   const documentId = params.id as string;
   const { checkAuth } = useAuthStore();
+  usePublicDocumentToken(documentId);
 
   const [documentTitle, setDocumentTitle] = useState<string>('Document');
   const [timelineItems, setTimelineItems] = useState<DocumentEventTimelineItem[]>([]);
