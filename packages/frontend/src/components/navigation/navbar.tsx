@@ -152,6 +152,7 @@ export function Navbar() {
       </nav>
       <BasicInfoDialog
         open={accountDialogOpen}
+        mode="edit"
         onOpenChange={setAccountDialogOpen}
       />
     </>
