@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import FastWritingDemoPage from '@/app/demo/fast-writing/page';
@@ -166,111 +166,180 @@ describe('landing page', () => {
 
   it('lets visitors run the standalone fast writing demo without auth', async () => {
     const user = userEvent.setup();
+    const fetchMock = jest.fn();
+    const originalFetch = global.fetch;
+    Object.defineProperty(global, 'fetch', {
+      configurable: true,
+      value: fetchMock,
+    });
+    const storageSetItemSpy = jest.spyOn(Storage.prototype, 'setItem');
+
+    try {
+      render(<FastWritingDemoPage />);
+
+      expect(screen.getByText('Humanly Demo')).toBeInTheDocument();
+      expect(screen.queryByText('Fast writing demo')).not.toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Setup, write, certify/i })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: /Try the real writing-to-certificate flow/i })).not.toBeInTheDocument();
+      expect(screen.queryByText('Personal writing demo')).not.toBeInTheDocument();
+      expect(screen.queryByText('Personal writing')).not.toBeInTheDocument();
+      expect(screen.queryByText('Create Writing')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Create Document/i })).toBeInTheDocument();
+      expect(screen.getByText(/Document setup/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Document Name/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/PDF source file/i)).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: /New Task/i })).not.toBeInTheDocument();
+      expect(screen.queryByText(/Task Configuration/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Allow guest submissions/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Writing Session Timer/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Edit Time Window/i)).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /back to home/i })).toHaveAttribute('href', '/');
+      expect(screen.getByRole('link', { name: /^cancel$/i })).toHaveAttribute('href', '/');
+      expect(screen.queryByRole('button', { name: '' })).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /open reflection-source\.pdf/i }));
+      expect(screen.getByRole('status')).toHaveTextContent(/opened local reference preview/i);
+      await user.click(screen.getByRole('combobox', { name: /^environment$/i }));
+      await user.click(await screen.findByRole('option', { name: /default environment/i }));
+      expect(screen.queryByRole('combobox', { name: /ai access/i })).not.toBeInTheDocument();
+      expect(screen.getByText('Off')).toBeInTheDocument();
+      await user.click(screen.getByRole('combobox', { name: /^environment$/i }));
+      await user.click(await screen.findByRole('option', { name: /^custom$/i }));
+      await user.click(screen.getByRole('combobox', { name: /ai access/i }));
+      await user.click(await screen.findByRole('option', { name: /full/i }));
+      expect(screen.getByLabelText(/ai guidelines/i)).toBeInTheDocument();
+
+      const writeText = jest.fn().mockResolvedValue(undefined);
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText },
+      });
+      const openWindow = jest.fn();
+      Object.defineProperty(window, 'open', {
+        configurable: true,
+        value: openWindow,
+      });
+      const createObjectURL = jest
+        .fn()
+        .mockReturnValueOnce('blob:demo-certificate-pdf')
+        .mockReturnValueOnce('blob:demo-certificate-json');
+      Object.defineProperty(URL, 'createObjectURL', {
+        configurable: true,
+        value: createObjectURL,
+      });
+      Object.defineProperty(URL, 'revokeObjectURL', {
+        configurable: true,
+        value: jest.fn(),
+      });
+      const anchorClick = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
+      await user.click(screen.getByRole('button', { name: /create document/i }));
+      expect(screen.getByRole('button', { name: /back to setup/i })).toBeEnabled();
+      expect(screen.getByText('reflection-source.pdf')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /view log/i })).toBeEnabled();
+      expect(screen.getByRole('button', { name: /^generate certificate$/i })).toBeEnabled();
+      const editor = screen.getByRole('textbox', { name: /demo writing editor/i }) as HTMLTextAreaElement;
+      await user.type(
+        editor,
+        'This draft records process evidence.'
+      );
+      editor.setSelectionRange(0, 10);
+      fireEvent.select(editor);
+      expect(screen.getByRole('toolbar', { name: /ai selection tools/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /fix grammar/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /improve writing/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /simplify/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /make formal/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^ask ai$/i })).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /simplify/i }));
+      expect(screen.getByRole('status')).toHaveTextContent(/simplify applied locally/i);
+      await user.type(screen.getByRole('textbox', { name: /demo ai prompt/i }), 'How should I organize this?');
+      await user.click(screen.getByRole('button', { name: /ask ai assistant/i }));
+      expect(screen.getByRole('status')).toHaveTextContent(/allowed use/i);
+      await user.click(screen.getByRole('button', { name: /view log/i }));
+
+      expect(screen.getByRole('heading', { name: /activity logs/i })).toBeInTheDocument();
+      expect(screen.getAllByText('ai')[0]).toBeInTheDocument();
+      expect(screen.getAllByText('input')[0]).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: /^generate certificate$/i }));
+      const certificateDialog = screen.getByRole('dialog');
+      expect(within(certificateDialog).getByRole('heading', { name: /generate certificate/i })).toBeInTheDocument();
+      await user.click(within(certificateDialog).getByRole('button', { name: /^generate certificate$/i }));
+
+      expect(await screen.findByText(/Verifiable writing process snapshot/i)).toBeInTheDocument();
+      expect(screen.getByText(/demo identifiers/i)).toBeInTheDocument();
+      const qrCode = await screen.findByAltText(/demo certificate verification qr code/i);
+      expect(qrCode).toHaveAttribute('src', expect.stringContaining('data:image/svg+xml'));
+      expect(screen.getByText(/demo\/fast-writing#demo-certificate-local/i)).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: /share link/i }));
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith(expect.stringContaining('/demo/fast-writing#demo-certificate-local')));
+      expect(screen.getByRole('status')).toHaveTextContent(/share link copied/i);
+
+      await user.click(screen.getByRole('button', { name: /open pdf/i }));
+      expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+      expect(openWindow).toHaveBeenCalledWith('blob:demo-certificate-pdf', '_blank', 'noopener,noreferrer');
+
+      await user.click(screen.getByRole('button', { name: /json data/i }));
+      expect(anchorClick).toHaveBeenCalled();
+      expect(createObjectURL).toHaveBeenCalledTimes(2);
+
+      await user.click(screen.getByRole('button', { name: /end demo/i }));
+      expect(screen.getByText(/local session has ended/i)).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: /do it again/i }));
+      expect(screen.getByRole('button', { name: /create document/i })).toBeInTheDocument();
+      expect(screen.queryByText('This draft records process evidence.')).not.toBeInTheDocument();
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(storageSetItemSpy).not.toHaveBeenCalled();
+
+      anchorClick.mockRestore();
+    } finally {
+      storageSetItemSpy.mockRestore();
+      if (originalFetch) {
+        Object.defineProperty(global, 'fetch', {
+          configurable: true,
+          value: originalFetch,
+        });
+      } else {
+        Reflect.deleteProperty(global, 'fetch');
+      }
+    }
+  }, 15000);
+
+  it('gates the local demo selection tools by AI access mode', async () => {
+    const user = userEvent.setup();
 
     render(<FastWritingDemoPage />);
 
-    expect(screen.getByText('Humanly Demo')).toBeInTheDocument();
-    expect(screen.queryByText('Fast writing demo')).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /Setup, write, certify/i })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: /Try the real writing-to-certificate flow/i })).not.toBeInTheDocument();
-    expect(screen.queryByText('Personal writing')).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: /Create Writing/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Create Writing/i })).toBeInTheDocument();
-    expect(screen.getByText(/Document setup/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Document Name/i)).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: /New Task/i })).not.toBeInTheDocument();
-    expect(screen.queryByText(/Task Configuration/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Allow guest submissions/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Writing Session Timer/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Edit Time Window/i)).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /back to home/i })).toHaveAttribute('href', '/');
-    expect(screen.getByRole('link', { name: /^cancel$/i })).toHaveAttribute('href', '/');
-    expect(screen.queryByRole('button', { name: '' })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /open reflection-source\.pdf/i }));
-    expect(screen.getByRole('status')).toHaveTextContent(/opened local reference preview/i);
-    await user.click(screen.getByRole('combobox', { name: /^environment$/i }));
-    await user.click(await screen.findByRole('option', { name: /default environment/i }));
-    expect(screen.queryByRole('combobox', { name: /ai access/i })).not.toBeInTheDocument();
-    expect(screen.getByText('Off')).toBeInTheDocument();
-    await user.click(screen.getByRole('combobox', { name: /^environment$/i }));
-    await user.click(await screen.findByRole('option', { name: /^custom$/i }));
     await user.click(screen.getByRole('combobox', { name: /ai access/i }));
-    await user.click(await screen.findByRole('option', { name: /full/i }));
-    expect(screen.getByLabelText(/ai guidelines/i)).toBeInTheDocument();
+    await user.click(await screen.findByRole('option', { name: /only polish/i }));
+    await user.click(screen.getByRole('button', { name: /create document/i }));
 
-    const writeText = jest.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'clipboard', {
-      configurable: true,
-      value: { writeText },
-    });
-    const openWindow = jest.fn();
-    Object.defineProperty(window, 'open', {
-      configurable: true,
-      value: openWindow,
-    });
-    const createObjectURL = jest
-      .fn()
-      .mockReturnValueOnce('blob:demo-certificate-pdf')
-      .mockReturnValueOnce('blob:demo-certificate-json');
-    Object.defineProperty(URL, 'createObjectURL', {
-      configurable: true,
-      value: createObjectURL,
-    });
-    Object.defineProperty(URL, 'revokeObjectURL', {
-      configurable: true,
-      value: jest.fn(),
-    });
-    const anchorClick = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    let editor = screen.getByRole('textbox', { name: /demo writing editor/i }) as HTMLTextAreaElement;
+    await user.type(editor, 'This sentence can be improved.');
+    editor.setSelectionRange(0, 13);
+    fireEvent.select(editor);
+    expect(screen.getByRole('button', { name: /fix grammar/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /improve writing/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /simplify/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /make formal/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^ask ai$/i })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /create writing/i }));
-    expect(screen.getByRole('button', { name: /back to setup/i })).toBeEnabled();
-    expect(screen.queryByRole('button', { name: /reflection-brief\.pdf/i })).not.toBeInTheDocument();
-    expect(screen.getByText('reflection-brief.pdf')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /view log/i })).toBeEnabled();
-    expect(screen.getByRole('button', { name: /^generate certificate$/i })).toBeEnabled();
-    await user.type(
-      screen.getByRole('textbox', { name: /demo writing editor/i }),
-      'This draft records process evidence.'
-    );
-    await user.type(screen.getByRole('textbox', { name: /demo ai prompt/i }), 'How should I organize this?');
-    await user.click(screen.getByRole('button', { name: /ask ai assistant/i }));
-    expect(screen.getByRole('status')).toHaveTextContent(/allowed use/i);
-    await user.click(screen.getByRole('button', { name: /view log/i }));
+    await user.click(screen.getByRole('button', { name: /back to setup/i }));
+    await user.click(screen.getByRole('combobox', { name: /ai access/i }));
+    await user.click(await screen.findByRole('option', { name: /only agent chat/i }));
+    await user.click(screen.getByRole('button', { name: /create document/i }));
 
-    expect(screen.getByRole('heading', { name: /activity logs/i })).toBeInTheDocument();
-    expect(screen.getAllByText('ai')[0]).toBeInTheDocument();
-    expect(screen.getAllByText('input')[0]).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /^generate certificate$/i }));
-    const certificateDialog = screen.getByRole('dialog');
-    expect(within(certificateDialog).getByRole('heading', { name: /generate certificate/i })).toBeInTheDocument();
-    await user.click(within(certificateDialog).getByRole('button', { name: /^generate certificate$/i }));
-
-    expect(await screen.findByText(/Verifiable writing process snapshot/i)).toBeInTheDocument();
-    expect(screen.getByText(/demo identifiers/i)).toBeInTheDocument();
-    const qrCode = await screen.findByAltText(/demo certificate verification qr code/i);
-    expect(qrCode).toHaveAttribute('src', expect.stringContaining('data:image/svg+xml'));
-    expect(screen.getByText(/demo\/fast-writing#demo-certificate-local/i)).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /share link/i }));
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith(expect.stringContaining('/demo/fast-writing#demo-certificate-local')));
-    expect(screen.getByRole('status')).toHaveTextContent(/share link copied/i);
-
-    await user.click(screen.getByRole('button', { name: /open pdf/i }));
-    expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
-    expect(openWindow).toHaveBeenCalledWith('blob:demo-certificate-pdf', '_blank', 'noopener,noreferrer');
-
-    await user.click(screen.getByRole('button', { name: /json data/i }));
-    expect(anchorClick).toHaveBeenCalled();
-    expect(createObjectURL).toHaveBeenCalledTimes(2);
-
-    await user.click(screen.getByRole('button', { name: /end demo/i }));
-    expect(screen.getByText(/local session has ended/i)).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /do it again/i }));
-    expect(screen.getByRole('button', { name: /create writing/i })).toBeInTheDocument();
-
-    anchorClick.mockRestore();
+    editor = screen.getByRole('textbox', { name: /demo writing editor/i }) as HTMLTextAreaElement;
+    await user.type(editor, 'Ask about this sentence.');
+    editor.setSelectionRange(0, 9);
+    fireEvent.select(editor);
+    expect(screen.getByRole('button', { name: /^ask ai$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /fix grammar/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /improve writing/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /simplify/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /make formal/i })).not.toBeInTheDocument();
   });
 
   it('sends marketing-page auth actions to the configured product app origin', async () => {
