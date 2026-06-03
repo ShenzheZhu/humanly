@@ -1,0 +1,81 @@
+name: Sync Paper to Overleaf
+
+on:
+  push:
+    branches:
+      - paper
+    paths:
+      - "latex/**"
+      - "figures/**"
+      - ".github/workflows/sync-overleaf.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: overleaf-sync-paper
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Push LaTeX sources to Overleaf
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out GitHub paper branch
+        uses: actions/checkout@v4
+
+      - name: Check sync configuration
+        id: config
+        env:
+          OVERLEAF_PROJECT_ID: ${{ secrets.OVERLEAF_PROJECT_ID }}
+          OVERLEAF_TOKEN: ${{ secrets.OVERLEAF_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$OVERLEAF_PROJECT_ID" ] || [ -z "$OVERLEAF_TOKEN" ]; then
+            echo "::notice::Overleaf sync skipped because OVERLEAF_PROJECT_ID or OVERLEAF_TOKEN is not configured."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Clone Overleaf project
+        if: steps.config.outputs.configured == 'true'
+        env:
+          OVERLEAF_PROJECT_ID: ${{ secrets.OVERLEAF_PROJECT_ID }}
+          OVERLEAF_TOKEN: ${{ secrets.OVERLEAF_TOKEN }}
+        run: |
+          set -euo pipefail
+          git clone --depth 1 "https://git:${OVERLEAF_TOKEN}@git.overleaf.com/${OVERLEAF_PROJECT_ID}" overleaf
+
+      - name: Sync tracked paper sources
+        if: steps.config.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p overleaf/latex
+          rsync -a --delete latex/ overleaf/latex/
+
+          if find figures -type f ! -name ".gitkeep" | grep -q .; then
+            mkdir -p overleaf/figures
+            rsync -a --exclude=".gitkeep" figures/ overleaf/figures/
+          fi
+
+      - name: Commit and push Overleaf changes
+        if: steps.config.outputs.configured == 'true'
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          cd overleaf
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet --exit-code; then
+            echo "No Overleaf changes to sync."
+            exit 0
+          fi
+
+          git add -A
+          git commit -m "Sync paper sources from GitHub ${GITHUB_SHA}"
+          git push origin master

@@ -39,6 +39,7 @@ should emphasize:
 Use this branch for paper-side materials that should be version-controlled in
 the GitHub repo:
 
+- `latex/` Overleaf-compatible ACL paper sources;
 - `materials/prompts/` writing prompts for classroom and peer-review scenarios;
 - `materials/study-instruments/` consent text, participant instructions, and
   survey items;
@@ -56,3 +57,8 @@ PDFs here.
   https://2026.emnlp.org/calls/demos/
 - EMNLP 2026 Paper Integrity Policy:
   https://2026.emnlp.org/paper-integrity-policy/
+
+## Overleaf Sync
+
+GitHub `paper` branch is the source of truth for LaTeX sources. Overleaf sync is
+documented in `docs/paper/overleaf-sync.md`.

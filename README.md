@@ -8,4 +8,9 @@ submission.
 The app source code lives on `main` and related product branches. Do not merge
 application code into this branch.
 
+The current LaTeX source is tracked under `latex/`. Pushes to the GitHub
+`paper` branch can automatically sync those paper sources to Overleaf when the
+repository has the required Overleaf secrets configured. See
+`docs/paper/overleaf-sync.md`.
+
 Tracking issue: https://github.com/ShenzheZhu/humanly/issues/476
