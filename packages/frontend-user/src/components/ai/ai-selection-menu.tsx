@@ -40,6 +40,8 @@ interface AISelectionMenuProps {
   // can instruct the model to preserve author voice.
   getDocumentPlainText?: () => string;
   documentTitle?: string;
+  allowPolishActions?: boolean;
+  allowAskAI?: boolean;
   // Wired by the host so keyboard shortcuts (Cmd+Shift+1/2/3/4) can fire
   // the same action handlers as the dropdown clicks. The menu calls this
   // on mount/unmount with a trigger callback, and the host stores it for
@@ -113,6 +115,8 @@ export function AISelectionMenu({
   taskManaged = false,
   getDocumentPlainText,
   documentTitle,
+  allowPolishActions = true,
+  allowAskAI = true,
   registerActionTrigger,
 }: AISelectionMenuProps) {
   const [isLoading, setIsLoading] = useState(false);
@@ -149,7 +153,7 @@ export function AISelectionMenu({
   }, [taskManaged]);
 
   const handleAction = async (action: typeof ACTIONS[number]) => {
-    if (isLoading) return;
+    if (isLoading || !allowPolishActions) return;
 
     // Check if AI settings are configured
     if (hasAISettings === false) {
@@ -238,6 +242,10 @@ export function AISelectionMenu({
   // presses Cmd/Ctrl+Shift+1..4 while a selection is active.
   useEffect(() => {
     if (!registerActionTrigger) return;
+    if (!allowPolishActions) {
+      registerActionTrigger(null);
+      return undefined;
+    }
     const trigger = (type: ActionType) => {
       const action = ACTIONS.find((a) => a.type === type);
       if (!action) return;
@@ -245,7 +253,7 @@ export function AISelectionMenu({
     };
     registerActionTrigger(trigger);
     return () => registerActionTrigger(null);
-  }, [registerActionTrigger]);
+  }, [allowPolishActions, registerActionTrigger]);
 
   const handleKeep = async () => {
     if (!reviewState) return;
@@ -376,6 +384,10 @@ export function AISelectionMenu({
     );
   }
 
+  if (!allowPolishActions && (!allowAskAI || !onAskAI)) {
+    return null;
+  }
+
   return (
     <div
       className={cn(
@@ -383,7 +395,7 @@ export function AISelectionMenu({
         'animate-in fade-in-0 zoom-in-95 duration-150'
       )}
     >
-      {ACTIONS.map((action) => (
+      {allowPolishActions && ACTIONS.map((action) => (
         <Button
           key={action.type}
           variant="ghost"
@@ -404,9 +416,9 @@ export function AISelectionMenu({
           {action.label}
         </Button>
       ))}
-      {onAskAI && (
+      {allowAskAI && onAskAI && (
         <>
-          <div className="w-px h-5 bg-border mx-0.5" />
+          {allowPolishActions && <div className="w-px h-5 bg-border mx-0.5" />}
           <Button
             variant="ghost"
             size="sm"

@@ -8,7 +8,9 @@ import {
   DEFAULT_WRITING_ENVIRONMENT_CONFIG,
   SUBMISSION_MAX_CHARACTERS_MAX,
   SUBMISSION_MIN_CHARACTERS_MAX,
+  WRITING_AI_ACCESS_OPTIONS,
   WRITING_AI_MODELS,
+  normalizeWritingAiAccess,
   normalizeCopyPastePolicy,
   WritingEnvironmentConfig,
 } from '@humanly/shared';
@@ -80,6 +82,7 @@ export default function EnvironmentConfigFields({
       ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.traceability,
       ...value.traceability,
     },
+    aiAccess: normalizeWritingAiAccess(value.aiAccess),
     copyPastePolicy: normalizeCopyPastePolicy(value.copyPastePolicy),
   };
 
@@ -142,9 +145,11 @@ export default function EnvironmentConfigFields({
             disabled={disabled}
             onChange={(event) => onChange(setNested(config, { aiAccess: event.target.value as WritingEnvironmentConfig['aiAccess'] }))}
           >
-            <option value="off">Off</option>
-            <option value="readonly">Read-only</option>
-            <option value="full">Full Access</option>
+            {WRITING_AI_ACCESS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </div>
 

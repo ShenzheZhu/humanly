@@ -46,6 +46,10 @@ import { formatDateTime } from '@/lib/utils';
 import { isGuestUserEmail } from '@/components/navigation/user-display';
 import {
   DEFAULT_WRITING_ENVIRONMENT_CONFIG,
+  isWritingAiChatEnabled,
+  isWritingAiEnabled,
+  isWritingAiPolishEnabled,
+  normalizeWritingAiAccess,
   normalizeCopyPastePolicy,
   type WritingAiProviderConfig,
   type WritingEnvironmentConfig,
@@ -318,6 +322,7 @@ export default function DocumentEditorPage() {
 
     return {
       ...baseConfig,
+      aiAccess: normalizeWritingAiAccess(sourceConfig.aiAccess),
       instructions: {
         ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.instructions,
         ...(sourceConfig.instructions || {}),
@@ -345,6 +350,12 @@ export default function DocumentEditorPage() {
       copyPastePolicy: normalizeCopyPastePolicy(sourceConfig.copyPastePolicy),
     };
   }, [document?.environmentConfig, isTaskDocument, taskEnvironmentConfig]);
+
+  const aiAccessMode = normalizeWritingAiAccess(currentEnvironmentConfig.aiAccess);
+  const aiEnabled = isWritingAiEnabled(aiAccessMode);
+  const aiPolishEnabled = isWritingAiPolishEnabled(aiAccessMode);
+  const aiChatEnabled = isWritingAiChatEnabled(aiAccessMode);
+  const isAIPanelVisible = aiChatEnabled && isAIPanelOpen;
 
   const editorInitialContent = useMemo(
     () => normalizeEditorInitialContent(document?.content),
@@ -495,7 +506,7 @@ export default function DocumentEditorPage() {
       Numpad4: 'formal',
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (isEditorReadOnly) return;
+      if (isEditorReadOnly || !aiPolishEnabled) return;
       if (!(event.metaKey || event.ctrlKey) || !event.shiftKey) return;
       const actionType = quickActionByKey[event.key] || quickActionByCode[event.code];
       if (!actionType || !quickActionTriggerRef.current) return;
@@ -504,11 +515,12 @@ export default function DocumentEditorPage() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isEditorReadOnly]);
+  }, [aiPolishEnabled, isEditorReadOnly]);
 
   // Keyboard shortcut for AI Assistant (Cmd/Ctrl + J)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!aiChatEnabled) return;
       if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
         e.preventDefault();
         toggleAIPanel();
@@ -516,7 +528,13 @@ export default function DocumentEditorPage() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toggleAIPanel]);
+  }, [aiChatEnabled, toggleAIPanel]);
+
+  useEffect(() => {
+    if (!aiChatEnabled && isAIPanelOpen) {
+      closeAIPanel();
+    }
+  }, [aiChatEnabled, closeAIPanel, isAIPanelOpen]);
 
   useEffect(() => {
     if (linkedFile) {
@@ -852,7 +870,10 @@ export default function DocumentEditorPage() {
   }, [documentId, router, syncActivityLogsForAuditAction]);
 
   const openPanelWithQuote = useAIStore((state) => state.openPanelWithQuote);
-  const handleAskAI = useCallback((selectedText: string) => openPanelWithQuote(selectedText), [openPanelWithQuote]);
+  const handleAskAI = useCallback((selectedText: string) => {
+    if (!aiChatEnabled) return;
+    openPanelWithQuote(selectedText);
+  }, [aiChatEnabled, openPanelWithQuote]);
 
   const handleEditorInsertAtCursorChange = useCallback(
     (insertAtCursor: EditorAIBridgeAPI['insertAtCursor'] | null) => {
@@ -1109,7 +1130,6 @@ export default function DocumentEditorPage() {
     taskInstructionFiles.find((file) => file.id === selectedInstructionFileId) ||
     taskInstructionFile;
   const displayFile = selectedInstructionFile || linkedFile;
-  const aiEnabled = currentEnvironmentConfig.aiAccess !== 'off';
   const lockedAiModel = currentEnvironmentConfig.allowedModels?.[0] || (taskEnrollment ? 'Task model' : undefined);
   const lockedAiBaseUrl = currentEnvironmentConfig.aiProvider?.baseUrl;
 
@@ -1260,7 +1280,7 @@ export default function DocumentEditorPage() {
                 </Badge>
               )}
 
-              {aiEnabled && (
+              {aiChatEnabled && (
                 <AIAssistantButton isOpen={isAIPanelOpen} onClick={toggleAIPanel} />
               )}
 
@@ -1385,11 +1405,11 @@ export default function DocumentEditorPage() {
 
             {/* Editor */}
             <ResizablePanel
-              defaultSize={displayFile && showPdfPanel ? (isAIPanelOpen ? 37 : 62) : (isAIPanelOpen ? 70 : 100)}
+              defaultSize={displayFile && showPdfPanel ? (isAIPanelVisible ? 37 : 62) : (isAIPanelVisible ? 70 : 100)}
               minSize={30}
             >
               <div className="h-full overflow-auto bg-background">
-                <div className={`${displayFile || isAIPanelOpen ? 'px-4 py-4' : 'px-6 py-6'} h-full`}>
+                <div className={`${displayFile || isAIPanelVisible ? 'px-4 py-4' : 'px-6 py-6'} h-full`}>
                   {!displayFile && (
                     <div className="mb-4 rounded-lg border border-dashed border-border/80 bg-muted/30 p-4">
                       <div>
@@ -1444,6 +1464,8 @@ export default function DocumentEditorPage() {
                         registerActionTrigger={(trigger) => {
                           quickActionTriggerRef.current = trigger;
                         }}
+                        allowPolishActions={aiPolishEnabled}
+                        allowAskAI={aiChatEnabled}
                       />
                     ) : undefined}
                     renderAIBridge={({ insertAtCursor }) => (
@@ -1458,7 +1480,7 @@ export default function DocumentEditorPage() {
             </ResizablePanel>
 
             {/* AI */}
-            {aiEnabled && isAIPanelOpen ? (
+            {isAIPanelVisible ? (
               <>
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={25} minSize={18}>

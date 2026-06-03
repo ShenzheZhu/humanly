@@ -487,7 +487,7 @@ export async function testConnection(req: Request, res: Response): Promise<void>
     }
 
     // Extract model IDs from response. OpenAI-compatible providers usually
-    // return { data: [{ id: "gpt-5.5", ... }] }, while Together currently
+    // return { data: [{ id: "gpt-5.4-mini", ... }] }, while Together currently
     // returns a top-level array from /v1/models.
     let models: string[] = [];
     const modelList = Array.isArray(modelsResult.data)

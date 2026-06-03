@@ -366,7 +366,7 @@ describe('admin new task page', () => {
       fireEvent.click(screen.getByRole('option', { name: 'Custom' }));
     });
     await act(async () => {
-      fireEvent.click(screen.getByRole('option', { name: 'AI On' }));
+      fireEvent.click(screen.getByRole('option', { name: 'Full' }));
     });
     await act(async () => {
       fireEvent.change(screen.getByLabelText(/AI API Key/i), {
@@ -402,6 +402,65 @@ describe('admin new task page', () => {
     });
   });
 
+  it('persists polish-only AI access for admin-created tasks', async () => {
+    mockApiPost.mockImplementation(async (url: string) => {
+      if (url === '/api/v1/ai/settings/test') {
+        return {
+          success: true,
+          message: 'Connection successful.',
+          models: ['gpt-5.4-mini'],
+        };
+      }
+      if (url === '/api/v1/tasks') {
+        return {
+          success: true,
+          data: { id: 'created-polish-task' },
+          message: 'Task created',
+        };
+      }
+      throw new Error(`Unexpected POST ${url}`);
+    });
+    mockApiPut.mockResolvedValue({ success: true });
+
+    render(<NewTaskPage />);
+
+    expect(await screen.findByRole('heading', { name: 'New Task' })).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Task Name/i), {
+        target: { value: 'Polish Task' },
+      });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('option', { name: 'Custom' }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('option', { name: 'Only polish' }));
+    });
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/AI API Key/i), {
+        target: { value: 'sk-polish-test' },
+      });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Create Task$/i }));
+    });
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith(
+        '/api/v1/tasks',
+        expect.objectContaining({
+          name: 'Polish Task',
+          environmentConfig: expect.objectContaining({
+            aiAccess: 'polish',
+            traceability: expect.objectContaining({
+              trackAiUsage: true,
+            }),
+          }),
+        })
+      );
+    });
+  });
+
   it('creates AI-enabled tasks with the selected OpenAI provider and model whitelist', async () => {
     mockApiPost.mockImplementation(async (url: string, payload: any) => {
       if (url === '/api/v1/ai/settings/test') {
@@ -412,7 +471,7 @@ describe('admin new task page', () => {
         return {
           success: true,
           message: 'Connection successful.',
-          models: ['gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano'],
+          models: ['gpt-5.4-mini', 'gpt-5.5', 'gpt-5.4', 'gpt-5.4-nano'],
         };
       }
       if (url === '/api/v1/tasks') {
@@ -438,7 +497,7 @@ describe('admin new task page', () => {
       fireEvent.click(screen.getByRole('option', { name: 'Custom' }));
     });
     await act(async () => {
-      fireEvent.click(screen.getByRole('option', { name: 'AI On' }));
+      fireEvent.click(screen.getByRole('option', { name: 'Full' }));
     });
     await act(async () => {
       fireEvent.change(screen.getByLabelText(/AI API Key/i), {
@@ -450,7 +509,7 @@ describe('admin new task page', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('option', { name: 'gpt-5.5' })).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByRole('option', { name: 'gpt-5.4-mini' })).toHaveAttribute('aria-selected', 'true');
     });
 
     await act(async () => {
@@ -461,7 +520,7 @@ describe('admin new task page', () => {
       expect(mockApiPut).toHaveBeenCalledWith('/api/v1/ai/settings', expect.objectContaining({
         apiKey: 'sk-openai-test',
         baseUrl: 'https://api.openai.com/v1',
-        model: 'gpt-5.5',
+        model: 'gpt-5.4-mini',
       }));
       expect(mockApiPost).toHaveBeenCalledWith(
         '/api/v1/tasks',
@@ -473,7 +532,7 @@ describe('admin new task page', () => {
               provider: 'openai',
               baseUrl: 'https://api.openai.com/v1',
             },
-            allowedModels: ['gpt-5.5'],
+            allowedModels: ['gpt-5.4-mini'],
           }),
         })
       );
@@ -553,7 +612,7 @@ describe('admin new task page', () => {
       }));
     });
 
-    expect(screen.getByRole('option', { name: 'AI On' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('option', { name: 'Full' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByLabelText(/AI Usage Limit/i)).toBeInTheDocument();
 
     await act(async () => {
@@ -599,6 +658,54 @@ describe('admin new task page', () => {
       model: 'qwen/qwen3.5-397b-a17b',
     }));
 
+  });
+
+  it('normalizes legacy readonly environment JSON to agent-chat-only mode', async () => {
+    mockApiGet.mockResolvedValue({
+      data: {
+        hasApiKey: true,
+        maskedApiKey: 'sk-****1234',
+        baseUrl: 'https://api.together.xyz/v1',
+        model: 'moonshotai/Kimi-K2.6',
+      },
+    });
+
+    render(<NewTaskPage />);
+
+    const importOption = await screen.findByRole('option', { name: 'Import Environment' });
+    await act(async () => {
+      fireEvent.click(importOption);
+    });
+
+    const jsonInput = document.querySelector('input[accept="application/json,.json"]') as HTMLInputElement;
+    expect(jsonInput).not.toBeNull();
+
+    const environmentJson = JSON.stringify(createAdminEnvironmentJson({
+      aiAccess: 'readonly',
+      aiProvider: {
+        provider: 'openrouter',
+        baseUrl: 'https://openrouter.ai/api/v1',
+      },
+      allowedModels: ['qwen/qwen3.5-397b-a17b'],
+      traceability: {
+        trackAiUsage: true,
+        trackTyping: true,
+        trackCopyPaste: true,
+        trackFocusBlur: true,
+      },
+    }));
+    const environmentFile = new File([environmentJson], 'legacy-environment.json', { type: 'application/json' });
+    Object.defineProperty(environmentFile, 'text', {
+      value: async () => environmentJson,
+    });
+
+    await act(async () => {
+      fireEvent.change(jsonInput, { target: { files: [environmentFile] } });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'Only agent chat' })).toHaveAttribute('aria-selected', 'true');
+    });
   });
 
   it('rejects AI-on environment JSON without an explicit provider', async () => {

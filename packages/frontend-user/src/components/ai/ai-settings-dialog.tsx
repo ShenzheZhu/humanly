@@ -368,7 +368,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
                     value={model}
                     onChange={(e) => setModel(e.target.value)}
                     className="text-sm"
-                    placeholder="gpt-5.5"
+                    placeholder="gpt-5.4-mini"
                   />
                 </div>
               )}

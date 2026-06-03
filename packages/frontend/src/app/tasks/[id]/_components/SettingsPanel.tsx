@@ -25,8 +25,11 @@ import {
   SUBMISSION_MAX_CHARACTERS_MAX,
   SUBMISSION_MIN_CHARACTERS_MAX,
   TASK_START_DATE_PAST_ERROR_MESSAGE,
+  WRITING_AI_ACCESS_OPTIONS,
   WRITING_AI_MODELS,
+  formatWritingAiAccess,
   isTaskStartDateTooFarInPast,
+  normalizeWritingAiAccess,
   normalizeCopyPastePolicy,
   type Task,
   type UserAISettings,
@@ -347,8 +350,9 @@ interface SettingsPanelProps {
 
 const mergeEnvironmentConfig = (config?: WritingEnvironmentConfig | null): WritingEnvironmentConfig => ({
   ...DEFAULT_WRITING_ENVIRONMENT_CONFIG,
-    ...(config || {}),
-    copyPastePolicy: normalizeCopyPastePolicy(config?.copyPastePolicy),
+  ...(config || {}),
+  aiAccess: normalizeWritingAiAccess(config?.aiAccess),
+  copyPastePolicy: normalizeCopyPastePolicy(config?.copyPastePolicy),
   taskType: 'admin_assigned',
   preset: 'custom',
   instructions: {
@@ -538,7 +542,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
           taskFromApi.allowedLlmModels?.[0] ||
           ''
         );
-        const existingAiAccess = mergedConfig.aiAccess === 'off' ? 'off' : 'full';
+        const existingAiAccess = normalizeWritingAiAccess(mergedConfig.aiAccess);
         const hasTimeLimit = !!(mergedConfig.time.startTime || mergedConfig.time.endTime);
         const existingLimit = (
           mergedConfig.aiUsageLimit.maxRequests ||
@@ -727,7 +731,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
   const setAiAccess = (nextAccess: WritingAiAccess) => {
     const defaultModel = modelBelongsToOptions(aiModel, aiModelOptions)
       ? aiModel
-      : aiModelOptions[0] || 'gpt-5.5';
+      : aiModelOptions[0] || 'gpt-5.4-mini';
 
     setAiAccessState(nextAccess);
     if (nextAccess !== 'off' && !modelBelongsToOptions(aiModel, aiModelOptions)) {
@@ -1077,7 +1081,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
   const environmentSummaryItems: AdminEnvironmentSummaryItem[] = [
     {
       label: 'AI',
-      value: aiAccess === 'off' ? 'Off' : 'On',
+      value: formatWritingAiAccess(aiAccess),
       detail: aiAccess === 'off'
         ? 'Assistant disabled'
         : selectedAiModel || 'Model not selected',
@@ -1341,8 +1345,11 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                       disabled={isSubmitting}
                       onChange={(event) => setAiAccess(event.target.value as WritingAiAccess)}
                     >
-                      <option value="off">AI Off</option>
-                      <option value="full">AI On</option>
+                      {WRITING_AI_ACCESS_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
 

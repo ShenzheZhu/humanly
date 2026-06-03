@@ -25,6 +25,9 @@ import {
   AI_MAX_TOKENS_MIN,
   AI_SHORTCUT_MAX_TOKENS_DEFAULT,
   WritingEnvironmentConfig,
+  isWritingAiChatEnabled,
+  isWritingAiPolishEnabled,
+  normalizeWritingAiAccess,
 } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
@@ -41,6 +44,32 @@ import { FileStorageService } from './file-storage.service';
  * the agent loop.
  */
 export type AgentEventSink = (event: AgentEvent) => void;
+type AIExecutionPurpose = 'chat' | 'polish';
+
+function assertAiAccessAllowed(
+  value: string | null | undefined,
+  purpose: AIExecutionPurpose,
+  scope: 'document' | 'task',
+): void {
+  const access = normalizeWritingAiAccess(value);
+  if (purpose === 'chat' && !isWritingAiChatEnabled(access)) {
+    throw new AppError(
+      403,
+      access === 'off'
+        ? `AI is disabled for this ${scope}`
+        : `Agent chat is disabled for this ${scope}`
+    );
+  }
+
+  if (purpose === 'polish' && !isWritingAiPolishEnabled(access)) {
+    throw new AppError(
+      403,
+      access === 'off'
+        ? `AI is disabled for this ${scope}`
+        : `AI polish actions are disabled for this ${scope}`
+    );
+  }
+}
 
 function emitAgentEvent(sink: AgentEventSink | undefined, event: AgentEvent): void {
   if (!sink) return;
@@ -1999,7 +2028,8 @@ export class AIService {
    */
   private static async getExecutionSettingsForDocument(
     userId: string,
-    documentId: string
+    documentId: string,
+    purpose: AIExecutionPurpose = 'chat'
   ): Promise<AIExecutionSettings> {
     const task = await TaskModel.findBySubmissionDocument(documentId, userId);
 
@@ -2009,8 +2039,8 @@ export class AIService {
         throw new AppError(404, 'Document not found');
       }
 
-      if (document.environmentConfig?.aiAccess === 'off') {
-        throw new AppError(403, 'AI is disabled for this document');
+      if (document.environmentConfig) {
+        assertAiAccessAllowed(document.environmentConfig.aiAccess, purpose, 'document');
       }
 
       const settings = await UserAISettingsModel.getByUserId(userId);
@@ -2038,9 +2068,10 @@ export class AIService {
     }
 
     const taskConfig = task.environmentConfig;
-    if (!taskConfig || taskConfig.aiAccess === 'off') {
+    if (!taskConfig) {
       throw new AppError(403, 'AI is disabled for this task');
     }
+    assertAiAccessAllowed(taskConfig.aiAccess, purpose, 'task');
 
     const ownerSettings = await UserAISettingsModel.getByUserId(task.userId);
     if (!ownerSettings) {
@@ -2105,7 +2136,7 @@ export class AIService {
       throw new AppError(404, 'Document not found');
     }
 
-    const { provider, shortcutMaxTokens } = await this.getExecutionSettingsForDocument(userId, request.documentId);
+    const { provider, shortcutMaxTokens } = await this.getExecutionSettingsForDocument(userId, request.documentId, 'polish');
 
     // Build simple messages without conversation history
     const messages: { role: string; content: string }[] = [
@@ -2163,7 +2194,7 @@ export class AIService {
         throw new AppError(404, 'Document not found');
       }
 
-      const { provider, shortcutMaxTokens } = await this.getExecutionSettingsForDocument(userId, request.documentId);
+      const { provider, shortcutMaxTokens } = await this.getExecutionSettingsForDocument(userId, request.documentId, 'polish');
 
       const messages: { role: string; content: string }[] = [
         { role: 'system', content: buildQuickActionSystemPrompt(request.context) },
@@ -2646,7 +2677,7 @@ export class AIService {
       shortcutMaxTokens: shortcutMaxTokensForChat,
       chatMaxTokens: chatMaxTokensForChat,
     } =
-      await this.getExecutionSettingsForDocument(userId, request.documentId);
+      await this.getExecutionSettingsForDocument(userId, request.documentId, 'chat');
     const capabilitiesForChat = resolveCapabilitiesOrSafeDefault(
       baseUrlForChat,
       modelVersionForChat,
@@ -2905,7 +2936,7 @@ export class AIService {
       // captured at creation and capability gating (#93) runs before any
       // DB writes or provider calls.
       const { provider, modelVersion, baseUrl, shortcutMaxTokens, chatMaxTokens } =
-        await this.getExecutionSettingsForDocument(userId, request.documentId);
+        await this.getExecutionSettingsForDocument(userId, request.documentId, 'chat');
       const capabilities = resolveCapabilitiesOrSafeDefault(baseUrl, modelVersion);
 
       // Get or create session (self-heals when client sent a stale sessionId)

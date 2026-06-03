@@ -74,9 +74,11 @@ import {
   SUBMISSION_MAX_CHARACTERS_MAX,
   SUBMISSION_MIN_CHARACTERS_MAX,
   TASK_START_DATE_PAST_ERROR_MESSAGE,
+  WRITING_AI_ACCESS_OPTIONS,
   WRITING_AI_MODELS,
   WRITING_ENVIRONMENT_PRESETS,
   isTaskStartDateTooFarInPast,
+  normalizeWritingAiAccess,
   normalizeCopyPastePolicy,
   validateWritingEnvironmentImportTemplate,
   type Task,
@@ -213,7 +215,7 @@ const getAdminEnvironmentConfig = (preset: WritingEnvironmentPreset = 'default_w
   taskType: 'admin_assigned',
   preset,
   copyPastePolicy: normalizeCopyPastePolicy(WRITING_ENVIRONMENT_PRESETS[preset].copyPastePolicy),
-  aiAccess: preset === 'default_writing' ? 'off' : WRITING_ENVIRONMENT_PRESETS[preset].aiAccess,
+  aiAccess: preset === 'default_writing' ? 'off' : normalizeWritingAiAccess(WRITING_ENVIRONMENT_PRESETS[preset].aiAccess),
   allowedModels: preset === 'default_writing' ? [] : WRITING_ENVIRONMENT_PRESETS[preset].allowedModels,
   customModels: preset === 'default_writing' ? [] : WRITING_ENVIRONMENT_PRESETS[preset].customModels,
   aiUsageLimit: {
@@ -254,7 +256,7 @@ const parseOptionalMaxCharacters = (value: string): number | undefined => {
 
 const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentConfig => {
   const imported = validateWritingEnvironmentImportTemplate(value, 'admin_assigned');
-  const aiAccess: WritingAiAccess = imported.aiAccess === 'off' ? 'off' : 'full';
+  const aiAccess: WritingAiAccess = normalizeWritingAiAccess(imported.aiAccess);
   const copyPastePolicy = normalizeCopyPastePolicy(imported.copyPastePolicy);
 
   return {
@@ -613,7 +615,7 @@ export default function NewTaskPage() {
   const setAiAccess = (nextAccess: WritingAiAccess) => {
     const defaultModel = modelBelongsToOptions(aiModel, aiModelOptions)
       ? aiModel
-      : aiModelOptions[0] || 'gpt-5.5';
+      : aiModelOptions[0] || 'gpt-5.4-mini';
 
     setAiAccessState(nextAccess);
     if (nextAccess !== 'off' && !modelBelongsToOptions(aiModel, aiModelOptions)) {
@@ -1102,8 +1104,11 @@ export default function NewTaskPage() {
                             <SelectValue placeholder="AI access" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="off">AI Off</SelectItem>
-                            <SelectItem value="full">AI On</SelectItem>
+                            {WRITING_AI_ACCESS_OPTIONS.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>

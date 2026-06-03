@@ -18,9 +18,9 @@ const TEXT_AND_IMAGE: ModelCapabilities = { inputs: ['text', 'image'] };
 
 const MATRIX: Record<string, Record<string, ModelCapabilities>> = {
   'api.openai.com': {
+    'gpt-5.4-mini': TEXT_AND_IMAGE,
     'gpt-5.5': TEXT_AND_IMAGE,
     'gpt-5.4': TEXT_AND_IMAGE,
-    'gpt-5.4-mini': TEXT_AND_IMAGE,
     'gpt-5.4-nano': TEXT_AND_IMAGE,
   },
   'api.deepseek.com': {
@@ -29,8 +29,8 @@ const MATRIX: Record<string, Record<string, ModelCapabilities>> = {
     'deepseek-coder': TEXT_ONLY,
   },
   'api.anthropic.com': {
-    'claude-opus-4-8': TEXT_AND_IMAGE,
     'claude-sonnet-4-6': TEXT_AND_IMAGE,
+    'claude-opus-4-8': TEXT_AND_IMAGE,
     'claude-haiku-4-5-20251001': TEXT_AND_IMAGE,
   },
   'generativelanguage.googleapis.com': {

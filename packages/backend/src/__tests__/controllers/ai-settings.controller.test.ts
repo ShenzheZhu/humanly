@@ -60,7 +60,7 @@ describe('testConnection', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       success: true,
       message: 'Connection successful. Found 4 supported models.',
-      models: ['gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini', 'gpt-5.4-nano'],
+      models: ['gpt-5.4-mini', 'gpt-5.5', 'gpt-5.4', 'gpt-5.4-nano'],
     }));
   });
 
@@ -91,7 +91,7 @@ describe('testConnection', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       success: true,
       message: 'Connection successful. Found 3 supported models.',
-      models: ['claude-opus-4-8', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001'],
+      models: ['claude-sonnet-4-6', 'claude-opus-4-8', 'claude-haiku-4-5-20251001'],
     }));
   });
 

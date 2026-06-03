@@ -49,14 +49,14 @@ describe('backend ai-model-capabilities', () => {
 
   it('exposes curated ids for known providers and null for unknown providers', () => {
     expect(getModelWhitelist('https://api.openai.com/v1')).toEqual([
+      'gpt-5.4-mini',
       'gpt-5.5',
       'gpt-5.4',
-      'gpt-5.4-mini',
       'gpt-5.4-nano',
     ]);
     expect(getModelWhitelist('https://api.anthropic.com/v1')).toEqual([
-      'claude-opus-4-8',
       'claude-sonnet-4-6',
+      'claude-opus-4-8',
       'claude-haiku-4-5-20251001',
     ]);
     expect(getModelWhitelist('https://openrouter.ai/api/v1')).toEqual([

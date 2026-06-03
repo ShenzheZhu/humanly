@@ -9,9 +9,11 @@ import {
   SUBMISSION_MIN_CHARACTERS_MAX,
 } from './constants';
 import type {
+  WritingAiAccess,
   WritingEnvironmentConfig,
   WritingTaskType,
 } from '../types/environment.types';
+import { normalizeWritingAiAccess } from '../types/environment.types';
 
 export const TASK_START_DATE_PAST_GRACE_MS = 2 * 60 * 1000;
 export const TASK_START_DATE_PAST_ERROR_MESSAGE = 'Task start date cannot be in the past.';
@@ -42,6 +44,9 @@ const writingSubmissionConfigSchema = z.object({
   path: ['maxCharacters'],
 });
 
+const writingAiAccessSchema = z.enum(['off', 'polish', 'chat', 'full', 'readonly', 'on'])
+  .transform((value): WritingAiAccess => normalizeWritingAiAccess(value)) as z.ZodType<WritingAiAccess>;
+
 export const writingEnvironmentConfigSchema = z.object({
   preset: z.enum(['default_writing', 'no_ai', 'ai_assisted', 'timed_writing', 'custom']).optional(),
   taskType: z.enum(['personal', 'admin_assigned']),
@@ -50,7 +55,7 @@ export const writingEnvironmentConfigSchema = z.object({
     hasInstructionPdf: z.boolean().optional(),
     editableAfterSubmission: z.boolean(),
   }),
-  aiAccess: z.enum(['off', 'readonly', 'full']),
+  aiAccess: writingAiAccessSchema,
   aiProvider: z.object({
     provider: z.enum(['together', 'openrouter', 'openai', 'claude', 'custom']),
     baseUrl: z.string().url(),
