@@ -234,11 +234,12 @@ jobs:
           FRONTEND_CHANGED: ${{ steps.changes.outputs.frontend }}
           VM_DEPLOY_PATH: ${{ env.VM_DEPLOY_PATH }}
           GITHUB_SHA: ${{ github.sha }}
+          GH_REPO_TOKEN: ${{ github.token }}
         with:
           host: ${{ env.VM_HOST }}
           username: ${{ env.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
-          envs: BACKEND_IMAGE,FRONTEND_USER_IMAGE,FRONTEND_IMAGE,BACKEND_CHANGED,FRONTEND_USER_CHANGED,FRONTEND_CHANGED,VM_DEPLOY_PATH,GITHUB_SHA
+          envs: BACKEND_IMAGE,FRONTEND_USER_IMAGE,FRONTEND_IMAGE,BACKEND_CHANGED,FRONTEND_USER_CHANGED,FRONTEND_CHANGED,VM_DEPLOY_PATH,GITHUB_SHA,GH_REPO_TOKEN
           script: |
             set -euo pipefail
 
@@ -251,6 +252,20 @@ jobs:
             df -h "$VM_DEPLOY_PATH" || true
 
             cd "$VM_DEPLOY_PATH"
+            git_askpass="$(mktemp)"
+            cat > "$git_askpass" <<'EOF'
+            #!/bin/sh
+            case "$1" in
+              *Username*) printf '%s\n' 'x-access-token' ;;
+              *Password*) printf '%s\n' "$GH_REPO_TOKEN" ;;
+              *) printf '\n' ;;
+            esac
+            EOF
+            chmod 700 "$git_askpass"
+            export GIT_ASKPASS="$git_askpass"
+            export GIT_TERMINAL_PROMPT=0
+            trap 'rm -f "$git_askpass"' EXIT
+
             git gc --prune=now || true
             git fetch --prune origin main
             git checkout main
