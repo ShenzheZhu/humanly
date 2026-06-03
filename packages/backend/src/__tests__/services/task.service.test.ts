@@ -386,6 +386,7 @@ describe('TaskService.startPublicTaskDocument', () => {
     expect(result.mode).toBe('signed-in');
     expect(result.accessToken).toBeUndefined();
     expect(result.refreshToken).toBeUndefined();
+    expect(result.task.environmentConfig).toEqual(task.environmentConfig);
     expect(result.user.id).toBe('user-1');
     expect(result.document.id).toBe('signed-in-doc-1');
     expect(MockUserModel.findByEmail).not.toHaveBeenCalled();
@@ -456,6 +457,7 @@ describe('TaskService.startPublicTaskDocument', () => {
 
     expect(result.accessToken).toBe('access-token-1');
     expect(result.refreshToken).toBe('refresh-token-1');
+    expect(result.task.environmentConfig).toEqual(task.environmentConfig);
     expect(result.user.id).toBe('guest-user-1');
     expect(result.document.id).toBe('public-doc-1');
     expect(MockTaskModel.findByToken).toHaveBeenCalledWith('share-token-1');
