@@ -31,17 +31,17 @@ describe('admin register basic info flow', () => {
     window.localStorage.clear();
   });
 
-  it('collects first and last name during signup and registers an admin profile', async () => {
+  it('defers first and last name to Basic Info after signup', async () => {
     const user = userEvent.setup();
 
     render(<RegisterPage />);
 
     expect(screen.queryByLabelText(/^name$/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/first name/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/last name/i)).not.toBeInTheDocument();
     expect(screen.queryByPlaceholderText(/john doe/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/create your account with the name shown/i)).toBeInTheDocument();
+    expect(screen.getByText(/basic info is completed/i)).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText(/first name/i), 'Admin');
-    await user.type(screen.getByLabelText(/last name/i), 'Owner');
     await user.type(screen.getByLabelText(/^email$/i), 'admin@example.com');
     await user.type(screen.getByPlaceholderText(/^enter your password$/i), 'Password123');
     await user.type(screen.getByPlaceholderText(/^confirm your password$/i), 'Password123');
@@ -49,13 +49,7 @@ describe('admin register basic info flow', () => {
     await user.click(screen.getByRole('button', { name: /^create account$/i }));
 
     await waitFor(() => {
-      expect(mockRegister).toHaveBeenCalledWith(
-        'admin@example.com',
-        'Password123',
-        'Admin',
-        'Owner',
-        'admin'
-      );
+      expect(mockRegister).toHaveBeenCalledWith('admin@example.com', 'Password123', 'admin');
     });
   });
 });

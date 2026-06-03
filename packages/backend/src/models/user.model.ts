@@ -28,8 +28,8 @@ const USER_WITH_PASSWORD_SELECT = `
 export interface CreateUserData {
   email: string;
   passwordHash: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string | null;
+  lastName?: string | null;
   role?: UserRole;
   emailVerificationToken: string;
   emailVerificationExpires: Date;
@@ -55,9 +55,10 @@ export class UserModel {
    * Create a new user
    */
   static async create(data: CreateUserData): Promise<User> {
-    const firstName = data.firstName.trim();
-    const lastName = data.lastName.trim();
-    const name = getFullName(firstName, lastName);
+    const firstName = data.firstName?.trim() || null;
+    const lastName = data.lastName?.trim() || null;
+    const profileCompleted = firstName !== null && lastName !== null;
+    const name = profileCompleted ? getFullName(firstName, lastName) : null;
     const sql = `
       INSERT INTO users (
         email,
@@ -70,7 +71,7 @@ export class UserModel {
         email_verification_expires,
         profile_completed
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING ${USER_SELECT}
     `;
     const user = await queryOne<User>(sql, [
@@ -82,6 +83,7 @@ export class UserModel {
       lastName,
       data.emailVerificationToken,
       data.emailVerificationExpires,
+      profileCompleted,
     ]);
     if (!user) throw new Error('Failed to create user');
     return user;

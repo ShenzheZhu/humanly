@@ -96,24 +96,30 @@ describe('AuthService.register', () => {
     delete process.env.DEFAULT_AI_API_KEY;
     delete process.env.AI_API_KEY;
     MockUserModel.findByEmail.mockResolvedValue(null);
-    const user = makeUser();
+    const user = makeUser({
+      name: null,
+      firstName: null,
+      lastName: null,
+      profileCompleted: false,
+      emailVerified: false,
+    });
     MockUserModel.create.mockResolvedValue(user as any);
 
-    const result = await AuthService.register('alice@example.com', 'password123', 'Alice', 'Writer');
+    const result = await AuthService.register('alice@example.com', 'password123');
     expect(result).toEqual(user);
     expect(MockUserModel.create).toHaveBeenCalledWith(
       expect.objectContaining({
         email: 'alice@example.com',
-        firstName: 'Alice',
-        lastName: 'Writer',
       })
     );
+    expect(MockUserModel.create.mock.calls[0][0]).not.toHaveProperty('firstName');
+    expect(MockUserModel.create.mock.calls[0][0]).not.toHaveProperty('lastName');
     expect(MockUserAISettingsModel.upsert).not.toHaveBeenCalled();
   });
 
   it('throws 409 when email is already registered', async () => {
     MockUserModel.findByEmail.mockResolvedValue(makeUser() as any);
-    await expect(AuthService.register('alice@example.com', 'pass', 'Alice', 'Writer')).rejects.toMatchObject({
+    await expect(AuthService.register('alice@example.com', 'pass')).rejects.toMatchObject({
       statusCode: 409,
     });
     expect(MockUserModel.create).not.toHaveBeenCalled();
@@ -125,11 +131,11 @@ describe('AuthService.register', () => {
     process.env.DEFAULT_AI_BASE_URL = 'https://api.openai.com/v1';
 
     MockUserModel.findByEmail.mockResolvedValue(null);
-    const user = makeUser();
+    const user = makeUser({ profileCompleted: false });
     MockUserModel.create.mockResolvedValue(user as any);
     MockUserAISettingsModel.upsert.mockResolvedValue(undefined);
 
-    await AuthService.register('alice@example.com', 'password123', 'Alice', 'Writer');
+    await AuthService.register('alice@example.com', 'password123');
 
     expect(MockUserAISettingsModel.upsert).toHaveBeenCalledWith(
       user.id,
@@ -143,11 +149,11 @@ describe('AuthService.register', () => {
     process.env.DEFAULT_AI_API_KEY = 'prof-key';
 
     MockUserModel.findByEmail.mockResolvedValue(null);
-    const user = makeUser();
+    const user = makeUser({ profileCompleted: false });
     MockUserModel.create.mockResolvedValue(user as any);
     MockUserAISettingsModel.upsert.mockRejectedValue(new Error('db error'));
 
-    await expect(AuthService.register('alice@example.com', 'password123', 'Alice', 'Writer')).resolves.toEqual(user);
+    await expect(AuthService.register('alice@example.com', 'password123')).resolves.toEqual(user);
   });
 });
 

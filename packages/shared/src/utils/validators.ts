@@ -250,8 +250,6 @@ export const passwordSchema = z
 export const registerSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
-  firstName: z.string().trim().min(1, 'First name is required').max(100, 'First name must be at most 100 characters'),
-  lastName: z.string().trim().min(1, 'Last name is required').max(100, 'Last name must be at most 100 characters'),
   role: z.enum(['admin', 'user']).default('user'),
 });
 

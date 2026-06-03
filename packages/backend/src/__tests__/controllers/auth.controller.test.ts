@@ -61,15 +61,15 @@ describe('auth controller cookies and profile names', () => {
     jest.clearAllMocks();
   });
 
-  it('passes first and last name through registration', async () => {
+  it('registers without profile names so Basic Info can collect them later', async () => {
     const createdUser = {
       id: 'user-1',
       email: 'writer@mail.com',
       role: 'user',
-      name: 'Writer One',
-      firstName: 'Writer',
-      lastName: 'One',
-      profileCompleted: true,
+      name: null,
+      firstName: null,
+      lastName: null,
+      profileCompleted: false,
       emailVerified: false,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -80,8 +80,6 @@ describe('auth controller cookies and profile names', () => {
       body: {
         email: 'writer@mail.com',
         password: 'Password123!',
-        firstName: ' Writer ',
-        lastName: ' One ',
         role: 'user',
       },
     });
@@ -89,13 +87,7 @@ describe('auth controller cookies and profile names', () => {
 
     await runController(register, req, res);
 
-    expect(MockAuthService.register).toHaveBeenCalledWith(
-      'writer@mail.com',
-      'Password123!',
-      'Writer',
-      'One',
-      'user'
-    );
+    expect(MockAuthService.register).toHaveBeenCalledWith('writer@mail.com', 'Password123!', 'user');
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       success: true,

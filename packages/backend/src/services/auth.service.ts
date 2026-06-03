@@ -48,8 +48,6 @@ export class AuthService {
   static async register(
     email: string,
     password: string,
-    firstName: string,
-    lastName: string,
     role: UserRole = 'user'
   ): Promise<User> {
     logger.info('Attempting to register user', { email, role });
@@ -71,8 +69,6 @@ export class AuthService {
     const user = await UserModel.create({
       email,
       passwordHash,
-      firstName,
-      lastName,
       role,
       emailVerificationToken: verificationToken,
       emailVerificationExpires: verificationExpires,
