@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { FileText, FileCheck, LogOut, User, Menu } from 'lucide-react';
+import { FileText, FileCheck, LogOut, User, Menu, UserCog } from 'lucide-react';
 import { BRAND } from '@humanly/shared';
+import { BasicInfoDialog } from '@/components/account/basic-info-dialog';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -22,12 +23,15 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { useAuthStore } from '@/stores/auth-store';
+import { getUserDisplayLabel } from './user-display';
 
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [accountDialogOpen, setAccountDialogOpen] = useState(false);
+  const userDisplayLabel = getUserDisplayLabel(user);
 
   const handleLogout = async () => {
     await logout();
@@ -54,6 +58,7 @@ export function Navbar() {
     : 'mx-auto max-w-7xl px-4 sm:px-6 lg:px-8';
 
   return (
+    <>
     <nav className="border-b bg-background">
       <div className={containerClass}>
         <div className="flex h-16 items-center justify-between">
@@ -92,11 +97,21 @@ export function Navbar() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="flex items-center gap-2">
                     <User className="h-4 w-4" />
-                    <span className="hidden lg:inline">{user?.email}</span>
+                    <span className="hidden lg:inline">{userDisplayLabel}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      setAccountDialogOpen(true);
+                    }}
+                  >
+                    <UserCog className="mr-2 h-4 w-4" />
+                    Settings
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
@@ -141,8 +156,19 @@ export function Navbar() {
                     })}
                     <div className="border-t pt-4">
                       <div className="px-3 py-2 text-sm text-muted-foreground">
-                        {user?.email}
+                        {userDisplayLabel}
                       </div>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          setAccountDialogOpen(true);
+                        }}
+                      >
+                        <UserCog className="mr-2 h-4 w-4" />
+                        Settings
+                      </Button>
                       <Button
                         variant="ghost"
                         className="w-full justify-start"
@@ -163,5 +189,11 @@ export function Navbar() {
         </div>
       </div>
     </nav>
+    <BasicInfoDialog
+      open={accountDialogOpen}
+      mode="edit"
+      onOpenChange={setAccountDialogOpen}
+    />
+    </>
   );
 }

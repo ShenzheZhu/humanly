@@ -34,10 +34,16 @@ import {
 // Form validation schema
 const registerSchema = z
   .object({
-    name: z
+    firstName: z
       .string()
-      .min(1, 'Name is required')
-      .max(100, 'Name must be less than 100 characters'),
+      .trim()
+      .min(1, 'First name is required')
+      .max(100, 'First name must be at most 100 characters'),
+    lastName: z
+      .string()
+      .trim()
+      .min(1, 'Last name is required')
+      .max(100, 'Last name must be at most 100 characters'),
     email: z
       .string()
       .min(1, 'Email is required')
@@ -108,7 +114,8 @@ export default function RegisterPage() {
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      name: '',
+      firstName: '',
+      lastName: '',
       email: '',
       password: '',
       confirmPassword: '',
@@ -122,7 +129,7 @@ export default function RegisterPage() {
   async function onSubmit(values: RegisterFormValues) {
     try {
       setError(null);
-      await register(values.email, values.password, values.name, 'admin');
+      await register(values.email, values.password, values.firstName, values.lastName, 'admin');
       setRegistrationSuccess(true);
 
       // TODO: Uncomment when email service is configured
@@ -198,23 +205,43 @@ export default function RegisterPage() {
               </Alert>
             )}
 
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Name</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="John Doe"
-                      {...field}
-                      disabled={isLoading}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="firstName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>First name</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Jane"
+                        {...field}
+                        disabled={isLoading}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="lastName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Last name</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Doe"
+                        {...field}
+                        disabled={isLoading}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <FormField
               control={form.control}

@@ -41,6 +41,11 @@ async function makeUserWithPassword(overrides: Partial<any> = {}) {
     id: 'user-1',
     email: 'alice@example.com',
     passwordHash,
+    role: 'user',
+    name: 'Alice Writer',
+    firstName: 'Alice',
+    lastName: 'Writer',
+    profileCompleted: true,
     emailVerified: true,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -52,6 +57,11 @@ function makeUser(overrides: Partial<any> = {}) {
   return {
     id: 'user-1',
     email: 'alice@example.com',
+    role: 'user',
+    name: 'Alice Writer',
+    firstName: 'Alice',
+    lastName: 'Writer',
+    profileCompleted: true,
     emailVerified: true,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -80,17 +90,21 @@ describe('AuthService.register', () => {
     const user = makeUser();
     MockUserModel.create.mockResolvedValue(user as any);
 
-    const result = await AuthService.register('alice@example.com', 'password123');
+    const result = await AuthService.register('alice@example.com', 'password123', 'Alice', 'Writer');
     expect(result).toEqual(user);
     expect(MockUserModel.create).toHaveBeenCalledWith(
-      expect.objectContaining({ email: 'alice@example.com' })
+      expect.objectContaining({
+        email: 'alice@example.com',
+        firstName: 'Alice',
+        lastName: 'Writer',
+      })
     );
     expect(MockUserAISettingsModel.upsert).not.toHaveBeenCalled();
   });
 
   it('throws 409 when email is already registered', async () => {
     MockUserModel.findByEmail.mockResolvedValue(makeUser() as any);
-    await expect(AuthService.register('alice@example.com', 'pass')).rejects.toMatchObject({
+    await expect(AuthService.register('alice@example.com', 'pass', 'Alice', 'Writer')).rejects.toMatchObject({
       statusCode: 409,
     });
     expect(MockUserModel.create).not.toHaveBeenCalled();
@@ -106,7 +120,7 @@ describe('AuthService.register', () => {
     MockUserModel.create.mockResolvedValue(user as any);
     MockUserAISettingsModel.upsert.mockResolvedValue(undefined);
 
-    await AuthService.register('alice@example.com', 'password123');
+    await AuthService.register('alice@example.com', 'password123', 'Alice', 'Writer');
 
     expect(MockUserAISettingsModel.upsert).toHaveBeenCalledWith(
       user.id,
@@ -124,7 +138,40 @@ describe('AuthService.register', () => {
     MockUserModel.create.mockResolvedValue(user as any);
     MockUserAISettingsModel.upsert.mockRejectedValue(new Error('db error'));
 
-    await expect(AuthService.register('alice@example.com', 'password123')).resolves.toEqual(user);
+    await expect(AuthService.register('alice@example.com', 'password123', 'Alice', 'Writer')).resolves.toEqual(user);
+  });
+});
+
+// ── updateUserProfile ───────────────────────────────────────────────────────
+
+describe('AuthService.updateUserProfile', () => {
+  it('persists first and last name and marks the profile complete', async () => {
+    const updatedUser = makeUser({
+      name: 'Alice Updated',
+      firstName: 'Alice',
+      lastName: 'Updated',
+      profileCompleted: true,
+    });
+    MockUserModel.updateProfile.mockResolvedValue(updatedUser as any);
+
+    await expect(
+      AuthService.updateUserProfile('user-1', { firstName: 'Alice', lastName: 'Updated' })
+    ).resolves.toEqual(updatedUser);
+
+    expect(MockUserModel.updateProfile).toHaveBeenCalledWith('user-1', {
+      firstName: 'Alice',
+      lastName: 'Updated',
+    });
+  });
+
+  it('throws 404 when the user cannot be found', async () => {
+    MockUserModel.updateProfile.mockResolvedValue(null);
+
+    await expect(
+      AuthService.updateUserProfile('missing-user', { firstName: 'Alice', lastName: 'Updated' })
+    ).rejects.toMatchObject({
+      statusCode: 404,
+    });
   });
 });
 

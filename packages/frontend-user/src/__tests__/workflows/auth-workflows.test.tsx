@@ -71,7 +71,8 @@ describe('user auth workflows', () => {
 
     const { unmount } = render(<RegisterPage />);
 
-    await user.type(screen.getByLabelText(/^name$/i), 'QA User');
+    await user.type(screen.getByLabelText(/first name/i), 'QA');
+    await user.type(screen.getByLabelText(/last name/i), 'User');
     await user.type(screen.getByLabelText(/^email$/i), 'qa@example.com');
     await user.type(screen.getByPlaceholderText('Enter your password'), 'weakpass');
     await user.type(screen.getByPlaceholderText('Confirm your password'), 'weakpass');
@@ -85,7 +86,8 @@ describe('user auth workflows', () => {
     mockRegister.mockResolvedValueOnce(undefined);
     render(<RegisterPage />);
 
-    await user.type(screen.getByLabelText(/^name$/i), 'QA User');
+    await user.type(screen.getByLabelText(/first name/i), 'QA');
+    await user.type(screen.getByLabelText(/last name/i), 'User');
     await user.type(screen.getByLabelText(/^email$/i), 'qa@example.com');
     await user.type(screen.getByPlaceholderText('Enter your password'), 'Password123!');
     await user.type(screen.getByPlaceholderText('Confirm your password'), 'Password123!');
@@ -93,7 +95,7 @@ describe('user auth workflows', () => {
     await user.click(screen.getByRole('button', { name: /^create account$/i }));
 
     expect(await screen.findByText(/account created/i)).toBeInTheDocument();
-    expect(mockRegister).toHaveBeenCalledWith('qa@example.com', 'Password123!', 'QA User', 'user');
+    expect(mockRegister).toHaveBeenCalledWith('qa@example.com', 'Password123!', 'QA', 'User', 'user');
 
     act(() => {
       jest.advanceTimersByTime(2000);

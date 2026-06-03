@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
+import { BasicInfoDialog } from '@/components/account/basic-info-dialog';
 import { Navbar } from '@/components/navigation/navbar';
 
 export default function TasksLayout({
@@ -11,8 +12,9 @@ export default function TasksLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { isAuthenticated, isLoading, fetchUser } = useAuthStore();
+  const { user, isAuthenticated, isLoading, fetchUser } = useAuthStore();
   const [isValidating, setIsValidating] = useState(true);
+  const [basicInfoOpen, setBasicInfoOpen] = useState(false);
 
   useEffect(() => {
     // Always validate session on mount
@@ -28,6 +30,12 @@ export default function TasksLayout({
 
     validateSession();
   }, [fetchUser, router]);
+
+  useEffect(() => {
+    if (!isValidating && isAuthenticated && user?.profileCompleted === false) {
+      setBasicInfoOpen(true);
+    }
+  }, [isAuthenticated, isValidating, user?.profileCompleted]);
 
   // Show loading state while checking authentication
   if (isLoading || isValidating) {
@@ -49,6 +57,11 @@ export default function TasksLayout({
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
+      <BasicInfoDialog
+        open={basicInfoOpen}
+        mode="complete"
+        onOpenChange={setBasicInfoOpen}
+      />
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {children}
       </main>

@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
+import { BasicInfoDialog } from '@/components/account/basic-info-dialog';
 import { Navbar } from '@/components/navigation/navbar';
+import { isGuestUserEmail } from '@/components/navigation/user-display';
 
 export default function DocumentsLayout({
   children,
@@ -11,9 +13,14 @@ export default function DocumentsLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
+  const { user, isAuthenticated, isLoading, checkAuth } = useAuthStore();
   const [hasChecked, setHasChecked] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [basicInfoOpen, setBasicInfoOpen] = useState(false);
+  const requiresBasicInfo =
+    isAuthenticated &&
+    user?.profileCompleted === false &&
+    !isGuestUserEmail(user?.email);
 
   useEffect(() => {
     if (!hasChecked) {
@@ -30,6 +37,12 @@ export default function DocumentsLayout({
       router.push('/login');
     }
   }, [isAuthenticated, isLoading, router, hasChecked, isCheckingAuth]);
+
+  useEffect(() => {
+    if (hasChecked && !isCheckingAuth && !isLoading && requiresBasicInfo) {
+      setBasicInfoOpen(true);
+    }
+  }, [hasChecked, isCheckingAuth, isLoading, requiresBasicInfo]);
 
   if (isCheckingAuth || isLoading) {
     return (
@@ -49,6 +62,11 @@ export default function DocumentsLayout({
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
+      <BasicInfoDialog
+        open={basicInfoOpen}
+        mode="complete"
+        onOpenChange={setBasicInfoOpen}
+      />
       {children}
     </div>
   );

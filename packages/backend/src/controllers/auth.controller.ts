@@ -7,8 +7,8 @@ import {
   verifyEmailSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  updateUserProfileSchema,
 } from '@humanly/shared';
-import { logger } from '../utils/logger';
 import { env } from '../config/env';
 
 /**
@@ -17,10 +17,10 @@ import { env } from '../config/env';
  */
 export const register = asyncHandler(async (req: Request, res: Response) => {
   // Validate request body
-  const { email, password, role } = registerSchema.parse(req.body);
+  const { email, password, firstName, lastName, role } = registerSchema.parse(req.body);
 
   // Register user
-  const user = await AuthService.register(email, password, role);
+  const user = await AuthService.register(email, password, firstName, lastName, role);
 
   res.status(201).json({
     success: true,
@@ -158,7 +158,7 @@ export const refreshToken = asyncHandler(async (req: Request, res: Response) => 
   }
 
   // Refresh tokens
-  const { accessToken, refreshToken: newRefreshToken } = await AuthService.refreshToken(
+  const { user, accessToken, refreshToken: newRefreshToken } = await AuthService.refreshToken(
     refreshToken
   );
 
@@ -182,6 +182,7 @@ export const refreshToken = asyncHandler(async (req: Request, res: Response) => 
     success: true,
     message: 'Token refreshed successfully',
     data: {
+      user,
       accessToken,
     },
   });
@@ -239,6 +240,30 @@ export const getCurrentUser = asyncHandler(async (req: Request, res: Response) =
 
   // Get user
   const user = await AuthService.getUserById(userId);
+
+  res.json({
+    success: true,
+    data: { user },
+  });
+});
+
+/**
+ * Update current user profile
+ * PATCH /api/v1/auth/me
+ */
+export const updateCurrentUser = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.user?.userId;
+  if (!userId) {
+    res.status(401).json({
+      success: false,
+      error: 'Unauthorized',
+      message: 'Authentication required',
+    });
+    return;
+  }
+
+  const data = updateUserProfileSchema.parse(req.body);
+  const user = await AuthService.updateUserProfile(userId, data);
 
   res.json({
     success: true,

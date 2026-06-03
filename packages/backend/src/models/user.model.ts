@@ -1,12 +1,36 @@
 import { query, queryOne } from '../config/database';
 import { User, UserRole, UserWithPassword } from '@humanly/shared';
 
+const USER_SELECT = `
+  id,
+  email,
+  role,
+  name,
+  first_name as "firstName",
+  last_name as "lastName",
+  profile_completed as "profileCompleted",
+  email_verified as "emailVerified",
+  created_at as "createdAt",
+  updated_at as "updatedAt"
+`;
+
 export interface CreateUserData {
   email: string;
   passwordHash: string;
+  firstName: string;
+  lastName: string;
   role?: UserRole;
   emailVerificationToken: string;
   emailVerificationExpires: Date;
+}
+
+export interface UpdateUserProfileData {
+  firstName: string;
+  lastName: string;
+}
+
+function getFullName(firstName: string, lastName: string): string {
+  return `${firstName.trim()} ${lastName.trim()}`.trim();
 }
 
 export class UserModel {
@@ -14,15 +38,31 @@ export class UserModel {
    * Create a new user
    */
   static async create(data: CreateUserData): Promise<User> {
+    const firstName = data.firstName.trim();
+    const lastName = data.lastName.trim();
+    const name = getFullName(firstName, lastName);
     const sql = `
-      INSERT INTO users (email, password_hash, role, email_verification_token, email_verification_expires)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING id, email, role, email_verified as "emailVerified", created_at as "createdAt", updated_at as "updatedAt"
+      INSERT INTO users (
+        email,
+        password_hash,
+        role,
+        name,
+        first_name,
+        last_name,
+        profile_completed,
+        email_verification_token,
+        email_verification_expires
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, TRUE, $7, $8)
+      RETURNING ${USER_SELECT}
     `;
     const user = await queryOne<User>(sql, [
       data.email,
       data.passwordHash,
       data.role || 'user',
+      name,
+      firstName,
+      lastName,
       data.emailVerificationToken,
       data.emailVerificationExpires,
     ]);
@@ -35,29 +75,16 @@ export class UserModel {
    */
   static async findByEmail(email: string): Promise<UserWithPassword | null> {
     const sql = `
-      SELECT id, email, role, password_hash, email_verified,
-             email_verification_token, email_verification_expires,
-             password_reset_token, password_reset_expires,
-             created_at, updated_at
+      SELECT ${USER_SELECT},
+             password_hash as "passwordHash",
+             email_verification_token as "emailVerificationToken",
+             email_verification_expires as "emailVerificationExpires",
+             password_reset_token as "passwordResetToken",
+             password_reset_expires as "passwordResetExpires"
       FROM users
       WHERE email = $1
     `;
-    const user = await queryOne<any>(sql, [email]);
-    if (!user) return null;
-
-    return {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      passwordHash: user.password_hash,
-      emailVerified: user.email_verified,
-      emailVerificationToken: user.email_verification_token,
-      emailVerificationExpires: user.email_verification_expires,
-      passwordResetToken: user.password_reset_token,
-      passwordResetExpires: user.password_reset_expires,
-      createdAt: user.created_at,
-      updatedAt: user.updated_at,
-    };
+    return queryOne<UserWithPassword>(sql, [email]);
   }
 
   /**
@@ -65,7 +92,7 @@ export class UserModel {
    */
   static async findById(id: string): Promise<User | null> {
     const sql = `
-      SELECT id, email, role, email_verified as "emailVerified", created_at as "createdAt", updated_at as "updatedAt"
+      SELECT ${USER_SELECT}
       FROM users
       WHERE id = $1
     `;
@@ -77,27 +104,15 @@ export class UserModel {
    */
   static async findByVerificationToken(token: string): Promise<UserWithPassword | null> {
     const sql = `
-      SELECT id, email, role, password_hash, email_verified,
-             email_verification_token, email_verification_expires,
-             created_at, updated_at
+      SELECT ${USER_SELECT},
+             password_hash as "passwordHash",
+             email_verification_token as "emailVerificationToken",
+             email_verification_expires as "emailVerificationExpires"
       FROM users
       WHERE email_verification_token = $1
         AND email_verification_expires > NOW()
     `;
-    const user = await queryOne<any>(sql, [token]);
-    if (!user) return null;
-
-    return {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      passwordHash: user.password_hash,
-      emailVerified: user.email_verified,
-      emailVerificationToken: user.email_verification_token,
-      emailVerificationExpires: user.email_verification_expires,
-      createdAt: user.created_at,
-      updatedAt: user.updated_at,
-    };
+    return queryOne<UserWithPassword>(sql, [token]);
   }
 
   /**
@@ -105,27 +120,15 @@ export class UserModel {
    */
   static async findByResetToken(token: string): Promise<UserWithPassword | null> {
     const sql = `
-      SELECT id, email, role, password_hash, email_verified,
-             password_reset_token, password_reset_expires,
-             created_at, updated_at
+      SELECT ${USER_SELECT},
+             password_hash as "passwordHash",
+             password_reset_token as "passwordResetToken",
+             password_reset_expires as "passwordResetExpires"
       FROM users
       WHERE password_reset_token = $1
         AND password_reset_expires > NOW()
     `;
-    const user = await queryOne<any>(sql, [token]);
-    if (!user) return null;
-
-    return {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      passwordHash: user.password_hash,
-      emailVerified: user.email_verified,
-      passwordResetToken: user.password_reset_token,
-      passwordResetExpires: user.password_reset_expires,
-      createdAt: user.created_at,
-      updatedAt: user.updated_at,
-    };
+    return queryOne<UserWithPassword>(sql, [token]);
   }
 
   /**
@@ -200,6 +203,25 @@ export class UserModel {
       WHERE id = $3
     `;
     await query(sql, [token, expires, id]);
+  }
+
+  /**
+   * Update editable user profile fields.
+   */
+  static async updateProfile(id: string, data: UpdateUserProfileData): Promise<User | null> {
+    const firstName = data.firstName.trim();
+    const lastName = data.lastName.trim();
+    const name = getFullName(firstName, lastName);
+    const sql = `
+      UPDATE users
+      SET name = $1,
+          first_name = $2,
+          last_name = $3,
+          profile_completed = TRUE
+      WHERE id = $4
+      RETURNING ${USER_SELECT}
+    `;
+    return queryOne<User>(sql, [name, firstName, lastName, id]);
   }
 
   /**

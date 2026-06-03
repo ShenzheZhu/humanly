@@ -41,7 +41,13 @@ export class AuthService {
   /**
    * Register a new user
    */
-  static async register(email: string, password: string, role: UserRole = 'user'): Promise<User> {
+  static async register(
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+    role: UserRole = 'user'
+  ): Promise<User> {
     logger.info('Attempting to register user', { email, role });
 
     // Check if user already exists
@@ -61,6 +67,8 @@ export class AuthService {
     const user = await UserModel.create({
       email,
       passwordHash,
+      firstName,
+      lastName,
       role,
       emailVerificationToken: verificationToken,
       emailVerificationExpires: verificationExpires,
@@ -92,6 +100,25 @@ export class AuthService {
 
     logger.info('User registered successfully', { userId: user.id, email });
     return user;
+  }
+
+  private static toPublicUser(user: User): User {
+    const firstName = user.firstName?.trim() || null;
+    const lastName = user.lastName?.trim() || null;
+    const name = user.name?.trim() || [firstName, lastName].filter(Boolean).join(' ') || null;
+
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role || 'user',
+      name,
+      firstName,
+      lastName,
+      profileCompleted: user.profileCompleted ?? Boolean(firstName && lastName),
+      emailVerified: user.emailVerified,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
   }
 
   /**
@@ -184,14 +211,7 @@ export class AuthService {
     await RefreshTokenModel.deleteExpired();
 
     // Get user without password
-    const user: User = {
-      id: userWithPassword.id,
-      email: userWithPassword.email,
-      role: userWithPassword.role,
-      emailVerified: userWithPassword.emailVerified,
-      createdAt: userWithPassword.createdAt,
-      updatedAt: userWithPassword.updatedAt,
-    };
+    const user = this.toPublicUser(userWithPassword);
 
     logger.info('Login successful', { userId: user.id, email: user.email });
     return { user, accessToken, refreshToken };
@@ -220,7 +240,7 @@ export class AuthService {
    */
   static async refreshToken(
     refreshToken: string
-  ): Promise<{ accessToken: string; refreshToken: string }> {
+  ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
     logger.info('Attempting to refresh token');
 
     // Verify refresh token
@@ -268,7 +288,7 @@ export class AuthService {
     await RefreshTokenModel.create(user.id, newTokenHash, expiresAt);
 
     logger.info('Token refreshed successfully', { userId: user.id });
-    return { accessToken, refreshToken: newRefreshToken };
+    return { user: this.toPublicUser(user), accessToken, refreshToken: newRefreshToken };
   }
 
   /**
@@ -393,6 +413,20 @@ export class AuthService {
     if (!user) {
       throw new AppError(404, 'User not found');
     }
-    return user;
+    return this.toPublicUser(user);
+  }
+
+  /**
+   * Update current user's basic profile.
+   */
+  static async updateUserProfile(userId: string, data: { firstName: string; lastName: string }): Promise<User> {
+    const user = await UserModel.updateProfile(userId, {
+      firstName: data.firstName,
+      lastName: data.lastName,
+    });
+    if (!user) {
+      throw new AppError(404, 'User not found');
+    }
+    return this.toPublicUser(user);
   }
 }

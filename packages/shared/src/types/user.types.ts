@@ -4,6 +4,10 @@ export interface User {
   id: string;
   email: string;
   role: UserRole;
+  name?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  profileCompleted: boolean;
   emailVerified: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -12,6 +16,8 @@ export interface User {
 export interface UserCreateInput {
   email: string;
   password: string;
+  firstName: string;
+  lastName: string;
   role?: UserRole;
 }
 

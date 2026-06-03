@@ -9,6 +9,7 @@ import {
   forgotPassword,
   resetPassword,
   getCurrentUser,
+  updateCurrentUser,
 } from '../controllers/auth.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import {
@@ -83,5 +84,6 @@ router.post('/reset-password', passwordResetRateLimiter, resetPassword);
  * Requires authentication
  */
 router.get('/me', authenticate, getCurrentUser);
+router.patch('/me', authenticate, updateCurrentUser);
 
 export default router;
