@@ -77,26 +77,30 @@ Suggested questions:
 ### 4.2 Data-Based Evaluation: Final-Text AI Detection
 
 Compare against text-based detector products or methods such as GPTZero,
-Pangram, Turnitin AI, Originality/Copyleaks if accessible.
+Pangram, Originality.ai, and Copyleaks if accessible. Turnitin is out of scope
+for the first automated benchmark.
 
 Situation cases should cover:
 
-- human-only native English;
-- human-only non-native English;
+- human original writing;
 - human writing polished or grammar-checked by AI;
 - human writing translated by AI;
-- human writing containing AI-associated words;
-- AI-generated text pasted directly;
-- AI-generated text paraphrased by a humanizer;
-- AI-generated text prompted to sound human.
+- human-written AI-style prose;
+- direct AI-generated text;
+- AI-generated text paraphrased, humanized, or prompted to sound human;
+- AI-generated text transformed across languages;
+- AI-generated text with light human edits.
 
 Report:
 
 - confusion matrix by situation, not only aggregate accuracy;
-- false positives on human-origin text;
-- false negatives on AI-origin text;
+- false positives on human-origin or policy-compliant text;
+- false negatives on AI-origin or policy-violating text;
 - short analysis explaining why detector output cannot decide policy compliance
   when AI use is allowed under some policies.
+
+The v1 case matrix is tracked in
+`materials/prompts/detector-stress-test-v1.md`.
 
 ### 4.3 Process and Replay Comparison
 
