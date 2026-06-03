@@ -380,7 +380,13 @@ async function authenticate() {
   if (!existingUser) {
     await requestJson('auth.register', '/auth/register', {
       method: 'POST',
-      body: { email, password, role: 'user' },
+      body: {
+        email,
+        password,
+        firstName: 'Stress',
+        lastName: 'Runner',
+        role: 'user',
+      },
       expectedStatuses: [201, 409, 429],
     });
   }

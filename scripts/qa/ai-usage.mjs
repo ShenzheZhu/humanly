@@ -763,6 +763,8 @@ if (!appExecute) {
           body: JSON.stringify({
             email: appEmail,
             password: appLoginValue,
+            firstName: "AI",
+            lastName: "Runner",
             role: "user",
           }),
         },

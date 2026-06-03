@@ -352,7 +352,13 @@ if (mutating) {
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password, role: "user" }),
+            body: JSON.stringify({
+              email,
+              password,
+              firstName: "Contract",
+              lastName: "Runner",
+              role: "user",
+            }),
           },
         );
         if (![200, 201, 409].includes(response.status)) {
