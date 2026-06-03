@@ -1,10 +1,11 @@
 'use client';
 
-import { ChangeEvent, ClipboardEvent, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, ClipboardEvent, SyntheticEvent, useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
 import {
   ArrowLeft,
   Award,
+  BookOpen,
   Calendar,
   Check,
   CheckCircle,
@@ -15,11 +16,13 @@ import {
   FileText,
   History,
   Loader2,
+  MessageSquare,
   RotateCcw,
   Settings2,
   Share2,
   Sparkles,
   Upload,
+  Wand2,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -44,6 +47,7 @@ import {
   formatWritingAiAccess,
   isWritingAiChatEnabled,
   isWritingAiEnabled,
+  isWritingAiPolishEnabled,
   type WritingAiAccess,
 } from '@humanly/shared';
 
@@ -53,11 +57,13 @@ type AiAccess = WritingAiAccess;
 type PastePolicy = 'allowed' | 'blocked';
 type LogKind = 'setting' | 'input' | 'paste' | 'blocked-paste' | 'ai' | 'certificate';
 type SaveStatus = 'saved' | 'saving';
+type DemoPolishAction = 'grammar' | 'improve' | 'simplify' | 'formal';
 
 interface DemoSettings {
   documentName: string;
   description: string;
   environment: DemoEnvironment;
+  referenceName: string;
   aiAccess: AiAccess;
   aiGuidelines: string;
   pastePolicy: PastePolicy;
@@ -102,10 +108,28 @@ interface DemoCertificatePayload {
   fullText?: string;
 }
 
+interface DemoSelection {
+  text: string;
+  start: number;
+  end: number;
+}
+
+const demoPolishActions: Array<{
+  type: DemoPolishAction;
+  label: string;
+  Icon: typeof Check;
+}> = [
+  { type: 'grammar', label: 'Fix grammar', Icon: Check },
+  { type: 'improve', label: 'Improve writing', Icon: Wand2 },
+  { type: 'simplify', label: 'Simplify', Icon: BookOpen },
+  { type: 'formal', label: 'Make formal', Icon: Sparkles },
+];
+
 const initialSettings: DemoSettings = {
   documentName: 'Research Reflection',
-  description: 'Personal writing demo with a local process certificate.',
+  description: 'Local Humanly workspace with a process certificate preview.',
   environment: 'custom',
+  referenceName: 'reflection-source.pdf',
   aiAccess: 'off',
   aiGuidelines: 'Brainstorming and feedback only; do not write the final draft.',
   pastePolicy: 'allowed',
@@ -153,6 +177,31 @@ function makeEntry(kind: LogKind, detail: string, characters = 0): DemoLogEntry 
 
 function countWords(text: string) {
   return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function applyDemoPolish(text: string, action: DemoPolishAction) {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+
+  if (!normalized) return text;
+
+  switch (action) {
+    case 'grammar':
+      return normalized
+        .replace(/\bi\b/g, 'I')
+        .replace(/\s+([,.!?;:])/g, '$1')
+        .replace(/^./, (letter) => letter.toUpperCase());
+    case 'improve':
+      return normalized.replace(/^./, (letter) => letter.toUpperCase());
+    case 'simplify':
+      return normalized
+        .replace(/\bin order to\b/gi, 'to')
+        .replace(/\butilize\b/gi, 'use')
+        .replace(/\bdemonstrate\b/gi, 'show');
+    case 'formal':
+      return normalized.replace(/^i\b/i, 'I').replace(/\bcan't\b/gi, 'cannot');
+    default:
+      return normalized;
+  }
 }
 
 function getDemoShareUrl(certificateId: string) {
@@ -302,6 +351,7 @@ export function FastWritingDemo() {
   const [aiResponse, setAiResponse] = useState('');
   const [logs, setLogs] = useState<DemoLogEntry[]>([]);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
+  const [selection, setSelection] = useState<DemoSelection | null>(null);
   const [certificateDialogOpen, setCertificateDialogOpen] = useState(false);
   const [isGeneratingCertificate, setIsGeneratingCertificate] = useState(false);
   const [certificateOptions, setCertificateOptions] = useState<CertificateGenerationOptions>({
@@ -337,7 +387,7 @@ export function FastWritingDemo() {
     setSettings((current) => ({ ...current, ...patch }));
   };
 
-  const handleCreateTask = () => {
+  const handleCreateDocument = () => {
     setStep('writing');
     setSaveStatus('saved');
     const environmentLabel = settings.environment === 'default_writing' ? 'Default Environment' : 'Custom Environment';
@@ -363,6 +413,15 @@ export function FastWritingDemo() {
     if (delta > 0) {
       appendLog(makeEntry('input', 'Typed in the Humanly editor', delta));
     }
+  };
+
+  const handleSelectionChange = (event: SyntheticEvent<HTMLTextAreaElement>) => {
+    const target = event.currentTarget;
+    const start = target.selectionStart;
+    const end = target.selectionEnd;
+    const selectedText = start !== end ? target.value.slice(start, end) : '';
+
+    setSelection(selectedText ? { text: selectedText, start, end } : null);
   };
 
   const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
@@ -395,6 +454,28 @@ export function FastWritingDemo() {
     setAiPrompt('');
   };
 
+  const handleAskSelection = () => {
+    if (!isWritingAiChatEnabled(settings.aiAccess) || !selection?.text.trim()) return;
+
+    setAiResponse(`Focused feedback: keep the selected passage tied to your evidence and explain the reasoning behind it.`);
+    appendLog(makeEntry('ai', `Asked AI about selected text: ${selection.text.trim().slice(0, 80)}`, selection.text.length));
+    setSelection(null);
+  };
+
+  const handlePolishSelection = (action: DemoPolishAction) => {
+    if (!isWritingAiPolishEnabled(settings.aiAccess) || !selection) return;
+
+    const replacement = applyDemoPolish(selection.text, action);
+    const nextDraft = `${draft.slice(0, selection.start)}${replacement}${draft.slice(selection.end)}`;
+    const actionLabel = demoPolishActions.find((item) => item.type === action)?.label || 'AI polish';
+
+    setDraft(nextDraft);
+    setSaveStatus('saved');
+    setAiResponse(`${actionLabel} applied locally to the selected text.`);
+    appendLog(makeEntry('ai', `${actionLabel} applied to selected text`, selection.text.length));
+    setSelection(null);
+  };
+
   const handleGenerateCertificate = (options: CertificateGenerationOptions) => {
     setIsGeneratingCertificate(true);
     setCertificateOptions(options);
@@ -414,6 +495,7 @@ export function FastWritingDemo() {
     setAiResponse('');
     setLogs([]);
     setSaveStatus('saved');
+    setSelection(null);
     setCertificateOptions({
       includeFullText: true,
       includeEditHistory: true,
@@ -446,7 +528,7 @@ export function FastWritingDemo() {
           <DemoTaskSetup
             settings={settings}
             onSettingsChange={updateSettings}
-            onCreateTask={handleCreateTask}
+            onCreateDocument={handleCreateDocument}
           />
         ) : step === 'writing' ? (
           <DemoWritingEditor
@@ -456,10 +538,14 @@ export function FastWritingDemo() {
             aiResponse={aiResponse}
             stats={stats}
             saveStatus={saveStatus}
+            selection={selection}
             onDraftChange={handleDraftChange}
+            onSelectionChange={handleSelectionChange}
             onPaste={handlePaste}
             onAiPromptChange={(event) => setAiPrompt(event.target.value)}
             onAskAi={handleAskAi}
+            onAskSelection={handleAskSelection}
+            onPolishSelection={handlePolishSelection}
             onBackToSetup={handleRestart}
             onViewLogs={() => setStep('log')}
             onOpenCertificateDialog={() => setCertificateDialogOpen(true)}
@@ -534,11 +620,11 @@ function SectionHeading({ title, description }: { title: string; description?: s
 function DemoTaskSetup({
   settings,
   onSettingsChange,
-  onCreateTask,
+  onCreateDocument,
 }: {
   settings: DemoSettings;
   onSettingsChange: (patch: Partial<DemoSettings>) => void;
-  onCreateTask: () => void;
+  onCreateDocument: () => void;
 }) {
   const [referenceStatus, setReferenceStatus] = useState<string | null>(null);
 
@@ -592,15 +678,27 @@ function DemoTaskSetup({
                 <Upload className="h-4 w-4 text-accent" />
                 PDF
               </div>
+              <Input
+                aria-label="PDF source file"
+                type="file"
+                accept="application/pdf"
+                className="mt-2"
+                onChange={(event) => {
+                  const nextFile = event.target.files?.[0];
+                  if (!nextFile) return;
+                  onSettingsChange({ referenceName: nextFile.name });
+                  setReferenceStatus('Selected local PDF for this browser session.');
+                }}
+              />
               <button
                 type="button"
-                aria-label="Open reflection-source.pdf"
+                aria-label={`Open ${settings.referenceName}`}
                 onClick={() => setReferenceStatus('Opened local reference preview.')}
                 className="mt-2 flex w-full items-center gap-3 rounded-lg border border-border/70 bg-background p-2 text-left transition-colors hover:border-foreground/50 hover:bg-muted/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <FileText className="h-5 w-5 shrink-0 text-accent" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">reflection-source.pdf</p>
+                  <p className="truncate text-sm font-medium">{settings.referenceName}</p>
                 </div>
                 <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" />
               </button>
@@ -724,8 +822,8 @@ function DemoTaskSetup({
               Cancel
             </a>
           </Button>
-          <Button type="button" onClick={onCreateTask}>
-            Create Writing
+          <Button type="button" onClick={onCreateDocument}>
+            Create Document
           </Button>
         </CardFooter>
       </Card>
@@ -763,10 +861,14 @@ function DemoWritingEditor({
   aiResponse,
   stats,
   saveStatus,
+  selection,
   onDraftChange,
+  onSelectionChange,
   onPaste,
   onAiPromptChange,
   onAskAi,
+  onAskSelection,
+  onPolishSelection,
   onBackToSetup,
   onViewLogs,
   onOpenCertificateDialog,
@@ -777,14 +879,22 @@ function DemoWritingEditor({
   aiResponse: string;
   stats: DemoStats;
   saveStatus: SaveStatus;
+  selection: DemoSelection | null;
   onDraftChange: (event: ChangeEvent<HTMLTextAreaElement>) => void;
+  onSelectionChange: (event: SyntheticEvent<HTMLTextAreaElement>) => void;
   onPaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void;
   onAiPromptChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onAskAi: () => void;
+  onAskSelection: () => void;
+  onPolishSelection: (action: DemoPolishAction) => void;
   onBackToSetup: () => void;
   onViewLogs: () => void;
   onOpenCertificateDialog: () => void;
 }) {
+  const aiPolishEnabled = isWritingAiPolishEnabled(settings.aiAccess);
+  const aiChatEnabled = isWritingAiChatEnabled(settings.aiAccess);
+  const selectedText = selection?.text.trim() || '';
+
   return (
     <div className="flex h-[calc(100vh-132px)] min-h-[420px] max-h-[620px] flex-col overflow-hidden rounded-lg border border-border/80 bg-background shadow-[0_34px_80px_-56px_rgba(20,22,26,0.75)]">
       <div className="shrink-0 border-b border-border/70 bg-card">
@@ -810,7 +920,8 @@ function DemoWritingEditor({
                   <SaveStatusIndicator status={saveStatus} />
                 </div>
                 <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                  <span>Personal writing</span>
+                  <span>Local session</span>
+                  <span>{formatWritingAiAccess(settings.aiAccess)}</span>
                 </div>
               </div>
             </div>
@@ -851,7 +962,7 @@ function DemoWritingEditor({
             <div className="shrink-0 border-b border-border/70 bg-muted/30 px-3 py-2">
               <div className="inline-flex max-w-[240px] items-center gap-2 truncate rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">
                 <FileText className="h-4 w-4 shrink-0" />
-                <span className="truncate">reflection-brief.pdf</span>
+                <span className="truncate">{settings.referenceName}</span>
               </div>
             </div>
             <div className="min-h-0 flex-1 overflow-auto bg-[#f8f8f6] p-3">
@@ -882,11 +993,48 @@ function DemoWritingEditor({
                 aria-label="Demo writing editor"
                 value={draft}
                 onChange={onDraftChange}
+                onSelect={onSelectionChange}
                 onPaste={onPaste}
                 placeholder="Start writing with your instruction file open..."
                 className="min-h-0 flex-1 resize-none rounded-lg border-border/80 bg-card p-4 text-base leading-7 shadow-sm"
               />
-              {isWritingAiChatEnabled(settings.aiAccess) ? (
+              {selectedText && isWritingAiEnabled(settings.aiAccess) ? (
+                <div className="shrink-0 rounded-lg border border-border/80 bg-background p-2 shadow-sm" role="toolbar" aria-label="AI selection tools">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {aiPolishEnabled
+                      ? demoPolishActions.map(({ type, label, Icon }) => (
+                          <Button
+                            key={type}
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 gap-1.5 px-2.5 text-xs"
+                            onClick={() => onPolishSelection(type)}
+                          >
+                            <Icon className="h-3.5 w-3.5" />
+                            {label}
+                          </Button>
+                        ))
+                      : null}
+                    {aiChatEnabled ? (
+                      <>
+                        {aiPolishEnabled ? <div className="mx-0.5 h-5 w-px bg-border" /> : null}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 gap-1.5 px-2.5 text-xs"
+                          onClick={onAskSelection}
+                        >
+                          <MessageSquare className="h-3.5 w-3.5" />
+                          Ask AI
+                        </Button>
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+              {aiChatEnabled ? (
                 <div className="shrink-0 rounded-lg border border-border/80 bg-card p-3 shadow-sm">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
