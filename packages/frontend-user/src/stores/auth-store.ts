@@ -31,7 +31,7 @@ interface AuthState {
 
   // Actions
   login: (email: string, password: string, role?: 'admin' | 'user') => Promise<void>;
-  register: (email: string, password: string, firstName: string, lastName: string, role?: 'admin' | 'user') => Promise<void>;
+  register: (email: string, password: string, role?: 'admin' | 'user') => Promise<void>;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   verifyEmail: (code: string) => Promise<void>;
@@ -100,8 +100,6 @@ export const useAuthStore = create<AuthState>()(
       register: async (
         email: string,
         password: string,
-        firstName: string,
-        lastName: string,
         role: 'admin' | 'user' = 'user'
       ) => {
         try {
@@ -113,7 +111,7 @@ export const useAuthStore = create<AuthState>()(
             data: {
               user: User;
             };
-          }>('/auth/register', { email, password, firstName, lastName, role });
+          }>('/auth/register', { email, password, role });
 
           // Registration successful - user needs to verify email before logging in
           // Don't set authenticated state or tokens

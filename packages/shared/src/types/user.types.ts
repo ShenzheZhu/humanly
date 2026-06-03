@@ -16,8 +16,8 @@ export interface User {
 export interface UserCreateInput {
   email: string;
   password: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string | null;
+  lastName?: string | null;
   role?: UserRole;
 }
 

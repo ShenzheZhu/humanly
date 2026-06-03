@@ -49,10 +49,10 @@ function clearAuthCookies(res: Response): void {
  */
 export const register = asyncHandler(async (req: Request, res: Response) => {
   // Validate request body
-  const { email, password, firstName, lastName, role } = registerSchema.parse(req.body);
+  const { email, password, role } = registerSchema.parse(req.body);
 
   // Register user
-  const user = await AuthService.register(email, password, firstName, lastName, role);
+  const user = await AuthService.register(email, password, role);
 
   res.status(201).json({
     success: true,

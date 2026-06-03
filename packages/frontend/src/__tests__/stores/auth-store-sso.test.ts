@@ -145,4 +145,31 @@ describe('admin auth store cross-portal session restore', () => {
       error: null,
     });
   });
+
+  it('registers an admin account without sending profile names', async () => {
+    mockApiPost.mockResolvedValueOnce({
+      data: {
+        user: {
+          ...user,
+          firstName: null,
+          lastName: null,
+          profileCompleted: false,
+        },
+      },
+    });
+
+    await useAuthStore.getState().register('admin@example.com', 'Password123!', 'admin');
+
+    expect(mockApiPost).toHaveBeenCalledWith('/api/v1/auth/register', {
+      email: 'admin@example.com',
+      password: 'Password123!',
+      role: 'admin',
+    });
+    expect(useAuthStore.getState()).toMatchObject({
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+    });
+  });
 });

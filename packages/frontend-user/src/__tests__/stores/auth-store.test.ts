@@ -215,6 +215,33 @@ describe('user auth store session restore', () => {
     });
   });
 
+  it('registers without sending profile names', async () => {
+    mockApiPost.mockResolvedValueOnce({
+      data: {
+        user: {
+          ...user,
+          firstName: null,
+          lastName: null,
+          profileCompleted: false,
+        },
+      },
+    });
+
+    await useAuthStore.getState().register('writer@example.com', 'Password123!', 'user');
+
+    expect(mockApiPost).toHaveBeenCalledWith('/auth/register', {
+      email: 'writer@example.com',
+      password: 'Password123!',
+      role: 'user',
+    });
+    expect(useAuthStore.getState()).toMatchObject({
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+    });
+  });
+
   it('updates the user profile through /auth/me without dropping auth state', async () => {
     useAuthStore.setState({
       user,

@@ -34,16 +34,6 @@ import { OAuthButtons } from '@/components/auth/oauth-buttons';
 // Form validation schema
 const registerSchema = z
   .object({
-    firstName: z
-      .string()
-      .trim()
-      .min(1, 'First name is required')
-      .max(100, 'First name must be at most 100 characters'),
-    lastName: z
-      .string()
-      .trim()
-      .min(1, 'Last name is required')
-      .max(100, 'Last name must be at most 100 characters'),
     email: z
       .string()
       .min(1, 'Email is required')
@@ -119,8 +109,6 @@ export default function RegisterPage() {
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      firstName: '',
-      lastName: '',
       email: '',
       password: '',
       confirmPassword: '',
@@ -143,7 +131,7 @@ export default function RegisterPage() {
   async function onSubmit(values: RegisterFormValues) {
     try {
       setError(null);
-      await register(values.email, values.password, values.firstName, values.lastName, 'user');
+      await register(values.email, values.password, 'user');
       setRegistrationSuccess(true);
 
       if (typeof window !== 'undefined') {
@@ -193,7 +181,7 @@ export default function RegisterPage() {
           Create an account
         </CardTitle>
         <CardDescription className="mx-auto max-w-sm text-sm leading-5">
-          Create your account with the name shown in your Humanly workspace.
+          Create your account. Basic info is completed when you first enter your workspace.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -212,46 +200,6 @@ export default function RegisterPage() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>First name</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Jane"
-                        className="h-11 rounded-lg"
-                        {...field}
-                        disabled={isLoading}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="lastName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Last name</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Doe"
-                        className="h-11 rounded-lg"
-                        {...field}
-                        disabled={isLoading}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
 
             <FormField
               control={form.control}

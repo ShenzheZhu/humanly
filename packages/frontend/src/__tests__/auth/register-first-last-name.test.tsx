@@ -22,21 +22,21 @@ jest.mock('@/stores/auth-store', () => ({
   },
 }));
 
-describe('admin registration names', () => {
+describe('admin registration profile names', () => {
   beforeEach(() => {
     jest.useRealTimers();
     jest.clearAllMocks();
   });
 
-  it('requires first and last name during admin signup', async () => {
+  it('does not collect first and last name during admin signup', async () => {
     jest.useFakeTimers();
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     mockRegister.mockResolvedValueOnce(undefined);
 
     render(<RegisterPage />);
 
-    await user.type(screen.getByLabelText(/first name/i), 'Admin');
-    await user.type(screen.getByLabelText(/last name/i), 'Owner');
+    expect(screen.queryByLabelText(/first name/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/last name/i)).not.toBeInTheDocument();
     await user.type(screen.getByLabelText(/^email$/i), 'admin@example.com');
     await user.type(screen.getByPlaceholderText('Enter your password'), 'Password123!');
     await user.type(screen.getByPlaceholderText('Confirm your password'), 'Password123!');
@@ -44,13 +44,7 @@ describe('admin registration names', () => {
     await user.click(screen.getByRole('button', { name: /^create account$/i }));
 
     await waitFor(() => {
-      expect(mockRegister).toHaveBeenCalledWith(
-        'admin@example.com',
-        'Password123!',
-        'Admin',
-        'Owner',
-        'admin'
-      );
+      expect(mockRegister).toHaveBeenCalledWith('admin@example.com', 'Password123!', 'admin');
     });
 
     act(() => {
