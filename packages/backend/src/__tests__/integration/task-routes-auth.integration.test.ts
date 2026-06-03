@@ -29,48 +29,52 @@ function tokenFor(role: 'admin' | 'user'): string {
 
 function validTaskPayload() {
   return {
-    name: 'Role Guard Task',
-    description: 'Regression coverage for admin task role guard',
+    name: 'Owner Access Task',
+    description: 'Regression coverage for authenticated task owner routes',
     startDate: new Date(Date.now() - 60_000).toISOString(),
     endDate: new Date(Date.now() + 60_000).toISOString(),
   };
 }
 
-describe('task route role boundaries', () => {
+describe('task route authenticated owner boundaries', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('rejects user-role tokens on admin task owner endpoints', async () => {
-    const userToken = tokenFor('user');
-
-    const listResponse = await request(app)
-      .get('/api/v1/tasks')
-      .set('Authorization', `Bearer ${userToken}`);
-    expect(listResponse.status).toBe(403);
-
-    const createResponse = await request(app)
-      .post('/api/v1/tasks')
-      .set('Authorization', `Bearer ${userToken}`)
-      .send(validTaskPayload());
-    expect(createResponse.status).toBe(403);
-
-    const detailResponse = await request(app)
-      .get('/api/v1/tasks/task-1')
-      .set('Authorization', `Bearer ${userToken}`);
-    expect(detailResponse.status).toBe(403);
+  it('rejects unauthenticated task owner route requests', async () => {
+    const response = await request(app).get('/api/v1/tasks');
+    expect(response.status).toBe(401);
 
     expect(MockTaskService.listTasks).not.toHaveBeenCalled();
     expect(MockTaskService.createTask).not.toHaveBeenCalled();
     expect(MockTaskService.getTask).not.toHaveBeenCalled();
   });
 
-  it('allows admin-role tokens to create admin tasks', async () => {
+  it('allows user-role tokens to access authenticated task owner routes', async () => {
+    MockTaskService.listTasks.mockResolvedValue({
+      tasks: [],
+      page: 1,
+      limit: 20,
+      total: 0,
+      totalPages: 0,
+    } as any);
     MockTaskService.createTask.mockResolvedValue({
       id: 'task-1',
-      userId: 'admin-1',
-      name: 'Role Guard Task',
-      description: 'Regression coverage for admin task role guard',
+      userId: 'user-1',
+      name: 'Owner Access Task',
+      description: 'Regression coverage for authenticated task owner routes',
+      taskToken: 'ABCDEF123456',
+      startDate: new Date(),
+      endDate: new Date(),
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as any);
+    MockTaskService.getTask.mockResolvedValue({
+      id: 'task-1',
+      userId: 'user-1',
+      name: 'Owner Access Task',
+      description: 'Regression coverage for authenticated task owner routes',
       taskToken: 'ABCDEF123456',
       startDate: new Date(),
       endDate: new Date(),
@@ -79,16 +83,39 @@ describe('task route role boundaries', () => {
       updatedAt: new Date(),
     } as any);
 
-    const response = await request(app)
+    const userToken = tokenFor('user');
+
+    const listResponse = await request(app)
+      .get('/api/v1/tasks')
+      .set('Authorization', `Bearer ${userToken}`);
+
+    expect(listResponse.status).toBe(200);
+    expect(MockTaskService.listTasks).toHaveBeenCalledWith(
+      'user-1',
+      { page: 1, limit: 20 },
+      undefined
+    );
+
+    const createResponse = await request(app)
       .post('/api/v1/tasks')
-      .set('Authorization', `Bearer ${tokenFor('admin')}`)
+      .set('Authorization', `Bearer ${userToken}`)
       .send(validTaskPayload());
 
-    expect(response.status).toBe(201);
-    expect(response.body.success).toBe(true);
+    expect(createResponse.status).toBe(201);
+    expect(createResponse.body.success).toBe(true);
     expect(MockTaskService.createTask).toHaveBeenCalledWith(
-      'admin-1',
-      expect.objectContaining({ name: 'Role Guard Task' })
+      'user-1',
+      expect.objectContaining({ name: 'Owner Access Task' })
+    );
+
+    const detailResponse = await request(app)
+      .get('/api/v1/tasks/task-1')
+      .set('Authorization', `Bearer ${userToken}`);
+
+    expect(detailResponse.status).toBe(200);
+    expect(MockTaskService.getTask).toHaveBeenCalledWith(
+      'task-1',
+      'user-1'
     );
   });
 
