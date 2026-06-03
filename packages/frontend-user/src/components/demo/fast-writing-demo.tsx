@@ -39,10 +39,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  WRITING_AI_ACCESS_OPTIONS,
+  formatWritingAiAccess,
+  isWritingAiChatEnabled,
+  isWritingAiEnabled,
+  type WritingAiAccess,
+} from '@humanly/shared';
 
 type DemoStep = 'setup' | 'writing' | 'log' | 'certificate' | 'done';
 type DemoEnvironment = 'default_writing' | 'custom';
-type AiAccess = 'off' | 'full';
+type AiAccess = WritingAiAccess;
 type PastePolicy = 'allowed' | 'blocked';
 type LogKind = 'setting' | 'input' | 'paste' | 'blocked-paste' | 'ai' | 'certificate';
 type SaveStatus = 'saved' | 'saving';
@@ -119,11 +126,6 @@ const customEnvironmentDefaults: Pick<DemoSettings, 'environment' | 'aiAccess' |
   aiGuidelines: 'Brainstorming and feedback only; do not write the final draft.',
   pastePolicy: 'allowed',
   maxCharacters: 1200,
-};
-
-const aiAccessLabels: Record<AiAccess, string> = {
-  off: 'AI Off',
-  full: 'AI On',
 };
 
 const pastePolicyLabels: Record<PastePolicy, string> = {
@@ -340,13 +342,13 @@ export function FastWritingDemo() {
     setSaveStatus('saved');
     const environmentLabel = settings.environment === 'default_writing' ? 'Default Environment' : 'Custom Environment';
     const aiGuidelineLabel =
-      settings.aiAccess === 'full' && settings.aiGuidelines.trim()
+      isWritingAiChatEnabled(settings.aiAccess) && settings.aiGuidelines.trim()
         ? `, AI rule: ${settings.aiGuidelines.trim()}`
         : '';
     appendLog(
       makeEntry(
         'setting',
-        `${environmentLabel}, ${aiAccessLabels[settings.aiAccess]}, ${pastePolicyLabels[settings.pastePolicy]}, ${settings.maxCharacters.toLocaleString()} character cap${aiGuidelineLabel}`
+        `${environmentLabel}, ${formatWritingAiAccess(settings.aiAccess)}, ${pastePolicyLabels[settings.pastePolicy]}, ${settings.maxCharacters.toLocaleString()} character cap${aiGuidelineLabel}`
       )
     );
   };
@@ -376,7 +378,7 @@ export function FastWritingDemo() {
   };
 
   const handleAskAi = () => {
-    if (settings.aiAccess !== 'full') return;
+    if (!isWritingAiChatEnabled(settings.aiAccess)) return;
 
     const prompt = aiPrompt.trim();
     const guideline = settings.aiGuidelines.trim();
@@ -631,7 +633,7 @@ function DemoTaskSetup({
                 <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-[0.12em]">AI</p>
-                    <p className="mt-1 text-foreground">{aiAccessLabels[settings.aiAccess]}</p>
+                    <p className="mt-1 text-foreground">{formatWritingAiAccess(settings.aiAccess)}</p>
                   </div>
                   <div>
                     <p className="text-xs font-bold uppercase tracking-[0.12em]">Paste</p>
@@ -656,8 +658,11 @@ function DemoTaskSetup({
                         <SelectValue placeholder="AI access" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="off">AI Off</SelectItem>
-                        <SelectItem value="full">AI On</SelectItem>
+                        {WRITING_AI_ACCESS_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -681,7 +686,7 @@ function DemoTaskSetup({
                   </div>
                 </div>
 
-                {settings.aiAccess === 'full' ? (
+                {isWritingAiEnabled(settings.aiAccess) ? (
                   <div className="space-y-3 rounded-lg border border-border/70 bg-card p-3 lg:col-span-2">
                     <div className="humanly-field">
                       <Label htmlFor="demo-ai-guidelines">AI Guidelines</Label>
@@ -860,8 +865,8 @@ function DemoWritingEditor({
                 </p>
                 <Separator className="my-4" />
                 <div className="space-y-2 text-sm leading-5">
-                  <p><span className="font-medium">AI:</span> {aiAccessLabels[settings.aiAccess]}</p>
-                  {settings.aiAccess === 'full' && settings.aiGuidelines.trim() ? (
+                  <p><span className="font-medium">AI:</span> {formatWritingAiAccess(settings.aiAccess)}</p>
+                  {isWritingAiChatEnabled(settings.aiAccess) && settings.aiGuidelines.trim() ? (
                     <p><span className="font-medium">AI rule:</span> {settings.aiGuidelines}</p>
                   ) : null}
                   <p><span className="font-medium">Paste:</span> {pastePolicyLabels[settings.pastePolicy]}</p>
@@ -881,7 +886,7 @@ function DemoWritingEditor({
                 placeholder="Start writing with your instruction file open..."
                 className="min-h-0 flex-1 resize-none rounded-lg border-border/80 bg-card p-4 text-base leading-7 shadow-sm"
               />
-              {settings.aiAccess === 'full' ? (
+              {isWritingAiChatEnabled(settings.aiAccess) ? (
                 <div className="shrink-0 rounded-lg border border-border/80 bg-card p-3 shadow-sm">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2 text-sm font-medium">

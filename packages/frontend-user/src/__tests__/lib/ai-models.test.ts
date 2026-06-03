@@ -90,6 +90,7 @@ describe('vision capability matrix (locked per provider docs)', () => {
 describe('whitelist accessors', () => {
   it('getWhitelist returns plain id strings (backwards compatible)', () => {
     const ids = getWhitelist('https://api.openai.com/v1');
+    expect(ids?.[0]).toBe('gpt-5.4-mini');
     expect(ids).toContain('gpt-5.5');
     expect(ids).toContain('gpt-5.4-nano');
     expect(ids).not.toContain('gpt-4o');

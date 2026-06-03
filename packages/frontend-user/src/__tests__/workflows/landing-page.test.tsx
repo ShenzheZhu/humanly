@@ -191,11 +191,11 @@ describe('landing page', () => {
     await user.click(screen.getByRole('combobox', { name: /^environment$/i }));
     await user.click(await screen.findByRole('option', { name: /default environment/i }));
     expect(screen.queryByRole('combobox', { name: /ai access/i })).not.toBeInTheDocument();
-    expect(screen.getByText('AI Off')).toBeInTheDocument();
+    expect(screen.getByText('Off')).toBeInTheDocument();
     await user.click(screen.getByRole('combobox', { name: /^environment$/i }));
     await user.click(await screen.findByRole('option', { name: /^custom$/i }));
     await user.click(screen.getByRole('combobox', { name: /ai access/i }));
-    await user.click(await screen.findByRole('option', { name: /ai on/i }));
+    await user.click(await screen.findByRole('option', { name: /full/i }));
     expect(screen.getByLabelText(/ai guidelines/i)).toBeInTheDocument();
 
     const writeText = jest.fn().mockResolvedValue(undefined);

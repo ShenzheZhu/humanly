@@ -154,7 +154,7 @@ describe('document creation workflow', () => {
 
     expect(screen.getByText('Writing Control')).toBeInTheDocument();
     expect(screen.getByText('Time Limitation')).toBeInTheDocument();
-    expect(screen.getByText('AI Off')).toBeInTheDocument();
+    expect(screen.getAllByText('Off').length).toBeGreaterThan(0);
     expect(screen.queryByLabelText(/minimum characters/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/maximum characters/i)).toBeInTheDocument();
     expect(screen.queryByText('Choose Custom to configure AI access, copy-paste rules, or a time limit.')).not.toBeInTheDocument();
@@ -248,7 +248,7 @@ describe('document creation workflow', () => {
     });
 
     expect(screen.getByText('Custom Environment')).toBeInTheDocument();
-    expect(screen.getByText('On')).toBeInTheDocument();
+    expect(screen.getByText('Full')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /^edit settings$/i }));
     expect(screen.getByText('qwen/qwen3.5-397b-a17b')).toBeInTheDocument();
@@ -367,7 +367,7 @@ describe('document creation workflow', () => {
     await user.click(screen.getByRole('combobox', { name: /environment/i }));
     await user.click(await screen.findByRole('option', { name: 'Custom' }));
     await user.click(screen.getByRole('combobox', { name: /ai access/i }));
-    await user.click(await screen.findByRole('option', { name: 'AI On' }));
+    await user.click(await screen.findByRole('option', { name: 'Full' }));
 
     await user.type(screen.getByLabelText(/ai api key/i), 'sk-or-test');
     await user.click(screen.getByRole('combobox', { name: /ai provider/i }));
@@ -379,12 +379,12 @@ describe('document creation workflow', () => {
 
     await user.click(screen.getByRole('combobox', { name: /ai provider/i }));
     await user.click(await screen.findByRole('option', { name: 'OpenAI' }));
-    expect(screen.getByText('gpt-5.5')).toBeInTheDocument();
+    expect(screen.getByText('gpt-5.4-mini')).toBeInTheDocument();
     expect(screen.queryByText('gpt-4o')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('combobox', { name: /ai provider/i }));
     await user.click(await screen.findByRole('option', { name: 'Claude' }));
-    expect(screen.getByText('claude-opus-4-8')).toBeInTheDocument();
+    expect(screen.getByText('claude-sonnet-4-6')).toBeInTheDocument();
     expect(screen.queryByText('claude-sonnet-4-5')).not.toBeInTheDocument();
   });
 
@@ -399,7 +399,7 @@ describe('document creation workflow', () => {
     await user.click(screen.getByRole('combobox', { name: /environment/i }));
     await user.click(await screen.findByRole('option', { name: 'Custom' }));
     await user.click(screen.getByRole('combobox', { name: /ai access/i }));
-    await user.click(await screen.findByRole('option', { name: 'AI On' }));
+    await user.click(await screen.findByRole('option', { name: 'Full' }));
     await user.type(screen.getByLabelText(/ai api key/i), 'sk-or-test');
     await user.click(screen.getByRole('combobox', { name: /ai provider/i }));
     await user.click(await screen.findByRole('option', { name: 'OpenRouter' }));
@@ -428,6 +428,40 @@ describe('document creation workflow', () => {
     });
   });
 
+  it('persists agent-chat-only AI access for personal documents', async () => {
+    const user = userEvent.setup();
+    mockCreateDocument.mockResolvedValueOnce({ id: 'doc-chat', title: 'Chat-only Writing' });
+
+    render(<NewDocumentPage />);
+
+    await screen.findByRole('heading', { name: /create writing/i });
+    await user.type(screen.getByLabelText(/document name/i), 'Chat-only Writing');
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
+    await user.click(await screen.findByRole('option', { name: 'Custom' }));
+    await user.click(screen.getByRole('combobox', { name: /ai access/i }));
+    await user.click(await screen.findByRole('option', { name: 'Only agent chat' }));
+    await user.type(screen.getByLabelText(/ai api key/i), 'sk-chat-test');
+    await user.click(screen.getByRole('button', { name: /^done$/i }));
+    await user.click(screen.getByRole('button', { name: /^create writing$/i }));
+
+    await waitFor(() => {
+      expect(mockApiPut).toHaveBeenCalledWith('/ai/settings', expect.objectContaining({
+        apiKey: 'sk-chat-test',
+      }));
+      expect(mockCreateDocument).toHaveBeenCalledWith(
+        'Chat-only Writing',
+        undefined,
+        expect.objectContaining({
+          aiAccess: 'chat',
+          traceability: expect.objectContaining({
+            trackAiUsage: true,
+          }),
+        }),
+        '',
+      );
+    });
+  });
+
   it('closes custom settings without a separate AI key verification step and validates on create', async () => {
     const user = userEvent.setup();
     render(<NewDocumentPage />);
@@ -436,14 +470,14 @@ describe('document creation workflow', () => {
     await user.click(screen.getByRole('combobox', { name: /environment/i }));
     await user.click(await screen.findByRole('option', { name: 'Custom' }));
     await user.click(screen.getByRole('combobox', { name: /ai access/i }));
-    await user.click(await screen.findByRole('option', { name: 'AI On' }));
+    await user.click(await screen.findByRole('option', { name: 'Full' }));
 
     await user.click(screen.getByRole('button', { name: /^done$/i }));
 
     expect(screen.queryByRole('button', { name: /test connection/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: /custom environment/i })).not.toBeInTheDocument();
     expect(screen.getByText('Custom Environment')).toBeInTheDocument();
-    expect(screen.getByText('On')).toBeInTheDocument();
+    expect(screen.getByText('Full')).toBeInTheDocument();
 
     await user.type(screen.getByLabelText(/document name/i), 'Needs AI Key');
     await user.click(screen.getByRole('button', { name: /^create writing$/i }));
@@ -465,7 +499,7 @@ describe('document creation workflow', () => {
     await user.click(screen.getByRole('combobox', { name: /environment/i }));
     await user.click(await screen.findByRole('option', { name: 'Custom' }));
     await user.click(screen.getByRole('combobox', { name: /ai access/i }));
-    await user.click(await screen.findByRole('option', { name: 'AI On' }));
+    await user.click(await screen.findByRole('option', { name: 'Full' }));
 
     await user.click(screen.getByRole('button', { name: /^close$/i }));
 

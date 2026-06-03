@@ -505,7 +505,7 @@ function makeSettings(overrides: Partial<any> = {}): any {
   return {
     apiKey: 'sk-test',
     baseUrl: 'https://api.openai.com/v1',
-    model: 'gpt-5.5',
+    model: 'gpt-5.4-mini',
     shortcutMaxTokens: 1024,
     chatMaxTokens: 4096,
     maskedApiKey: 'sk-te...st',
@@ -667,6 +667,39 @@ describe('AIService.silentChat', () => {
     // No session or log creation
     expect(MockAIModel.getOrCreateSession).not.toHaveBeenCalled();
     expect(MockAIModel.createLog).not.toHaveBeenCalled();
+  });
+
+  it('rejects personal-document quick actions in chat-only mode', async () => {
+    MockDocumentModel.findByIdAndUserId.mockResolvedValue({
+      id: 'doc-1',
+      userId: 'user-1',
+      environmentConfig: { aiAccess: 'chat' },
+    } as any);
+    const fetchCallsBefore = mockFetch.mock.calls.length;
+
+    await expect(AIService.silentChat('user-1', request as any)).rejects.toMatchObject({
+      statusCode: 403,
+      message: 'AI polish actions are disabled for this document',
+    });
+    expect(mockFetch.mock.calls.length).toBe(fetchCallsBefore);
+  });
+
+  it('rejects assigned-task quick actions in chat-only mode', async () => {
+    MockTaskModel.findBySubmissionDocument.mockResolvedValue({
+      id: 'task-1',
+      userId: 'admin-1',
+      environmentConfig: {
+        aiAccess: 'chat',
+        allowedModels: ['Qwen/Qwen3.5-397B-A17B'],
+      },
+    } as any);
+    const fetchCallsBefore = mockFetch.mock.calls.length;
+
+    await expect(AIService.silentChat('user-1', request as any)).rejects.toMatchObject({
+      statusCode: 403,
+      message: 'AI polish actions are disabled for this task',
+    });
+    expect(mockFetch.mock.calls.length).toBe(fetchCallsBefore);
   });
 
   it('throws 404 when user does not own document', async () => {
@@ -946,6 +979,43 @@ describe('AIService.chat', () => {
     expect(result.sessionId).toBe('session-1');
     expect(result.message.content).toBe('Fixed.');
     expect(result.logId).toBe('log-1');
+  });
+
+  it('rejects personal-document chat in polish-only mode before creating a session', async () => {
+    MockDocumentModel.findByIdAndUserId.mockResolvedValue({
+      id: 'doc-1',
+      userId: 'user-1',
+      environmentConfig: { aiAccess: 'polish' },
+    } as any);
+    const sessionCallsBefore = MockAIModel.getOrCreateSession.mock.calls.length;
+    const fetchCallsBefore = mockFetch.mock.calls.length;
+
+    await expect(AIService.chat('user-1', request as any)).rejects.toMatchObject({
+      statusCode: 403,
+      message: 'Agent chat is disabled for this document',
+    });
+    expect(MockAIModel.getOrCreateSession.mock.calls.length).toBe(sessionCallsBefore);
+    expect(mockFetch.mock.calls.length).toBe(fetchCallsBefore);
+  });
+
+  it('rejects assigned-task chat in polish-only mode before creating a session', async () => {
+    MockTaskModel.findBySubmissionDocument.mockResolvedValue({
+      id: 'task-1',
+      userId: 'admin-1',
+      environmentConfig: {
+        aiAccess: 'polish',
+        allowedModels: ['Qwen/Qwen3.5-397B-A17B'],
+      },
+    } as any);
+    const sessionCallsBefore = MockAIModel.getOrCreateSession.mock.calls.length;
+    const fetchCallsBefore = mockFetch.mock.calls.length;
+
+    await expect(AIService.chat('user-1', request as any)).rejects.toMatchObject({
+      statusCode: 403,
+      message: 'Agent chat is disabled for this task',
+    });
+    expect(MockAIModel.getOrCreateSession.mock.calls.length).toBe(sessionCallsBefore);
+    expect(mockFetch.mock.calls.length).toBe(fetchCallsBefore);
   });
 
   it('answers no-reference context questions without dispatching to the provider', async () => {
@@ -1314,9 +1384,9 @@ describe('AIService.chat', () => {
   // ── Capability gating (#93) ─────────────────────────────────────────────
   describe('capability gating', () => {
     it('passes capability snapshot when creating a fresh session', async () => {
-      // gpt-5.5 is vision-capable on api.openai.com per the backend matrix.
+      // gpt-5.4-mini is vision-capable on api.openai.com per the backend matrix.
       MockUserAISettings.getByUserId.mockResolvedValue(
-        makeSettings({ model: 'gpt-5.5', baseUrl: 'https://api.openai.com/v1' }),
+        makeSettings({ model: 'gpt-5.4-mini', baseUrl: 'https://api.openai.com/v1' }),
       );
       MockAIModel.findSessionById.mockResolvedValue(null);
       await AIService.chat('user-1', { ...request, sessionId: 'stale' } as any);
@@ -1324,7 +1394,7 @@ describe('AIService.chat', () => {
         'doc-1',
         'user-1',
         expect.objectContaining({
-          modelVersion: 'gpt-5.5',
+          modelVersion: 'gpt-5.4-mini',
           capabilities: expect.objectContaining({
             inputs: expect.arrayContaining(['text', 'image']),
           }),
@@ -1429,7 +1499,7 @@ describe('AIService.chat', () => {
       const { AIChatAttachmentModel } = jest.requireMock('../../models/ai-chat-attachment.model');
       AIChatAttachmentModel.findOwnedByStorageKey.mockResolvedValueOnce(null);
       MockUserAISettings.getByUserId.mockResolvedValue(
-        makeSettings({ model: 'gpt-5.5', baseUrl: 'https://api.openai.com/v1' }),
+        makeSettings({ model: 'gpt-5.4-mini', baseUrl: 'https://api.openai.com/v1' }),
       );
       MockAIModel.getOrCreateSession.mockResolvedValue(makeSession());
       const requestWithImage = {
@@ -1448,7 +1518,7 @@ describe('AIService.chat', () => {
 
     it('lets an image request through on a vision-capable model', async () => {
       MockUserAISettings.getByUserId.mockResolvedValue(
-        makeSettings({ model: 'gpt-5.5', baseUrl: 'https://api.openai.com/v1' }),
+        makeSettings({ model: 'gpt-5.4-mini', baseUrl: 'https://api.openai.com/v1' }),
       );
       MockAIModel.getOrCreateSession.mockResolvedValue(makeSession());
       // FileStorageService.getBuffer is mocked indirectly via module mock below.
@@ -1480,7 +1550,7 @@ describe('AIService.chat', () => {
         created_at: new Date(),
       });
       MockUserAISettings.getByUserId.mockResolvedValue(
-        makeSettings({ model: 'gpt-5.5', baseUrl: 'https://api.openai.com/v1' }),
+        makeSettings({ model: 'gpt-5.4-mini', baseUrl: 'https://api.openai.com/v1' }),
       );
       MockAIModel.getOrCreateSession.mockResolvedValue(makeSession());
       const requestWithImage = {
@@ -1516,7 +1586,7 @@ describe('AIService.chat', () => {
       });
       FileStorageService.getBuffer.mockRejectedValueOnce({ statusCode: 404, message: 'File not found' });
       MockUserAISettings.getByUserId.mockResolvedValue(
-        makeSettings({ model: 'gpt-5.5', baseUrl: 'https://api.openai.com/v1' }),
+        makeSettings({ model: 'gpt-5.4-mini', baseUrl: 'https://api.openai.com/v1' }),
       );
       MockAIModel.getOrCreateSession.mockResolvedValue(makeSession());
       const requestWithImage = {
@@ -1565,7 +1635,7 @@ describe('AIService.chat', () => {
         .mockRejectedValueOnce({ statusCode: 404, message: 'File not found' })
         .mockResolvedValueOnce(mockValidPngBuffer());
       MockUserAISettings.getByUserId.mockResolvedValue(
-        makeSettings({ model: 'gpt-5.5', baseUrl: 'https://api.openai.com/v1' }),
+        makeSettings({ model: 'gpt-5.4-mini', baseUrl: 'https://api.openai.com/v1' }),
       );
       MockAIModel.getOrCreateSession.mockResolvedValue(makeSession({
         messages: [
@@ -1613,7 +1683,7 @@ describe('AIService.chat', () => {
       });
       FileStorageService.getBuffer.mockResolvedValueOnce(Buffer.from('not-a-real-png'));
       MockUserAISettings.getByUserId.mockResolvedValue(
-        makeSettings({ model: 'gpt-5.5', baseUrl: 'https://api.openai.com/v1' }),
+        makeSettings({ model: 'gpt-5.4-mini', baseUrl: 'https://api.openai.com/v1' }),
       );
       MockAIModel.getOrCreateSession.mockResolvedValue(makeSession({
         messages: [
@@ -1653,7 +1723,7 @@ describe('AIService.chat', () => {
       });
       FileStorageService.getBuffer.mockResolvedValueOnce(Buffer.from('not-a-real-png'));
       MockUserAISettings.getByUserId.mockResolvedValue(
-        makeSettings({ model: 'gpt-5.5', baseUrl: 'https://api.openai.com/v1' }),
+        makeSettings({ model: 'gpt-5.4-mini', baseUrl: 'https://api.openai.com/v1' }),
       );
       MockAIModel.getOrCreateSession.mockResolvedValue(makeSession());
       const requestWithCorruptImage = {

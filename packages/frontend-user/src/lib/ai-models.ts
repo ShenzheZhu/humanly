@@ -61,9 +61,9 @@ export function getProviderValueForBaseUrl(baseUrl: string): AIProviderOptionVal
  */
 export const MODEL_WHITELIST: Record<string, AIModelDescriptor[]> = {
   'api.openai.com': [
+    { id: 'gpt-5.4-mini', capabilities: TEXT_AND_IMAGE },
     { id: 'gpt-5.5', capabilities: TEXT_AND_IMAGE },
     { id: 'gpt-5.4', capabilities: TEXT_AND_IMAGE },
-    { id: 'gpt-5.4-mini', capabilities: TEXT_AND_IMAGE },
     { id: 'gpt-5.4-nano', capabilities: TEXT_AND_IMAGE },
   ],
   'api.deepseek.com': [
@@ -72,8 +72,8 @@ export const MODEL_WHITELIST: Record<string, AIModelDescriptor[]> = {
     { id: 'deepseek-coder', capabilities: TEXT_ONLY },
   ],
   'api.anthropic.com': [
-    { id: 'claude-opus-4-8', capabilities: TEXT_AND_IMAGE },
     { id: 'claude-sonnet-4-6', capabilities: TEXT_AND_IMAGE },
+    { id: 'claude-opus-4-8', capabilities: TEXT_AND_IMAGE },
     { id: 'claude-haiku-4-5-20251001', capabilities: TEXT_AND_IMAGE },
   ],
   'generativelanguage.googleapis.com': [

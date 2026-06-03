@@ -16,8 +16,11 @@ import {
   AI_MAX_TOKENS_MIN,
   AI_SHORTCUT_MAX_TOKENS_DEFAULT,
   SUBMISSION_MAX_CHARACTERS_MAX,
+  WRITING_AI_ACCESS_OPTIONS,
   WRITING_AI_MODELS,
   WRITING_ENVIRONMENT_PRESETS,
+  formatWritingAiAccess,
+  normalizeWritingAiAccess,
   normalizeCopyPastePolicy,
   validateWritingEnvironmentImportTemplate,
   type UserAISettings,
@@ -90,6 +93,7 @@ function SectionHeading({
 const getPresetConfig = (preset: WritingEnvironmentPreset): WritingEnvironmentConfig => ({
   ...WRITING_ENVIRONMENT_PRESETS[preset],
   taskType: 'personal',
+  aiAccess: normalizeWritingAiAccess(WRITING_ENVIRONMENT_PRESETS[preset].aiAccess),
   copyPastePolicy: normalizeCopyPastePolicy(WRITING_ENVIRONMENT_PRESETS[preset].copyPastePolicy),
 });
 
@@ -124,7 +128,7 @@ const getAiProviderConfigForBaseUrl = (baseUrl: string): WritingAiProviderConfig
 
 const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentConfig => {
   const imported = validateWritingEnvironmentImportTemplate(value, 'personal');
-  const aiAccess: WritingAiAccess = imported.aiAccess === 'off' ? 'off' : 'full';
+  const aiAccess: WritingAiAccess = normalizeWritingAiAccess(imported.aiAccess);
   const copyPastePolicy = normalizeCopyPastePolicy(imported.copyPastePolicy);
 
   return {
@@ -575,8 +579,11 @@ export default function NewDocumentPage() {
               <SelectValue placeholder="AI access" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="off">AI Off</SelectItem>
-              <SelectItem value="full">AI On</SelectItem>
+              {WRITING_AI_ACCESS_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -1035,7 +1042,7 @@ export default function NewDocumentPage() {
                       <div className="rounded-lg border border-border/60 bg-background p-2.5">
                         <p className="humanly-eyebrow">AI</p>
                         <p className="mt-1 text-sm font-medium">
-                          {environmentConfig.aiAccess === 'off' ? 'Off' : 'On'}
+                          {formatWritingAiAccess(environmentConfig.aiAccess)}
                         </p>
                       </div>
                       <div className="rounded-lg border border-border/60 bg-background p-2.5">
