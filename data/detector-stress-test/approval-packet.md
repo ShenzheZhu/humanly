@@ -20,6 +20,7 @@ not positioned as a competing detector; it provides process evidence.
 | Human text source | Use Project Gutenberg/SPGC-style text for C1/C2 dry run; use newly written text for C4 | WikiText/Wikipedia; all-new Humanly writing samples | Pulling actual samples into repo |
 | C3 translation source | Use a short human-written non-English source we can document | Translate a public-domain non-English source | Creating translated samples |
 | C4 human-written AI-style | Recruit or ask humans to write after reading AI-style guidance; no AI generation | Delay C4 until human study | Claiming C4 as human-origin |
+| Human seed policy | Collect or write human seeds before constructing C1-C4; N1-N4 remain prompt-matched but not human-seed-derived | Use public-domain text only for all human cases | Creating pilot/main samples |
 | Length/task design | Short social media post; medium student assignment response; long paper review | Use only one length bucket for a cheaper pilot | Creating paper-ready samples |
 | Matching design | One-to-one by prompt/task/length matched set, not literal shared-source text across all cases | Fully independent prompts per case; exact source transformations only | Creating paper-ready samples |
 | Dry-run size | 1 sample per case where possible; current dry run is technical and not paper-ready | 1 sample per case per length bucket if we want a fuller pipeline test | Creating sample files |
@@ -123,14 +124,18 @@ Needs approval:
 
 Recommended:
 
-- C1/C2 dry run: Project Gutenberg/SPGC-style source.
-- C3 dry run: a short human-written non-English text we can document.
-- C4 dry run: one human writer using the AI-style instruction.
+- C1/C2: collect or choose an English human-written seed for each prompt family
+  and sample index.
+- C3: collect or choose a non-English human-written seed for each prompt family
+  and sample index, then translate it.
+- C4: ask a human writer to produce an AI-style seed using the C4 instruction
+  and vocabulary list, without AI generation.
 - N1-N4: generated from controlled prompts.
 
 Needs approval:
 
-- Whether Project Gutenberg/SPGC is acceptable for dry run despite older style.
+- Whether seed texts should be newly written in Humanly or selected from
+  open-license/public-domain sources.
 - Whether Humanly-collected samples can be stored in this repo later.
 
 ### Choice C: Sample sizes

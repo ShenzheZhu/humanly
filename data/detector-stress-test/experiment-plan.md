@@ -65,6 +65,19 @@ starts from a human draft and is polished, and `N1` is directly AI-generated
 from the same prompt. They are one-to-one comparable by task, but they are not
 all literal transformations of the same source text.
 
+## Human Seed Policy
+
+The pilot/main sample pool should be seed-first for human-origin cases:
+
+- collect or write a human English seed for `C1` and `C2`;
+- collect or write a human non-English seed for `C3`;
+- collect or write a human AI-style seed for `C4`;
+- keep `N1`, `N2`, `N3`, and `N4` generated from the matched prompt rather than
+  derived from those human seeds.
+
+The goal is to avoid fabricating human-origin text with AI while still matching
+all cases by prompt, task type, topic, and length.
+
 Detailed construction rules live in
 `materials/prompts/detector-stress-test-v1.md`.
 
@@ -90,6 +103,7 @@ approved by Shenzhe:
 - final detector list;
 - API spending/credit limits;
 - final human text source(s);
+- final human seed collection protocol for each length bucket;
 - final sample size for dry run, pilot, and main batch;
 - final shared writing task prompt;
 - final transformation prompts for polish, translation, obfuscation, and
@@ -279,9 +293,10 @@ Use this checklist for the next experimental work session:
 - [x] Decide matched-set design: one-to-one at prompt/task/length level, not
   literal shared-source text across all cases.
 - [x] Draft the three matched task prompt families.
+- [x] Decide seed-first construction for human-origin cases.
 - [ ] Review and approve the approval-gated experiment choices with Shenzhe.
 - [ ] Confirm detector API access and required credentials.
-- [ ] Choose first open-license human text source for actual sample text.
+- [ ] Choose human seed sources for short, medium, and long tasks.
 - [x] Create a technical dry-run sample set for 6/8 cases: `C1`, `C2`, `C3`,
   `N1`, `N2`, and `N3`.
 - [x] Skip `C4` for the technical API pipeline dry run; add it later after a

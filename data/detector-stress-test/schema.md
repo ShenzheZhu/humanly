@@ -30,6 +30,10 @@ Suggested files:
 | `prompt_id` | string | Stable prompt identifier |
 | `task_type` | enum | `social_media_post`, `student_assignment_response`, `paper_review`, or `technical_dry_run` |
 | `length_bucket` | enum | `short`, `medium`, or `long` |
+| `seed_id` | string/null | Human seed identifier when the sample is seed-derived |
+| `seed_type` | enum/null | `human_english`, `human_non_english`, `human_ai_style`, `ai_generated`, or `none` |
+| `seed_language` | string/null | Source seed language, e.g. `en`, `zh`, `fr`, or blank |
+| `seed_text_path` | string/null | Path to the seed text before transformation, when applicable |
 | `policy_label` | enum | `compliant` or `non_compliant` under the benchmark policy |
 | `origin_label` | enum | `human_origin`, `ai_origin`, or `mixed_ai_origin` |
 | `final_text_path` | string | Path to final text file, if stored separately |
