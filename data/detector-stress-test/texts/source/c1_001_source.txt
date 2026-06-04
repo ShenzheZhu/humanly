@@ -1,0 +1,4 @@
+Same as ../final/c1_001.txt.
+
+The final text is an unmodified public-domain Project Gutenberg excerpt used for
+technical dry-run testing only.

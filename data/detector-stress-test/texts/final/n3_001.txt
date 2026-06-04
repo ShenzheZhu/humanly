@@ -1,0 +1,13 @@
+AI cross-lingual transform dry-run sample.
+
+Source: texts/source/n3_001_source.txt.
+Transformation: AI translation from Chinese to English.
+Model/provider: ChatGPT in Codex session.
+Timestamp: 2026-06-04.
+Status: synthetic AI-origin dry-run sample.
+
+In a university writing course, evaluating only the final submitted text is not enough to determine whether a student genuinely completed the learning process. The final text is certainly important because it shows how the student organizes ideas, uses evidence, and expresses language. However, now that generative AI is widely available, a fluent essay does not necessarily show that the student went through real brainstorming, drafting, and revision. At the same time, an essay that looks ordinary may still contain substantial thinking and repeated revision.
+
+For this reason, instructors should pay attention, within reasonable limits, to how a text was produced. This does not mean that teachers should monitor every action a student takes. Rather, it helps distinguish different kinds of tool use. For example, if a course permits grammar checking, translation, or polishing, those actions are not the same as asking an AI system to generate an entire essay. When only the final text is considered, these situations are easy to collapse into one category.
+
+Process evidence can make evaluation more transparent. Students can show how they wrote, when they revised, and whether they used permitted forms of assistance. Teachers also do not have to rely only on the unstable intuition of whether an essay "sounds like AI." The final text shows what the student submitted, while the writing process shows how that text came into being. For writing education, both aspects should be part of assessment.

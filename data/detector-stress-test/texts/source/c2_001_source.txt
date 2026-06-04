@@ -1,0 +1,16 @@
+Human source draft for C2.
+
+Source: E. M. Forster, A Room with a View, Project Gutenberg eBook 2641.
+Status: technical dry run only, not paper-ready evaluation data.
+
+"I insist on it. Your mother would never forgive me, Lucy."
+
+"She would never forgive me."
+
+The ladies' voices grew animated, and, if the sad truth be owned, a little peevish. They were tired, and under the guise of unselfishness they wrangled. Some of their neighbours interchanged glances, and one of them, one of the ill-bred people whom one does meet abroad, leant forward over the table and actually intruded into their argument.
+
+He said: "I have a view, I have a view."
+
+Miss Bartlett was startled. Generally at a pension people looked them over for a day or two before speaking, and often did not find out that they would "do" till they had gone. She knew that the intruder was ill-bred, even before she glanced at him. He was an old man, of heavy build, with a fair, shaven face and large eyes. There was something childish in those eyes, though it was not the childishness of senility.
+
+What exactly it was Miss Bartlett did not stop to consider, for her glance passed on to his clothes. These did not attract her. He was probably trying to become acquainted with them before they got into the swim. So she assumed a dazed expression when he spoke to her, and then said: "A view? Oh, a view! How delightful a view is!"

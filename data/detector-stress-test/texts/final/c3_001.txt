@@ -1,0 +1,13 @@
+Human + AI translation dry-run sample.
+
+Source draft: texts/source/c3_001_source.txt.
+Transformation: AI translation from French to English.
+Status: technical dry run only, not paper-ready evaluation data.
+
+We were in study hall when the headmaster entered, followed by a new boy dressed like a townsman and by a classroom attendant carrying a large desk. Those who had been sleeping woke up, and everyone rose as if surprised in the middle of work.
+
+The headmaster motioned for us to sit down again. Then, turning toward the study master, he said in a low voice:
+
+"Monsieur Roger, here is a pupil whom I commend to your care. He is entering the fifth form. If his work and conduct are deserving, he will move up among the older boys, where his age already calls him."
+
+Remaining in the corner behind the door, so that he could scarcely be seen, the newcomer was a country lad of about fifteen, taller than any of us. His hair was cut straight across his forehead like a village cantor's, and he looked sensible but deeply embarrassed.

@@ -1,0 +1,14 @@
+AI-obfuscated dry-run sample.
+
+Source: texts/source/n2_001_source.txt.
+Model/provider: ChatGPT in Codex session.
+Timestamp: 2026-06-04.
+Status: synthetic AI-origin dry-run sample.
+
+I do not think instructors can fairly judge a writing assignment from the final document alone anymore. The finished essay still matters, of course, but it is only the last visible step. A clean, confident paper might come from hours of outlining, drafting, deleting, and revising. It might also come from a short prompt entered into a generative AI tool. On the page, those two histories can look surprisingly similar.
+
+That does not mean every use of AI should be treated as cheating. In many classes, a student may be allowed to use grammar help, translation, or a polishing tool, especially if the main goal is to develop ideas. But there is a real difference between getting help with wording and having a system create the substance of the assignment. If an instructor only has the final text, that difference becomes hard to see.
+
+Looking at process can make the evaluation less arbitrary. A student who writes sentence by sentence, revises, and uses allowed support has evidence of that work. The instructor does not have to rely only on whether the prose feels too smooth or too generic. Instead, the question becomes whether the student's actions matched the rules of the task.
+
+So I would not replace final-text grading with process tracking, but I would combine them. The final essay shows what the student submitted. The process shows how it came together. For writing education, both parts matter.

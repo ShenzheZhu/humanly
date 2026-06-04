@@ -232,8 +232,11 @@ Use this checklist for the next experimental work session:
 - [ ] Review and approve the approval-gated experiment choices with Shenzhe.
 - [ ] Confirm detector API access and required credentials.
 - [ ] Choose first open-license human text source for actual sample text.
-- [ ] Create a tiny dry-run sample set: at least one sample per case where
-  possible.
+- [x] Create a technical dry-run sample set for 6/8 cases: `C1`, `C2`, `C3`,
+  `N1`, `N2`, and `N3`.
+- [ ] Add `C4` after a human writer produces AI-style text without AI
+  generation.
+- [ ] Add `N4` after a human lightly edits an AI-generated draft.
 - [ ] Fill `samples.csv` for the dry run.
 - [ ] Run one detector end to end.
 - [ ] Inspect whether the detector output fits `detector_outputs.csv`.

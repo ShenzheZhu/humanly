@@ -1,0 +1,17 @@
+Human + AI polish dry-run sample.
+
+Source draft: texts/source/c2_001_source.txt.
+Transformation: AI polish for clarity and contemporary readability while preserving the scene and claims.
+Status: technical dry run only, not paper-ready evaluation data.
+
+"I insist on it. Your mother would never forgive me, Lucy."
+
+"She would never forgive me."
+
+The women's voices became more animated and, to tell the sad truth, a little irritable. They were tired, and beneath the appearance of selflessness they were really quarrelling. Several of the other guests exchanged glances. Then one of them, one of those ill-bred travellers one occasionally meets abroad, leaned forward over the table and inserted himself into their disagreement.
+
+"I have a view," he said. "I have a view."
+
+Miss Bartlett was startled. In a pension, people usually observed new arrivals for a day or two before speaking to them, and often did not decide whether they were acceptable until they had already left. She knew the stranger was ill-bred even before she looked at him. He was an older man, heavily built, with a fair, clean-shaven face and large eyes. There was something childlike in those eyes, though it was not the childishness of old age.
+
+Miss Bartlett did not pause to consider exactly what it was. Her glance moved instead to his clothes, which did not impress her. He was probably trying to make their acquaintance before they had settled into the group. So, when he addressed her, she adopted a vague expression and replied, "A view? Oh, a view! How delightful a view is!"

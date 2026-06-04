@@ -1,0 +1,13 @@
+Source and prompt used for N2.
+
+Model/provider: ChatGPT in Codex session.
+Timestamp: 2026-06-04.
+Status: synthetic AI-origin dry-run sample.
+
+Step 1 source: texts/final/n1_001.txt.
+
+Step 2 prompt:
+
+Rewrite the following essay so it sounds more human and less like it was written
+by AI. Vary the sentence rhythm, make the wording less generic, and preserve the
+meaning. Return only the rewritten essay.

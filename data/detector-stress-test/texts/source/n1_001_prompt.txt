@@ -1,0 +1,10 @@
+Prompt used for N1.
+
+Model/provider: ChatGPT in Codex session.
+Timestamp: 2026-06-04.
+Status: synthetic AI-origin dry-run sample.
+
+Write a short reflective essay for a university writing assignment. Topic:
+Should instructors evaluate only the final submitted text, or should they also
+consider how the text was produced? Keep the response between 300 and 600 words.
+Use a polished academic style.
