@@ -99,6 +99,9 @@ Confirmed from GPTZero FAQ and product pages:
 
 - GPTZero offers Writing Reports / authorship verification and recommends using
   writing-process artifacts as part of holistic assessment.
+- GPTZero's Google Docs Writing Report includes document-lifespan statistics,
+  a writing activity timeline, largest copy/paste events, typing-pattern
+  analysis, replay video, and PDF export.
 - GPTZero's detector remains a trinary final-text classifier with
   `HUMAN_ONLY`, `MIXED`, and `AI_ONLY` outputs in the API.
 - GPTZero acknowledges classifier edge cases where AI is classified as human and
@@ -125,8 +128,9 @@ Confirmed from Draftback:
   edit.
 - It provides playback controls and document summaries using the fine-grained
   data Google Docs already stores.
-- Draftback explicitly does not position itself as an AI detector and presents
-  playback/statistics for human judgment.
+- Draftback is used by teachers to inspect plagiarism or possible AI use, but
+  the cited product page documents replay and summary features rather than
+  native AI prompt logging or policy enforcement.
 - Draftback is Google Docs dependent and can be used retroactively on existing
   documents.
 
@@ -152,6 +156,9 @@ Confirmed from Brisk:
   writing duration.
 - Brisk frames the tool as a factual record and conversation starter rather than
   an accuracy-scored AI detector.
+- The cited Inspect Writing documentation is Google Docs-specific and does not
+  document native AI prompt/response logging or task-policy enforcement inside
+  the writing environment.
 
 Useful sources:
 
@@ -175,6 +182,9 @@ Confirmed from Integrito:
 - It also offers plagiarism and AI detection in the same toolkit, while noting
   that humans should make final decisions.
 - It works as a browser extension and requires editing access to the Google Doc.
+- The cited source documents Google Docs activity reporting and detection
+  add-ons, not assignment policy enforcement or native AI prompt/response
+  capture.
 
 Useful source:
 
@@ -236,17 +246,17 @@ Legend:
 - No: not found in cited documentation.
 - Unknown: not yet verified from cited documentation.
 
-| System | Evidence Source | Replay | Paste Visibility | Native AI Prompt/Response Log | AI Mode/Policy Distinction | Task Policy Enforcement | Enrollment/Assigned Flow | Certificate/Verification | Peer Review Fit | Deployment Control |
+| System | Evidence Source | Replay | Paste Visibility | Native AI Prompt/Response Log | AI Mode/Policy Distinction | Task Policy Enforcement | Enrollment/Assigned Flow | Report/Verification Artifact | Peer Review Fit | Deployment Control |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Humanly | Native writing events | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Partial |
-| Turnitin Clarity | Turnitin writing workspace/report | Yes | Yes | Yes, for Clarity AI Assistant | Partial | Yes, in Turnitin assignment context | Yes | Partial | Partial | No |
-| Grammarly Authorship | Grammarly/Docs/Word attribution | Yes | Yes | Partial, Grammarly AI/source attribution | Partial | Partial | Partial | Yes, Authorship reports | No | No |
-| GPTZero Origin/Writing Reports | Writing report plus detector | Yes | Partial | Unknown | Partial | Partial | Partial | Yes, writing report | No | No |
-| Draftback | Google Docs revision history | Yes | Partial | No | No | No | No | No | No | No |
-| Brisk Inspect Writing | Google Docs revision history | Yes | Yes | No | No | No | Partial, classroom tools | No | No | No |
-| Integrito | Google Docs activity report | Yes | Yes | No | No | No | Partial, LMS/toolkit context | Partial | No | No |
-| WritingTrace | Google Docs revision history | Yes | Yes | No | No | No | No | Yes, forensic report | No | No |
-| PaperTrail Inspect | Google Docs revision history | Yes | Yes | No | No | No | No | Yes, process report | No | No |
+| Turnitin Clarity | Turnitin writing workspace/report | Yes | Yes | Yes, for Clarity AI Assistant | Partial, assignment-level AI tools | Yes, in Turnitin assignment context | Yes | In-platform Writing Report | Partial | No |
+| Grammarly Authorship | Grammarly/Docs/Word attribution | Yes | Yes | Partial, collects prompts/source attribution; no verified full prompt-response transcript | Partial, source categories and admin feature controls | Partial, feature/admin controls but not per-task writing policy | No assigned-flow found | Shareable Authorship report | No | No |
+| GPTZero Origin/Writing Reports | Google Docs writing report plus detector | Yes | Yes | No verified prompt-response log | No verified AI-mode policy | No verified task-policy enforcement | No assigned-flow found | PDF/exportable Writing Report | No | No |
+| Draftback | Google Docs revision history | Yes | Partial, revision playback can reveal insertions but paste classification is not verified | No | No | No | No | No dedicated report found | No | No |
+| Brisk Inspect Writing | Google Docs revision history | Yes | Yes | No | No | No | No assigned-flow found for Inspect Writing itself | No dedicated certificate/report found | No | No |
+| Integrito | Google Docs activity report | Yes | Yes | No | No | No | No assigned-flow found | Activity Report | No | No |
+| WritingTrace | Google Docs revision history | Yes | Yes | No | No | No | No | Exportable forensic report | No | No |
+| PaperTrail Inspect | Google Docs revision history | Yes | Yes | No | No | No | No | Printable Process View report | No | No |
 
 ## Humanly Differentiation To Preserve
 
