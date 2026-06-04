@@ -17,10 +17,14 @@ Completed in this dry-run set:
 - `N2`: AI-obfuscated rewrite of `N1`.
 - `N3`: AI-generated Chinese response translated into English.
 
-Still pending:
+Skipped for the technical API pipeline dry run:
 
 - `C4`: human-written AI-style text. This requires a human writer and should not
-  be synthesized.
+  be synthesized. It remains required for the full detector stress-test design,
+  but it is not needed to test detector API plumbing.
+
+Still pending:
+
 - `N4`: AI-generated text plus light human edits. This requires actual human
   edits if used as a clean case.
 
