@@ -145,15 +145,41 @@ such as `short_social_process_001_set01`,
 `medium_assignment_process_001_set01`, and
 `long_peer_review_process_001_set01`.
 
+## Prompt-Control Principles
+
+The prompt-control rules below are adapted from patterns in
+Leey21/awesome-ai-research-writing, especially its emphasis on plain wording,
+conservative editing, meaning preservation, no unnecessary formatting, and
+self-checking for needless rewrites:
+
+- Preserve the source text's claims, examples, structure, and level of detail
+  unless the case explicitly requires generation.
+- Do not add facts, citations, numbers, examples, or arguments that were not in
+  the source or base task prompt.
+- Prefer plain, precise language over inflated vocabulary unless the case is
+  explicitly testing AI-like diction.
+- Avoid mechanical transitions, list-like structure, unnecessary headings, and
+  decorative emphasis in transformed outputs.
+- If a source draft is already natural, make minimal edits rather than changing
+  wording for its own sake.
+- Return only the final text for each generation/transformation step so the
+  stored sample is clean and detector-ready.
+
+Reference: https://github.com/Leey21/awesome-ai-research-writing
+
 ## Reusable Transformation Prompts
 
 ### C2: AI Polish of Human Draft
 
 ```text
-Polish the following human-written draft for grammar, clarity, and flow.
-Preserve the author's ideas, claims, examples, and structure. Do not add new
-substantive arguments or facts. Keep the final text within the target word range
-for the original task. Return only the polished version.
+You are a conservative writing editor. Polish the following human-written draft
+only for grammar, clarity, and local flow.
+
+Preserve the author's ideas, claims, examples, structure, level of detail, and
+voice. Do not add new facts, arguments, citations, examples, headings, bullet
+points, or stylistic flourishes. Prefer plain, precise wording. If the draft is
+already clear, make only minimal edits. Keep the final text within the target
+word range for the original task. Return only the polished version.
 
 [HUMAN-WRITTEN DRAFT]
 ```
@@ -161,10 +187,13 @@ for the original task. Return only the polished version.
 ### C3: AI Translation of Human Draft
 
 ```text
-Translate the following human-written text into natural English. Preserve the
-author's ideas, examples, structure, and level of detail. Do not add new
-arguments or facts. Keep the final text within the target word range for the
-original task. Return only the English translation.
+Translate the following human-written text into natural English.
+
+Preserve the author's ideas, examples, structure, uncertainty, and level of
+detail. Do not improve the argument, add facts, add examples, remove caveats, or
+make the text more polished than the source warrants. Keep the final text within
+the target word range for the original task. Return only the English
+translation.
 
 [HUMAN-WRITTEN NON-ENGLISH TEXT]
 ```
@@ -203,7 +232,9 @@ word range.
 ```text
 [BASE TASK PROMPT]
 
-Use a polished, coherent style. Return only the final response.
+Use a polished, coherent style. Do not include headings, bullet points,
+meta-commentary, citations, or notes about how the response was written. Return
+only the final response.
 ```
 
 ### N2: AI Obfuscation
@@ -241,15 +272,19 @@ Step 1:
 ```text
 [BASE TASK PROMPT]
 
-Write the response in Chinese. Preserve the requested structure, audience, and
-target length in English-equivalent words. Return only the response.
+Write the response in Chinese. Preserve the requested task, audience, and target
+length in English-equivalent words. Do not include headings, bullet points,
+meta-commentary, citations, or notes about how the response was written. Return
+only the response.
 ```
 
 Step 2:
 
 ```text
-Translate the following AI-generated Chinese text into natural English. Preserve
-the ideas, structure, and level of detail. Keep the final text within the target
+Translate the following AI-generated Chinese text into natural English.
+
+Preserve the ideas, structure, level of detail, and original argument. Do not add
+new facts, examples, citations, or claims. Keep the final text within the target
 word range for the original task. Return only the English translation.
 
 [AI-GENERATED NON-ENGLISH TEXT]
@@ -263,7 +298,8 @@ Human edit instruction:
 Make only small local edits to this AI-generated text. You may split or merge a
 few sentences, change a few phrases, add or remove minor wording, and introduce
 natural imperfections. Do not rewrite the argument from scratch, add new
-substantive points, or change the overall structure.
+substantive points, add citations, add examples, or change the overall
+structure. Return only the lightly edited text.
 ```
 
 ## Case Construction Rules
