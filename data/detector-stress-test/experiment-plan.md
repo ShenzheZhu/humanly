@@ -29,6 +29,42 @@ Under this policy:
 | **False-positive risk** | Human original | Human + AI polish | Human + AI translation | Human-written AI-style text |
 | **False-negative risk** | Direct AI-generated | AI-obfuscated | AI cross-lingual transform | AI-generated + light human edits |
 
+## Length and Task Conditions
+
+The main detector stress test should treat text length as a controlled factor,
+not as incidental variation:
+
+- `short`: social media post or short public-facing response.
+- `medium`: student response to an assignment.
+- `long`: paper review.
+
+Each length bucket should have its own task prompt family and target word range.
+Suggested initial ranges:
+
+- `short`: 120-180 words.
+- `medium`: 400-600 words.
+- `long`: 1000-1500 words.
+
+## Matched-Set Design
+
+Cases should be matched one-to-one at the prompt/task level, not by forcing every
+case to derive from the exact same source text. For each `(prompt_id,
+length_bucket)` matched set:
+
+- use the same task type, topic, audience, and target length across all eight
+  cases;
+- keep final word counts within the same length bucket;
+- record `matched_set_id`, `prompt_id`, `task_type`, and `length_bucket` in
+  `samples.csv`;
+- preserve source/input text, final text, and construction metadata for each
+  sample.
+
+This design controls prompt/topic/length while allowing each case to keep its
+valid construction path. For example, `C1` is human-written from scratch, `C2`
+starts from a human draft and is polished, and `N1` is directly AI-generated
+from the same prompt. They are one-to-one comparable by task, but they are not
+all literal transformations of the same source text.
+
 Detailed construction rules live in
 `materials/prompts/detector-stress-test-v1.md`.
 
@@ -89,9 +125,10 @@ Goal: test whether the case matrix behaves as expected before scaling up.
 
 Suggested size:
 
-- 5 samples per case.
+- 1 sample per case per length bucket.
 - 8 cases.
-- 40 final texts total.
+- 3 length buckets.
+- 24 final texts total.
 
 Steps:
 
@@ -111,12 +148,14 @@ Goal: produce a paper-reportable table.
 
 Suggested size:
 
-- 20 samples per case if cost and time allow.
-- 160 final texts total.
+- 5 samples per case per length bucket if cost and time allow.
+- 8 cases.
+- 3 length buckets.
+- 120 final texts total.
 
-If detector costs or text collection constraints are high, reduce to 10 samples
-per case and report the experiment as a pilot/stress test rather than a broad
-benchmark.
+If detector costs or text collection constraints are high, reduce to 2-3 samples
+per case per length bucket and report the experiment as a stress test rather
+than a broad benchmark.
 
 ## Text Construction Plan
 
@@ -201,13 +240,15 @@ Compute metrics by detector and by case:
 Primary paper table:
 
 - rows: detector services;
-- columns: per-case FPR/FNR or failure rate;
+- columns: per-case and per-length FPR/FNR or failure rate;
 - include one aggregate FPR over the four compliant cases and one aggregate FNR
   over the four non-compliant cases.
 
 Secondary analysis:
 
 - rank cases by failure rate;
+- compare short, medium, and long texts because final-text detector confidence
+  may be length-sensitive;
 - identify detectors that are strong on direct AI but weak on polish,
   translation, or obfuscation;
 - include short qualitative examples where final-text scores contradict the
@@ -217,6 +258,7 @@ Secondary analysis:
 
 - Do not use copyrighted private texts.
 - Keep source text and transformed text paired.
+- Keep matched sets aligned by task type, prompt, topic, and length bucket.
 - Keep exact prompts and transformation steps.
 - Store detector raw outputs, not just normalized labels.
 - Record detector version/date when available.
@@ -231,6 +273,10 @@ Use this checklist for the next experimental work session:
 - [x] Create dry-run sample manifest and prompt templates.
 - [x] Document detector API access requirements.
 - [x] Document candidate open-license human text sources.
+- [x] Decide length buckets and task types: short social media post, medium
+  student assignment response, and long paper review.
+- [x] Decide matched-set design: one-to-one at prompt/task/length level, not
+  literal shared-source text across all cases.
 - [ ] Review and approve the approval-gated experiment choices with Shenzhe.
 - [ ] Confirm detector API access and required credentials.
 - [ ] Choose first open-license human text source for actual sample text.

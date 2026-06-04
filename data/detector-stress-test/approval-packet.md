@@ -20,9 +20,11 @@ not positioned as a competing detector; it provides process evidence.
 | Human text source | Use Project Gutenberg/SPGC-style text for C1/C2 dry run; use newly written text for C4 | WikiText/Wikipedia; all-new Humanly writing samples | Pulling actual samples into repo |
 | C3 translation source | Use a short human-written non-English source we can document | Translate a public-domain non-English source | Creating translated samples |
 | C4 human-written AI-style | Recruit or ask humans to write after reading AI-style guidance; no AI generation | Delay C4 until human study | Claiming C4 as human-origin |
-| Dry-run size | 1 sample per case, 8 final texts | 2 samples per case if time/API cost is low | Creating sample files |
-| Pilot size | 5 samples per case, 40 final texts | 10 samples per case if source collection is easy | Running detector pilot |
-| Main batch size | 20 samples per case, 160 final texts if cost allows | 10 samples per case and frame as stress-test pilot | Paper-ready results |
+| Length/task design | Short social media post; medium student assignment response; long paper review | Use only one length bucket for a cheaper pilot | Creating paper-ready samples |
+| Matching design | One-to-one by prompt/task/length matched set, not literal shared-source text across all cases | Fully independent prompts per case; exact source transformations only | Creating paper-ready samples |
+| Dry-run size | 1 sample per case where possible; current dry run is technical and not paper-ready | 1 sample per case per length bucket if we want a fuller pipeline test | Creating sample files |
+| Pilot size | 1 sample per case per length bucket, 24 final texts | 2 samples per case per length bucket, 48 final texts | Running detector pilot |
+| Main batch size | 5 samples per case per length bucket, 120 final texts if cost allows | 2-3 samples per cell and frame as stress-test pilot | Paper-ready results |
 | API credit cap | Set a hard cap before use; suggested pilot cap: discuss before spending | No paid API use until all keys/prices known | Any real API calls |
 | Shared writing task | Keep current topic about final text vs writing process | Add peer-review or classroom-specific task prompts | Generating samples |
 | Reporting label | Policy-compliance failure rate plus FPR/FNR by case | Traditional AI-vs-human only | Writing results section |
@@ -36,7 +38,7 @@ not positioned as a competing detector; it provides process evidence.
 4. If Pangram normalization works, add GPTZero and Copyleaks.
 5. Keep Originality.ai in the plan but do not block the first pilot on it unless
    endpoint details and credentials are available.
-6. Review dry-run outputs before scaling to 5 samples per case.
+6. Review dry-run outputs before scaling across all three length buckets.
 
 ## Detector Evidence
 
@@ -135,16 +137,32 @@ Needs approval:
 
 Recommended:
 
-- Dry run: 1 sample per case.
-- Pilot: 5 samples per case.
-- Main: 20 samples per case if API cost and source collection are manageable.
+- Technical dry run: current 6-row API plumbing set.
+- Pilot: 1 sample per case per length bucket, 24 final texts.
+- Main: 5 samples per case per length bucket, 120 final texts if API cost and
+  source collection are manageable.
 
 Needs approval:
 
-- Whether to treat 5-per-case pilot as paper-reportable if costs/time block a
-  20-per-case main batch.
+- Whether to treat a smaller 2-3-samples-per-cell stress test as
+  paper-reportable if costs/time block the 120-text main batch.
 
-### Choice D: Prompt wording
+### Choice D: Length and task design
+
+Approved current default:
+
+- Short: social media post.
+- Medium: student response to an assignment.
+- Long: paper review.
+
+Matching rule:
+
+- Cases should be one-to-one matched by prompt, task type, topic, and length
+  bucket.
+- They should not all be forced to derive from the exact same source text,
+  because that would make some cases invalid or unnatural.
+
+### Choice E: Prompt wording
 
 Recommended:
 
@@ -158,7 +176,7 @@ Needs approval:
 - Whether to add a peer-review-specific prompt in addition to the generic
   writing-assignment prompt.
 
-### Choice E: C4 human writer protocol
+### Choice F: C4 human writer protocol
 
 Recommended:
 

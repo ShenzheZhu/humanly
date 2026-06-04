@@ -26,6 +26,10 @@ Suggested files:
 | `sample_id` | string | Stable sample id, e.g. `c1_001` |
 | `case_id` | string | One of `C1`, `C2`, `C3`, `C4`, `N1`, `N2`, `N3`, `N4` |
 | `case_name` | string | Human-readable case name |
+| `matched_set_id` | string | Links cases that share the same task prompt, topic, and length bucket |
+| `prompt_id` | string | Stable prompt identifier |
+| `task_type` | enum | `social_media_post`, `student_assignment_response`, `paper_review`, or `technical_dry_run` |
+| `length_bucket` | enum | `short`, `medium`, or `long` |
 | `policy_label` | enum | `compliant` or `non_compliant` under the benchmark policy |
 | `origin_label` | enum | `human_origin`, `ai_origin`, or `mixed_ai_origin` |
 | `final_text_path` | string | Path to final text file, if stored separately |
@@ -65,3 +69,5 @@ For the benchmark policy:
 | `FPR` | Compliant samples predicted as `ai_suspicious` |
 
 The paper should emphasize failure patterns by case, not only aggregate metrics.
+Report detector behavior by both case and length bucket because final-text
+detector outputs may be sensitive to text length.
