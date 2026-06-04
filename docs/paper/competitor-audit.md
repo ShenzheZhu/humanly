@@ -258,6 +258,44 @@ Legend:
 | WritingTrace | Google Docs revision history | Yes | Yes | No | No | No | No | Exportable forensic report | No | No |
 | PaperTrail Inspect | Google Docs revision history | Yes | Yes | No | No | No | No | Printable Process View report | No | No |
 
+## Compact Paper Table Candidate
+
+This is the paper-facing version of the matrix above. Use this table only after
+source verification, and keep the legend in the caption or footnote.
+
+Legend:
+
+- Y: supported by cited product documentation.
+- P: partially supported, narrower than Humanly, or limited to a specific
+  product context.
+- N: not found in cited public documentation; this does not prove the feature is
+  absent in private or enterprise configurations.
+
+| System | Type | Replay | Paste Trace | AI Interaction Log | Task Policy | Shareable Evidence | Peer-Review Fit |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Humanly | Native provenance platform | Y | Y | Y | Y | Y | Y |
+| Turnitin Clarity | Assignment writing workspace | Y | Y | Y | P | P | P |
+| Grammarly Authorship | Cross-surface source attribution | Y | Y | P | P | Y | N |
+| GPTZero Writing Reports | Detector + Google Docs report | Y | Y | N | N | Y | N |
+| Draftback | Google Docs revision replay | Y | P | N | N | N | N |
+| Brisk Inspect Writing | Google Docs classroom replay | Y | Y | N | N | N | N |
+| Integrito | Google Docs activity report | P | Y | N | N | P | N |
+| WritingTrace | Google Docs forensic replay | Y | Y | N | N | Y | N |
+| PaperTrail Inspect | Google Docs process report | Y | Y | N | N | Y | N |
+
+Column definitions:
+
+- Replay: reviewer can inspect how the document changed over time.
+- Paste Trace: large paste or sudden insertion activity is surfaced.
+- AI Interaction Log: AI prompt/response or equivalent AI-use event is surfaced
+  as part of the process evidence, not only inferred from final text.
+- Task Policy: task owner can configure rules before writing begins and the
+  writing surface enforces or records them.
+- Shareable Evidence: the system can produce a report, certificate, PDF, or
+  shareable artifact for review.
+- Peer-Review Fit: the workflow naturally supports PDF/context-heavy peer
+  review rather than only generic essay drafting.
+
 ## Humanly Differentiation To Preserve
 
 The strongest comparison paragraph should say:
