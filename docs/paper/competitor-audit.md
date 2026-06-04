@@ -34,7 +34,7 @@ Paper-safe wording:
 | Configurable AI policy | Can the system configure or distinguish allowed AI use, such as disabled AI, polish-only, chat-only, or full assistance? |
 | Flexible writing environment | Can an owner configure writing rules such as AI access, assistance modes, paste/copy rules, timing, character limits, or access/submission rules? |
 | Assigned task workflow | Does the product support an owner/instructor/admin assigning or sharing a writing task with participants/students/writers? |
-| Verifiable process record | Does the output combine replay, analysis/reporting, certificate-style evidence, or verification into a reviewable process artifact? |
+| Certificate analytics | Does the output summarize process evidence as certificate/report analytics beyond replay, such as event counts, typed/pasted statistics, editing time, AI-use statistics, PDF/JSON output, or verification links? |
 | Deployment/control | Can an institution self-host or control the full data pipeline? |
 
 ## Source-Backed Notes
@@ -284,9 +284,9 @@ Legend:
 - No: not found in cited documentation.
 - Unknown: not yet verified from cited documentation.
 
-| System | Evidence Source | Native Writing Workspace | Fine-Grained Event Log | Replay | Native AI Prompt/Response Log | Configurable AI Policy | Flexible Writing Environment | Assigned Task Workflow | Verifiable Process Record |
+| System | Evidence Source | Native Writing Workspace | Fine-Grained Event Log | Replay | Native AI Prompt/Response Log | Configurable AI Policy | Flexible Writing Environment | Assigned Task Workflow | Certificate Analytics |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Humanly | Native writing events | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Certificate, verification link, replay, logs, PDF/JSON analysis |
+| Humanly | Native writing events | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Certificate analytics: event counts, typed/pasted/editing/AI-use stats, PDF/JSON, verification |
 | Turnitin Clarity | Turnitin writing workspace/report | Yes | Partial, writing activity and AI-assistant logs | Yes | Yes, AI Chat Activity with full chat history | Partial, assignment-level AI tools | Partial, assignment settings and AI tool toggles | Yes, instructor/student assignment context | In-platform Writing Report |
 | Grammarly Authorship | Grammarly/Docs/Word attribution | Partial, Grammarly docs plus Docs/Word tracking | Partial, source attribution and replay | Yes | Partial, collects prompts/source attribution; no verified full prompt-response transcript | Partial, source categories and admin feature controls | Partial, admin feature controls but not task-specific writing policy | No assigned-flow found | Authorship replay/report |
 | GPTZero Origin/Writing Reports | Google Docs writing report plus detector | Partial, Google Docs extension/editor context | Partial, timeline, paste, typing-pattern report | Yes | No verified prompt-response log | No verified AI-mode policy | No verified task-policy enforcement | No assigned-flow found | PDF/exportable Writing Report |
@@ -308,7 +308,7 @@ Recommended grouping:
 | Writing Environment | Native Workspace, Fine-Grained Event Log, Process Replay |
 | AI Provenance | AI Interaction Log, Configurable AI Policy |
 | Task Governance | Flexible Writing Environment, Assigned Task Workflow |
-| Evidence Sharing | Verifiable Process Record |
+| Evidence Sharing | Certificate Analytics |
 
 ## Compact Paper Table Candidate
 
@@ -323,7 +323,7 @@ Legend:
 - N: not found in cited public documentation; this does not prove the feature is
   absent in private or enterprise configurations.
 
-| System | Type | Native Workspace | Event Log | Replay | AI Log | AI Policy | Flexible Writing Env. | Assigned Workflow | Process Record |
+| System | Type | Native Workspace | Event Log | Replay | AI Log | AI Policy | Flexible Writing Env. | Assigned Workflow | Cert. Analytics |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Humanly | Native provenance platform | Y | Y | Y | Y | Y | Y | Y | Y |
 | Turnitin Clarity | Assignment writing workspace | Y | P | Y | Y | P | P | Y | P |
@@ -351,9 +351,9 @@ Column definitions:
   constraints, character limits, or submission/access rules.
 - Assigned Workflow: the product supports assigning or sharing a writing task
   from an owner/instructor/admin to participants/students/writers.
-- Process Record: the system combines replay, analysis/reporting, certificate
-  evidence, PDF/JSON output, or public verification into a reviewable process
-  record.
+- Cert. Analytics: the system summarizes process evidence beyond replay, such as
+  event counts, typed/pasted/editing metrics, AI-use statistics, PDF/JSON output,
+  or public verification.
 
 ## Humanly Differentiation To Preserve
 
