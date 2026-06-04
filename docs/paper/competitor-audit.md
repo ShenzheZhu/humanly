@@ -118,6 +118,7 @@ Useful sources:
 
 - https://gptzero.me/faq
 - https://gptzero.me/technology
+- https://gptzero.me/news/turnitin-vs-brisk/
 
 Draft comparison note:
 
@@ -125,7 +126,11 @@ GPTZero is important because it bridges AI detection and writing reports. The
 paper should not claim that GPTZero lacks process reports. The safer distinction
 is that GPTZero's public detector remains a post-hoc classifier, while Humanly's
 core evidence is generated from native process events and task policy rather
-than from text prediction.
+than from text prediction. GPTZero also advertises AI reviewing/grading, writing
+replay, plagiarism checks, and AI detection as a classroom toolkit; this should
+be acknowledged. The comparison should focus on whether those surfaces are
+grounded in one write-time provenance record that links assistant actions,
+detector result, replay, task policy, and verification.
 
 ### Draftback
 
@@ -368,6 +373,11 @@ The strongest comparison paragraph should say:
    events are logged, fine-grained writing events are captured as the text is
    produced, and a certificate/verification artifact can be generated from that same event
    stream.
+4. Another way to phrase the completeness claim: some products combine adjacent
+   surfaces such as detection, writing reports, or writing assistance, but those
+   surfaces often remain separable product modules. Humanly's stronger claim is
+   that AI assistance, detector-relevant process evidence, task policy, replay,
+   analytics, and verification are all grounded in the same write-time record.
 
 ## Claims To Avoid
 
