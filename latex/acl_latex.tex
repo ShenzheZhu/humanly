@@ -32,7 +32,7 @@
 \definecolor{featureyes}{RGB}{220,232,216}
 \definecolor{featurepartial}{RGB}{242,226,184}
 \definecolor{featureno}{RGB}{237,211,207}
-\newcommand{\halfcheck}{\ensuremath{\checkmark\mkern-10mu/}}
+\DeclareRobustCommand{\halfcheck}{\ensuremath{\checkmark\mkern-10mu/}}
 \DeclareRobustCommand{\featurelegendbox}[2]{\begingroup\setlength{\fboxsep}{1pt}\colorbox{#1}{\makebox[1.15em]{#2}}\endgroup}
 \newcommand{\yesfeature}{\cellcolor{featureyes}\ensuremath{\checkmark}}
 \newcommand{\partialfeature}{\cellcolor{featurepartial}\halfcheck}
@@ -169,20 +169,22 @@ These systems show that replay itself is not the unique contribution. Humanly in
 \setlength{\tabcolsep}{2.7pt}
 \begin{tabular}{p{0.19\textwidth}p{0.24\textwidth}cccccccc}
 \toprule
-System & Type & Native & Event & Replay & AI Log & AI Policy & Flex Env & Assigned & Cert. \\
+\multicolumn{2}{c}{} & \multicolumn{2}{c}{Environment} & \multicolumn{2}{c}{Governance} & \multicolumn{2}{c}{Capture} & \multicolumn{2}{c}{Evidence} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}\cmidrule(lr){9-10}
+System & Type & Native & Flex Env & AI Policy & Assigned & Event & AI Log & Replay & Cert. \\
 \midrule
 \textsc{Humanly} & Native provenance platform & \yesfeature & \yesfeature & \yesfeature & \yesfeature & \yesfeature & \yesfeature & \yesfeature & \yesfeature \\
-Turnitin Clarity & Assignment writing workspace & \yesfeature & \partialfeature & \yesfeature & \yesfeature & \partialfeature & \partialfeature & \yesfeature & \partialfeature \\
-Grammarly Authorship & Cross-surface attribution & \partialfeature & \partialfeature & \yesfeature & \partialfeature & \partialfeature & \partialfeature & \nofeature & \yesfeature \\
-GPTZero Writing Reports & Detector + Google Docs report & \nofeature & \partialfeature & \yesfeature & \nofeature & \nofeature & \nofeature & \nofeature & \partialfeature \\
-Draftback & Google Docs revision replay & \nofeature & \partialfeature & \yesfeature & \nofeature & \nofeature & \nofeature & \nofeature & \partialfeature \\
-Brisk Inspect Writing & Google Docs classroom replay & \nofeature & \partialfeature & \yesfeature & \nofeature & \nofeature & \nofeature & \partialfeature & \nofeature \\
-Integrito & Google Docs activity report & \nofeature & \partialfeature & \partialfeature & \nofeature & \nofeature & \nofeature & \partialfeature & \partialfeature \\
-WritingTrace & Google Docs forensic replay & \nofeature & \partialfeature & \yesfeature & \nofeature & \nofeature & \nofeature & \nofeature & \yesfeature \\
-PaperTrail Inspect & Google Docs process report & \nofeature & \partialfeature & \yesfeature & \nofeature & \nofeature & \nofeature & \nofeature & \yesfeature \\
+Turnitin Clarity & Assignment writing workspace & \yesfeature & \partialfeature & \partialfeature & \yesfeature & \partialfeature & \yesfeature & \yesfeature & \partialfeature \\
+Grammarly Authorship & Cross-surface attribution & \partialfeature & \partialfeature & \partialfeature & \nofeature & \partialfeature & \partialfeature & \yesfeature & \yesfeature \\
+GPTZero Writing Reports & Detector + Google Docs report & \nofeature & \nofeature & \nofeature & \nofeature & \partialfeature & \nofeature & \yesfeature & \partialfeature \\
+Draftback & Google Docs revision replay & \nofeature & \nofeature & \nofeature & \nofeature & \partialfeature & \nofeature & \yesfeature & \partialfeature \\
+Brisk Inspect Writing & Google Docs classroom replay & \nofeature & \nofeature & \nofeature & \partialfeature & \partialfeature & \nofeature & \yesfeature & \nofeature \\
+Integrito & Google Docs activity report & \nofeature & \nofeature & \nofeature & \partialfeature & \partialfeature & \nofeature & \partialfeature & \partialfeature \\
+WritingTrace & Google Docs forensic replay & \nofeature & \nofeature & \nofeature & \nofeature & \partialfeature & \nofeature & \yesfeature & \yesfeature \\
+PaperTrail Inspect & Google Docs process report & \nofeature & \nofeature & \nofeature & \nofeature & \partialfeature & \nofeature & \yesfeature & \yesfeature \\
 \bottomrule
 \end{tabular}
-\caption{Feature comparison for process and replay systems. Legend: \featurelegendbox{featureyes}{\(\checkmark\)} supported; \featurelegendbox{featurepartial}{\(\halfcheck\)} partial or narrower; \featurelegendbox{featureno}{\(\times\)} not found. Native = controlled writing workspace; Event = fine-grained process events beyond coarse playback; Flex Env = configurable writing rules such as AI access, paste policy, timing, and character limits; Cert. = certificate or report analytics beyond replay.}
+\caption{Feature comparison for process and replay systems. Legend: \featurelegendbox{featureyes}{\(\checkmark\)} supported; \featurelegendbox{featurepartial}{\(\halfcheck\)} partial or narrower; \featurelegendbox{featureno}{\(\times\)} not found. Native = controlled writing workspace; Flex Env = configurable writing rules; Event = fine-grained process events beyond coarse playback; Cert. = certificate or report analytics beyond replay.}
 \label{tab:feature-comparison}
 \end{table*}
 
