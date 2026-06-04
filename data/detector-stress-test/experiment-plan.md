@@ -220,6 +220,7 @@ Current setup files:
 - `dry-run-samples.csv`
 - `samples.csv`
 - `scripts/run_pangram_dry_run.rb`
+- `../../materials/prompts/detector-stress-test-v1.md`
 - `../../materials/prompts/detector-dry-run-prompts.md`
 
 Optional later files:
@@ -277,6 +278,7 @@ Use this checklist for the next experimental work session:
   student assignment response, and long paper review.
 - [x] Decide matched-set design: one-to-one at prompt/task/length level, not
   literal shared-source text across all cases.
+- [x] Draft the three matched task prompt families.
 - [ ] Review and approve the approval-gated experiment choices with Shenzhe.
 - [ ] Confirm detector API access and required credentials.
 - [ ] Choose first open-license human text source for actual sample text.

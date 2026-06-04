@@ -26,7 +26,7 @@ not positioned as a competing detector; it provides process evidence.
 | Pilot size | 1 sample per case per length bucket, 24 final texts | 2 samples per case per length bucket, 48 final texts | Running detector pilot |
 | Main batch size | 5 samples per case per length bucket, 120 final texts if cost allows | 2-3 samples per cell and frame as stress-test pilot | Paper-ready results |
 | API credit cap | Set a hard cap before use; suggested pilot cap: discuss before spending | No paid API use until all keys/prices known | Any real API calls |
-| Shared writing task | Keep current topic about final text vs writing process | Add peer-review or classroom-specific task prompts | Generating samples |
+| Matched task prompts | Use three prompt families in `materials/prompts/detector-stress-test-v1.md`: short social media post, medium student assignment response, long paper review | Revise topics before sample construction | Generating pilot/main samples |
 | Reporting label | Policy-compliance failure rate plus FPR/FNR by case | Traditional AI-vs-human only | Writing results section |
 
 ## Recommended v1 Flow
@@ -166,15 +166,16 @@ Matching rule:
 
 Recommended:
 
-- Keep the current shared task: whether instructors should judge final text
-  only or also consider writing process.
-- It directly matches Humanly's paper argument and can generate coherent
-  comparable texts across cases.
+- Use the three matched prompt families in
+  `materials/prompts/detector-stress-test-v1.md`.
+- They preserve one core topic about final-text judgment vs writing-process
+  evidence while mapping to the three approved task types: social media post,
+  student assignment response, and paper review.
 
 Needs approval:
 
-- Whether to add a peer-review-specific prompt in addition to the generic
-  writing-assignment prompt.
+- Whether the exact wording of all three base prompts is acceptable before pilot
+  sample construction.
 
 ### Choice F: C4 human writer protocol
 

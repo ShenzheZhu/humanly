@@ -36,6 +36,206 @@ positive class.
 | 3 | Human + AI translation | AI cross-lingual transform | Translation can obscure the source process |
 | 4 | Human-written AI-style text | AI-generated + light human edits | Final style alone becomes unreliable |
 
+## Matched Task Prompt Families
+
+Each prompt family defines one matched set template. Cases should be comparable
+within a prompt family because they share the same task type, topic, audience,
+and target length. They should not all be forced to transform the same source
+text; each case keeps the construction path needed for its ground-truth label.
+
+### Prompt Family A: Short Social Media Post
+
+- `prompt_id`: `short_social_process_001`
+- `task_type`: `social_media_post`
+- `length_bucket`: `short`
+- target length: 120-180 words
+- audience: educated public, students, instructors, and writers on a public
+  social platform
+- matched-set intent: short public-facing argument where detectors may be
+  unstable because the text is brief
+
+Base task prompt:
+
+```text
+Write a concise social media post for an audience of students, instructors, and
+writers. Topic: Should people judge whether writing followed an AI-use policy
+from the final text alone, or should they also consider evidence about how the
+text was produced? Make one clear argument, include one concrete example, and
+end with a practical takeaway. Keep the post between 120 and 180 words.
+```
+
+### Prompt Family B: Medium Student Assignment Response
+
+- `prompt_id`: `medium_assignment_process_001`
+- `task_type`: `student_assignment_response`
+- `length_bucket`: `medium`
+- target length: 400-600 words
+- audience: university course instructor
+- matched-set intent: classroom-style writing where policy-compliant AI polish
+  and translation are plausible
+
+Base task prompt:
+
+```text
+Write a response for a university writing assignment. Prompt: Instructors are
+increasingly asked to decide whether a submitted essay followed a stated AI-use
+policy. Should they evaluate only the final submitted text, or should they also
+consider evidence about the writing process? Take a clear position, explain the
+benefits and risks of your position, and include at least one classroom example.
+Keep the response between 400 and 600 words.
+```
+
+### Prompt Family C: Long Paper Review
+
+- `prompt_id`: `long_peer_review_process_001`
+- `task_type`: `paper_review`
+- `length_bucket`: `long`
+- target length: 1000-1500 words
+- audience: conference area chair and program committee
+- matched-set intent: expert review-style writing where longer text gives
+  detectors more signal and Humanly's peer-review use case is directly relevant
+
+Synthetic paper brief for the review task:
+
+```text
+Title: Process Evidence for Human-AI Collaborative Writing
+
+Abstract: This paper argues that final-text AI detection is not enough for
+settings where AI assistance is allowed under explicit policies. The authors
+present a writing platform that records keystrokes, paste events, revisions, and
+in-platform AI interactions. At submission time, the platform generates a
+certificate summarizing the writing process and linking to a replayable activity
+log. The paper claims that process evidence can help instructors and reviewers
+distinguish policy-compliant AI assistance, such as grammar polishing or
+translation, from substantive AI generation of the final content. The system is
+evaluated through detector stress tests and workflow studies.
+```
+
+Base task prompt:
+
+```text
+Write a detailed conference paper review for the synthetic paper brief above.
+The review should include a short summary, major strengths, major weaknesses,
+specific questions for the authors, and an overall recommendation. Focus on
+whether the system's process-evidence approach is useful for academic writing
+and peer review. Keep the review between 1000 and 1500 words.
+```
+
+## Applying the Prompt Families to the Eight Cases
+
+For each prompt family, construct the eight cases using the same base task
+prompt, task type, audience, and target length:
+
+- `C1`: a human writes the response from scratch.
+- `C2`: a human writes a draft, then AI only polishes grammar, clarity, and
+  local style without changing the substantive claims.
+- `C3`: a human writes the response in a non-English language, then AI translates
+  it into English.
+- `C4`: a human writes the response from scratch after reading the AI-style guide
+  below; no AI generates the content.
+- `N1`: AI writes the final response directly from the base task prompt.
+- `N2`: AI writes the response, then a humanizer/paraphraser or "sound more
+  human" rewrite is applied.
+- `N3`: AI writes the response in a non-English language, then AI translates or
+  rewrites it into English.
+- `N4`: AI writes the response, then a human makes only light local edits.
+
+Use `matched_set_id` values that include the prompt family and sample index,
+such as `short_social_process_001_set01`,
+`medium_assignment_process_001_set01`, and
+`long_peer_review_process_001_set01`.
+
+## Reusable Transformation Prompts
+
+### C2: AI Polish of Human Draft
+
+```text
+Polish the following human-written draft for grammar, clarity, and flow.
+Preserve the author's ideas, claims, examples, and structure. Do not add new
+substantive arguments or facts. Keep the final text within the target word range
+for the original task. Return only the polished version.
+
+[HUMAN-WRITTEN DRAFT]
+```
+
+### C3: AI Translation of Human Draft
+
+```text
+Translate the following human-written text into natural English. Preserve the
+author's ideas, examples, structure, and level of detail. Do not add new
+arguments or facts. Keep the final text within the target word range for the
+original task. Return only the English translation.
+
+[HUMAN-WRITTEN NON-ENGLISH TEXT]
+```
+
+### C4: Human-Written AI-Style Instruction
+
+```text
+Before writing, read the style guide below. Do not use AI to generate, rewrite,
+translate, or polish your response.
+
+Style guide: write in a polished, formal, template-like style. Use explicit
+transitions, balanced paragraphs, cautious framing, and generic connective
+phrases such as "it is important to note", "this highlights", "a key
+consideration", or "in this context." The goal is to write human-origin text
+that resembles common AI-style prose.
+
+Now write an original response to the assigned task prompt within the target
+word range.
+```
+
+### N1: Direct AI Generation
+
+```text
+[BASE TASK PROMPT]
+
+Use a polished, coherent style. Return only the final response.
+```
+
+### N2: AI Obfuscation
+
+```text
+Rewrite the following AI-generated text so it sounds more human and less like it
+was generated by AI. Vary the sentence rhythm, make the wording less generic,
+and preserve the meaning. Keep the final text within the target word range.
+Return only the rewritten text.
+
+[AI-GENERATED TEXT]
+```
+
+### N3: AI Cross-Lingual Transform
+
+Step 1:
+
+```text
+[BASE TASK PROMPT]
+
+Write the response in Chinese. Preserve the requested structure, audience, and
+target length in English-equivalent words. Return only the response.
+```
+
+Step 2:
+
+```text
+Translate the following AI-generated Chinese text into natural English. Preserve
+the ideas, structure, and level of detail. Keep the final text within the target
+word range for the original task. Return only the English translation.
+
+[AI-GENERATED NON-ENGLISH TEXT]
+```
+
+### N4: AI-Generated Text with Light Human Edits
+
+Human edit instruction:
+
+```text
+Make only small local edits to this AI-generated text. You may split or merge a
+few sentences, change a few phrases, add or remove minor wording, and introduce
+natural imperfections. Do not rewrite the argument from scratch, add new
+substantive points, or change the overall structure.
+```
+
 ## Case Construction Rules
 
 ### C1: Human original

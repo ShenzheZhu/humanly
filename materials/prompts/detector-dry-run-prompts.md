@@ -5,8 +5,9 @@ Tracking issue: https://github.com/ShenzheZhu/humanly/issues/476
 Use these prompts to generate or transform dry-run samples. Store the exact
 model, date, prompt, and output path for each generated sample.
 
-Draft status: these prompts require Shenzhe's approval before they are used for
-reported data or paid/quota-consuming detector runs.
+Draft status: these prompts were used only for the technical API plumbing dry
+run. The matched prompt families for the pilot/main detector stress test live in
+`detector-stress-test-v1.md`.
 
 ## Shared Task Frame
 
