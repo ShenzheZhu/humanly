@@ -3,17 +3,19 @@
 Tracking issue: https://github.com/ShenzheZhu/humanly/issues/476
 
 This plan reflects the current framing decision: comparison with existing
-systems and comparative evaluation should live in the same section. The paper
-should first show where existing approaches fail, then use the Humanly workflow
-and human study to show the alternative.
+systems should be separated from evaluation. The comparison section should
+establish Humanly's product/system position against existing detectors,
+process/replay tools, and authorship-report products. The evaluation section
+should then report detector stress-test results and human-study/user-study
+evidence.
 
 ## Proposed Top-Level Structure
 
 1. Introduction
 2. System Architecture
 3. Workflows and Use Cases
-4. Comparison and Evaluation Against Existing Systems
-5. Human Study
+4. Comparison with Existing Systems
+5. Evaluation
 6. Limitations and Ethical Considerations
 7. Conclusion
 
@@ -27,8 +29,8 @@ Required moves:
 - motivate education, peer review, and personal certification;
 - state that final text alone cannot answer how the writing was produced;
 - introduce Humanly as a provenance-first writing platform;
-- summarize contributions as system, workflows, comparative evaluation, and
-  human study.
+- summarize contributions as system, workflows, existing-system comparison, and
+  evaluation.
 
 ## 2. System Architecture
 
@@ -59,26 +61,56 @@ Candidate order:
 Rationale: peer review is the most distinctive use case because LLM polishing
 and LLM-assisted review policies are hard to enforce with text-only evidence.
 
-## 4. Comparison and Evaluation Against Existing Systems
+## 4. Comparison with Existing Systems
 
-Goal: combine related-system comparison with concrete evaluation. This section
-should not be a detached feature table; it should show why Humanly is needed.
+Goal: compare Humanly against existing systems without running the evaluation
+inside the same section. This section should not be a detached feature table; it
+should show why Humanly is needed.
 
-### 4.1 Evaluation Questions
+### 4.1 Final-Text Detectors
 
-Suggested questions:
+Compare final-text detector systems conceptually, but reserve empirical detector
+results for Section 5. The key claim is that final-text detectors estimate what
+the finished text resembles, while Humanly records how the text was produced.
 
-- RQ1: When do final-text AI detectors fail to answer policy-compliance
-  questions?
-- RQ2: What provenance questions are answered by process/replay tools, and
-  which are left unanswered?
-- RQ3: What does Humanly add beyond final-text detection and document replay?
+Use GPTZero, Pangram, Originality.ai, and Copyleaks as detector examples. Do not
+include Turnitin in the first automated benchmark.
 
-### 4.2 Data-Based Evaluation: Final-Text AI Detection
+### 4.2 Process and Replay Systems
 
-Compare against text-based detector products or methods such as GPTZero,
-Pangram, Originality.ai, and Copyleaks if accessible. Turnitin is out of scope
-for the first automated benchmark.
+Compare process/provenance tools such as Turnitin Clarity, Grammarly
+Authorship, GPTZero Origin/Writing Reports, Draftback, Brisk Inspect Writing,
+Integrito, WritingTrace, and PaperTrail Inspect.
+
+Feature groups:
+
+- Writing Environment: native workspace, fine-grained event log, process replay.
+- AI Provenance: AI interaction log, configurable AI policy.
+- Task Governance: flexible writing environment, assigned task workflow.
+- Evidence Sharing: certificate analytics.
+
+Humanly's claim should be narrow: not that replay is unique, but that Humanly
+combines configurable writing environments, native AI-use logging, assigned task
+workflow, fine-grained event capture, and certificate analytics in one deployed
+writing workflow.
+
+### 4.3 Synthesis
+
+Expected conclusion:
+
+- final-text detectors answer what the final text resembles;
+- replay tools answer part of what happened in a document;
+- Humanly is designed around whether the writing process complied with the
+  policy set for the task.
+
+## 5. Evaluation
+
+Goal: evaluate whether Humanly's process evidence improves policy-compliance
+judgment and whether the writing workflow is usable.
+
+### 5.1 Final-Text Detector Stress Test
+
+Compare against GPTZero, Pangram, Originality.ai, and Copyleaks if accessible.
 
 Situation cases should cover:
 
@@ -102,39 +134,9 @@ Report:
 The v1 case matrix is tracked in
 `materials/prompts/detector-stress-test-v1.md`.
 
-### 4.3 Process and Replay Comparison
+### 5.2 Human Study
 
-Compare process/provenance tools such as Turnitin Clarity, Grammarly Authorship,
-GPTZero Origin, Draftback, Brisk Inspect Writing, and Integrito.
-
-Evaluation format can be a capability audit plus one or two concrete workflow
-walkthroughs. Criteria:
-
-- records typing/paste/edit history;
-- records AI usage and distinguishes chat vs selection/polish actions;
-- enforces admin-set task policy before writing begins;
-- supports assigned writing tasks and participant enrollment;
-- supports certificate/verification sharing;
-- supports peer-review-style PDF/task workflow;
-- supports open-source/self-hosted deployment.
-
-Humanly's claim should be narrow: not that replay is unique, but that Humanly
-combines enforceable task policy, native AI-use logging, and portable process
-evidence in one deployed writing workflow.
-
-### 4.4 Synthesis
-
-Expected conclusion:
-
-- final-text detectors answer what the final text resembles;
-- replay tools answer part of what happened in a document;
-- Humanly is designed around whether the writing process complied with the
-  policy set for the task.
-
-## 5. Human Study
-
-Goal: evaluate Humanly itself with people, separate from the existing-system
-comparison.
+Evaluate Humanly itself with people.
 
 Study components:
 

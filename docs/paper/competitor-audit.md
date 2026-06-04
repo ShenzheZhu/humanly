@@ -289,7 +289,7 @@ Legend:
 | Humanly | Native writing events | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Certificate analytics: event counts, typed/pasted/editing/AI-use stats, PDF/JSON, verification |
 | Turnitin Clarity | Turnitin writing workspace/report | Yes | Partial, writing activity and AI-assistant logs | Yes | Yes, AI Chat Activity with full chat history | Partial, assignment-level AI tools | Partial, assignment settings and AI tool toggles | Yes, instructor/student assignment context | In-platform Writing Report |
 | Grammarly Authorship | Grammarly/Docs/Word attribution | Partial, Grammarly docs plus Docs/Word tracking | Partial, source attribution and replay | Yes | Partial, collects prompts/source attribution; no verified full prompt-response transcript | Partial, source categories and admin feature controls | Partial, admin feature controls but not task-specific writing policy | No assigned-flow found | Authorship replay/report |
-| GPTZero Origin/Writing Reports | Google Docs writing report plus detector | Partial, Google Docs extension/editor context | Partial, timeline, paste, typing-pattern report | Yes | No verified prompt-response log | No verified AI-mode policy | No verified task-policy enforcement | No assigned-flow found | PDF/exportable Writing Report |
+| GPTZero Origin/Writing Reports | Google Docs writing report plus detector | No, Google Docs writing report/extension | Partial, timeline, paste, typing-pattern report | Yes | No verified prompt-response log | No verified AI-mode policy | No verified task-policy enforcement | No assigned-flow found | PDF/exportable Writing Report |
 | Draftback | Google Docs revision history | No, Google Docs extension | Partial, revision-level events | Yes | No | No | No | No | Replay summary only |
 | Brisk Inspect Writing | Google Docs revision history | No, Google Docs extension | Partial, created text, paste, deletion, duration | Yes | No | No | No | Partial, classroom tools but no Inspect-specific assigned flow found | No dedicated certificate/report found |
 | Integrito | Google Docs activity report | No, Google Docs extension | Partial, activity report and suspicious paste-like events | Yes | No | No | No | Partial, teacher/student positioning but no assigned-flow found | Activity Report |
@@ -328,7 +328,7 @@ Legend:
 | Humanly | Native provenance platform | Y | Y | Y | Y | Y | Y | Y | Y |
 | Turnitin Clarity | Assignment writing workspace | Y | P | Y | Y | P | P | Y | P |
 | Grammarly Authorship | Cross-surface source attribution | P | P | Y | P | P | P | N | Y |
-| GPTZero Writing Reports | Detector + Google Docs report | P | P | Y | N | N | N | N | P |
+| GPTZero Writing Reports | Detector + Google Docs report | N | P | Y | N | N | N | N | P |
 | Draftback | Google Docs revision replay | N | P | Y | N | N | N | N | P |
 | Brisk Inspect Writing | Google Docs classroom replay | N | P | Y | N | N | N | P | N |
 | Integrito | Google Docs activity report | N | P | P | N | N | N | P | P |

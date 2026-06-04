@@ -212,11 +212,13 @@ comparison/evaluation axis or exploratory extension.
 ### Recommended Section Commitments
 
 - Use the website language "process beats prediction" as the conceptual hinge.
-- Treat Section 4 as `Comparison and Evaluation Against Existing Systems`.
-- In Section 4, evaluate two existing-system classes:
-  - data-based final-text AI detectors;
-  - process/replay/provenance tools.
-- Keep `Human Study` as a separate section evaluating Humanly itself.
+- Treat Section 4 as `Comparison with Existing Systems`, separated from the
+  evaluation results.
+- In Section 4, compare two existing-system classes:
+  - final-text AI detectors as a conceptual baseline;
+  - process/replay/provenance tools through a feature comparison.
+- Treat Section 5 as `Evaluation`, covering detector stress tests and human
+  study/user-study evidence.
 
 ### Claims That Are Safe To Make
 
@@ -245,7 +247,8 @@ comparison/evaluation axis or exploratory extension.
 
 1. Rewrite introduction and contributions from website/code source of truth.
 2. Rewrite architecture around the deployed app surfaces and environment config.
-3. Rewrite comparison/evaluation around final-text detector limits and
-   process/replay tool gaps.
-4. Create evaluation materials and at least one reportable result.
+3. Rewrite the standalone comparison section around final-text detector limits
+   and process/replay tool gaps.
+4. Rewrite the standalone evaluation section around detector stress tests and
+   human-study/user-study evidence.
 5. Then update Overleaf/LaTeX.
