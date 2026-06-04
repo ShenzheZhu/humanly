@@ -23,6 +23,7 @@
 % Tables and math.
 \usepackage{booktabs}
 \usepackage{colortbl}
+\usepackage{multirow}
 \usepackage{amsmath}
 \usepackage{amssymb}
 
@@ -169,9 +170,9 @@ These systems show that replay itself is not the unique contribution. Humanly in
 \setlength{\tabcolsep}{2.7pt}
 \begin{tabular}{p{0.19\textwidth}p{0.24\textwidth}cccccccc}
 \toprule
-\multicolumn{2}{c}{} & \multicolumn{2}{c}{Environment} & \multicolumn{2}{c}{Governance} & \multicolumn{2}{c}{Capture} & \multicolumn{2}{c}{Evidence} \\
+\multirow{2}{*}{System} & \multirow{2}{*}{Type} & \multicolumn{2}{c}{Environment} & \multicolumn{2}{c}{Governance} & \multicolumn{2}{c}{Capture} & \multicolumn{2}{c}{Evidence} \\
 \cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}\cmidrule(lr){9-10}
-System & Type & Native & Flex Env & AI Policy & Assigned & Event & AI Log & Replay & Cert. \\
+& & Native & Flex Env & AI Policy & Assigned & Event & AI Log & Replay & Cert. \\
 \midrule
 \textsc{Humanly} & Native provenance platform & \yesfeature & \yesfeature & \yesfeature & \yesfeature & \yesfeature & \yesfeature & \yesfeature & \yesfeature \\
 Turnitin Clarity & Assignment writing workspace & \yesfeature & \partialfeature & \partialfeature & \yesfeature & \partialfeature & \yesfeature & \yesfeature & \partialfeature \\
