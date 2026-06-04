@@ -1,0 +1,5 @@
+detector,docs_url,api_status,required_env,readiness_notes
+gptzero,https://support.gptzero.me/articles/7675217351-what-is-an-api-what-is-the-gptzero-api,candidate,GPTZERO_API_KEY,"API supports text/files and probability outputs; endpoint details should be confirmed from Stoplight docs after account access."
+pangram,https://docs.pangram.com/api-reference/ai-detection,candidate,PANGRAM_API_KEY,"V3 REST endpoint documented; likely easiest first real detector after key is available."
+copyleaks,https://docs.copyleaks.com/reference/actions/writer-detector/check/,candidate,"COPYLEAKS_EMAIL;COPYLEAKS_API_KEY","Text endpoint requires 255-25000 characters; sandbox mode returns mock data, real data requires login token."
+originality_ai,https://help.originality.ai/en/article/api-1a1ea3s/,candidate_pending_details,ORIGINALITY_API_KEY,"API exists, but full endpoint docs require JS/browser verification; confirm details before automation."

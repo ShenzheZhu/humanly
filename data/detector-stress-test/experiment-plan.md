@@ -46,6 +46,25 @@ API-first workflow.
 
 ## Experimental Phases
 
+## Approval Gates
+
+The files in this directory are scaffolding until the following decisions are
+approved by Shenzhe:
+
+- final detector list;
+- API spending/credit limits;
+- final human text source(s);
+- final sample size for dry run, pilot, and main batch;
+- final shared writing task prompt;
+- final transformation prompts for polish, translation, obfuscation, and
+  cross-lingual cases;
+- final human-writer instruction for the `C4` human-written AI-style case;
+- whether any newly collected Humanly writing samples can be stored in this
+  repository.
+
+Do not run the main experiment or present any table as paper-ready until these
+gates are approved.
+
 ### Phase 0: Access and dry-run setup
 
 Goal: confirm that at least one detector can be called and normalized end to end.
@@ -151,6 +170,14 @@ Planned files:
 - `confusion_by_case.csv`
 - `notes.md`
 
+Current setup files:
+
+- `api-access.md`
+- `source-candidates.md`
+- `detectors.csv`
+- `dry-run-samples.csv`
+- `../../materials/prompts/detector-dry-run-prompts.md`
+
 Optional later files:
 
 - `texts/final/*.txt`
@@ -196,8 +223,12 @@ Secondary analysis:
 
 Use this checklist for the next experimental work session:
 
+- [x] Create dry-run sample manifest and prompt templates.
+- [x] Document detector API access requirements.
+- [x] Document candidate open-license human text sources.
+- [ ] Review and approve the approval-gated experiment choices with Shenzhe.
 - [ ] Confirm detector API access and required credentials.
-- [ ] Choose first open-license human text source.
+- [ ] Choose first open-license human text source for actual sample text.
 - [ ] Create a tiny dry-run sample set: at least one sample per case where
   possible.
 - [ ] Fill `samples.csv` for the dry run.
