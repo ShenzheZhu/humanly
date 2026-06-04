@@ -65,6 +65,8 @@ approved by Shenzhe:
 Do not run the main experiment or present any table as paper-ready until these
 gates are approved.
 
+The approval packet for the next discussion is `approval-packet.md`.
+
 ### Phase 0: Access and dry-run setup
 
 Goal: confirm that at least one detector can be called and normalized end to end.
@@ -172,6 +174,7 @@ Planned files:
 
 Current setup files:
 
+- `approval-packet.md`
 - `api-access.md`
 - `source-candidates.md`
 - `detectors.csv`
