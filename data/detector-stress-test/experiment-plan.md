@@ -179,6 +179,8 @@ Current setup files:
 - `source-candidates.md`
 - `detectors.csv`
 - `dry-run-samples.csv`
+- `samples.csv`
+- `scripts/run_pangram_dry_run.rb`
 - `../../materials/prompts/detector-dry-run-prompts.md`
 
 Optional later files:
@@ -239,6 +241,7 @@ Use this checklist for the next experimental work session:
 - [x] Skip `N4` for the technical API pipeline dry run; add it later after a
   human lightly edits an AI-generated draft.
 - [x] Fill `samples.csv` for the dry run.
+- [x] Add Pangram V3 runner for the first live detector dry run.
 - [ ] Run one detector end to end.
 - [ ] Inspect whether the detector output fits `detector_outputs.csv`.
 - [ ] Decide whether pilot size should be 5 or 10 samples per case.

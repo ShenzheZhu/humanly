@@ -47,6 +47,19 @@ outputs to:
 When a detector exposes mixed/AI-assisted labels, record the raw label and the
 threshold rule explicitly instead of silently forcing the class.
 
+## Pangram Dry Run
+
+The first approved live detector dry run uses Pangram V3 against the 6-row
+technical sample set in `samples.csv`:
+
+```bash
+PANGRAM_API_KEY=... ruby data/detector-stress-test/scripts/run_pangram_dry_run.rb
+```
+
+The runner stores raw responses in `outputs/raw/pangram/<sample_id>.json` and
+normalizes rows into `detector_outputs.csv`. It uses `public_dashboard_link:
+false` and the threshold rule recorded in each output row.
+
 ## Current Access Questions
 
 - Which detector accounts/API keys are already available?
