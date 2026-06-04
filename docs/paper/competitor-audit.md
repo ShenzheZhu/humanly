@@ -27,14 +27,13 @@ Paper-safe wording:
 | Dimension | Question |
 | --- | --- |
 | Evidence source | Is the evidence based on final text, host-document revision history, or native event capture? |
+| Native writing workspace | Does the system provide its own controlled editor, rather than only inspecting Google Docs, Word, or another host editor? |
 | Writing replay | Can a reviewer replay how the document changed over time? |
-| Paste/large insertion visibility | Does the system surface sudden text insertion or paste-like activity? |
 | Native AI prompt/response logging | Are AI requests and responses captured as first-class events? |
 | AI mode/policy distinction | Can the system distinguish allowed modes such as polish, chat, and full generation? |
-| Task policy enforcement | Can an owner configure and enforce writing rules before writing begins? |
-| Enrollment/task workflow | Does the system support assigned tasks, shared links, or participant enrollment? |
+| Flexible task settings | Can an owner configure writing rules such as AI access, assistance modes, paste/copy rules, timing, character limits, or access/submission rules? |
+| Admin/user workflow | Does the product have a clear owner/instructor/admin side and a participant/student/writer side? |
 | Certificate/shareable verification | Can the writer or reviewer share a portable verification artifact? |
-| Peer-review suitability | Does the workflow support PDF/context-heavy review tasks, not only generic document drafting? |
 | Deployment/control | Can an institution self-host or control the full data pipeline? |
 
 ## Source-Backed Notes
@@ -47,8 +46,15 @@ Confirmed from Turnitin guides:
   and writing process playback.
 - AI Chat Activity can show student requests, assistant responses, themes, and
   a full chat history when the assistant is enabled.
+- In the student workflow, Turnitin states that all interactions with the AI
+  Assistant are logged and shared with the instructor after submission.
+- In the instructor Writing Report, the AI Chat Activity section includes a
+  holistic summary, chat themes, a Full Chat History button, and slide-outs that
+  show the student request and assistant response at a specific time.
 - Writing process playback highlights additions, deletions, and pasted text on a
   timeline.
+- Instructors can enable Turnitin Clarity AI tools at assignment creation,
+  including AI chat, spelling and grammar check, and citation check.
 - Turnitin distinguishes AI writing detection during the writing process from
   the final AI Writing report, because students may edit or replace pasted text
   before submission.
@@ -246,17 +252,17 @@ Legend:
 - No: not found in cited documentation.
 - Unknown: not yet verified from cited documentation.
 
-| System | Evidence Source | Replay | Paste Visibility | Native AI Prompt/Response Log | AI Mode/Policy Distinction | Task Policy Enforcement | Enrollment/Assigned Flow | Report/Verification Artifact | Peer Review Fit | Deployment Control |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Humanly | Native writing events | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Partial |
-| Turnitin Clarity | Turnitin writing workspace/report | Yes | Yes | Yes, for Clarity AI Assistant | Partial, assignment-level AI tools | Yes, in Turnitin assignment context | Yes | In-platform Writing Report | Partial | No |
-| Grammarly Authorship | Grammarly/Docs/Word attribution | Yes | Yes | Partial, collects prompts/source attribution; no verified full prompt-response transcript | Partial, source categories and admin feature controls | Partial, feature/admin controls but not per-task writing policy | No assigned-flow found | Shareable Authorship report | No | No |
-| GPTZero Origin/Writing Reports | Google Docs writing report plus detector | Yes | Yes | No verified prompt-response log | No verified AI-mode policy | No verified task-policy enforcement | No assigned-flow found | PDF/exportable Writing Report | No | No |
-| Draftback | Google Docs revision history | Yes | Partial, revision playback can reveal insertions but paste classification is not verified | No | No | No | No | No dedicated report found | No | No |
-| Brisk Inspect Writing | Google Docs revision history | Yes | Yes | No | No | No | No assigned-flow found for Inspect Writing itself | No dedicated certificate/report found | No | No |
-| Integrito | Google Docs activity report | Yes | Yes | No | No | No | No assigned-flow found | Activity Report | No | No |
-| WritingTrace | Google Docs revision history | Yes | Yes | No | No | No | No | Exportable forensic report | No | No |
-| PaperTrail Inspect | Google Docs revision history | Yes | Yes | No | No | No | No | Printable Process View report | No | No |
+| System | Evidence Source | Native Writing Workspace | Replay | Native AI Prompt/Response Log | AI Mode/Policy Distinction | Flexible Task Settings | Admin/User Workflow | Report/Verification Artifact | Deployment Control |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Humanly | Native writing events | Yes | Yes | Yes | Yes | Yes | Yes | Certificate and verification link | Partial |
+| Turnitin Clarity | Turnitin writing workspace/report | Yes | Yes | Yes, AI Chat Activity with full chat history | Partial, assignment-level AI tools | Partial, assignment settings and AI tool toggles | Yes, instructor/student assignment context | In-platform Writing Report | No |
+| Grammarly Authorship | Grammarly/Docs/Word attribution | Partial, Grammarly docs plus Docs/Word tracking | Yes | Partial, collects prompts/source attribution; no verified full prompt-response transcript | Partial, source categories and admin feature controls | Partial, admin feature controls but not task-specific writing policy | Partial, organization admin controls but no assigned-flow found | Shareable Authorship report | No |
+| GPTZero Origin/Writing Reports | Google Docs writing report plus detector | Partial, Google Docs extension/editor context | Yes | No verified prompt-response log | No verified AI-mode policy | No verified task-policy enforcement | No assigned-flow found | PDF/exportable Writing Report | No |
+| Draftback | Google Docs revision history | No, Google Docs extension | Yes | No | No | No | No | No dedicated report found | No |
+| Brisk Inspect Writing | Google Docs revision history | No, Google Docs extension | Yes | No | No | No | Partial, classroom tools but no Inspect-specific assigned flow found | No dedicated certificate/report found | No |
+| Integrito | Google Docs activity report | No, Google Docs extension | Yes | No | No | No | Partial, teacher/student positioning but no assigned-flow found | Activity Report | No |
+| WritingTrace | Google Docs revision history | No, Google Docs extension | Yes | No | No | No | No | Exportable forensic report | No |
+| PaperTrail Inspect | Google Docs revision history | No, Google Docs extension | Yes | No | No | No | No | Printable Process View report | No |
 
 ## Compact Paper Table Candidate
 
@@ -271,30 +277,33 @@ Legend:
 - N: not found in cited public documentation; this does not prove the feature is
   absent in private or enterprise configurations.
 
-| System | Type | Replay | Paste Trace | AI Interaction Log | Task Policy | Shareable Evidence | Peer-Review Fit |
+| System | Type | Native Workspace | Replay | AI Interaction Log | Flexible Settings | Admin/User Workflow | Shareable Evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Humanly | Native provenance platform | Y | Y | Y | Y | Y | Y |
-| Turnitin Clarity | Assignment writing workspace | Y | Y | Y | P | P | P |
-| Grammarly Authorship | Cross-surface source attribution | Y | Y | P | P | Y | N |
-| GPTZero Writing Reports | Detector + Google Docs report | Y | Y | N | N | Y | N |
-| Draftback | Google Docs revision replay | Y | P | N | N | N | N |
-| Brisk Inspect Writing | Google Docs classroom replay | Y | Y | N | N | N | N |
-| Integrito | Google Docs activity report | P | Y | N | N | P | N |
-| WritingTrace | Google Docs forensic replay | Y | Y | N | N | Y | N |
-| PaperTrail Inspect | Google Docs process report | Y | Y | N | N | Y | N |
+| Turnitin Clarity | Assignment writing workspace | Y | Y | Y | P | Y | P |
+| Grammarly Authorship | Cross-surface source attribution | P | Y | P | P | P | Y |
+| GPTZero Writing Reports | Detector + Google Docs report | P | Y | N | N | N | Y |
+| Draftback | Google Docs revision replay | N | Y | N | N | N | N |
+| Brisk Inspect Writing | Google Docs classroom replay | N | Y | N | N | P | N |
+| Integrito | Google Docs activity report | N | P | N | N | P | P |
+| WritingTrace | Google Docs forensic replay | N | Y | N | N | N | Y |
+| PaperTrail Inspect | Google Docs process report | N | Y | N | N | N | Y |
 
 Column definitions:
 
 - Replay: reviewer can inspect how the document changed over time.
-- Paste Trace: large paste or sudden insertion activity is surfaced.
+- Native Workspace: the system provides its own writing environment rather than
+  only inspecting Google Docs, Word, or another host editor.
 - AI Interaction Log: AI prompt/response or equivalent AI-use event is surfaced
   as part of the process evidence, not only inferred from final text.
-- Task Policy: task owner can configure rules before writing begins and the
-  writing surface enforces or records them.
+- Flexible Settings: task owner can configure writing rules before writing
+  begins, such as AI access, allowed assistance modes, copy/paste policy, timing
+  constraints, character limits, or submission/access rules.
+- Admin/User Workflow: the product has a clear owner/instructor/admin side and a
+  participant/student/writer side, rather than only a single-user extension or
+  retroactive document inspection tool.
 - Shareable Evidence: the system can produce a report, certificate, PDF, or
   shareable artifact for review.
-- Peer-Review Fit: the workflow naturally supports PDF/context-heavy peer
-  review rather than only generic essay drafting.
 
 ## Humanly Differentiation To Preserve
 
