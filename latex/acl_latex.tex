@@ -32,9 +32,11 @@
 \definecolor{featureyes}{RGB}{220,232,216}
 \definecolor{featurepartial}{RGB}{242,226,184}
 \definecolor{featureno}{RGB}{237,211,207}
-\newcommand{\yesfeature}{\cellcolor{featureyes}Y}
-\newcommand{\partialfeature}{\cellcolor{featurepartial}P}
-\newcommand{\nofeature}{\cellcolor{featureno}N}
+\newcommand{\halfcheck}{\ensuremath{\checkmark\mkern-10mu/}}
+\DeclareRobustCommand{\featurelegendbox}[2]{\begingroup\setlength{\fboxsep}{1pt}\colorbox{#1}{\makebox[1.15em]{#2}}\endgroup}
+\newcommand{\yesfeature}{\cellcolor{featureyes}\ensuremath{\checkmark}}
+\newcommand{\partialfeature}{\cellcolor{featurepartial}\halfcheck}
+\newcommand{\nofeature}{\cellcolor{featureno}\ensuremath{\times}}
 
 \title{Humanly: Process Evidence for Human-AI Writing}
 
@@ -180,7 +182,7 @@ WritingTrace & Google Docs forensic replay & \nofeature & \partialfeature & \yes
 PaperTrail Inspect & Google Docs process report & \nofeature & \partialfeature & \yesfeature & \nofeature & \nofeature & \nofeature & \nofeature & \yesfeature \\
 \bottomrule
 \end{tabular}
-\caption{Feature comparison for process and replay systems. Muted green cells mark supported features (Y); muted yellow cells mark partial support or support narrower than Humanly's scope (P); muted red cells mark features not found in cited public documentation (N). Native = controlled writing workspace; Event = fine-grained process events beyond coarse playback; Flex Env = configurable writing rules such as AI access, paste policy, timing, and character limits; Cert. = certificate or report analytics beyond replay.}
+\caption{Feature comparison for process and replay systems. Legend: \featurelegendbox{featureyes}{\(\checkmark\)} supported; \featurelegendbox{featurepartial}{\(\halfcheck\)} partial or narrower; \featurelegendbox{featureno}{\(\times\)} not found. Native = controlled writing workspace; Event = fine-grained process events beyond coarse playback; Flex Env = configurable writing rules such as AI access, paste policy, timing, and character limits; Cert. = certificate or report analytics beyond replay.}
 \label{tab:feature-comparison}
 \end{table*}
 
