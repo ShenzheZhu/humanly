@@ -31,10 +31,10 @@ Paper-safe wording:
 | Fine-grained event log | Does the system expose detailed process events beyond coarse replay, such as input, selection, copy/paste, focus/blur, formatting, and AI events? |
 | Writing replay | Can a reviewer replay how the document changed over time? |
 | Native AI prompt/response logging | Are AI requests and responses captured as first-class events? |
-| AI mode/policy distinction | Can the system distinguish allowed modes such as polish, chat, and full generation? |
-| Flexible task settings | Can an owner configure writing rules such as AI access, assistance modes, paste/copy rules, timing, character limits, or access/submission rules? |
+| Configurable AI policy | Can the system configure or distinguish allowed AI use, such as disabled AI, polish-only, chat-only, or full assistance? |
+| Flexible writing environment | Can an owner configure writing rules such as AI access, assistance modes, paste/copy rules, timing, character limits, or access/submission rules? |
 | Assigned task workflow | Does the product support an owner/instructor/admin assigning or sharing a writing task with participants/students/writers? |
-| Integrated evidence package | Does the output combine replay, analysis/reporting, certificate-style evidence, or verification into a reviewable artifact? |
+| Verifiable process record | Does the output combine replay, analysis/reporting, certificate-style evidence, or verification into a reviewable process artifact? |
 | Deployment/control | Can an institution self-host or control the full data pipeline? |
 
 ## Source-Backed Notes
@@ -284,7 +284,7 @@ Legend:
 - No: not found in cited documentation.
 - Unknown: not yet verified from cited documentation.
 
-| System | Evidence Source | Native Writing Workspace | Fine-Grained Event Log | Replay | Native AI Prompt/Response Log | AI Mode/Policy Distinction | Flexible Task Settings | Assigned Task Workflow | Integrated Evidence Package |
+| System | Evidence Source | Native Writing Workspace | Fine-Grained Event Log | Replay | Native AI Prompt/Response Log | Configurable AI Policy | Flexible Writing Environment | Assigned Task Workflow | Verifiable Process Record |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Humanly | Native writing events | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Certificate, verification link, replay, logs, PDF/JSON analysis |
 | Turnitin Clarity | Turnitin writing workspace/report | Yes | Partial, writing activity and AI-assistant logs | Yes | Yes, AI Chat Activity with full chat history | Partial, assignment-level AI tools | Partial, assignment settings and AI tool toggles | Yes, instructor/student assignment context | In-platform Writing Report |
@@ -306,9 +306,9 @@ Recommended grouping:
 | Category | Feature columns |
 | --- | --- |
 | Writing Environment | Native Workspace, Fine-Grained Event Log, Process Replay |
-| AI Provenance | AI Interaction Log, AI Mode/Policy Distinction |
-| Task Governance | Flexible Settings, Assigned Task Workflow |
-| Evidence Sharing | Integrated Evidence Package |
+| AI Provenance | AI Interaction Log, Configurable AI Policy |
+| Task Governance | Flexible Writing Environment, Assigned Task Workflow |
+| Evidence Sharing | Verifiable Process Record |
 
 ## Compact Paper Table Candidate
 
@@ -323,7 +323,7 @@ Legend:
 - N: not found in cited public documentation; this does not prove the feature is
   absent in private or enterprise configurations.
 
-| System | Type | Native Workspace | Event Log | Replay | AI Log | AI Policy | Flexible Settings | Assigned Workflow | Evidence Package |
+| System | Type | Native Workspace | Event Log | Replay | AI Log | AI Policy | Flexible Writing Env. | Assigned Workflow | Process Record |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Humanly | Native provenance platform | Y | Y | Y | Y | Y | Y | Y | Y |
 | Turnitin Clarity | Assignment writing workspace | Y | P | Y | Y | P | P | Y | P |
@@ -346,13 +346,14 @@ Column definitions:
   as part of the process evidence, not only inferred from final text.
 - AI Policy: the system distinguishes or configures AI assistance modes, such as
   disabled AI, polish-only, chat-only, or full AI assistance.
-- Flexible Settings: task owner can configure writing rules before writing
+- Flexible Writing Env.: task owner can configure writing rules before writing
   begins, such as AI access, allowed assistance modes, copy/paste policy, timing
   constraints, character limits, or submission/access rules.
 - Assigned Workflow: the product supports assigning or sharing a writing task
   from an owner/instructor/admin to participants/students/writers.
-- Evidence Package: the system combines replay, analysis/reporting, certificate
-  evidence, PDF/JSON output, or public verification into a reviewable artifact.
+- Process Record: the system combines replay, analysis/reporting, certificate
+  evidence, PDF/JSON output, or public verification into a reviewable process
+  record.
 
 ## Humanly Differentiation To Preserve
 
