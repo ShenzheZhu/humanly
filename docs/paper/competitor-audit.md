@@ -28,12 +28,13 @@ Paper-safe wording:
 | --- | --- |
 | Evidence source | Is the evidence based on final text, host-document revision history, or native event capture? |
 | Native writing workspace | Does the system provide its own controlled editor, rather than only inspecting Google Docs, Word, or another host editor? |
+| Fine-grained event log | Does the system expose detailed process events beyond coarse replay, such as input, selection, copy/paste, focus/blur, formatting, and AI events? |
 | Writing replay | Can a reviewer replay how the document changed over time? |
 | Native AI prompt/response logging | Are AI requests and responses captured as first-class events? |
 | AI mode/policy distinction | Can the system distinguish allowed modes such as polish, chat, and full generation? |
 | Flexible task settings | Can an owner configure writing rules such as AI access, assistance modes, paste/copy rules, timing, character limits, or access/submission rules? |
-| Admin/user workflow | Does the product have a clear owner/instructor/admin side and a participant/student/writer side? |
-| Certificate/shareable verification | Can the writer or reviewer share a portable verification artifact? |
+| Assigned task workflow | Does the product support an owner/instructor/admin assigning or sharing a writing task with participants/students/writers? |
+| Integrated evidence package | Does the output combine replay, analysis/reporting, certificate-style evidence, or verification into a reviewable artifact? |
 | Deployment/control | Can an institution self-host or control the full data pipeline? |
 
 ## Source-Backed Notes
@@ -243,6 +244,37 @@ PaperTrail Inspect is a useful extended comparator for Google Docs revision
 history analysis and process reports. It should be treated as a Google Docs
 history tool rather than a native AI-policy writing environment.
 
+## Humanly Source Check For Fine-Grained Logs
+
+Humanly's fine-grained event log claim is backed by the current product code,
+not only by website copy.
+
+Relevant source-backed facts from `origin/main`:
+
+- `EventType` includes keydown, keyup, paste, copy, cut, focus, blur, input,
+  delete, select, formatting changes, list/alignment changes, find/replace
+  events, AI panel events, AI query/response events, AI selection actions, and
+  AI chat insertion events.
+- `DocumentEvent` stores event type, timestamp, key fields, text before/after,
+  cursor position, selection start/end, full Lexical editor state before/after,
+  and metadata.
+- The Lexical editor tracker registers handlers for keydown, paste, copy, cut,
+  selection change, focus, blur, text formatting, heading, font, color, list,
+  and alignment actions.
+- AI selection actions store action type, original text, suggested text,
+  accepted/rejected decision, final text, response time, and model version.
+- AI chat and interaction logs store chat sessions/messages and detailed
+  interaction logs with context snapshots, suggestions, and applied
+  modifications.
+
+Source files:
+
+- `packages/shared/src/types/event.types.ts`
+- `packages/shared/src/types/document.types.ts`
+- `packages/editor/src/tracking/editor-tracker.ts`
+- `packages/backend/src/models/ai-selection-action.model.ts`
+- `packages/backend/src/db/migrations/005_ai_assistant.sql`
+
 ## Feature Matrix Draft
 
 Legend:
@@ -252,17 +284,31 @@ Legend:
 - No: not found in cited documentation.
 - Unknown: not yet verified from cited documentation.
 
-| System | Evidence Source | Native Writing Workspace | Replay | Native AI Prompt/Response Log | AI Mode/Policy Distinction | Flexible Task Settings | Admin/User Workflow | Report/Verification Artifact | Deployment Control |
+| System | Evidence Source | Native Writing Workspace | Fine-Grained Event Log | Replay | Native AI Prompt/Response Log | AI Mode/Policy Distinction | Flexible Task Settings | Assigned Task Workflow | Integrated Evidence Package |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Humanly | Native writing events | Yes | Yes | Yes | Yes | Yes | Yes | Certificate and verification link | Partial |
-| Turnitin Clarity | Turnitin writing workspace/report | Yes | Yes | Yes, AI Chat Activity with full chat history | Partial, assignment-level AI tools | Partial, assignment settings and AI tool toggles | Yes, instructor/student assignment context | In-platform Writing Report | No |
-| Grammarly Authorship | Grammarly/Docs/Word attribution | Partial, Grammarly docs plus Docs/Word tracking | Yes | Partial, collects prompts/source attribution; no verified full prompt-response transcript | Partial, source categories and admin feature controls | Partial, admin feature controls but not task-specific writing policy | Partial, organization admin controls but no assigned-flow found | Shareable Authorship report | No |
-| GPTZero Origin/Writing Reports | Google Docs writing report plus detector | Partial, Google Docs extension/editor context | Yes | No verified prompt-response log | No verified AI-mode policy | No verified task-policy enforcement | No assigned-flow found | PDF/exportable Writing Report | No |
-| Draftback | Google Docs revision history | No, Google Docs extension | Yes | No | No | No | No | No dedicated report found | No |
-| Brisk Inspect Writing | Google Docs revision history | No, Google Docs extension | Yes | No | No | No | Partial, classroom tools but no Inspect-specific assigned flow found | No dedicated certificate/report found | No |
-| Integrito | Google Docs activity report | No, Google Docs extension | Yes | No | No | No | Partial, teacher/student positioning but no assigned-flow found | Activity Report | No |
-| WritingTrace | Google Docs revision history | No, Google Docs extension | Yes | No | No | No | No | Exportable forensic report | No |
-| PaperTrail Inspect | Google Docs revision history | No, Google Docs extension | Yes | No | No | No | No | Printable Process View report | No |
+| Humanly | Native writing events | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Certificate, verification link, replay, logs, PDF/JSON analysis |
+| Turnitin Clarity | Turnitin writing workspace/report | Yes | Partial, writing activity and AI-assistant logs | Yes | Yes, AI Chat Activity with full chat history | Partial, assignment-level AI tools | Partial, assignment settings and AI tool toggles | Yes, instructor/student assignment context | In-platform Writing Report |
+| Grammarly Authorship | Grammarly/Docs/Word attribution | Partial, Grammarly docs plus Docs/Word tracking | Partial, source attribution and replay | Yes | Partial, collects prompts/source attribution; no verified full prompt-response transcript | Partial, source categories and admin feature controls | Partial, admin feature controls but not task-specific writing policy | No assigned-flow found | Authorship replay/report |
+| GPTZero Origin/Writing Reports | Google Docs writing report plus detector | Partial, Google Docs extension/editor context | Partial, timeline, paste, typing-pattern report | Yes | No verified prompt-response log | No verified AI-mode policy | No verified task-policy enforcement | No assigned-flow found | PDF/exportable Writing Report |
+| Draftback | Google Docs revision history | No, Google Docs extension | Partial, revision-level events | Yes | No | No | No | No | Replay summary only |
+| Brisk Inspect Writing | Google Docs revision history | No, Google Docs extension | Partial, created text, paste, deletion, duration | Yes | No | No | No | Partial, classroom tools but no Inspect-specific assigned flow found | No dedicated certificate/report found |
+| Integrito | Google Docs activity report | No, Google Docs extension | Partial, activity report and suspicious paste-like events | Yes | No | No | No | Partial, teacher/student positioning but no assigned-flow found | Activity Report |
+| WritingTrace | Google Docs revision history | No, Google Docs extension | Partial, edit velocity, paste analytics, sessions | Yes | No | No | No | No | Exportable forensic report |
+| PaperTrail Inspect | Google Docs revision history | No, Google Docs extension | Partial, sessions, paste events, revision clusters | Yes | No | No | No | No | Printable Process View report |
+
+## Feature Groups For Paper Table
+
+Jiaxin/Pedro suggestion to preserve: group the feature comparison into broad
+capability families instead of presenting a flat list of unrelated features.
+
+Recommended grouping:
+
+| Category | Feature columns |
+| --- | --- |
+| Writing Environment | Native Workspace, Fine-Grained Event Log, Process Replay |
+| AI Provenance | AI Interaction Log, AI Mode/Policy Distinction |
+| Task Governance | Flexible Settings, Assigned Task Workflow |
+| Evidence Sharing | Integrated Evidence Package |
 
 ## Compact Paper Table Candidate
 
@@ -277,33 +323,36 @@ Legend:
 - N: not found in cited public documentation; this does not prove the feature is
   absent in private or enterprise configurations.
 
-| System | Type | Native Workspace | Replay | AI Interaction Log | Flexible Settings | Admin/User Workflow | Shareable Evidence |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Humanly | Native provenance platform | Y | Y | Y | Y | Y | Y |
-| Turnitin Clarity | Assignment writing workspace | Y | Y | Y | P | Y | P |
-| Grammarly Authorship | Cross-surface source attribution | P | Y | P | P | P | Y |
-| GPTZero Writing Reports | Detector + Google Docs report | P | Y | N | N | N | Y |
-| Draftback | Google Docs revision replay | N | Y | N | N | N | N |
-| Brisk Inspect Writing | Google Docs classroom replay | N | Y | N | N | P | N |
-| Integrito | Google Docs activity report | N | P | N | N | P | P |
-| WritingTrace | Google Docs forensic replay | N | Y | N | N | N | Y |
-| PaperTrail Inspect | Google Docs process report | N | Y | N | N | N | Y |
+| System | Type | Native Workspace | Event Log | Replay | AI Log | AI Policy | Flexible Settings | Assigned Workflow | Evidence Package |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Humanly | Native provenance platform | Y | Y | Y | Y | Y | Y | Y | Y |
+| Turnitin Clarity | Assignment writing workspace | Y | P | Y | Y | P | P | Y | P |
+| Grammarly Authorship | Cross-surface source attribution | P | P | Y | P | P | P | N | Y |
+| GPTZero Writing Reports | Detector + Google Docs report | P | P | Y | N | N | N | N | P |
+| Draftback | Google Docs revision replay | N | P | Y | N | N | N | N | P |
+| Brisk Inspect Writing | Google Docs classroom replay | N | P | Y | N | N | N | P | N |
+| Integrito | Google Docs activity report | N | P | P | N | N | N | P | P |
+| WritingTrace | Google Docs forensic replay | N | P | Y | N | N | N | N | Y |
+| PaperTrail Inspect | Google Docs process report | N | P | Y | N | N | N | N | Y |
 
 Column definitions:
 
 - Replay: reviewer can inspect how the document changed over time.
 - Native Workspace: the system provides its own writing environment rather than
   only inspecting Google Docs, Word, or another host editor.
-- AI Interaction Log: AI prompt/response or equivalent AI-use event is surfaced
+- Event Log: detailed process events are exposed beyond a coarse playback,
+  including fine-grained writing, selection, formatting, timing, or AI events.
+- AI Log: AI prompt/response or equivalent AI-use event is surfaced
   as part of the process evidence, not only inferred from final text.
+- AI Policy: the system distinguishes or configures AI assistance modes, such as
+  disabled AI, polish-only, chat-only, or full AI assistance.
 - Flexible Settings: task owner can configure writing rules before writing
   begins, such as AI access, allowed assistance modes, copy/paste policy, timing
   constraints, character limits, or submission/access rules.
-- Admin/User Workflow: the product has a clear owner/instructor/admin side and a
-  participant/student/writer side, rather than only a single-user extension or
-  retroactive document inspection tool.
-- Shareable Evidence: the system can produce a report, certificate, PDF, or
-  shareable artifact for review.
+- Assigned Workflow: the product supports assigning or sharing a writing task
+  from an owner/instructor/admin to participants/students/writers.
+- Evidence Package: the system combines replay, analysis/reporting, certificate
+  evidence, PDF/JSON output, or public verification into a reviewable artifact.
 
 ## Humanly Differentiation To Preserve
 
@@ -315,8 +364,8 @@ The strongest comparison paragraph should say:
    Grammarly Authorship, GPTZero Writing Reports, and WritingTrace.
 3. Humanly's contribution is the unified provenance pipeline: task policy is set
    before writing, AI access modes are enforced in the editor, AI prompt/response
-   events are logged, writing events are captured as the text is produced, and a
-   certificate/verification artifact can be generated from that same event
+   events are logged, fine-grained writing events are captured as the text is
+   produced, and a certificate/verification artifact can be generated from that same event
    stream.
 
 ## Claims To Avoid
