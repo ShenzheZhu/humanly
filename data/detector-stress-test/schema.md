@@ -5,6 +5,8 @@ Tracking issue: https://github.com/ShenzheZhu/humanly/issues/476
 This schema is for final-text detector outputs. It intentionally separates
 final-text detector judgments from Humanly process evidence.
 
+The execution plan is in `experiment-plan.md`.
+
 ## File Layout
 
 Use one row per `(sample_id, detector)` pair.
