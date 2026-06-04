@@ -236,8 +236,9 @@ Use this checklist for the next experimental work session:
   `N1`, `N2`, and `N3`.
 - [x] Skip `C4` for the technical API pipeline dry run; add it later after a
   human writer produces AI-style text without AI generation.
-- [ ] Add `N4` after a human lightly edits an AI-generated draft.
-- [ ] Fill `samples.csv` for the dry run.
+- [x] Skip `N4` for the technical API pipeline dry run; add it later after a
+  human lightly edits an AI-generated draft.
+- [x] Fill `samples.csv` for the dry run.
 - [ ] Run one detector end to end.
 - [ ] Inspect whether the detector output fits `detector_outputs.csv`.
 - [ ] Decide whether pilot size should be 5 or 10 samples per case.
