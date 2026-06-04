@@ -33,7 +33,7 @@
 \definecolor{featureyes}{RGB}{220,232,216}
 \definecolor{featurepartial}{RGB}{242,226,184}
 \definecolor{featureno}{RGB}{237,211,207}
-\DeclareRobustCommand{\halfcheck}{\ensuremath{\sqrt{}\mkern-9mu{\smallsetminus}}}
+\DeclareRobustCommand{\halfcheck}{\ensuremath{\checkmark\mkern-9mu\raisebox{0.15ex}{\scalebox{0.75}{/}}}}
 \DeclareRobustCommand{\featurelegendbox}[2]{\begingroup\setlength{\fboxsep}{1pt}\colorbox{#1}{\makebox[1.15em]{#2}}\endgroup}
 \newcommand{\yesfeature}{\cellcolor{featureyes}\ensuremath{\checkmark}}
 \newcommand{\partialfeature}{\cellcolor{featurepartial}\halfcheck}
