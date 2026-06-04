@@ -60,6 +60,14 @@ The runner stores raw responses in `outputs/raw/pangram/<sample_id>.json` and
 normalizes rows into `detector_outputs.csv`. It uses `public_dashboard_link:
 false` and the threshold rule recorded in each output row.
 
+### Current Pangram Status
+
+The first live attempt reached the Pangram API, but all six sample requests
+returned HTTP 401 with `{"error":"Insufficient credits"}`. The run is recorded
+as `api_error` rows in `detector_outputs.csv`; no successful detector labels are
+available yet. Add Pangram credits or use another detector before treating this
+as an end-to-end detector result.
+
 ## Current Access Questions
 
 - Which detector accounts/API keys are already available?

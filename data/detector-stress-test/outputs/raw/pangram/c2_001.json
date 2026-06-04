@@ -1,0 +1,4 @@
+{
+  "http_status": 401,
+  "response_body": "{\"error\":\"Insufficient credits\"}"
+}

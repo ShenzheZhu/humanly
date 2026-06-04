@@ -242,6 +242,8 @@ Use this checklist for the next experimental work session:
   human lightly edits an AI-generated draft.
 - [x] Fill `samples.csv` for the dry run.
 - [x] Add Pangram V3 runner for the first live detector dry run.
+- [x] Attempt Pangram live run and record current `Insufficient credits` API
+  blocker.
 - [ ] Run one detector end to end.
 - [ ] Inspect whether the detector output fits `detector_outputs.csv`.
 - [ ] Decide whether pilot size should be 5 or 10 samples per case.
