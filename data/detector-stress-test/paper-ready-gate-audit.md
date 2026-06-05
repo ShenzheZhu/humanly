@@ -1,6 +1,6 @@
 # Paper-Ready Gate Audit
 
-Generated: 2026-06-05T18:14:45.562Z
+Generated: 2026-06-05T18:28:45.353Z
 
 Overall status: **not_ready**
 

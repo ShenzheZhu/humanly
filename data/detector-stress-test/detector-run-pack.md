@@ -1,6 +1,6 @@
 # Detector Run Pack
 
-Generated: 2026-06-05T05:23:06.770Z
+Generated: 2026-06-05T18:26:10.855Z
 
 This run pack turns the current detector stress-test artifacts into execution
 queues. It does not call detector APIs and it does not make proxy samples
@@ -21,9 +21,9 @@ pipeline smoke testing until live generation or human collection replaces them.
 
 | Readiness | Count |
 | --- | ---: |
-| text_ready_rights_pending | 2 |
-| not_paper_ready | 21 |
-| ready | 1 |
+| text_ready_rights_pending | 4 |
+| ready | 14 |
+| not_paper_ready | 6 |
 
 ## Current Pilot Detector Coverage
 

@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-06-05T18:14:45.132Z",
+  "generated_at_utc": "2026-06-05T18:28:45.402Z",
   "files": {
     "humanSeeds": {
       "path": "human-seeds.csv",
@@ -159,7 +159,7 @@
     "detectorRunPackPilotManifestRows": 24,
     "detectorRunPackPilotQueueRows": 72,
     "detectorRunPackMainQueueRows": 720,
-    "detectorRunPackSummaryGeneratedAt": "2026-06-05T05:23:06.770Z",
+    "detectorRunPackSummaryGeneratedAt": "2026-06-05T18:26:10.855Z",
     "c4HumanCollectionManifestRows": 30,
     "n4HumanEditManifestRows": 30,
     "detectorVendorCostEstimateRows": 9,

@@ -1,6 +1,6 @@
 # Detector Stress Test Run Budget Estimate
 
-Generated: 2026-06-04T16:25:24.641Z
+Generated: 2026-06-05T18:26:10.973Z
 
 This is a token/request estimate for planning. It is not provider billing.
 Set the following environment variables to compute a dollar estimate:
@@ -13,10 +13,10 @@ Set the following environment variables to compute a dollar estimate:
 
 | Item | Estimate |
 | --- | ---: |
-| Total generation jobs | 240 |
-| API generation jobs | 210 |
-| Prompt/input tokens | 146538 |
-| Output tokens | 238231 |
+| Total generation jobs | 180 |
+| API generation jobs | 180 |
+| Prompt/input tokens | 352451 |
+| Output tokens | 213971 |
 | Input cost per 1M | 0 |
 | Output cost per 1M | 0 |
 | Estimated generation cost | 0.0000 |

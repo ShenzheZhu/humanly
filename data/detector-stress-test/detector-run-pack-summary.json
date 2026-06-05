@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-06-05T05:23:06.770Z",
+  "generated_at_utc": "2026-06-05T18:26:10.855Z",
   "detectors": [
     "pangram",
     "gptzero",
@@ -11,13 +11,13 @@
     "main_samples": 240,
     "main_queue_rows": 720,
     "pilot_sample_readiness": {
-      "text_ready_rights_pending": 2,
-      "not_paper_ready": 21,
-      "ready": 1
+      "text_ready_rights_pending": 4,
+      "ready": 14,
+      "not_paper_ready": 6
     },
     "main_sample_status": {
-      "ready": 30,
-      "synthetic_proxy_ready": 210
+      "ready": 180,
+      "synthetic_proxy_ready": 60
     },
     "main_policy_labels": {
       "compliant": 90,

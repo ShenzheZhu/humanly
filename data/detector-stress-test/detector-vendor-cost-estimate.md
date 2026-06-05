@@ -11,15 +11,15 @@ current proxy word counts.
 
 | Cohort | Detector | Docs | Manifest words | Credits/scans | Estimated public cost | API status |
 | --- | --- | ---: | ---: | ---: | ---: | --- |
-| pilot_24 | pangram | 24 | 14686 | 32 | $25.00 | public_credit_price_visible |
-| pilot_24 | gptzero | 24 | 14686 | 14686 | $45.00 | public_monthly_api_plan_visible |
-| pilot_24 | llm_claude_opus_4_8 | 24 | 14686 | 27462 | $0.19 | official_model_and_pricing_visible |
-| main_240 | pangram | 240 | 148837 | 320 | $25.00 | public_credit_price_visible |
-| main_240 | gptzero | 240 | 148837 | 148837 | $45.00 | public_monthly_api_plan_visible |
-| main_240 | llm_claude_opus_4_8 | 240 | 148837 | 277906 | $1.97 | official_model_and_pricing_visible |
-| pilot_plus_main_264 | pangram | 264 | 163523 | 352 | $25.00 | public_credit_price_visible |
-| pilot_plus_main_264 | gptzero | 264 | 163523 | 163523 | $45.00 | public_monthly_api_plan_visible |
-| pilot_plus_main_264 | llm_claude_opus_4_8 | 264 | 163523 | 305368 | $2.16 | official_model_and_pricing_visible |
+| pilot_24 | pangram | 24 | 16709 | 33 | $25.00 | public_credit_price_visible |
+| pilot_24 | gptzero | 24 | 16709 | 16709 | $45.00 | public_monthly_api_plan_visible |
+| pilot_24 | llm_claude_opus_4_8 | 24 | 16709 | 30808 | $0.21 | official_model_and_pricing_visible |
+| main_240 | pangram | 240 | 165755 | 323 | $25.00 | public_credit_price_visible |
+| main_240 | gptzero | 240 | 165755 | 165755 | $45.00 | public_monthly_api_plan_visible |
+| main_240 | llm_claude_opus_4_8 | 240 | 165755 | 305193 | $2.10 | official_model_and_pricing_visible |
+| pilot_plus_main_264 | pangram | 264 | 182464 | 356 | $25.00 | public_credit_price_visible |
+| pilot_plus_main_264 | gptzero | 264 | 182464 | 182464 | $45.00 | public_monthly_api_plan_visible |
+| pilot_plus_main_264 | llm_claude_opus_4_8 | 264 | 182464 | 336001 | $2.31 | official_model_and_pricing_visible |
 
 ## Source Notes
 
