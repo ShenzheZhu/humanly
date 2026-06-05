@@ -48,12 +48,12 @@ described as Humanly process evidence.
 Using Prolific's public guidance of a recommended $12/hour rate and an $8/hour
 minimum, plus public platform-fee rates:
 
-- Recommended participant rewards: $152.00
-- Recommended academic/non-profit total with 33.3% fee: $202.62
-- Recommended corporate total with 42.8% fee: $217.06
-- Minimum participant rewards: $101.40
-- Minimum academic/non-profit total with 33.3% fee: $135.17
-- Minimum corporate total with 42.8% fee: $144.80
+- Recommended participant rewards: $161.00
+- Recommended academic/non-profit total with 33.3% fee: $214.61
+- Recommended corporate total with 42.8% fee: $229.91
+- Minimum participant rewards: $97.40
+- Minimum academic/non-profit total with 33.3% fee: $129.83
+- Minimum corporate total with 42.8% fee: $139.09
 
 These figures exclude VAT and any extra payments for revisions, replacement
 participants, or bonuses.

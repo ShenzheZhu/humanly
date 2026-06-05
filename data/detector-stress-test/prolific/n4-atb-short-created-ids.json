@@ -4,7 +4,7 @@
   "dataset_id": "019e99b9-33e7-7114-b6af-6976c46556fe",
   "batch_id": "019e99b9-5522-7345-8b55-5ce20a7f419f",
   "study_id": "6a233d71c5d393fbc762e3f7",
-  "published": false,
+  "published": true,
   "dataset_total_datapoint_count": 10,
   "batch_total_task_count": 10,
   "batch_total_task_groups": 10,

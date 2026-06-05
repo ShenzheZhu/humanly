@@ -1,5 +1,5 @@
 sample_id,study_arm,task_title,length_bucket,task_type,target_min_words,target_max_words,estimated_minutes,recommended_reward_usd,minimum_reward_usd,ai_prompt_path,ai_draft_path,editor_input_path,final_text_path,collection_mode,response_field_name,editing_instruction,ai_prompt_text,ai_draft_text,completion_code_policy,META_case_id,META_prompt_id,META_matched_set_id
-n4_short_01,n4_short,Social media post light edit (n4_short_01),short,social_media_post,120,180,8,1.60,1.07,texts/generated/source/n4_short_01_source.txt,texts/generated/final/n1_short_01.txt,texts/human_n4_edits/n4_short_01.txt,texts/generated/final/n4_short_01.txt,prolific_ai_draft_light_edit,edited_text_n4_short_01,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
+n4_short_01,n4_short,Social media post light edit (n4_short_01),short,social_media_post,120,180,5,2.50,0.67,texts/generated/source/n4_short_01_source.txt,texts/generated/final/n1_short_01.txt,texts/human_n4_edits/n4_short_01.txt,texts/generated/final/n4_short_01.txt,prolific_ai_draft_light_edit,edited_text_n4_short_01,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
 Matched set: short_social_process_001_set01
 Length bucket: short
 Task type: social_media_post
@@ -22,7 +22,7 @@ I’m fifteen, and I started this thing last year because I had a cool idea and 
 But it’s finished. An actual beginning, middle, and end. Around 90,000 words of probably terrible writing that I made myself keep returning to.
 
 I know the next step is editing, but I’m not sure how long to let it sit, what to look for first, or whether I should show it to anyone yet. For people who’ve finished a first draft: what did you do next?",Use Prolific completion/submission status or the external survey completion code.,N4,short_social_process_001,short_social_process_001_set01
-n4_short_02,n4_short,Social media post light edit (n4_short_02),short,social_media_post,120,180,8,1.60,1.07,texts/generated/source/n4_short_02_source.txt,texts/generated/final/n1_short_02.txt,texts/human_n4_edits/n4_short_02.txt,texts/generated/final/n4_short_02.txt,prolific_ai_draft_light_edit,edited_text_n4_short_02,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
+n4_short_02,n4_short,Social media post light edit (n4_short_02),short,social_media_post,120,180,5,2.50,0.67,texts/generated/source/n4_short_02_source.txt,texts/generated/final/n1_short_02.txt,texts/human_n4_edits/n4_short_02.txt,texts/generated/final/n4_short_02.txt,prolific_ai_draft_light_edit,edited_text_n4_short_02,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
 Matched set: short_social_process_001_set02
 Length bucket: short
 Task type: social_media_post
@@ -43,7 +43,7 @@ Use a polished, coherent style. Do not include headings, bullet points, meta-com
 The app is meant to be a deliberately uncomfortable first-draft space. It strips away formatting, blocks the usual escape routes, and makes it difficult to keep reaching back into yesterday’s paragraph instead of writing today’s page. The whole point is momentum over elegance. You can fix ugly later; you can’t revise a blank document.
 
 I’m not claiming this will work for everyone, and it definitely is not a full replacement for a serious editing program. It’s just a tool for getting to the end when your inner editor keeps grabbing the wheel. If that sounds familiar, I hope it helps.",Use Prolific completion/submission status or the external survey completion code.,N4,short_social_process_001,short_social_process_001_set02
-n4_short_03,n4_short,Social media post light edit (n4_short_03),short,social_media_post,120,180,8,1.60,1.07,texts/generated/source/n4_short_03_source.txt,texts/generated/final/n1_short_03.txt,texts/human_n4_edits/n4_short_03.txt,texts/generated/final/n4_short_03.txt,prolific_ai_draft_light_edit,edited_text_n4_short_03,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
+n4_short_03,n4_short,Social media post light edit (n4_short_03),short,social_media_post,120,180,5,2.50,0.67,texts/generated/source/n4_short_03_source.txt,texts/generated/final/n1_short_03.txt,texts/human_n4_edits/n4_short_03.txt,texts/generated/final/n4_short_03.txt,prolific_ai_draft_light_edit,edited_text_n4_short_03,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
 Matched set: short_social_process_001_set03
 Length bucket: short
 Task type: social_media_post
@@ -66,7 +66,7 @@ Now every time I sit down, I can’t get past the first paragraph without interr
 I know these are useful questions eventually, but they’ve moved into the drafting stage and started acting like bouncers. Nothing gets in unless it can prove its literary value at the door.
 
 I miss writing before I knew what I was “supposed” to be doing. I don’t want to be ignorant again, exactly. I just want the joy back.",Use Prolific completion/submission status or the external survey completion code.,N4,short_social_process_001,short_social_process_001_set03
-n4_short_04,n4_short,Social media post light edit (n4_short_04),short,social_media_post,120,180,8,1.60,1.07,texts/generated/source/n4_short_04_source.txt,texts/generated/final/n1_short_04.txt,texts/human_n4_edits/n4_short_04.txt,texts/generated/final/n4_short_04.txt,prolific_ai_draft_light_edit,edited_text_n4_short_04,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
+n4_short_04,n4_short,Social media post light edit (n4_short_04),short,social_media_post,120,180,5,2.50,0.67,texts/generated/source/n4_short_04_source.txt,texts/generated/final/n1_short_04.txt,texts/human_n4_edits/n4_short_04.txt,texts/generated/final/n4_short_04.txt,prolific_ai_draft_light_edit,edited_text_n4_short_04,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
 Matched set: short_social_process_001_set04
 Length bucket: short
 Task type: social_media_post
@@ -89,7 +89,7 @@ For years, I was “writing a novel” in the sense that I had a folder full of 
 A few months ago I made myself a simple rule: 300 words a day, even if they were ugly, even if I knew I’d have to cut them later. At first it felt almost physically uncomfortable to leave problems behind. But now the story actually exists beyond the idea of it, and that’s new for me.
 
 It’s still messy, but it’s mine, and I’m finally moving forward.",Use Prolific completion/submission status or the external survey completion code.,N4,short_social_process_001,short_social_process_001_set04
-n4_short_05,n4_short,Social media post light edit (n4_short_05),short,social_media_post,120,180,8,1.60,1.07,texts/generated/source/n4_short_05_source.txt,texts/generated/final/n1_short_05.txt,texts/human_n4_edits/n4_short_05.txt,texts/generated/final/n4_short_05.txt,prolific_ai_draft_light_edit,edited_text_n4_short_05,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
+n4_short_05,n4_short,Social media post light edit (n4_short_05),short,social_media_post,120,180,5,2.50,0.67,texts/generated/source/n4_short_05_source.txt,texts/generated/final/n1_short_05.txt,texts/human_n4_edits/n4_short_05.txt,texts/generated/final/n4_short_05.txt,prolific_ai_draft_light_edit,edited_text_n4_short_05,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
 Matched set: short_social_process_001_set05
 Length bucket: short
 Task type: social_media_post
@@ -110,7 +110,7 @@ Use a polished, coherent style. Do not include headings, bullet points, meta-com
 Then, almost by accident, I started writing little stories for a dumb multiplayer game my friends and I were obsessed with. The official lore was ridiculous, half-contradictory, and clearly not meant to support anything serious, which turned out to be the best possible thing for me. There was no pressure to be profound. I could write a scene in one evening, post it, make people laugh, and move on.
 
 It taught me that finishing small, imperfect things builds muscles that planning a masterpiece never did. I still care about the big project, but now I’m not trying to approach it like a sacred object. I’m just trying to write.",Use Prolific completion/submission status or the external survey completion code.,N4,short_social_process_001,short_social_process_001_set05
-n4_short_06,n4_short,Social media post light edit (n4_short_06),short,social_media_post,120,180,8,1.60,1.07,texts/generated/source/n4_short_06_source.txt,texts/generated/final/n1_short_06.txt,texts/human_n4_edits/n4_short_06.txt,texts/generated/final/n4_short_06.txt,prolific_ai_draft_light_edit,edited_text_n4_short_06,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
+n4_short_06,n4_short,Social media post light edit (n4_short_06),short,social_media_post,120,180,5,2.50,0.67,texts/generated/source/n4_short_06_source.txt,texts/generated/final/n1_short_06.txt,texts/human_n4_edits/n4_short_06.txt,texts/generated/final/n4_short_06.txt,prolific_ai_draft_light_edit,edited_text_n4_short_06,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
 Matched set: short_social_process_001_set06
 Length bucket: short
 Task type: social_media_post
@@ -133,7 +133,7 @@ This thing has been with me for years. It has survived false starts, entire chap
 The strangest part is looking back at the earliest pages and recognizing the story, but barely recognizing the writer. I can see all the clumsy choices I had to make before I learned how to make better ones.
 
 I know there’s still querying, rejection, editing, and a long road ahead. But tonight, I’m letting myself celebrate: I finished the book.",Use Prolific completion/submission status or the external survey completion code.,N4,short_social_process_001,short_social_process_001_set06
-n4_short_07,n4_short,Social media post light edit (n4_short_07),short,social_media_post,120,180,8,1.60,1.07,texts/generated/source/n4_short_07_source.txt,texts/generated/final/n1_short_07.txt,texts/human_n4_edits/n4_short_07.txt,texts/generated/final/n4_short_07.txt,prolific_ai_draft_light_edit,edited_text_n4_short_07,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
+n4_short_07,n4_short,Social media post light edit (n4_short_07),short,social_media_post,120,180,5,2.50,0.67,texts/generated/source/n4_short_07_source.txt,texts/generated/final/n1_short_07.txt,texts/human_n4_edits/n4_short_07.txt,texts/generated/final/n4_short_07.txt,prolific_ai_draft_light_edit,edited_text_n4_short_07,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
 Matched set: short_social_process_001_set07
 Length bucket: short
 Task type: social_media_post
@@ -156,7 +156,7 @@ I’ve been walking around my kitchen for an hour, grinning at the dishwasher li
 This is the fifth book I’ve written. The first two were useful only in the sense that falling down stairs teaches you about gravity. The third got close. The fourth taught me patience. This one was the one I almost gave up on twice.
 
 I know there’s still paperwork, edits, and a lot of waiting ahead, but tonight I’m letting myself be happy. It happened. It actually happened.",Use Prolific completion/submission status or the external survey completion code.,N4,short_social_process_001,short_social_process_001_set07
-n4_short_08,n4_short,Social media post light edit (n4_short_08),short,social_media_post,120,180,8,1.60,1.07,texts/generated/source/n4_short_08_source.txt,texts/generated/final/n1_short_08.txt,texts/human_n4_edits/n4_short_08.txt,texts/generated/final/n4_short_08.txt,prolific_ai_draft_light_edit,edited_text_n4_short_08,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
+n4_short_08,n4_short,Social media post light edit (n4_short_08),short,social_media_post,120,180,5,2.50,0.67,texts/generated/source/n4_short_08_source.txt,texts/generated/final/n1_short_08.txt,texts/human_n4_edits/n4_short_08.txt,texts/generated/final/n4_short_08.txt,prolific_ai_draft_light_edit,edited_text_n4_short_08,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
 Matched set: short_social_process_001_set08
 Length bucket: short
 Task type: social_media_post
@@ -179,7 +179,7 @@ I took a scene that felt pretty straightforward and asked myself, “If people o
 And somehow it worked. A side character’s odd choices suddenly suggested a much better hidden agenda. A couple of scenes I thought were just connective tissue became potential foreshadowing. Even places where the story felt too clean gave me chances to add tension without changing the actual events.
 
 I’m not saying every story needs a giant secret conspiracy, but looking at my draft through the eyes of a suspicious reader made it feel less flat. If your plot seems too simple, try misinterpreting it on purpose.",Use Prolific completion/submission status or the external survey completion code.,N4,short_social_process_001,short_social_process_001_set08
-n4_short_09,n4_short,Social media post light edit (n4_short_09),short,social_media_post,120,180,8,1.60,1.07,texts/generated/source/n4_short_09_source.txt,texts/generated/final/n1_short_09.txt,texts/human_n4_edits/n4_short_09.txt,texts/generated/final/n4_short_09.txt,prolific_ai_draft_light_edit,edited_text_n4_short_09,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
+n4_short_09,n4_short,Social media post light edit (n4_short_09),short,social_media_post,120,180,5,2.50,0.67,texts/generated/source/n4_short_09_source.txt,texts/generated/final/n1_short_09.txt,texts/human_n4_edits/n4_short_09.txt,texts/generated/final/n4_short_09.txt,prolific_ai_draft_light_edit,edited_text_n4_short_09,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
 Matched set: short_social_process_001_set09
 Length bucket: short
 Task type: social_media_post
@@ -204,7 +204,7 @@ On Monday night I opened it for “just ten minutes,” mostly to prove to mysel
 It’s now Thursday, and I’ve added a little over 18,000 words.
 
 I know momentum like this can vanish, and I’m trying not to treat it like magic or a cure-all. But for the first time in ages, writing feels alive again instead of like homework from a past version of myself.",Use Prolific completion/submission status or the external survey completion code.,N4,short_social_process_001,short_social_process_001_set09
-n4_short_10,n4_short,Social media post light edit (n4_short_10),short,social_media_post,120,180,8,1.60,1.07,texts/generated/source/n4_short_10_source.txt,texts/generated/final/n1_short_10.txt,texts/human_n4_edits/n4_short_10.txt,texts/generated/final/n4_short_10.txt,prolific_ai_draft_light_edit,edited_text_n4_short_10,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
+n4_short_10,n4_short,Social media post light edit (n4_short_10),short,social_media_post,120,180,5,2.50,0.67,texts/generated/source/n4_short_10_source.txt,texts/generated/final/n1_short_10.txt,texts/human_n4_edits/n4_short_10.txt,texts/generated/final/n4_short_10.txt,prolific_ai_draft_light_edit,edited_text_n4_short_10,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
 Matched set: short_social_process_001_set10
 Length bucket: short
 Task type: social_media_post

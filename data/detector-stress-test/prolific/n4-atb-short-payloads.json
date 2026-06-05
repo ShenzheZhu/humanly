@@ -45,13 +45,39 @@
     "name": "Lightly edit a short AI-written draft",
     "internal_name": "humanly-n4-short-light-edit-2026-06-05",
     "description": "<p>In this study, you will edit one AI-generated draft. Please make light local improvements while preserving the draft's meaning and structure.</p><p>You should not use AI tools or outside rewriting tools while completing the edit.</p>",
-    "estimated_completion_time": 8,
-    "maximum_allowed_time": 30,
-    "reward": 160,
+    "estimated_completion_time": 5,
+    "maximum_allowed_time": 19,
+    "reward": 250,
+    "submissions_config": {
+      "max_submissions_per_participant": 1,
+      "max_concurrent_submissions": -1,
+      "auto_rejection_categories": [
+        "EXCEPTIONALLY_FAST"
+      ]
+    },
     "data_collection_method": "AI_TASK_BUILDER_BATCH",
     "data_collection_id": "{{BATCH_ID}}",
     "data_collection_metadata": {
-      "annotators_per_task": 1
-    }
+      "annotators_per_task": 1,
+      "total_task_groups": 10
+    },
+    "filters": [
+      {
+        "filter_id": "structured-writing",
+        "selected_range": {
+          "lower": 70,
+          "upper": 100
+        }
+      },
+      {
+        "filter_id": "ai-taskers",
+        "selected_values": [
+          "0"
+        ]
+      }
+    ],
+    "study_labels": [
+      "ai_annotation"
+    ]
   }
 }

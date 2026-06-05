@@ -18,10 +18,10 @@ const CHECKED_DATE = "2026-06-05";
 
 const LENGTH_CONFIG = {
   short: {
-    target_minutes: 8,
-    maximum_minutes: 30,
-    recommended_reward_usd: 1.6,
-    minimum_reward_usd: 1.07,
+    target_minutes: 5,
+    maximum_minutes: 19,
+    recommended_reward_usd: 2.5,
+    minimum_reward_usd: 0.67,
     participant_count: 10,
   },
   medium: {
@@ -38,6 +38,26 @@ const LENGTH_CONFIG = {
     minimum_reward_usd: 6.67,
     participant_count: 10,
   },
+};
+
+const PROLIFIC_SCREENING_FILTERS = [
+  {
+    filter_id: "structured-writing",
+    selected_range: {
+      lower: 70.0,
+      upper: 100.0,
+    },
+  },
+  {
+    filter_id: "ai-taskers",
+    selected_values: ["0"],
+  },
+];
+
+const PROLIFIC_SUBMISSIONS_CONFIG = {
+  max_submissions_per_participant: 1,
+  max_concurrent_submissions: -1,
+  auto_rejection_categories: ["EXCEPTIONALLY_FAST"],
 };
 
 function parseCsv(text) {
@@ -202,11 +222,15 @@ function atbPayload(lengthBucket, config) {
       estimated_completion_time: config.target_minutes,
       maximum_allowed_time: config.maximum_minutes,
       reward: cents(config.recommended_reward_usd),
+      submissions_config: PROLIFIC_SUBMISSIONS_CONFIG,
       data_collection_method: "AI_TASK_BUILDER_BATCH",
       data_collection_id: "{{BATCH_ID}}",
       data_collection_metadata: {
         annotators_per_task: 1,
+        total_task_groups: config.participant_count,
       },
+      filters: PROLIFIC_SCREENING_FILTERS,
+      study_labels: ["ai_annotation"],
     },
   };
 }

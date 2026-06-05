@@ -48,10 +48,36 @@
     "estimated_completion_time": 18,
     "maximum_allowed_time": 60,
     "reward": 360,
+    "submissions_config": {
+      "max_submissions_per_participant": 1,
+      "max_concurrent_submissions": -1,
+      "auto_rejection_categories": [
+        "EXCEPTIONALLY_FAST"
+      ]
+    },
     "data_collection_method": "AI_TASK_BUILDER_BATCH",
     "data_collection_id": "{{BATCH_ID}}",
     "data_collection_metadata": {
-      "annotators_per_task": 1
-    }
+      "annotators_per_task": 1,
+      "total_task_groups": 10
+    },
+    "filters": [
+      {
+        "filter_id": "structured-writing",
+        "selected_range": {
+          "lower": 70,
+          "upper": 100
+        }
+      },
+      {
+        "filter_id": "ai-taskers",
+        "selected_values": [
+          "0"
+        ]
+      }
+    ],
+    "study_labels": [
+      "ai_annotation"
+    ]
   }
 }

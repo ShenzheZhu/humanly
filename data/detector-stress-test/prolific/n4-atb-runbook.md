@@ -7,7 +7,7 @@ separate Prolific AI Task Builder Batch draft studies:
 
 | Arm | Rows | Expected places | Estimated time | Reward |
 | --- | ---: | ---: | ---: | ---: |
-| short | 10 | 10 | 8 minutes | $1.60 |
+| short | 10 | 10 | 5 minutes | $2.50 |
 | medium | 10 | 10 | 18 minutes | $3.60 |
 | long | 10 | 10 | 50 minutes | $10.00 |
 
