@@ -1,201 +1,57 @@
-sample_id,task_title,task_type,target_word_range,editing_instruction,source_task_prompt,ai_draft_to_edit,META_sample_id,META_case_id,META_length_bucket,META_task_type,META_prompt_id,META_matched_set_id,META_ai_prompt_path,META_ai_draft_path,META_editor_input_path,META_final_text_path,META_TASK_GROUP_ID
-n4_short_01,Social media post light edit (n4_short_01),Social media post,120-180 words,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
-Matched set: short_social_process_001_set01
-Length bucket: short
-Task type: social_media_post
-Source seed: short_reddit_finished_first_novel_2014_001
-Source title: Today, at 9:09PM, November 17th, I finished the first draft of my first novel. I'm fourteen, it's unreadable crap, but I couldn't be any prouder. Any advice?
-Source note: Pre-2017 social-media self-post about finishing a first novel draft.
-Source URL: https://old.reddit.com/r/writing/comments/2mmh3m/today_at_909pm_november_17th_i_finished_the_first/
-Source excerpt for topic grounding:
-I've always loved writing and reading. In fact, I wrote my first short story when I was four year old. It was about a space man who goes out into space and ""thought"" all the animals. (Forgive me, four year old me actually knew how to spell ""fought"" but he thought ""thoughting"" animals was cooler) Anyways, today I finished the first draft of my first book (384 pages!!!). It is a sci-fi, dystopian novel that can be described as if all the cliches from every piece of YA fiction gathered in a room, shat in a bucket, and then sprinkled it it with some magical purple prose powder that made
-
-Task:
-Write an original first-person social-media self-post about the same writing-related topic or situation as the source seed. Preserve the broad topic, emotional stance, and practical concern, but do not summarize the source, copy its wording, mention the source, or refer to this task card.
-
-Target length: 120-180 words.
-
-Use a polished, coherent style. Do not include headings, bullet points, meta-commentary, citations, or notes about how the response was written. Return only the final response.","I just typed “The End” on the first draft of my first novel, and I’m still kind of staring at the screen like it might disappear if I blink.
+ai_draft_to_edit,META_sample_id,META_case_id,META_length_bucket,META_task_type,META_prompt_id,META_matched_set_id,META_ai_prompt_path,META_ai_draft_path,META_editor_input_path,META_final_text_path,META_TASK_GROUP_ID
+"I just typed “The End” on the first draft of my first novel, and I’m still kind of staring at the screen like it might disappear if I blink.
 
 I’m fifteen, and I started this thing last year because I had a cool idea and absolutely no understanding of pacing, character arcs, or how many times one person can “smirk” in a chapter before it becomes a crime. It’s a fantasy/sci-fi mess with too many dramatic speeches, a villain who changes motivations every hundred pages, and at least three plot twists I’m pretty sure make no sense.
 
 But it’s finished. An actual beginning, middle, and end. Around 90,000 words of probably terrible writing that I made myself keep returning to.
 
 I know the next step is editing, but I’m not sure how long to let it sit, what to look for first, or whether I should show it to anyone yet. For people who’ve finished a first draft: what did you do next?",n4_short_01,N4,short,social_media_post,short_social_process_001,short_social_process_001_set01,texts/generated/source/n4_short_01_source.txt,texts/generated/final/n1_short_01.txt,texts/human_n4_edits/n4_short_01.txt,texts/generated/final/n4_short_01.txt,n4_short_01
-n4_short_02,Social media post light edit (n4_short_02),Social media post,120-180 words,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
-Matched set: short_social_process_001_set02
-Length bucket: short
-Task type: social_media_post
-Source seed: short_reddit_writing_worst_draft_post_2015_002
-Source title: I created writing software for writers. It's free and I hope it helps you.
-Source note: Pre-2017 social-media self-post about first-draft tools and editing constraints.
-Source URL: https://old.reddit.com/r/writing/comments/3j41t2/i_created_writing_software_for_writers_its_free/
-Source excerpt for topic grounding:
-I created a free text editor for writers who want to complete a full first draft, but have trouble making it to the end because of distractions. This is a no-frills program that 1) restricts the opening of new programs while it’s running, and 2) will only let the user edit the last two words typed. It’s called Worst Draft, and I hope it can help a community like /r/writing. I’m a writer with an MFA in creative nonfiction, and I’ve always had trouble finishing my work. I used to edit and research as I wrote. Instead of creating first drafts that looked like final drafts, I ended up with
-
-Task:
-Write an original first-person social-media self-post about the same writing-related topic or situation as the source seed. Preserve the broad topic, emotional stance, and practical concern, but do not summarize the source, copy its wording, mention the source, or refer to this task card.
-
-Target length: 120-180 words.
-
-Use a polished, coherent style. Do not include headings, bullet points, meta-commentary, citations, or notes about how the response was written. Return only the final response.","I made a small, free writing app because I kept losing the same fight with my own drafts. I would sit down to write a chapter and somehow spend forty minutes polishing one sentence, checking a “quick” fact, opening a browser tab, or convincing myself I needed the perfect name for a side character before I could continue.
+"I made a small, free writing app because I kept losing the same fight with my own drafts. I would sit down to write a chapter and somehow spend forty minutes polishing one sentence, checking a “quick” fact, opening a browser tab, or convincing myself I needed the perfect name for a side character before I could continue.
 
 The app is meant to be a deliberately uncomfortable first-draft space. It strips away formatting, blocks the usual escape routes, and makes it difficult to keep reaching back into yesterday’s paragraph instead of writing today’s page. The whole point is momentum over elegance. You can fix ugly later; you can’t revise a blank document.
 
 I’m not claiming this will work for everyone, and it definitely is not a full replacement for a serious editing program. It’s just a tool for getting to the end when your inner editor keeps grabbing the wheel. If that sounds familiar, I hope it helps.",n4_short_02,N4,short,social_media_post,short_social_process_001,short_social_process_001_set02,texts/generated/source/n4_short_02_source.txt,texts/generated/final/n1_short_02.txt,texts/human_n4_edits/n4_short_02.txt,texts/generated/final/n4_short_02.txt,n4_short_02
-n4_short_03,Social media post light edit (n4_short_03),Social media post,120-180 words,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
-Matched set: short_social_process_001_set03
-Length bucket: short
-Task type: social_media_post
-Source seed: short_reddit_learning_writing_creativity_2013_003
-Source title: Learning about writing has killed my creativity
-Source note: Pre-2017 reflective social-media self-post about creative writing education.
-Source URL: https://old.reddit.com/r/writing/comments/1lz6vo/learning_about_writing_has_killed_my_creativity/
-Source excerpt for topic grounding:
-I studied creative writing at University alongside English literature. Each week we'd do a writer's workshop and whatnot, show our work around, writing to some task we had been set the week before. Problem was, being a literature course first and foremost, the majority of the tutors were fixated on literary fiction; they'd always be questioning the meanings, the symbolism, the point of everything we wrote. And God forbid if you wrote something without a deeper meaning. The problem is now, that after graduating, I can't write a damn thing. Any idea I come up with, there's a voice in my mind saying ""why? What's the point? What's the message
-
-Task:
-Write an original first-person social-media self-post about the same writing-related topic or situation as the source seed. Preserve the broad topic, emotional stance, and practical concern, but do not summarize the source, copy its wording, mention the source, or refer to this task card.
-
-Target length: 120-180 words.
-
-Use a polished, coherent style. Do not include headings, bullet points, meta-commentary, citations, or notes about how the response was written. Return only the final response.","I used to write constantly. Bad fantasy scenes, weird little horror pieces, pages of dialogue that went nowhere—none of it was “good,” probably, but it felt alive. Then I took writing seriously. Workshops, craft books, critique groups, all of it.
+"I used to write constantly. Bad fantasy scenes, weird little horror pieces, pages of dialogue that went nowhere—none of it was “good,” probably, but it felt alive. Then I took writing seriously. Workshops, craft books, critique groups, all of it.
 
 Now every time I sit down, I can’t get past the first paragraph without interrogating it to death. Is the narrator distinct enough? Is the conflict clear? Is this image doing enough work? What does the setting represent? Am I relying on cliché? Is the theme too obvious, or worse, not there at all?
 
 I know these are useful questions eventually, but they’ve moved into the drafting stage and started acting like bouncers. Nothing gets in unless it can prove its literary value at the door.
 
 I miss writing before I knew what I was “supposed” to be doing. I don’t want to be ignorant again, exactly. I just want the joy back.",n4_short_03,N4,short,social_media_post,short_social_process_001,short_social_process_001_set03,texts/generated/source/n4_short_03_source.txt,texts/generated/final/n1_short_03.txt,texts/human_n4_edits/n4_short_03.txt,texts/generated/final/n4_short_03.txt,n4_short_03
-n4_short_04,Social media post light edit (n4_short_04),Social media post,120-180 words,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
-Matched set: short_social_process_001_set04
-Length bucket: short
-Task type: social_media_post
-Source seed: short_reddit_twenty_thousand_words_2016_004
-Source title: Just got to 20,000 words, couldn't be happier.
-Source note: Pre-2017 social-media self-post celebrating writing progress.
-Source URL: https://old.reddit.com/r/writing/comments/5htqjb/just_got_to_20000_words_couldnt_be_happier/
-Source excerpt for topic grounding:
-This is the first time I've made a post on Reddit, but I just felt like celebrating, even if it is kind of small. I've been 'working' on a novel for years now, but constantly got bogged down by making the first draft as 'perfect' as possible. I could never resolve to just fix things in post, so concerned that the story itself would be unfixable. This year, though, I finally buckled down and started working in earnest. I made it my goal to write at least 200 words per day. At first, this goal was like walking on burning coals for half an hour each night. Eventually, it turned
-
-Task:
-Write an original first-person social-media self-post about the same writing-related topic or situation as the source seed. Preserve the broad topic, emotional stance, and practical concern, but do not summarize the source, copy its wording, mention the source, or refer to this task card.
-
-Target length: 120-180 words.
-
-Use a polished, coherent style. Do not include headings, bullet points, meta-commentary, citations, or notes about how the response was written. Return only the final response.","I don’t really have anyone in my day-to-day life who understands why this feels so huge, so I’m putting it here: I passed 20,000 words on my draft tonight.
+"I don’t really have anyone in my day-to-day life who understands why this feels so huge, so I’m putting it here: I passed 20,000 words on my draft tonight.
 
 For years, I was “writing a novel” in the sense that I had a folder full of openings, character notes, maps, and anxious little rewrites of chapter one. Every sentence had to justify itself before I could move on. If a scene felt weak, I’d stop and try to solve the entire book at once. Unsurprisingly, I never got very far.
 
 A few months ago I made myself a simple rule: 300 words a day, even if they were ugly, even if I knew I’d have to cut them later. At first it felt almost physically uncomfortable to leave problems behind. But now the story actually exists beyond the idea of it, and that’s new for me.
 
 It’s still messy, but it’s mine, and I’m finally moving forward.",n4_short_04,N4,short,social_media_post,short_social_process_001,short_social_process_001_set04,texts/generated/source/n4_short_04_source.txt,texts/generated/final/n1_short_04.txt,texts/human_n4_edits/n4_short_04.txt,texts/generated/final/n4_short_04.txt,n4_short_04
-n4_short_05,Social media post light edit (n4_short_05),Social media post,120-180 words,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
-Matched set: short_social_process_001_set05
-Length bucket: short
-Task type: social_media_post
-Source seed: short_reddit_started_actually_writing_2016_005
-Source title: How I started actually writing: I shelved my ambitious ""masterpiece"" project, and wrote fanfic based on derpy video game placeholder lore.
-Source note: Pre-2017 social-media self-post about changing writing strategy.
-Source URL: https://old.reddit.com/r/writing/comments/4jojid/how_i_started_actually_writing_i_shelved_my/
-Source excerpt for topic grounding:
-I could probably turn this into a longer personal account, but I really just wanted to share this experience. For years, I was working on this really ambitious sci-fi/fantasy project. I guess I still am; I definitely want to finish it. But I wasn't able to write regularly on it. The writer's block was constant, perhaps because of the pressure I was putting on myself. I solved this problem by accident. I played a video game (League of Legends) with truly derpy lore that nonetheless had a bit of cartoony charm to it. I started a community for roleplaying and themed matches, and I wrote some filler fanfic/fanlore/whatever to add
-
-Task:
-Write an original first-person social-media self-post about the same writing-related topic or situation as the source seed. Preserve the broad topic, emotional stance, and practical concern, but do not summarize the source, copy its wording, mention the source, or refer to this task card.
-
-Target length: 120-180 words.
-
-Use a polished, coherent style. Do not include headings, bullet points, meta-commentary, citations, or notes about how the response was written. Return only the final response.","For the longest time I thought “being a writer” meant making steady progress on the giant novel I’d been carrying around in my head since college. It had maps, religions, political factions, three magic systems, and absolutely no finished chapters. Every time I opened the document, I felt like I was walking into a cathedral with muddy shoes.
+"For the longest time I thought “being a writer” meant making steady progress on the giant novel I’d been carrying around in my head since college. It had maps, religions, political factions, three magic systems, and absolutely no finished chapters. Every time I opened the document, I felt like I was walking into a cathedral with muddy shoes.
 
 Then, almost by accident, I started writing little stories for a dumb multiplayer game my friends and I were obsessed with. The official lore was ridiculous, half-contradictory, and clearly not meant to support anything serious, which turned out to be the best possible thing for me. There was no pressure to be profound. I could write a scene in one evening, post it, make people laugh, and move on.
 
 It taught me that finishing small, imperfect things builds muscles that planning a masterpiece never did. I still care about the big project, but now I’m not trying to approach it like a sacred object. I’m just trying to write.",n4_short_05,N4,short,social_media_post,short_social_process_001,short_social_process_001_set05,texts/generated/source/n4_short_05_source.txt,texts/generated/final/n1_short_05.txt,texts/human_n4_edits/n4_short_05.txt,texts/generated/final/n4_short_05.txt,n4_short_05
-n4_short_06,Social media post light edit (n4_short_06),Social media post,120-180 words,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
-Matched set: short_social_process_001_set06
-Length bucket: short
-Task type: social_media_post
-Source seed: short_reddit_novel_done_2016_006
-Source title: I need a moment to celebrate! After three years and many rounds of revisions, my novel is DONE!!!
-Source note: Pre-2017 social-media self-post about finishing a revised novel.
-Source URL: https://old.reddit.com/r/writing/comments/5gfhi3/i_need_a_moment_to_celebrate_after_three_years/
-Source excerpt for topic grounding:
-Had I known what I was in for in the beginning, I might never have started. I've written three drafts, and my novel has evolved in completely unexpected ways. I ended up cutting some scenes that I thought would be critical, and there were some sections I added on a whim that became some of the novel's best. When I look back at the first scenes I wrote, I can see how much I've grown as a writer. My voice is a lot stronger now, and my dialog is WAY better. My book alternates between five characters' viewpoints, so in a way it was like writing five separate novels. There
-
-Task:
-Write an original first-person social-media self-post about the same writing-related topic or situation as the source seed. Preserve the broad topic, emotional stance, and practical concern, but do not summarize the source, copy its wording, mention the source, or refer to this task card.
-
-Target length: 120-180 words.
-
-Use a polished, coherent style. Do not include headings, bullet points, meta-commentary, citations, or notes about how the response was written. Return only the final response.","I just typed the last sentence of what I am finally willing to call the finished version of my novel, and I don’t really know what to do with myself.
+"I just typed the last sentence of what I am finally willing to call the finished version of my novel, and I don’t really know what to do with myself.
 
 This thing has been with me for years. It has survived false starts, entire chapters getting thrown out, characters changing their minds about who they were, and more “final” drafts than I want to admit. At one point I was convinced a certain subplot was the heart of the book, and now it’s completely gone. Meanwhile, a tiny scene I added just to bridge two chapters somehow became one of my favorites.
 
 The strangest part is looking back at the earliest pages and recognizing the story, but barely recognizing the writer. I can see all the clumsy choices I had to make before I learned how to make better ones.
 
 I know there’s still querying, rejection, editing, and a long road ahead. But tonight, I’m letting myself celebrate: I finished the book.",n4_short_06,N4,short,social_media_post,short_social_process_001,short_social_process_001_set06,texts/generated/source/n4_short_06_source.txt,texts/generated/final/n1_short_06.txt,texts/human_n4_edits/n4_short_06.txt,texts/generated/final/n4_short_06.txt,n4_short_06
-n4_short_07,Social media post light edit (n4_short_07),Social media post,120-180 words,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
-Matched set: short_social_process_001_set07
-Length bucket: short
-Task type: social_media_post
-Source seed: short_reddit_received_offer_2016_007
-Source title: I just received an offer!
-Source note: Pre-2017 social-media self-post about receiving a publishing offer.
-Source URL: https://old.reddit.com/r/writing/comments/541hpx/i_just_received_an_offer/
-Source excerpt for topic grounding:
-The contract hasn't been officialized yet, so I can't name names or tell anybody I actually know about it until Monday when I can sign, but my agent just called me and I had to tell someone. A little background: I started writing seriously at 38 while working full time as a teacher (which is still my day-job and first love). My first manuscript sucked ass, even though I couldn't see it at the time. My second manuscript sucked in entirely different ways. My third was almost good enough and my fourth was ready for the public to see (though it was a genre that wasn't selling and I had
-
-Task:
-Write an original first-person social-media self-post about the same writing-related topic or situation as the source seed. Preserve the broad topic, emotional stance, and practical concern, but do not summarize the source, copy its wording, mention the source, or refer to this task card.
-
-Target length: 120-180 words.
-
-Use a polished, coherent style. Do not include headings, bullet points, meta-commentary, citations, or notes about how the response was written. Return only the final response.","I can’t say much yet because nothing is signed and I’m trying very hard not to jinx it, but I got the call today: there’s an offer on my book.
+"I can’t say much yet because nothing is signed and I’m trying very hard not to jinx it, but I got the call today: there’s an offer on my book.
 
 I’ve been walking around my kitchen for an hour, grinning at the dishwasher like it personally believed in me. My agent is handling the next steps, and if all goes well I’ll be able to share actual details soon. For now I just needed to put this somewhere, because I can’t tell coworkers, family, or even the group chat without immediately exploding into specifics.
 
 This is the fifth book I’ve written. The first two were useful only in the sense that falling down stairs teaches you about gravity. The third got close. The fourth taught me patience. This one was the one I almost gave up on twice.
 
 I know there’s still paperwork, edits, and a lot of waiting ahead, but tonight I’m letting myself be happy. It happened. It actually happened.",n4_short_07,N4,short,social_media_post,short_social_process_001,short_social_process_001_set07,texts/generated/source/n4_short_07_source.txt,texts/generated/final/n1_short_07.txt,texts/human_n4_edits/n4_short_07.txt,texts/generated/final/n4_short_07.txt,n4_short_07
-n4_short_08,Social media post light edit (n4_short_08),Social media post,120-180 words,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
-Matched set: short_social_process_001_set08
-Length bucket: short
-Task type: social_media_post
-Source seed: short_reddit_plot_conspiracies_2015_008
-Source title: This may sound weird, but looking at my plot as if I was a fan trying to make weird conspiracies actually overturned a goldmine and I would recommend the exercise to anyone.
-Source note: Pre-2017 social-media self-post about a writing exercise.
-Source URL: https://old.reddit.com/r/writing/comments/393pc3/this_may_sound_weird_but_looking_at_my_plot_as_if/
-Source excerpt for topic grounding:
-After reading a bunch of threads on /r/FanTheories I thought about the plot for the novel I'm writing and started considering if there were any scenarios that were ambiguous enough to allow such a thing. I started thinking along the lines of ""what if this was really this?"" or ""what if this character wasn't trying to do this but actually this?"" and realised there was actually room for a huge underlying conspiracy that alters the dynamic of the story drastically while keeping all of the plot details completely in-tact. I worried my plot was too linear but now I'm finding so much room for depth where I'd previously felt there
-
-Task:
-Write an original first-person social-media self-post about the same writing-related topic or situation as the source seed. Preserve the broad topic, emotional stance, and practical concern, but do not summarize the source, copy its wording, mention the source, or refer to this task card.
-
-Target length: 120-180 words.
-
-Use a polished, coherent style. Do not include headings, bullet points, meta-commentary, citations, or notes about how the response was written. Return only the final response.","This is going to sound a little ridiculous, but I accidentally found a really useful plotting exercise by pretending my own book already had an obsessive fandom.
+"This is going to sound a little ridiculous, but I accidentally found a really useful plotting exercise by pretending my own book already had an obsessive fandom.
 
 I took a scene that felt pretty straightforward and asked myself, “If people online were trying to prove this meant something else, what would they point to?” Then I started doing it with character motives, repeated details, weird timing, unanswered questions, all of it. Instead of treating my outline as the author, I treated it like evidence.
 
 And somehow it worked. A side character’s odd choices suddenly suggested a much better hidden agenda. A couple of scenes I thought were just connective tissue became potential foreshadowing. Even places where the story felt too clean gave me chances to add tension without changing the actual events.
 
 I’m not saying every story needs a giant secret conspiracy, but looking at my draft through the eyes of a suspicious reader made it feel less flat. If your plot seems too simple, try misinterpreting it on purpose.",n4_short_08,N4,short,social_media_post,short_social_process_001,short_social_process_001_set08,texts/generated/source/n4_short_08_source.txt,texts/generated/final/n1_short_08.txt,texts/human_n4_edits/n4_short_08.txt,texts/generated/final/n4_short_08.txt,n4_short_08
-n4_short_09,Social media post light edit (n4_short_09),Social media post,120-180 words,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
-Matched set: short_social_process_001_set09
-Length bucket: short
-Task type: social_media_post
-Source seed: short_reddit_barely_writing_2016_009
-Source title: After barely writing at all for 2 years, I've written 30,920 words since Tuesday afternoon.
-Source note: Pre-2017 social-media self-post about restarting a writing habit.
-Source URL: https://old.reddit.com/r/writing/comments/4ymq0f/after_barely_writing_at_all_for_2_years_ive/
-Source excerpt for topic grounding:
-My novel-in-progress has gone untouched for a very long time. Somewhere between work, college, and dating, I became very dissilusioned with the writing process and just couldn't bring myself to care anymore. Teusday morning, I decided on a whim to go back and read over some of the 100-ish pages I'd written before I had to go to work. This was after barely opening the document at all in two years. I thought about it the whole first half of my shift, and starting adding more to it on my lunch break. I went home and continued working on. Now it's Friday night, and I've added over 30,000 words that
-
-Task:
-Write an original first-person social-media self-post about the same writing-related topic or situation as the source seed. Preserve the broad topic, emotional stance, and practical concern, but do not summarize the source, copy its wording, mention the source, or refer to this task card.
-
-Target length: 120-180 words.
-
-Use a polished, coherent style. Do not include headings, bullet points, meta-commentary, citations, or notes about how the response was written. Return only the final response.","I don’t really have anyone in my day-to-day life who understands why this feels so huge, so I’m putting it here.
+"I don’t really have anyone in my day-to-day life who understands why this feels so huge, so I’m putting it here.
 
 For the last couple of years, my manuscript has basically been an icon on my desktop that made me feel guilty whenever I noticed it. I’d open it once in a while, read a paragraph, decide everything was terrible, and close it again. Work, school, bills, relationships, and general burnout all became very convenient reasons not to try.
 
@@ -204,23 +60,7 @@ On Monday night I opened it for “just ten minutes,” mostly to prove to mysel
 It’s now Thursday, and I’ve added a little over 18,000 words.
 
 I know momentum like this can vanish, and I’m trying not to treat it like magic or a cure-all. But for the first time in ages, writing feels alive again instead of like homework from a past version of myself.",n4_short_09,N4,short,social_media_post,short_social_process_001,short_social_process_001_set09,texts/generated/source/n4_short_09_source.txt,texts/generated/final/n1_short_09.txt,texts/human_n4_edits/n4_short_09.txt,texts/generated/final/n4_short_09.txt,n4_short_09
-n4_short_10,Social media post light edit (n4_short_10),Social media post,120-180 words,"Lightly edit the AI draft for clarity and local flow. Keep the main ideas, examples, and structure. Do not rewrite from scratch.","Seed-derived task card
-Matched set: short_social_process_001_set10
-Length bucket: short
-Task type: social_media_post
-Source seed: short_reddit_self_published_table_tennis_2016_010
-Source title: I self-published a non-fiction book about table tennis a year ago. It was #1 in its category on Amazon for most of that year and made a total of about $4,000
-Source note: Pre-2017 social-media self-post about self-publishing a nonfiction book.
-Source URL: https://old.reddit.com/r/writing/comments/51wjbf/i_selfpublished_a_nonfiction_book_about_table/
-Source excerpt for topic grounding:
-Hello everyone. Last year I self-published a book about an attempt I made to get really good at playing table tennis. It did 'well' in that it topped some of the Amazon best-seller lists and remained near the top for the rest of the year. It's currently still #1 on the USA Amazon kindle table tennis bestseller list. But despite that sales haven't been great. In the last year it has sold: Paperback: 443 copies sold - £1,665.39 (~$2,200) Kindle: 429 copies sold - £1,003.46 (~$1,400) Audiobook: 82 copies sold - £405.57 (~$550) To be honest, I thought there would be a lot more demand. I got pretty excited when
-
-Task:
-Write an original first-person social-media self-post about the same writing-related topic or situation as the source seed. Preserve the broad topic, emotional stance, and practical concern, but do not summarize the source, copy its wording, mention the source, or refer to this task card.
-
-Target length: 120-180 words.
-
-Use a polished, coherent style. Do not include headings, bullet points, meta-commentary, citations, or notes about how the response was written. Return only the final response.","About a year ago I self-published a nonfiction book about my attempt to seriously improve at a niche sport. It was a fun project, part memoir and part practical guide, and I honestly thought the audience would be small but enthusiastic.
+"About a year ago I self-published a nonfiction book about my attempt to seriously improve at a niche sport. It was a fun project, part memoir and part practical guide, and I honestly thought the audience would be small but enthusiastic.
 
 In one sense, it “worked.” The book hit #1 in its Amazon category a few times and has stayed near the top of some very specific bestseller lists. I’ve had nice emails from readers, a few blog mentions, and some encouraging reviews. From the outside, it probably looks like a successful little book.
 

@@ -83,6 +83,8 @@ function findEditedText(row, sampleId) {
     "text",
     "Paste your edited final text here.",
     "paste_your_edited_final_text_here",
+    "First copy the draft from the left, then make your edits, then submit.",
+    "first_copy_the_draft_from_the_left_then_make_your_edits_then_submit",
     `edited_text_${sampleId}`,
     `response_${sampleId}`,
   ];

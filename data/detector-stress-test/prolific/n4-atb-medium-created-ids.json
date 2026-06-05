@@ -1,11 +1,14 @@
 {
   "workspace_id": "6908d8f4e12fe1baa26bec1c",
   "project_id": "6908d9912e9daef7ce2f6889",
-  "dataset_id": "019e99a8-3ca3-723a-b3b4-b38fff055dc9",
-  "batch_id": "019e99a8-5762-7403-8bd5-23d9afbfae18",
+  "dataset_id": "019e99b2-89e3-759f-9b0a-f3013c9e37c7",
+  "batch_id": "019e99b2-9d4d-776f-a7b9-32e1259254a8",
   "study_id": "6a233d8eecaffc2bbd69bc85",
   "published": false,
   "dataset_total_datapoint_count": 10,
   "batch_total_task_count": 10,
-  "batch_total_task_groups": 10
+  "batch_total_task_groups": 10,
+  "updated_in_place_via_replacement_batch": true,
+  "obsolete_dataset_id": "019e99a8-3ca3-723a-b3b4-b38fff055dc9",
+  "obsolete_batch_id": "019e99a8-5762-7403-8bd5-23d9afbfae18"
 }

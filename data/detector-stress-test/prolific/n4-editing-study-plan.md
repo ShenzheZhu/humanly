@@ -16,7 +16,9 @@ later made light local edits.
 - `prolific/n4-editing-worker-instructions.html`: draft worker-facing
   instructions for a Prolific external-link study.
 - `prolific/n4-atb-{short,medium,long}-items.csv`: AI Task Builder Batch
-  dataset CSVs, one row per task and one task per participant.
+  dataset CSVs, one row per task and one task per participant. The only
+  participant-visible data column is `ai_draft_to_edit`; all sample mapping
+  fields use the `META_` prefix.
 - `prolific/n4-atb-{short,medium,long}-payloads.json`: payload templates for
   creating unpublished Prolific draft studies.
 

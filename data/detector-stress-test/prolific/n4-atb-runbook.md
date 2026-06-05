@@ -70,8 +70,8 @@ After creating drafts, verify in the Prolific UI:
 - each batch has 10 tasks and 10 task groups
 - each study has 10 total places
 - rewards and estimated times match the table above
-- a preview task shows `sample_id`, task prompt, AI draft, free-text edit box,
-  and no extra questions beyond the no-additional-AI confirmation
+- a preview task shows only `ai_draft_to_edit` on the left, and on the right
+  shows the free-text edit box plus the no-additional-AI confirmation
 
 ## Pull Results
 

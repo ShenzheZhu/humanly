@@ -138,8 +138,8 @@ function atbIdsPath(lengthBucket) {
 }
 
 function studyDisplayName(lengthBucket) {
-  const label = lengthBucket[0].toUpperCase() + lengthBucket.slice(1);
-  return `Humanly N4 ${label} AI-draft light editing`;
+  if (lengthBucket === "medium") return "Lightly edit a medium-length AI-written draft";
+  return `Lightly edit a ${lengthBucket} AI-written draft`;
 }
 
 function atbTaskIntroduction(lengthBucket) {
@@ -169,9 +169,9 @@ function atbPayload(lengthBucket, config) {
         {
           order: 1,
           type: "free_text",
-          description: "Paste your edited final text here.",
+          description: "First copy the draft from the left, then make your edits, then submit.",
           helper_text:
-            "Paste only the final edited response. Do not include notes, explanations, labels, or markdown. Stay close to the target word range shown in the task.",
+            "Your answer should start from the draft shown on the left. Copy it into this box, make light edits for clarity and flow, and submit only the edited text.",
           required: true,
         },
         {
@@ -244,12 +244,6 @@ for (const row of manifestRows) {
 }
 
 const atbColumns = [
-  "sample_id",
-  "task_title",
-  "task_type",
-  "target_word_range",
-  "editing_instruction",
-  "source_task_prompt",
   "ai_draft_to_edit",
   "META_sample_id",
   "META_case_id",
@@ -270,12 +264,6 @@ const atbRowsByBucket = new Map(
     itemRows
       .filter((row) => row.length_bucket === lengthBucket)
       .map((row) => ({
-        sample_id: row.sample_id,
-        task_title: row.task_title,
-        task_type: taskLabel(row.task_type),
-        target_word_range: wordRange(row),
-        editing_instruction: row.editing_instruction,
-        source_task_prompt: row.ai_prompt_text,
         ai_draft_to_edit: row.ai_draft_text,
         META_sample_id: row.sample_id,
         META_case_id: row.META_case_id,
@@ -399,7 +387,9 @@ later made light local edits.
 - \`prolific/n4-editing-worker-instructions.html\`: draft worker-facing
   instructions for a Prolific external-link study.
 - \`prolific/n4-atb-{short,medium,long}-items.csv\`: AI Task Builder Batch
-  dataset CSVs, one row per task and one task per participant.
+  dataset CSVs, one row per task and one task per participant. The only
+  participant-visible data column is \`ai_draft_to_edit\`; all sample mapping
+  fields use the \`META_\` prefix.
 - \`prolific/n4-atb-{short,medium,long}-payloads.json\`: payload templates for
   creating unpublished Prolific draft studies.
 
