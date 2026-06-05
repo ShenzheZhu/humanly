@@ -1,0 +1,57 @@
+{
+  "dataset": {
+    "name": "Humanly N4 short editing dataset 2026-06-05",
+    "workspace_id": "{{WORKSPACE_ID}}"
+  },
+  "batch": {
+    "name": "Humanly N4 short editing batch 2026-06-05",
+    "workspace_id": "{{WORKSPACE_ID}}",
+    "dataset_id": "{{DATASET_ID}}",
+    "task_details": {
+      "task_name": "Humanly N4 Short AI-draft light editing",
+      "task_introduction": "<p>You will edit one short AI-generated draft. The purpose is to collect examples where AI supplied the substantive draft and a person made light local improvements.</p><p>Do not use ChatGPT, Claude, Gemini, AI rewriting tools, humanizer tools, machine translation, or any other AI text-generation system while completing this task.</p>",
+      "task_steps": "<ol><li>Read the task prompt and the AI draft.</li><li>Lightly edit the AI draft for clarity, grammar, repetition, local flow, and awkward wording.</li><li>Keep the main ideas, examples, structure, and overall meaning from the draft.</li><li>Paste only the final edited text into the answer box.</li><li>Confirm that you completed the edit yourself without using additional AI tools.</li></ol>"
+    }
+  },
+  "instructions": {
+    "instructions": [
+      {
+        "order": 1,
+        "type": "free_text",
+        "description": "Paste your edited final text here.",
+        "helper_text": "Paste only the final edited response. Do not include notes, explanations, labels, or markdown. Stay close to the target word range shown in the task.",
+        "required": true
+      },
+      {
+        "order": 2,
+        "type": "multiple_choice",
+        "description": "Confirm that you edited the draft yourself without using additional AI tools.",
+        "helper_text": "This includes ChatGPT, Claude, Gemini, AI rewriting tools, humanizer tools, and machine translation.",
+        "answer_limit": 1,
+        "disable_dropdown": true,
+        "options": [
+          {
+            "label": "I confirm that I edited this myself without using additional AI tools.",
+            "value": "confirmed_no_additional_ai"
+          }
+        ]
+      }
+    ]
+  },
+  "setup": {
+    "tasks_per_group": 1
+  },
+  "study": {
+    "name": "Humanly N4 Short AI-draft light editing",
+    "internal_name": "humanly-n4-short-light-edit-2026-06-05",
+    "description": "<p>In this study, you will edit one AI-generated draft. Please make light local improvements while preserving the draft's meaning and structure.</p><p>You should not use AI tools or outside rewriting tools while completing the edit.</p>",
+    "estimated_completion_time": 8,
+    "maximum_allowed_time": 30,
+    "reward": 160,
+    "data_collection_method": "AI_TASK_BUILDER_BATCH",
+    "data_collection_id": "{{BATCH_ID}}",
+    "data_collection_metadata": {
+      "annotators_per_task": 1
+    }
+  }
+}

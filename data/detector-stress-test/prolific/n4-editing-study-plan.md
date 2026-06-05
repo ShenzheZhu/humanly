@@ -15,11 +15,15 @@ later made light local edits.
   estimate by length bucket.
 - `prolific/n4-editing-worker-instructions.html`: draft worker-facing
   instructions for a Prolific external-link study.
+- `prolific/n4-atb-{short,medium,long}-items.csv`: AI Task Builder Batch
+  dataset CSVs, one row per task and one task per participant.
+- `prolific/n4-atb-{short,medium,long}-payloads.json`: payload templates for
+  creating unpublished Prolific draft studies.
 
 ## Recommended Study Design
 
-- Use Prolific as recruitment/payment layer.
-- Collect edits through a Prolific text field or linked survey text field.
+- Use Prolific AI Task Builder Batch as the recruitment, task, and payment
+  layer.
 - Run three separate quota arms:
   - short: 10 participants, one 120-180 word social post draft edit each.
   - medium: 10 participants, one 400-600 word student-response draft edit each.
@@ -29,6 +33,9 @@ later made light local edits.
   cost.
 - Export final edited texts into `texts/human_n4_edits/<sample_id>.txt`, then
   run the N4 importer.
+- In the ATB setup, each CSV row uses `META_TASK_GROUP_ID=<sample_id>`,
+  `tasks_per_group=1`, and `annotators_per_task=1`, so the expected place
+  count is 10 for each length-specific draft study.
 
 This is sufficient for the final-text detector false-negative experiment,
 because the compared systems only see the final text. It should not be
@@ -64,8 +71,6 @@ Source URLs:
 
 ## Decisions Needed Before Launch
 
-- Confirm whether N4 will be collected inside Prolific or through an external
-  survey form linked from Prolific.
 - Confirm that the live AI drafts are approved before worker editing starts.
 - Confirm Prolific workspace/project, study currency, and whether we qualify for
   academic/non-profit platform fees.

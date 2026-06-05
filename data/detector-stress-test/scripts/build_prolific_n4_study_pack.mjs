@@ -19,18 +19,21 @@ const CHECKED_DATE = "2026-06-05";
 const LENGTH_CONFIG = {
   short: {
     target_minutes: 8,
+    maximum_minutes: 30,
     recommended_reward_usd: 1.6,
     minimum_reward_usd: 1.07,
     participant_count: 10,
   },
   medium: {
     target_minutes: 18,
+    maximum_minutes: 60,
     recommended_reward_usd: 3.6,
     minimum_reward_usd: 2.4,
     participant_count: 10,
   },
   long: {
     target_minutes: 50,
+    maximum_minutes: 120,
     recommended_reward_usd: 10.0,
     minimum_reward_usd: 6.67,
     participant_count: 10,
@@ -79,7 +82,7 @@ function parseCsv(text) {
 }
 
 function csvEscape(value) {
-  const stringValue = value == null ? "" : String(value);
+  const stringValue = value == null ? "" : String(value).replace(/\0/g, "");
   if (/[",\n]/.test(stringValue)) {
     return `"${stringValue.replace(/"/g, '""')}"`;
   }
@@ -114,6 +117,100 @@ function usd(value) {
   return Number(value).toFixed(2);
 }
 
+function cents(value) {
+  return Math.round(Number(value) * 100);
+}
+
+function wordRange(row) {
+  return `${row.target_min_words}-${row.target_max_words} words`;
+}
+
+function atbDatasetPath(lengthBucket) {
+  return path.join(OUTPUT_DIR, `n4-atb-${lengthBucket}-items.csv`);
+}
+
+function atbPayloadPath(lengthBucket) {
+  return path.join(OUTPUT_DIR, `n4-atb-${lengthBucket}-payloads.json`);
+}
+
+function atbIdsPath(lengthBucket) {
+  return path.join(OUTPUT_DIR, `n4-atb-${lengthBucket}-created-ids.json`);
+}
+
+function studyDisplayName(lengthBucket) {
+  const label = lengthBucket[0].toUpperCase() + lengthBucket.slice(1);
+  return `Humanly N4 ${label} AI-draft light editing`;
+}
+
+function atbTaskIntroduction(lengthBucket) {
+  const label = lengthBucket === "long" ? "long" : lengthBucket === "medium" ? "medium-length" : "short";
+  return `<p>You will edit one ${label} AI-generated draft. The purpose is to collect examples where AI supplied the substantive draft and a person made light local improvements.</p><p>Do not use ChatGPT, Claude, Gemini, AI rewriting tools, humanizer tools, machine translation, or any other AI text-generation system while completing this task.</p>`;
+}
+
+function atbPayload(lengthBucket, config) {
+  return {
+    dataset: {
+      name: `Humanly N4 ${lengthBucket} editing dataset ${CHECKED_DATE}`,
+      workspace_id: "{{WORKSPACE_ID}}",
+    },
+    batch: {
+      name: `Humanly N4 ${lengthBucket} editing batch ${CHECKED_DATE}`,
+      workspace_id: "{{WORKSPACE_ID}}",
+      dataset_id: "{{DATASET_ID}}",
+      task_details: {
+        task_name: studyDisplayName(lengthBucket),
+        task_introduction: atbTaskIntroduction(lengthBucket),
+        task_steps:
+          "<ol><li>Read the task prompt and the AI draft.</li><li>Lightly edit the AI draft for clarity, grammar, repetition, local flow, and awkward wording.</li><li>Keep the main ideas, examples, structure, and overall meaning from the draft.</li><li>Paste only the final edited text into the answer box.</li><li>Confirm that you completed the edit yourself without using additional AI tools.</li></ol>",
+      },
+    },
+    instructions: {
+      instructions: [
+        {
+          order: 1,
+          type: "free_text",
+          description: "Paste your edited final text here.",
+          helper_text:
+            "Paste only the final edited response. Do not include notes, explanations, labels, or markdown. Stay close to the target word range shown in the task.",
+          required: true,
+        },
+        {
+          order: 2,
+          type: "multiple_choice",
+          description: "Confirm that you edited the draft yourself without using additional AI tools.",
+          helper_text:
+            "This includes ChatGPT, Claude, Gemini, AI rewriting tools, humanizer tools, and machine translation.",
+          answer_limit: 1,
+          disable_dropdown: true,
+          options: [
+            {
+              label: "I confirm that I edited this myself without using additional AI tools.",
+              value: "confirmed_no_additional_ai",
+            },
+          ],
+        },
+      ],
+    },
+    setup: {
+      tasks_per_group: 1,
+    },
+    study: {
+      name: studyDisplayName(lengthBucket),
+      internal_name: `humanly-n4-${lengthBucket}-light-edit-${CHECKED_DATE}`,
+      description:
+        "<p>In this study, you will edit one AI-generated draft. Please make light local improvements while preserving the draft's meaning and structure.</p><p>You should not use AI tools or outside rewriting tools while completing the edit.</p>",
+      estimated_completion_time: config.target_minutes,
+      maximum_allowed_time: config.maximum_minutes,
+      reward: cents(config.recommended_reward_usd),
+      data_collection_method: "AI_TASK_BUILDER_BATCH",
+      data_collection_id: "{{BATCH_ID}}",
+      data_collection_metadata: {
+        annotators_per_task: 1,
+      },
+    },
+  };
+}
+
 const manifestRows = parseCsv(await readFile(MANIFEST_PATH, "utf8"));
 const itemRows = [];
 for (const row of manifestRows) {
@@ -145,6 +242,55 @@ for (const row of manifestRows) {
     META_matched_set_id: row.matched_set_id,
   });
 }
+
+const atbColumns = [
+  "sample_id",
+  "task_title",
+  "task_type",
+  "target_word_range",
+  "editing_instruction",
+  "source_task_prompt",
+  "ai_draft_to_edit",
+  "META_sample_id",
+  "META_case_id",
+  "META_length_bucket",
+  "META_task_type",
+  "META_prompt_id",
+  "META_matched_set_id",
+  "META_ai_prompt_path",
+  "META_ai_draft_path",
+  "META_editor_input_path",
+  "META_final_text_path",
+  "META_TASK_GROUP_ID",
+];
+
+const atbRowsByBucket = new Map(
+  Object.keys(LENGTH_CONFIG).map((lengthBucket) => [
+    lengthBucket,
+    itemRows
+      .filter((row) => row.length_bucket === lengthBucket)
+      .map((row) => ({
+        sample_id: row.sample_id,
+        task_title: row.task_title,
+        task_type: taskLabel(row.task_type),
+        target_word_range: wordRange(row),
+        editing_instruction: row.editing_instruction,
+        source_task_prompt: row.ai_prompt_text,
+        ai_draft_to_edit: row.ai_draft_text,
+        META_sample_id: row.sample_id,
+        META_case_id: row.META_case_id,
+        META_length_bucket: row.length_bucket,
+        META_task_type: row.task_type,
+        META_prompt_id: row.META_prompt_id,
+        META_matched_set_id: row.META_matched_set_id,
+        META_ai_prompt_path: row.ai_prompt_path,
+        META_ai_draft_path: row.ai_draft_path,
+        META_editor_input_path: row.editor_input_path,
+        META_final_text_path: row.final_text_path,
+        META_TASK_GROUP_ID: row.sample_id,
+      })),
+  ]),
+);
 
 const budgetRows = Object.entries(LENGTH_CONFIG).map(([lengthBucket, config]) => {
   const participantRewardRecommended = config.participant_count * config.recommended_reward_usd;
@@ -213,6 +359,14 @@ await writeCsv(BUDGET_CSV_PATH, budgetRows, [
   "corporate_total_minimum_usd",
 ]);
 
+for (const [lengthBucket, rows] of atbRowsByBucket.entries()) {
+  await writeCsv(atbDatasetPath(lengthBucket), rows, atbColumns);
+  await writeFile(
+    atbPayloadPath(lengthBucket),
+    `${JSON.stringify(atbPayload(lengthBucket, LENGTH_CONFIG[lengthBucket]), null, 2)}\n`,
+  );
+}
+
 await writeFile(
   INSTRUCTIONS_PATH,
   `<h1>Human Editing Task</h1>
@@ -244,11 +398,15 @@ later made light local edits.
   estimate by length bucket.
 - \`prolific/n4-editing-worker-instructions.html\`: draft worker-facing
   instructions for a Prolific external-link study.
+- \`prolific/n4-atb-{short,medium,long}-items.csv\`: AI Task Builder Batch
+  dataset CSVs, one row per task and one task per participant.
+- \`prolific/n4-atb-{short,medium,long}-payloads.json\`: payload templates for
+  creating unpublished Prolific draft studies.
 
 ## Recommended Study Design
 
-- Use Prolific as recruitment/payment layer.
-- Collect edits through a Prolific text field or linked survey text field.
+- Use Prolific AI Task Builder Batch as the recruitment, task, and payment
+  layer.
 - Run three separate quota arms:
   - short: 10 participants, one 120-180 word social post draft edit each.
   - medium: 10 participants, one 400-600 word student-response draft edit each.
@@ -258,6 +416,9 @@ later made light local edits.
   cost.
 - Export final edited texts into \`texts/human_n4_edits/<sample_id>.txt\`, then
   run the N4 importer.
+- In the ATB setup, each CSV row uses \`META_TASK_GROUP_ID=<sample_id>\`,
+  \`tasks_per_group=1\`, and \`annotators_per_task=1\`, so the expected place
+  count is 10 for each length-specific draft study.
 
 This is sufficient for the final-text detector false-negative experiment,
 because the compared systems only see the final text. It should not be
@@ -293,8 +454,6 @@ Source URLs:
 
 ## Decisions Needed Before Launch
 
-- Confirm whether N4 will be collected inside Prolific or through an external
-  survey form linked from Prolific.
 - Confirm that the live AI drafts are approved before worker editing starts.
 - Confirm Prolific workspace/project, study currency, and whether we qualify for
   academic/non-profit platform fees.
@@ -310,3 +469,8 @@ console.log(`wrote ${path.relative(process.cwd(), ITEMS_PATH)}`);
 console.log(`wrote ${path.relative(process.cwd(), BUDGET_CSV_PATH)}`);
 console.log(`wrote ${path.relative(process.cwd(), PLAN_PATH)}`);
 console.log(`wrote ${path.relative(process.cwd(), INSTRUCTIONS_PATH)}`);
+for (const lengthBucket of Object.keys(LENGTH_CONFIG)) {
+  console.log(`wrote ${path.relative(process.cwd(), atbDatasetPath(lengthBucket))}`);
+  console.log(`wrote ${path.relative(process.cwd(), atbPayloadPath(lengthBucket))}`);
+  console.log(`ids target ${path.relative(process.cwd(), atbIdsPath(lengthBucket))}`);
+}

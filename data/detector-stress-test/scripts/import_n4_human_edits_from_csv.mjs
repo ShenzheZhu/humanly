@@ -81,6 +81,8 @@ function findEditedText(row, sampleId) {
     "final_text",
     "response",
     "text",
+    "Paste your edited final text here.",
+    "paste_your_edited_final_text_here",
     `edited_text_${sampleId}`,
     `response_${sampleId}`,
   ];
@@ -89,6 +91,8 @@ function findEditedText(row, sampleId) {
     if (value) return { column, value };
   }
   for (const [column, value] of Object.entries(row)) {
+    if (/^META_/i.test(column)) continue;
+    if (/prompt|draft|instruction|confirm/i.test(column)) continue;
     if (/edited|response|final|text/i.test(column) && value?.trim()) {
       return { column, value: value.trim() };
     }
@@ -96,9 +100,13 @@ function findEditedText(row, sampleId) {
   return { column: "", value: "" };
 }
 
+function sampleIdFromRow(row) {
+  return row.sample_id || row.META_sample_id || row.Sample_ID || row["Sample ID"] || "";
+}
+
 const manifestRows = parseCsv(await readFile(MANIFEST_PATH, "utf8"));
 const inputRows = parseCsv(await readFile(INPUT_CSV, "utf8"));
-const inputBySampleId = new Map(inputRows.map((row) => [row.sample_id, row]));
+const inputBySampleId = new Map(inputRows.map((row) => [sampleIdFromRow(row), row]));
 const resultRows = [];
 let imported = 0;
 let errors = 0;
