@@ -1,6 +1,6 @@
 # Detector Stress Test Dataset Audit
 
-Generated: 2026-06-05T18:28:45.402Z
+Generated: 2026-06-05T18:48:51.075Z
 
 Status: **pass**
 
@@ -50,8 +50,8 @@ Status: **pass**
 
 ## Generated Samples By Status
 
-- ready: 180
-- synthetic_proxy_ready: 60
+- ready: 210
+- synthetic_proxy_ready: 30
 
 ## Interpretation
 

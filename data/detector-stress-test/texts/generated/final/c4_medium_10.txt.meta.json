@@ -1,7 +1,8 @@
 {
   "sample_id": "c4_medium_10",
   "case_id": "C4",
-  "generation_mode": "synthetic_proxy",
-  "generated_at_utc": "2026-06-04T16:08:55.978Z",
-  "notes": "Offline synthetic proxy for exercising the C4 pipeline. This is not human-origin and must not be used as paper-ready C4 evidence."
+  "generation_mode": "human_collected",
+  "source_path": "texts/human_c4/c4_medium_10.txt",
+  "imported_at_utc": "2026-06-05T18:44:16.775Z",
+  "notes": "Human-written AI-style C4 sample imported for detector stress-test use. Consent/release metadata must be tracked separately."
 }

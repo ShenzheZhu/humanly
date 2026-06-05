@@ -161,7 +161,7 @@ n1_long_07_direct_ai,n1_long_07,N1,chat_completion,true,long,9071,2605
 n2_long_07_humanize,n2_long_07,N2,chat_completion,true,long,2807,2528
 n3_long_07_generate_zh,n3_long_07,N3,chat_completion,true,long,9096,2591
 n3_long_07_translate_en,n3_long_07,N3,chat_completion,true,long,2661,3185
-c2_long_08_polish,c2_long_08,C2,chat_completion,true,long,1688,1576
+c2_long_08_polish,c2_long_08,C2,chat_completion,true,long,1688,1566
 c3_long_08_translate,c3_long_08,C3,chat_completion,true,long,1601,1624
 n1_long_08_direct_ai,n1_long_08,N1,chat_completion,true,long,9920,2926
 n2_long_08_humanize,n2_long_08,N2,chat_completion,true,long,3127,2730

@@ -2,24 +2,24 @@ detector,case_id,length_bucket,n,total_samples,TP,FP,TN,FN,TPR,FPR,TNR,FNR,reque
 local_heuristic_proxy,C1,long,10,10,0,0,10,0,,0.0000,1.0000,,0,0,
 local_heuristic_proxy,C1,medium,10,10,0,2,8,0,,0.2000,0.8000,,0,0,
 local_heuristic_proxy,C1,short,10,10,0,0,10,0,,0.0000,1.0000,,0,0,
-local_heuristic_proxy,C2,long,10,10,0,0,10,0,,0.0000,1.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
-local_heuristic_proxy,C2,medium,10,10,0,2,8,0,,0.2000,0.8000,,0,0,Includes synthetic proxy rows; smoke-test only.
-local_heuristic_proxy,C2,short,10,10,0,0,10,0,,0.0000,1.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
-local_heuristic_proxy,C3,long,10,10,0,10,0,0,,1.0000,0.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
-local_heuristic_proxy,C3,medium,10,10,0,10,0,0,,1.0000,0.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
-local_heuristic_proxy,C3,short,10,10,0,10,0,0,,1.0000,0.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
-local_heuristic_proxy,C4,long,10,10,0,10,0,0,,1.0000,0.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
-local_heuristic_proxy,C4,medium,10,10,0,10,0,0,,1.0000,0.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
-local_heuristic_proxy,C4,short,10,10,0,10,0,0,,1.0000,0.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
-local_heuristic_proxy,N1,long,10,10,10,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
-local_heuristic_proxy,N1,medium,10,10,10,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
-local_heuristic_proxy,N1,short,10,10,10,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
-local_heuristic_proxy,N2,long,10,10,10,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
-local_heuristic_proxy,N2,medium,10,10,0,0,0,10,0.0000,,,1.0000,0,0,Includes synthetic proxy rows; smoke-test only.
-local_heuristic_proxy,N2,short,10,10,0,0,0,10,0.0000,,,1.0000,0,0,Includes synthetic proxy rows; smoke-test only.
-local_heuristic_proxy,N3,long,10,10,10,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
-local_heuristic_proxy,N3,medium,10,10,10,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
-local_heuristic_proxy,N3,short,10,10,10,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+local_heuristic_proxy,C2,long,10,10,0,0,10,0,,0.0000,1.0000,,0,0,
+local_heuristic_proxy,C2,medium,10,10,0,2,8,0,,0.2000,0.8000,,0,0,
+local_heuristic_proxy,C2,short,10,10,0,0,10,0,,0.0000,1.0000,,0,0,
+local_heuristic_proxy,C3,long,10,10,0,0,10,0,,0.0000,1.0000,,0,0,
+local_heuristic_proxy,C3,medium,10,10,0,1,9,0,,0.1000,0.9000,,0,0,
+local_heuristic_proxy,C3,short,10,10,0,0,10,0,,0.0000,1.0000,,0,0,
+local_heuristic_proxy,C4,long,10,10,0,6,4,0,,0.6000,0.4000,,0,0,
+local_heuristic_proxy,C4,medium,10,10,0,1,9,0,,0.1000,0.9000,,0,0,
+local_heuristic_proxy,C4,short,10,10,0,0,10,0,,0.0000,1.0000,,0,0,
+local_heuristic_proxy,N1,long,10,10,0,0,0,10,0.0000,,,1.0000,0,0,
+local_heuristic_proxy,N1,medium,10,10,0,0,0,10,0.0000,,,1.0000,0,0,
+local_heuristic_proxy,N1,short,10,10,0,0,0,10,0.0000,,,1.0000,0,0,
+local_heuristic_proxy,N2,long,10,10,0,0,0,10,0.0000,,,1.0000,0,0,
+local_heuristic_proxy,N2,medium,10,10,0,0,0,10,0.0000,,,1.0000,0,0,
+local_heuristic_proxy,N2,short,10,10,0,0,0,10,0.0000,,,1.0000,0,0,
+local_heuristic_proxy,N3,long,10,10,3,0,0,7,0.3000,,,0.7000,0,0,
+local_heuristic_proxy,N3,medium,10,10,0,0,0,10,0.0000,,,1.0000,0,0,
+local_heuristic_proxy,N3,short,10,10,0,0,0,10,0.0000,,,1.0000,0,0,
 local_heuristic_proxy,N4,long,10,10,10,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
 local_heuristic_proxy,N4,medium,10,10,10,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
 local_heuristic_proxy,N4,short,10,10,10,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.

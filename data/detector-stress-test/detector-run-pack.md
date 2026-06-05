@@ -1,6 +1,6 @@
 # Detector Run Pack
 
-Generated: 2026-06-05T18:26:10.855Z
+Generated: 2026-06-05T18:48:50.556Z
 
 This run pack turns the current detector stress-test artifacts into execution
 queues. It does not call detector APIs and it does not make proxy samples

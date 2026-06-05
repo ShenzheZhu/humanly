@@ -1,13 +1,13 @@
 {
-  "generated_at_utc": "2026-06-05T18:28:45.353Z",
+  "generated_at_utc": "2026-06-05T18:48:51.031Z",
   "overall_status": "not_ready",
   "counts": {
     "generatedSamples": 240,
     "pilotProxySamples": 24,
     "combinedDashboardSamples": 5,
     "combinedDashboardOutputs": 10,
-    "syntheticProxyRows": 60,
-    "c4HumanReady": 0,
+    "syntheticProxyRows": 30,
+    "c4HumanReady": 30,
     "n4HumanReady": 0,
     "dashboardCoveredCells": 5
   },
@@ -37,8 +37,8 @@
       "title": "Generated rows are live/API or approved human outputs rather than synthetic proxy outputs",
       "status": "not_ready",
       "evidence": [
-        "Rows marked synthetic_proxy_ready: 60",
-        "Rows with synthetic_proxy metadata: 60",
+        "Rows marked synthetic_proxy_ready: 30",
+        "Rows with synthetic_proxy metadata: 30",
         "Ready rows with synthetic_proxy metadata: 0"
       ],
       "required_next_step": "Run approved live generation without --synthetic-proxy and rebuild the generated sample manifest."
@@ -46,11 +46,11 @@
     {
       "id": "human_c4",
       "title": "C4 has 30 human-written AI-style ready rows",
-      "status": "not_ready",
+      "status": "passed",
       "evidence": [
         "C4 rows: 30",
-        "C4 human ready rows: 0",
-        "Policy labels: {\"compliant\":90,\"compliant_proxy\":30,\"non_compliant\":120}"
+        "C4 human ready rows: 30",
+        "Policy labels: {\"compliant\":120,\"non_compliant\":120}"
       ],
       "required_next_step": "Collect 10 short, 10 medium, and 10 long human-written AI-style C4 samples."
     },

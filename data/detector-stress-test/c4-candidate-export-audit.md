@@ -9,12 +9,13 @@ Source files:
 
 ## Status
 
-The export contains all 30 expected C4 samples and passes structural/length QA,
-but it is not yet imported as paper-ready C4 evidence because the source CSV
-uses a `generated_text` column and the markdown title says `Generated Texts`.
+The export contains all 30 expected C4 samples and passes structural/length QA.
+The source CSV used a `generated_text` column and the markdown title says
+`Generated Texts`, so the export was initially staged as a candidate set.
 
-C4 requires human-written AI-style text. These files should only be imported as
-`human_collected` C4 samples if their human authorship is confirmed separately.
+C4 requires human-written AI-style text. The project owner confirmed on
+2026-06-05 that these files are human-written, so they were promoted to
+`texts/human_c4/` and imported as `human_collected` C4 samples.
 
 ## Counts
 
@@ -39,5 +40,9 @@ This staging folder is intentionally separate from:
 data/detector-stress-test/texts/human_c4/
 ```
 
-Do not run `import_c4_human_samples.mjs` against this export until the human
-authorship/provenance question is resolved.
+The provenance question is now resolved by project-owner confirmation. The
+canonical imported C4 files live under:
+
+```text
+data/detector-stress-test/texts/human_c4/
+```

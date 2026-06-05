@@ -1,6 +1,6 @@
 # Paper-Ready Gate Audit
 
-Generated: 2026-06-05T18:28:45.353Z
+Generated: 2026-06-05T18:48:51.031Z
 
 Overall status: **not_ready**
 
@@ -12,8 +12,8 @@ Overall status: **not_ready**
 | Pilot proxy sample rows | 24 |
 | Combined dashboard smoke samples | 5 |
 | Combined dashboard detector rows | 10 |
-| Synthetic proxy rows | 60 |
-| C4 human ready rows | 0 |
+| Synthetic proxy rows | 30 |
+| C4 human ready rows | 30 |
 | N4 human-edited ready rows | 0 |
 | External dashboard covered case/length cells | 5/24 |
 
@@ -42,19 +42,19 @@ Overall status: **not_ready**
 - Gate id: `live_generation`
 - Status: **not_ready**
 - Evidence:
-  - Rows marked synthetic_proxy_ready: 60
-  - Rows with synthetic_proxy metadata: 60
+  - Rows marked synthetic_proxy_ready: 30
+  - Rows with synthetic_proxy metadata: 30
   - Ready rows with synthetic_proxy metadata: 0
 - Required next step: Run approved live generation without --synthetic-proxy and rebuild the generated sample manifest.
 
 ### C4 has 30 human-written AI-style ready rows
 
 - Gate id: `human_c4`
-- Status: **not_ready**
+- Status: **passed**
 - Evidence:
   - C4 rows: 30
-  - C4 human ready rows: 0
-  - Policy labels: {"compliant":90,"compliant_proxy":30,"non_compliant":120}
+  - C4 human ready rows: 30
+  - Policy labels: {"compliant":120,"non_compliant":120}
 - Required next step: Collect 10 short, 10 medium, and 10 long human-written AI-style C4 samples.
 
 ### N4 has 30 human-edited AI-draft ready rows
