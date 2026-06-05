@@ -1,0 +1,11 @@
+{
+  "workspace_id": "6908d8f4e12fe1baa26bec1c",
+  "project_id": "6908d9912e9daef7ce2f6889",
+  "dataset_id": "019e99a7-986a-7078-92f3-666097663156",
+  "batch_id": "019e99a7-cba3-71dc-8970-fb3db1e3b788",
+  "study_id": "6a233d71c5d393fbc762e3f7",
+  "published": false,
+  "dataset_total_datapoint_count": 10,
+  "batch_total_task_count": 10,
+  "batch_total_task_groups": 10
+}
