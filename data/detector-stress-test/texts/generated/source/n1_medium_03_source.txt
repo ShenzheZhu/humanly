@@ -1,0 +1,17 @@
+Seed-derived task card
+Matched set: medium_assignment_process_001_set03
+Length bucket: medium
+Task type: student_assignment_response
+Source seed: medium_wikiversity_motivational_interviewing_2016_003
+Source title: Motivation and emotion/Book/2016/Motivational interviewing
+Derived assignment topic: Motivational interviewing
+Source URL: https://en.wikiversity.org/w/index.php?oldid=1632684
+Source excerpt for topic grounding:
+Overview "Why don’t people change ? Do people fail to see how serious the situation is? Do they not have enough knowledge to understand that some particular bad habits are destroying their health? Or simply they don’t care?" Many health professionals ponder such questions when trying to help patients in a health crisis to change their behaviour. But hesitancy to change is part of human nature (Hettema, Steele & Miller, 2005). Clients presenting to health clinics for help exhibit a wide range of readiness (Miller & Rollnick, 2013). Eight out of those ten in need of change are ambivalent about change (Miller & Rollnick, 2013). According to Prochaska and Diclemente’s transtheoretical model, behaviour changes encompass a cycle of stages of change: precontemplation, contemplation, preparation, action and maintenance. At the precontemplation and contemplation stages, people often wonder about change, but they
+
+Task:
+Write an original university assignment response about Motivational interviewing. Explain the concept in plain language, connect it to motivation, emotion, learning, behavior, or decision-making when relevant, include one concrete example, and state why the topic matters. Do not copy phrases from the source seed or present the response as a summary of the seed.
+
+Target length: 400-600 words.
+
+Use a polished, coherent style. Do not include headings, bullet points, meta-commentary, citations, or notes about how the response was written. Return only the final response.

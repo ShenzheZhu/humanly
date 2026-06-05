@@ -1,0 +1,2 @@
+detector,case_id,length_bucket,n,total_samples,TP,FP,TN,FN,TPR,FPR,TNR,FNR,request_errors,skipped,notes
+gptzero_free_dashboard,C1,short,1,1,0,0,1,0,,0.0000,1.0000,,0,0,

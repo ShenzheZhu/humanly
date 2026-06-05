@@ -1,0 +1,10 @@
+{
+  "job_id": "n4_short_01_scripted_light_edit",
+  "sample_id": "n4_short_01",
+  "case_id": "N4",
+  "job_type": "scripted_light_edit",
+  "generation_mode": "synthetic_proxy",
+  "status": "synthetic_proxy_success",
+  "generated_at_utc": "2026-06-04T16:08:55.811Z",
+  "notes": "Offline synthetic proxy output for pipeline testing; not paper-ready generation."
+}

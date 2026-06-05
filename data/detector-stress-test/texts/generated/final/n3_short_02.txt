@@ -1,0 +1,5 @@
+I made a small tool for writers and would like to share it for free. It is not typesetting software, and it does not have complex features. You could even say it is a little “dumb”: once opened, it enters a focused writing mode that temporarily blocks the browser, social apps, and other programs that easily pull you away. At the same time, it limits your ability to go back and revise; you can only edit a small section of what you have just written.
+
+I made it because I get stuck too easily during the first-draft stage. I write two sentences and want to look something up, then end up reading something else; or I keep polishing an opening, and by the end of the night I have only three hundred words that look nice but go nowhere. Later I realized that, for me, the most important thing about a first draft is not that it looks good, but that it exists.
+
+If you are often stopped halfway by “it’s not good enough,” maybe it can help you first write your story, article, memoir, or anything else through to the end. After it is finished, you can revise slowly. It is still very simple, so you are welcome to try it and tell me what does not work well.

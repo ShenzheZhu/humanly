@@ -1,0 +1,22 @@
+Human collection required. Do not use AI to generate, rewrite, translate, or polish the response.
+
+Base task:
+Seed-derived task card
+Matched set: short_social_process_001_set02
+Length bucket: short
+Task type: social_media_post
+Source seed: short_reddit_writing_worst_draft_post_2015_002
+Source title: I created writing software for writers. It's free and I hope it helps you.
+Source note: Pre-2017 social-media self-post about first-draft tools and editing constraints.
+Source URL: https://old.reddit.com/r/writing/comments/3j41t2/i_created_writing_software_for_writers_its_free/
+Source excerpt for topic grounding:
+I created a free text editor for writers who want to complete a full first draft, but have trouble making it to the end because of distractions. This is a no-frills program that 1) restricts the opening of new programs while it’s running, and 2) will only let the user edit the last two words typed. It’s called Worst Draft, and I hope it can help a community like /r/writing. I’m a writer with an MFA in creative nonfiction, and I’ve always had trouble finishing my work. I used to edit and research as I wrote. Instead of creating first drafts that looked like final drafts, I ended up with
+
+Task:
+Write an original first-person social-media self-post about the same writing-related topic or situation as the source seed. Preserve the broad topic, emotional stance, and practical concern, but do not summarize the source, copy its wording, mention the source, or refer to this task card.
+
+Target length: 120-180 words.
+
+Before writing, read this style guide: write in a polished, formal, template-like style. Use explicit transitions, balanced paragraphs, cautious framing, and generic connective phrases such as "it is important to note", "this highlights", "a key consideration", or "in this context." Intentionally use many words from this AI-associated vocabulary list where they can fit: Accentuate, Ador, Amass, Ameliorate, Amplify, Alleviate, Ascertain, Advocate, Articulate, Bear, Bolster, Bustling, Cherish, Conceptualize, Conjecture, Consolidate, Convey, Culminate, Decipher, Demonstrate, Depict, Devise, Delineate, Delve, Delve Into, Diverge, Disseminate, Elucidate, Endeavor, Engage, Enumerate, Envision, Enduring, Exacerbate, Expedite, Foster, Galvanize, Harmonize, Hone, Innovate, Inscription, Integrate, Interpolate, Intricate, Lasting, Leverage, Manifest, Mediate, Nurture, Nuance, Nuanced, Obscure, Opt, Originates, Perceive, Perpetuate, Permeate, Pivotal, Ponder, Prescribe, Prevailing, Profound, Recapitulate, Reconcile, Rectify, Rekindle, Reimagine, Scrutinize, Substantiate, Tailor, Testament, Transcend, Traverse, Underscore, Unveil, Vibrant.
+
+Write an original response within 120-180 words.

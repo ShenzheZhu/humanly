@@ -9,8 +9,8 @@ require "time"
 require "uri"
 
 ROOT = File.expand_path("..", __dir__)
-SAMPLES_PATH = File.join(ROOT, "samples.csv")
-OUTPUTS_PATH = File.join(ROOT, "detector_outputs.csv")
+SAMPLES_PATH = ENV.fetch("SAMPLES_PATH", File.join(ROOT, "samples.csv"))
+OUTPUTS_PATH = ENV.fetch("DETECTOR_OUTPUTS_PATH", File.join(ROOT, "detector_outputs.csv"))
 RAW_DIR = File.join(ROOT, "outputs", "raw", "pangram")
 ENDPOINT = ENV.fetch("PANGRAM_API_URL", "https://text.api.pangram.com/v3")
 DETECTOR = "pangram"

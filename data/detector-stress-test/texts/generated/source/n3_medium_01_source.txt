@@ -1,0 +1,17 @@
+Seed-derived task card
+Matched set: medium_assignment_process_001_set01
+Length bucket: medium
+Task type: student_assignment_response
+Source seed: medium_wikiversity_mindsets_2016_001
+Source title: Motivation and emotion/Book/2016/Mindsets and motivation
+Derived assignment topic: Mindsets and motivation
+Source URL: https://en.wikiversity.org/w/index.php?oldid=1631194
+Source excerpt for topic grounding:
+Overview This book chapter overviews what motivates different types of mindsets. From reading this chapter, you should be able have knowledge on mindsets, including the definition, types of mindets, causes of the types of mindsets, and further. From there, this chapter will emphasise on what motivates people to have the type of mindset they possess, and how to alter it. What is a mindset? "When you are faced with a challenging task, do you a) complete the task, or b) watch a TV show. Your answer to this is determined by your mindset" (Steverink & Lindenberg, 2006). A mindset is a frame of mind, or beliefs, thoughts, or a series of self-perceptions humans possess (De Young, 1986). This can determine an individual's situation, mental attitude and behaviour. For example, a mindset of "I am not good at playing the piano",
+
+Task:
+Write an original university assignment response about Mindsets and motivation. Explain the concept in plain language, connect it to motivation, emotion, learning, behavior, or decision-making when relevant, include one concrete example, and state why the topic matters. Do not copy phrases from the source seed or present the response as a summary of the seed.
+
+Target length: 400-600 words.
+
+Write the response in Chinese. Preserve the requested task, audience, and target length in English-equivalent words (400-600 words). Do not include headings, bullet points, meta-commentary, citations, or notes about how the response was written. Return only the response.

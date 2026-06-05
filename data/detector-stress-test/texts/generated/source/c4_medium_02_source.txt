@@ -1,0 +1,22 @@
+Human collection required. Do not use AI to generate, rewrite, translate, or polish the response.
+
+Base task:
+Seed-derived task card
+Matched set: medium_assignment_process_001_set02
+Length bucket: medium
+Task type: student_assignment_response
+Source seed: medium_wikiversity_stress_recovery_theory_2016_002
+Source title: Motivation and emotion/Book/2016/Stress recovery theory
+Derived assignment topic: Stress recovery theory
+Source URL: https://en.wikiversity.org/w/index.php?oldid=1633492
+Source excerpt for topic grounding:
+Overview "As long as (the simple beauty of nature) exists ... I know that then there will always be comfort for every sorrow, whatever the circumstances may be. And I firmly believe that nature brings solace in all troubles. "Anne Frank Prolonged exposure to urban environments can have detrimental physical and psychological effects (Moudon, 2009; Sobnqwi et al., 2004). Past research has found associations between lifetime urban environment exposure and obesity, diabetes and hypertension (Sobnqwi et al., 2004). Additionally, perceived stress from traffic noise has been associated with lower health status and depression (Moudon, 2009). It is of no surprise then that research has shown that people place a high level of importance on access to green spaces and having the ability to escape from an urban environment (Bedimo-Rung, Mowen, & Cohen, 2005; Guite, Clark, & Ackrill, 2006). Stress Recovery
+
+Task:
+Write an original university assignment response about Stress recovery theory. Explain the concept in plain language, connect it to motivation, emotion, learning, behavior, or decision-making when relevant, include one concrete example, and state why the topic matters. Do not copy phrases from the source seed or present the response as a summary of the seed.
+
+Target length: 400-600 words.
+
+Before writing, read this style guide: write in a polished, formal, template-like style. Use explicit transitions, balanced paragraphs, cautious framing, and generic connective phrases such as "it is important to note", "this highlights", "a key consideration", or "in this context." Intentionally use many words from this AI-associated vocabulary list where they can fit: Accentuate, Ador, Amass, Ameliorate, Amplify, Alleviate, Ascertain, Advocate, Articulate, Bear, Bolster, Bustling, Cherish, Conceptualize, Conjecture, Consolidate, Convey, Culminate, Decipher, Demonstrate, Depict, Devise, Delineate, Delve, Delve Into, Diverge, Disseminate, Elucidate, Endeavor, Engage, Enumerate, Envision, Enduring, Exacerbate, Expedite, Foster, Galvanize, Harmonize, Hone, Innovate, Inscription, Integrate, Interpolate, Intricate, Lasting, Leverage, Manifest, Mediate, Nurture, Nuance, Nuanced, Obscure, Opt, Originates, Perceive, Perpetuate, Permeate, Pivotal, Ponder, Prescribe, Prevailing, Profound, Recapitulate, Reconcile, Rectify, Rekindle, Reimagine, Scrutinize, Substantiate, Tailor, Testament, Transcend, Traverse, Underscore, Unveil, Vibrant.
+
+Write an original response within 400-600 words.

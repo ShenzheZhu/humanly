@@ -1,0 +1,17 @@
+Seed-derived task card
+Matched set: short_social_process_001_set03
+Length bucket: short
+Task type: social_media_post
+Source seed: short_reddit_learning_writing_creativity_2013_003
+Source title: Learning about writing has killed my creativity
+Source note: Pre-2017 reflective social-media self-post about creative writing education.
+Source URL: https://old.reddit.com/r/writing/comments/1lz6vo/learning_about_writing_has_killed_my_creativity/
+Source excerpt for topic grounding:
+I studied creative writing at University alongside English literature. Each week we'd do a writer's workshop and whatnot, show our work around, writing to some task we had been set the week before. Problem was, being a literature course first and foremost, the majority of the tutors were fixated on literary fiction; they'd always be questioning the meanings, the symbolism, the point of everything we wrote. And God forbid if you wrote something without a deeper meaning. The problem is now, that after graduating, I can't write a damn thing. Any idea I come up with, there's a voice in my mind saying "why? What's the point? What's the message
+
+Task:
+Write an original first-person social-media self-post about the same writing-related topic or situation as the source seed. Preserve the broad topic, emotional stance, and practical concern, but do not summarize the source, copy its wording, mention the source, or refer to this task card.
+
+Target length: 120-180 words.
+
+Write the response in Chinese. Preserve the requested task, audience, and target length in English-equivalent words (120-180 words). Do not include headings, bullet points, meta-commentary, citations, or notes about how the response was written. Return only the response.

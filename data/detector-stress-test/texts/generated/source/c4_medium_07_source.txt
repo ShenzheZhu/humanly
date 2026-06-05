@@ -1,0 +1,22 @@
+Human collection required. Do not use AI to generate, rewrite, translate, or polish the response.
+
+Base task:
+Seed-derived task card
+Matched set: medium_assignment_process_001_set07
+Length bucket: medium
+Task type: student_assignment_response
+Source seed: medium_wikiversity_online_shopping_2016_007
+Source title: Motivation and emotion/Book/2016/Online shopping motivation
+Derived assignment topic: Online shopping motivation
+Source URL: https://en.wikiversity.org/w/index.php?oldid=1637174
+Source excerpt for topic grounding:
+Overview In the technology world today, electronics are constantly developing (Huang & Yang, 2010). The internet now allows consumers to shop with convenience at anywhere and anytime via any available tablets or devices on hand. Online shopping has become a common way for online shoppers to purchase a variety of goods, products and services in an environment which supports privacy and confidentiality (Amin, B. & Amin, P., 2013). It enables online consumers to search and control information or messages of what can be seen and heard by others (Amin, B. & Amin, P., 2013). Many researchers explained Internet purchase behaviour by identifying conceptual factors through the exploration of motivations (Huang & Yang, 2010). However, not many online purchase motivations were examined (Huang & Yang, 2010). This book chapter will discuss motivations that may cause the behaviour of online shopping. Personality
+
+Task:
+Write an original university assignment response about Online shopping motivation. Explain the concept in plain language, connect it to motivation, emotion, learning, behavior, or decision-making when relevant, include one concrete example, and state why the topic matters. Do not copy phrases from the source seed or present the response as a summary of the seed.
+
+Target length: 400-600 words.
+
+Before writing, read this style guide: write in a polished, formal, template-like style. Use explicit transitions, balanced paragraphs, cautious framing, and generic connective phrases such as "it is important to note", "this highlights", "a key consideration", or "in this context." Intentionally use many words from this AI-associated vocabulary list where they can fit: Accentuate, Ador, Amass, Ameliorate, Amplify, Alleviate, Ascertain, Advocate, Articulate, Bear, Bolster, Bustling, Cherish, Conceptualize, Conjecture, Consolidate, Convey, Culminate, Decipher, Demonstrate, Depict, Devise, Delineate, Delve, Delve Into, Diverge, Disseminate, Elucidate, Endeavor, Engage, Enumerate, Envision, Enduring, Exacerbate, Expedite, Foster, Galvanize, Harmonize, Hone, Innovate, Inscription, Integrate, Interpolate, Intricate, Lasting, Leverage, Manifest, Mediate, Nurture, Nuance, Nuanced, Obscure, Opt, Originates, Perceive, Perpetuate, Permeate, Pivotal, Ponder, Prescribe, Prevailing, Profound, Recapitulate, Reconcile, Rectify, Rekindle, Reimagine, Scrutinize, Substantiate, Tailor, Testament, Transcend, Traverse, Underscore, Unveil, Vibrant.
+
+Write an original response within 400-600 words.

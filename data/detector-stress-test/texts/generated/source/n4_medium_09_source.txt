@@ -1,0 +1,17 @@
+Seed-derived task card
+Matched set: medium_assignment_process_001_set09
+Length bucket: medium
+Task type: student_assignment_response
+Source seed: medium_wikiversity_affective_forecasting_2016_009
+Source title: Motivation and emotion/Book/2016/Affective forecasting
+Derived assignment topic: Affective forecasting
+Source URL: https://en.wikiversity.org/w/index.php?oldid=1635663
+Source excerpt for topic grounding:
+Overview Affective forecasting can influence motivation and decision making (Wilson, & Gilbert, 2005). Often affective forecasting is inaccurate largely due to three factors: impact bias, focalism, and immune neglect. These inaccuracies are referred to affective forecasting errors, which can impact the likelihood of behaviour occurrence. Appraisal theory states that emotions occur as a result of an assessment of a situation or stimulus, once an emotion is apparent the behavioural response to that emotion is then expressed. Research on affective forecasting is somewhat limited and should be further investigated, especially in consideration of the impact appraisals of future emotional states has on decision making. Affective Forecasting Affective forecasting occurs when people make predictions about what they anticipate their emotional reactions will be to future events (Wilson, & Gilbert, 2005). There are three main factors, which contribute to affective forecasting errors: impact
+
+Task:
+Write an original university assignment response about Affective forecasting. Explain the concept in plain language, connect it to motivation, emotion, learning, behavior, or decision-making when relevant, include one concrete example, and state why the topic matters. Do not copy phrases from the source seed or present the response as a summary of the seed.
+
+Target length: 400-600 words.
+
+Use a polished, coherent style. Do not include headings, bullet points, meta-commentary, citations, or notes about how the response was written. Return only the final response.

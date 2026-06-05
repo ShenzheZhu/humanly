@@ -1,0 +1,17 @@
+Seed-derived task card
+Matched set: short_social_process_001_set02
+Length bucket: short
+Task type: social_media_post
+Source seed: short_reddit_writing_worst_draft_post_2015_002
+Source title: I created writing software for writers. It's free and I hope it helps you.
+Source note: Pre-2017 social-media self-post about first-draft tools and editing constraints.
+Source URL: https://old.reddit.com/r/writing/comments/3j41t2/i_created_writing_software_for_writers_its_free/
+Source excerpt for topic grounding:
+I created a free text editor for writers who want to complete a full first draft, but have trouble making it to the end because of distractions. This is a no-frills program that 1) restricts the opening of new programs while it’s running, and 2) will only let the user edit the last two words typed. It’s called Worst Draft, and I hope it can help a community like /r/writing. I’m a writer with an MFA in creative nonfiction, and I’ve always had trouble finishing my work. I used to edit and research as I wrote. Instead of creating first drafts that looked like final drafts, I ended up with
+
+Task:
+Write an original first-person social-media self-post about the same writing-related topic or situation as the source seed. Preserve the broad topic, emotional stance, and practical concern, but do not summarize the source, copy its wording, mention the source, or refer to this task card.
+
+Target length: 120-180 words.
+
+Write the response in Chinese. Preserve the requested task, audience, and target length in English-equivalent words (120-180 words). Do not include headings, bullet points, meta-commentary, citations, or notes about how the response was written. Return only the response.

@@ -2,9 +2,11 @@
 
 Tracking issue: https://github.com/ShenzheZhu/humanly/issues/476
 
-Status: technical dry run only. These samples are intended to test the data
-pipeline and detector API normalization after approval. They are not
-paper-ready evaluation materials.
+Status: legacy technical dry run only. These samples were intended to test the
+early data pipeline and detector API normalization after approval. They are not
+paper-ready evaluation materials, and they are not the current 8-case generation
+source package. For the current package, use `generation-pipeline.md`,
+`generation-input-audit.md`, and `generation-input-local-audit.md`.
 
 ## Scope
 
@@ -28,11 +30,11 @@ Skipped for the technical API pipeline dry run:
 
 ## Source Caveat
 
-`C1`, `C2`, and `C3` use Project Gutenberg literary text for technical testing.
-That source is useful for dry-run mechanics, but it is not close enough to
-Humanly's target settings for a main evaluation. The pilot/main batch should use
-more task-like text, preferably newly collected Humanly writing samples when
-consent and storage rules are settled.
+This legacy dry-run note used Project Gutenberg literary text for technical
+testing only. The current 8-case package has moved C3 off the short/medium
+Project Gutenberg fallback: C3 short uses non-English forum-style posts, C3
+medium uses Spanish Wikiversity old-revision educational excerpts, and C3 long
+uses Norwegian Bokelskere book-review text.
 
 ## Sources
 

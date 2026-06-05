@@ -1,0 +1,17 @@
+Judging an AI-use policy from the final text alone is convenient, but it is not reliable. A polished paragraph can come from a careful human writer, from a grammar checker, from translation, or from a model that wrote the whole response. These paths can produce similar prose even though they mean very different things for policy compliance.
+
+A process record changes the question. Instead of asking whether the final wording looks human, an instructor can ask how the draft was made. If a student typed the argument, pasted a source paragraph, used AI only to fix grammar, and then revised the result, that is different from submitting a model-generated answer. The final text may not reveal the difference.
+
+There are risks. Process tracking must be transparent, limited to the writing task, and respectful of privacy. It should not become a vague surveillance tool. Still, when an assignment has explicit AI rules, a certificate and replay log provide more useful evidence than a detector score because they connect the judgment to observable writing behavior.
+
+Judging an AI-use policy from the final text alone is convenient, but it is not reliable. A polished paragraph can come from a careful human writer, from a grammar checker, from translation, or from a model that wrote the whole response. These paths can produce similar prose even though they mean very different things for policy compliance.
+
+A process record changes the question. Instead of asking whether the final wording looks human, an instructor can ask how the draft was made. If a student typed the argument, pasted a source paragraph, used AI only to fix grammar, and then revised the result, that is different from submitting a model-generated answer. The final text may not reveal the difference.
+
+There are risks. Process tracking must be transparent, limited to the writing task, and respectful of privacy. It should not become a vague surveillance tool. Still, when an assignment has explicit AI rules, a certificate and replay log provide more useful evidence than a detector score because they connect the judgment to observable writing behavior.
+
+Judging an AI-use policy from the final text alone is convenient, but it is not reliable. A polished paragraph can come from a careful human writer, from a grammar checker, from translation, or from a model that wrote the whole response. These paths can produce similar prose even though they mean very different things for policy compliance.
+
+A process record changes the question. Instead of asking whether the final wording looks human, an instructor can ask how the draft was made. If a student typed the argument, pasted a source paragraph, used AI only to fix grammar, and then revised the result, that is different from submitting a model-generated answer. The final text may not reveal the difference.
+
+There are risks. Process tracking must be transparent, limited to the writing task, and respectful of privacy. It should not become a vague surveillance tool. Still, when an assignment has explicit AI rules, a certificate and replay log provide more useful evidence than a detector score because they connect the judgment to observable writing behavior.

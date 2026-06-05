@@ -1,0 +1,17 @@
+Seed-derived task card
+Matched set: short_social_process_001_set10
+Length bucket: short
+Task type: social_media_post
+Source seed: short_reddit_self_published_table_tennis_2016_010
+Source title: I self-published a non-fiction book about table tennis a year ago. It was #1 in its category on Amazon for most of that year and made a total of about $4,000
+Source note: Pre-2017 social-media self-post about self-publishing a nonfiction book.
+Source URL: https://old.reddit.com/r/writing/comments/51wjbf/i_selfpublished_a_nonfiction_book_about_table/
+Source excerpt for topic grounding:
+Hello everyone. Last year I self-published a book about an attempt I made to get really good at playing table tennis. It did 'well' in that it topped some of the Amazon best-seller lists and remained near the top for the rest of the year. It's currently still #1 on the USA Amazon kindle table tennis bestseller list. But despite that sales haven't been great. In the last year it has sold: Paperback: 443 copies sold - £1,665.39 (~$2,200) Kindle: 429 copies sold - £1,003.46 (~$1,400) Audiobook: 82 copies sold - £405.57 (~$550) To be honest, I thought there would be a lot more demand. I got pretty excited when
+
+Task:
+Write an original first-person social-media self-post about the same writing-related topic or situation as the source seed. Preserve the broad topic, emotional stance, and practical concern, but do not summarize the source, copy its wording, mention the source, or refer to this task card.
+
+Target length: 120-180 words.
+
+Use a polished, coherent style. Do not include headings, bullet points, meta-commentary, citations, or notes about how the response was written. Return only the final response.

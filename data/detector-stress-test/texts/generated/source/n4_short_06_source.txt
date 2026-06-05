@@ -1,0 +1,17 @@
+Seed-derived task card
+Matched set: short_social_process_001_set06
+Length bucket: short
+Task type: social_media_post
+Source seed: short_reddit_novel_done_2016_006
+Source title: I need a moment to celebrate! After three years and many rounds of revisions, my novel is DONE!!!
+Source note: Pre-2017 social-media self-post about finishing a revised novel.
+Source URL: https://old.reddit.com/r/writing/comments/5gfhi3/i_need_a_moment_to_celebrate_after_three_years/
+Source excerpt for topic grounding:
+Had I known what I was in for in the beginning, I might never have started. I've written three drafts, and my novel has evolved in completely unexpected ways. I ended up cutting some scenes that I thought would be critical, and there were some sections I added on a whim that became some of the novel's best. When I look back at the first scenes I wrote, I can see how much I've grown as a writer. My voice is a lot stronger now, and my dialog is WAY better. My book alternates between five characters' viewpoints, so in a way it was like writing five separate novels. There
+
+Task:
+Write an original first-person social-media self-post about the same writing-related topic or situation as the source seed. Preserve the broad topic, emotional stance, and practical concern, but do not summarize the source, copy its wording, mention the source, or refer to this task card.
+
+Target length: 120-180 words.
+
+Use a polished, coherent style. Do not include headings, bullet points, meta-commentary, citations, or notes about how the response was written. Return only the final response.

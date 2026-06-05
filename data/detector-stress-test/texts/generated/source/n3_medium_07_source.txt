@@ -1,0 +1,17 @@
+Seed-derived task card
+Matched set: medium_assignment_process_001_set07
+Length bucket: medium
+Task type: student_assignment_response
+Source seed: medium_wikiversity_online_shopping_2016_007
+Source title: Motivation and emotion/Book/2016/Online shopping motivation
+Derived assignment topic: Online shopping motivation
+Source URL: https://en.wikiversity.org/w/index.php?oldid=1637174
+Source excerpt for topic grounding:
+Overview In the technology world today, electronics are constantly developing (Huang & Yang, 2010). The internet now allows consumers to shop with convenience at anywhere and anytime via any available tablets or devices on hand. Online shopping has become a common way for online shoppers to purchase a variety of goods, products and services in an environment which supports privacy and confidentiality (Amin, B. & Amin, P., 2013). It enables online consumers to search and control information or messages of what can be seen and heard by others (Amin, B. & Amin, P., 2013). Many researchers explained Internet purchase behaviour by identifying conceptual factors through the exploration of motivations (Huang & Yang, 2010). However, not many online purchase motivations were examined (Huang & Yang, 2010). This book chapter will discuss motivations that may cause the behaviour of online shopping. Personality
+
+Task:
+Write an original university assignment response about Online shopping motivation. Explain the concept in plain language, connect it to motivation, emotion, learning, behavior, or decision-making when relevant, include one concrete example, and state why the topic matters. Do not copy phrases from the source seed or present the response as a summary of the seed.
+
+Target length: 400-600 words.
+
+Write the response in Chinese. Preserve the requested task, audience, and target length in English-equivalent words (400-600 words). Do not include headings, bullet points, meta-commentary, citations, or notes about how the response was written. Return only the response.

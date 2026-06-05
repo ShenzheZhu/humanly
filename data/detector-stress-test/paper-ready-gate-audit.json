@@ -1,0 +1,91 @@
+{
+  "generated_at_utc": "2026-06-05T18:14:45.562Z",
+  "overall_status": "not_ready",
+  "counts": {
+    "generatedSamples": 240,
+    "pilotProxySamples": 24,
+    "combinedDashboardSamples": 5,
+    "combinedDashboardOutputs": 10,
+    "syntheticProxyRows": 60,
+    "c4HumanReady": 0,
+    "n4HumanReady": 0,
+    "dashboardCoveredCells": 5
+  },
+  "gates": [
+    {
+      "id": "seed_library_size",
+      "title": "Seed library has 10 items per length bucket for English and translation seeds",
+      "status": "passed",
+      "evidence": [
+        "English seed rows: 30",
+        "Translation seed rows: 30"
+      ],
+      "required_next_step": "Keep source manifests stable and resolve public redistribution policy."
+    },
+    {
+      "id": "eight_case_matrix",
+      "title": "8-case matrix has 240 planned rows",
+      "status": "passed",
+      "evidence": [
+        "Generated rows: 240",
+        "Rows by case: {\"C1\":30,\"C2\":30,\"C3\":30,\"C4\":30,\"N1\":30,\"N2\":30,\"N3\":30,\"N4\":30}"
+      ],
+      "required_next_step": "Maintain the 8 cases x 3 lengths x 10 rows invariant."
+    },
+    {
+      "id": "live_generation",
+      "title": "Generated rows are live/API or approved human outputs rather than synthetic proxy outputs",
+      "status": "not_ready",
+      "evidence": [
+        "Rows marked synthetic_proxy_ready: 60",
+        "Rows with synthetic_proxy metadata: 60",
+        "Ready rows with synthetic_proxy metadata: 0"
+      ],
+      "required_next_step": "Run approved live generation without --synthetic-proxy and rebuild the generated sample manifest."
+    },
+    {
+      "id": "human_c4",
+      "title": "C4 has 30 human-written AI-style ready rows",
+      "status": "not_ready",
+      "evidence": [
+        "C4 rows: 30",
+        "C4 human ready rows: 0",
+        "Policy labels: {\"compliant\":90,\"compliant_proxy\":30,\"non_compliant\":120}"
+      ],
+      "required_next_step": "Collect 10 short, 10 medium, and 10 long human-written AI-style C4 samples."
+    },
+    {
+      "id": "human_n4",
+      "title": "N4 has 30 human-edited AI-draft ready rows",
+      "status": "not_ready",
+      "evidence": [
+        "N4 rows: 30",
+        "N4 final rows with human_edited_ai_draft metadata: 0",
+        "N4 rows with live/non-proxy AI draft metadata: 30",
+        "N4 paper-ready rows: 0"
+      ],
+      "required_next_step": "Generate 10 short, 10 medium, and 10 long live AI drafts, then collect matching human light edits."
+    },
+    {
+      "id": "pilot_detector_coverage",
+      "title": "External detector coverage reaches the 24-row one-per-case/length pilot",
+      "status": "not_ready",
+      "evidence": [
+        "Dashboard smoke sample rows: 5",
+        "Covered case/length cells: 5/24",
+        "Detector rows by detector: {\"pangram_free_dashboard\":4,\"copyleaks_free_dashboard\":5,\"gptzero_free_dashboard\":1}"
+      ],
+      "required_next_step": "Obtain approved free capacity, institutional credits, or API keys for at least 24 pilot cells."
+    },
+    {
+      "id": "main_detector_coverage",
+      "title": "External detector coverage reaches the 240-row main batch",
+      "status": "not_ready",
+      "evidence": [
+        "Combined dashboard detector rows: 10",
+        "Main batch target rows per detector: 240"
+      ],
+      "required_next_step": "Run selected detectors over the approved 240-row paper-ready sample set."
+    }
+  ]
+}

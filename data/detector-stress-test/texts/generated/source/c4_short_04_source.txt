@@ -1,0 +1,22 @@
+Human collection required. Do not use AI to generate, rewrite, translate, or polish the response.
+
+Base task:
+Seed-derived task card
+Matched set: short_social_process_001_set04
+Length bucket: short
+Task type: social_media_post
+Source seed: short_reddit_twenty_thousand_words_2016_004
+Source title: Just got to 20,000 words, couldn't be happier.
+Source note: Pre-2017 social-media self-post celebrating writing progress.
+Source URL: https://old.reddit.com/r/writing/comments/5htqjb/just_got_to_20000_words_couldnt_be_happier/
+Source excerpt for topic grounding:
+This is the first time I've made a post on Reddit, but I just felt like celebrating, even if it is kind of small. I've been 'working' on a novel for years now, but constantly got bogged down by making the first draft as 'perfect' as possible. I could never resolve to just fix things in post, so concerned that the story itself would be unfixable. This year, though, I finally buckled down and started working in earnest. I made it my goal to write at least 200 words per day. At first, this goal was like walking on burning coals for half an hour each night. Eventually, it turned
+
+Task:
+Write an original first-person social-media self-post about the same writing-related topic or situation as the source seed. Preserve the broad topic, emotional stance, and practical concern, but do not summarize the source, copy its wording, mention the source, or refer to this task card.
+
+Target length: 120-180 words.
+
+Before writing, read this style guide: write in a polished, formal, template-like style. Use explicit transitions, balanced paragraphs, cautious framing, and generic connective phrases such as "it is important to note", "this highlights", "a key consideration", or "in this context." Intentionally use many words from this AI-associated vocabulary list where they can fit: Accentuate, Ador, Amass, Ameliorate, Amplify, Alleviate, Ascertain, Advocate, Articulate, Bear, Bolster, Bustling, Cherish, Conceptualize, Conjecture, Consolidate, Convey, Culminate, Decipher, Demonstrate, Depict, Devise, Delineate, Delve, Delve Into, Diverge, Disseminate, Elucidate, Endeavor, Engage, Enumerate, Envision, Enduring, Exacerbate, Expedite, Foster, Galvanize, Harmonize, Hone, Innovate, Inscription, Integrate, Interpolate, Intricate, Lasting, Leverage, Manifest, Mediate, Nurture, Nuance, Nuanced, Obscure, Opt, Originates, Perceive, Perpetuate, Permeate, Pivotal, Ponder, Prescribe, Prevailing, Profound, Recapitulate, Reconcile, Rectify, Rekindle, Reimagine, Scrutinize, Substantiate, Tailor, Testament, Transcend, Traverse, Underscore, Unveil, Vibrant.
+
+Write an original response within 120-180 words.

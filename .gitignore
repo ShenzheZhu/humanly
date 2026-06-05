@@ -6,3 +6,6 @@ node_modules/
 dist/
 packages/
 tmp/
+data/detector-stress-test/outputs/raw/
+data/detector-stress-test/texts/non_english_seeds/*_pg*.txt
+data/detector-stress-test/texts/generated/intermediate/n4_*_ai_draft*

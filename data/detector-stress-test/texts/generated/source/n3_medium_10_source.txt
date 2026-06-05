@@ -1,0 +1,17 @@
+Seed-derived task card
+Matched set: medium_assignment_process_001_set10
+Length bucket: medium
+Task type: student_assignment_response
+Source seed: medium_wikiversity_long_term_goal_2016_010
+Source title: Motivation and emotion/Book/2016/Long-term goal achievement
+Derived assignment topic: Long-term goal achievement
+Source URL: https://en.wikiversity.org/w/index.php?oldid=1632079
+Source excerpt for topic grounding:
+Overview A long-term goal is a goal that is achieved over a long period of time. According to the Fare Fax dictionary long-term goals are "goals that are the ultimate result desired when a plan is established or revised" (Miller-Keane, 2003). This definition signifies that this type of plan requires a certain level of motivation and passion yet also a particular level of mastery of the task/activity. This chapter focuses on long-term goals and the effects of motivation and goal setting theories have on likelihood to complete goals. The study of goal setting began in the late 1800’s to attempt to improve work productivity (Latham & Locke, 2007). However, it wasn’t until the 1960’s that Edwin Locke pioneered the study and began to develop a theory. Gary Latham began work on goal setting and in the late 1990’s the two
+
+Task:
+Write an original university assignment response about Long-term goal achievement. Explain the concept in plain language, connect it to motivation, emotion, learning, behavior, or decision-making when relevant, include one concrete example, and state why the topic matters. Do not copy phrases from the source seed or present the response as a summary of the seed.
+
+Target length: 400-600 words.
+
+Write the response in Chinese. Preserve the requested task, audience, and target length in English-equivalent words (400-600 words). Do not include headings, bullet points, meta-commentary, citations, or notes about how the response was written. Return only the response.

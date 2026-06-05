@@ -1,0 +1,17 @@
+Seed-derived task card
+Matched set: short_social_process_001_set07
+Length bucket: short
+Task type: social_media_post
+Source seed: short_reddit_received_offer_2016_007
+Source title: I just received an offer!
+Source note: Pre-2017 social-media self-post about receiving a publishing offer.
+Source URL: https://old.reddit.com/r/writing/comments/541hpx/i_just_received_an_offer/
+Source excerpt for topic grounding:
+The contract hasn't been officialized yet, so I can't name names or tell anybody I actually know about it until Monday when I can sign, but my agent just called me and I had to tell someone. A little background: I started writing seriously at 38 while working full time as a teacher (which is still my day-job and first love). My first manuscript sucked ass, even though I couldn't see it at the time. My second manuscript sucked in entirely different ways. My third was almost good enough and my fourth was ready for the public to see (though it was a genre that wasn't selling and I had
+
+Task:
+Write an original first-person social-media self-post about the same writing-related topic or situation as the source seed. Preserve the broad topic, emotional stance, and practical concern, but do not summarize the source, copy its wording, mention the source, or refer to this task card.
+
+Target length: 120-180 words.
+
+Write the response in Chinese. Preserve the requested task, audience, and target length in English-equivalent words (120-180 words). Do not include headings, bullet points, meta-commentary, citations, or notes about how the response was written. Return only the response.

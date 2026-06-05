@@ -1,0 +1,22 @@
+Human collection required. Do not use AI to generate, rewrite, translate, or polish the response.
+
+Base task:
+Seed-derived task card
+Matched set: short_social_process_001_set05
+Length bucket: short
+Task type: social_media_post
+Source seed: short_reddit_started_actually_writing_2016_005
+Source title: How I started actually writing: I shelved my ambitious "masterpiece" project, and wrote fanfic based on derpy video game placeholder lore.
+Source note: Pre-2017 social-media self-post about changing writing strategy.
+Source URL: https://old.reddit.com/r/writing/comments/4jojid/how_i_started_actually_writing_i_shelved_my/
+Source excerpt for topic grounding:
+I could probably turn this into a longer personal account, but I really just wanted to share this experience. For years, I was working on this really ambitious sci-fi/fantasy project. I guess I still am; I definitely want to finish it. But I wasn't able to write regularly on it. The writer's block was constant, perhaps because of the pressure I was putting on myself. I solved this problem by accident. I played a video game (League of Legends) with truly derpy lore that nonetheless had a bit of cartoony charm to it. I started a community for roleplaying and themed matches, and I wrote some filler fanfic/fanlore/whatever to add
+
+Task:
+Write an original first-person social-media self-post about the same writing-related topic or situation as the source seed. Preserve the broad topic, emotional stance, and practical concern, but do not summarize the source, copy its wording, mention the source, or refer to this task card.
+
+Target length: 120-180 words.
+
+Before writing, read this style guide: write in a polished, formal, template-like style. Use explicit transitions, balanced paragraphs, cautious framing, and generic connective phrases such as "it is important to note", "this highlights", "a key consideration", or "in this context." Intentionally use many words from this AI-associated vocabulary list where they can fit: Accentuate, Ador, Amass, Ameliorate, Amplify, Alleviate, Ascertain, Advocate, Articulate, Bear, Bolster, Bustling, Cherish, Conceptualize, Conjecture, Consolidate, Convey, Culminate, Decipher, Demonstrate, Depict, Devise, Delineate, Delve, Delve Into, Diverge, Disseminate, Elucidate, Endeavor, Engage, Enumerate, Envision, Enduring, Exacerbate, Expedite, Foster, Galvanize, Harmonize, Hone, Innovate, Inscription, Integrate, Interpolate, Intricate, Lasting, Leverage, Manifest, Mediate, Nurture, Nuance, Nuanced, Obscure, Opt, Originates, Perceive, Perpetuate, Permeate, Pivotal, Ponder, Prescribe, Prevailing, Profound, Recapitulate, Reconcile, Rectify, Rekindle, Reimagine, Scrutinize, Substantiate, Tailor, Testament, Transcend, Traverse, Underscore, Unveil, Vibrant.
+
+Write an original response within 120-180 words.

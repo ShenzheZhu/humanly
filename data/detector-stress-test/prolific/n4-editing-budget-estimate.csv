@@ -1,0 +1,4 @@
+checked_date,length_bucket,participant_count,estimated_minutes_each,recommended_reward_usd_each,minimum_reward_usd_each,participant_rewards_recommended_usd,participant_rewards_minimum_usd,academic_total_recommended_usd,corporate_total_recommended_usd,academic_total_minimum_usd,corporate_total_minimum_usd
+2026-06-05,short,10,8,1.60,1.07,16.00,10.70,21.33,22.85,14.26,15.28
+2026-06-05,medium,10,18,3.60,2.40,36.00,24.00,47.99,51.41,31.99,34.27
+2026-06-05,long,10,50,10.00,6.67,100.00,66.70,133.30,142.80,88.91,95.25

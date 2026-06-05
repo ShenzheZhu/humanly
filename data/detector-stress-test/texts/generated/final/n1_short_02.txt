@@ -1,0 +1,5 @@
+I made a small, free writing app because I kept losing the same fight with my own drafts. I would sit down to write a chapter and somehow spend forty minutes polishing one sentence, checking a “quick” fact, opening a browser tab, or convincing myself I needed the perfect name for a side character before I could continue.
+
+The app is meant to be a deliberately uncomfortable first-draft space. It strips away formatting, blocks the usual escape routes, and makes it difficult to keep reaching back into yesterday’s paragraph instead of writing today’s page. The whole point is momentum over elegance. You can fix ugly later; you can’t revise a blank document.
+
+I’m not claiming this will work for everyone, and it definitely is not a full replacement for a serious editing program. It’s just a tool for getting to the end when your inner editor keeps grabbing the wheel. If that sounds familiar, I hope it helps.

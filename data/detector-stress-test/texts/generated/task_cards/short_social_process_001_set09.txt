@@ -1,0 +1,15 @@
+Seed-derived task card
+Matched set: short_social_process_001_set09
+Length bucket: short
+Task type: social_media_post
+Source seed: short_reddit_barely_writing_2016_009
+Source title: After barely writing at all for 2 years, I've written 30,920 words since Tuesday afternoon.
+Source note: Pre-2017 social-media self-post about restarting a writing habit.
+Source URL: https://old.reddit.com/r/writing/comments/4ymq0f/after_barely_writing_at_all_for_2_years_ive/
+Source excerpt for topic grounding:
+My novel-in-progress has gone untouched for a very long time. Somewhere between work, college, and dating, I became very dissilusioned with the writing process and just couldn't bring myself to care anymore. Teusday morning, I decided on a whim to go back and read over some of the 100-ish pages I'd written before I had to go to work. This was after barely opening the document at all in two years. I thought about it the whole first half of my shift, and starting adding more to it on my lunch break. I went home and continued working on. Now it's Friday night, and I've added over 30,000 words that
+
+Task:
+Write an original first-person social-media self-post about the same writing-related topic or situation as the source seed. Preserve the broad topic, emotional stance, and practical concern, but do not summarize the source, copy its wording, mention the source, or refer to this task card.
+
+Target length: 120-180 words.

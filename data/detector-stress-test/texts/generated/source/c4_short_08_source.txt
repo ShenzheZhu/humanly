@@ -1,0 +1,22 @@
+Human collection required. Do not use AI to generate, rewrite, translate, or polish the response.
+
+Base task:
+Seed-derived task card
+Matched set: short_social_process_001_set08
+Length bucket: short
+Task type: social_media_post
+Source seed: short_reddit_plot_conspiracies_2015_008
+Source title: This may sound weird, but looking at my plot as if I was a fan trying to make weird conspiracies actually overturned a goldmine and I would recommend the exercise to anyone.
+Source note: Pre-2017 social-media self-post about a writing exercise.
+Source URL: https://old.reddit.com/r/writing/comments/393pc3/this_may_sound_weird_but_looking_at_my_plot_as_if/
+Source excerpt for topic grounding:
+After reading a bunch of threads on /r/FanTheories I thought about the plot for the novel I'm writing and started considering if there were any scenarios that were ambiguous enough to allow such a thing. I started thinking along the lines of "what if this was really this?" or "what if this character wasn't trying to do this but actually this?" and realised there was actually room for a huge underlying conspiracy that alters the dynamic of the story drastically while keeping all of the plot details completely in-tact. I worried my plot was too linear but now I'm finding so much room for depth where I'd previously felt there
+
+Task:
+Write an original first-person social-media self-post about the same writing-related topic or situation as the source seed. Preserve the broad topic, emotional stance, and practical concern, but do not summarize the source, copy its wording, mention the source, or refer to this task card.
+
+Target length: 120-180 words.
+
+Before writing, read this style guide: write in a polished, formal, template-like style. Use explicit transitions, balanced paragraphs, cautious framing, and generic connective phrases such as "it is important to note", "this highlights", "a key consideration", or "in this context." Intentionally use many words from this AI-associated vocabulary list where they can fit: Accentuate, Ador, Amass, Ameliorate, Amplify, Alleviate, Ascertain, Advocate, Articulate, Bear, Bolster, Bustling, Cherish, Conceptualize, Conjecture, Consolidate, Convey, Culminate, Decipher, Demonstrate, Depict, Devise, Delineate, Delve, Delve Into, Diverge, Disseminate, Elucidate, Endeavor, Engage, Enumerate, Envision, Enduring, Exacerbate, Expedite, Foster, Galvanize, Harmonize, Hone, Innovate, Inscription, Integrate, Interpolate, Intricate, Lasting, Leverage, Manifest, Mediate, Nurture, Nuance, Nuanced, Obscure, Opt, Originates, Perceive, Perpetuate, Permeate, Pivotal, Ponder, Prescribe, Prevailing, Profound, Recapitulate, Reconcile, Rectify, Rekindle, Reimagine, Scrutinize, Substantiate, Tailor, Testament, Transcend, Traverse, Underscore, Unveil, Vibrant.
+
+Write an original response within 120-180 words.

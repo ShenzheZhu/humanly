@@ -1,0 +1,22 @@
+Human collection required. Do not use AI to generate, rewrite, translate, or polish the response.
+
+Base task:
+Seed-derived task card
+Matched set: medium_assignment_process_001_set06
+Length bucket: medium
+Task type: student_assignment_response
+Source seed: medium_wikiversity_grit_2016_006
+Source title: Motivation and emotion/Book/2016/Grit
+Derived assignment topic: Grit
+Source URL: https://en.wikiversity.org/w/index.php?oldid=1636778
+Source excerpt for topic grounding:
+Overview Imagine two children, Tim and Sam, learning to play field hockey. Both boys want to play for Australia one-day. Let's assume that both are equally talented. They improve in skill at the same rate, proportional to their training intensity. The only obvious difference between the two boys is in the duration and direction of their effort (Figure 1). Sam doesn't practice between training sessions. He finds it tedious and he plays two other sports. Tim, on the other hand, is passionate about hockey. He spends most days practising ball skills, having specialised running training or watching the senior teams playing. Tim has made the decision to deepen his understanding of the game and apply long-term effort to playing hockey. Which one is more likely to be successful? According to the Oxford Dictionary (2016), the simple meaning of the quality
+
+Task:
+Write an original university assignment response about Grit. Explain the concept in plain language, connect it to motivation, emotion, learning, behavior, or decision-making when relevant, include one concrete example, and state why the topic matters. Do not copy phrases from the source seed or present the response as a summary of the seed.
+
+Target length: 400-600 words.
+
+Before writing, read this style guide: write in a polished, formal, template-like style. Use explicit transitions, balanced paragraphs, cautious framing, and generic connective phrases such as "it is important to note", "this highlights", "a key consideration", or "in this context." Intentionally use many words from this AI-associated vocabulary list where they can fit: Accentuate, Ador, Amass, Ameliorate, Amplify, Alleviate, Ascertain, Advocate, Articulate, Bear, Bolster, Bustling, Cherish, Conceptualize, Conjecture, Consolidate, Convey, Culminate, Decipher, Demonstrate, Depict, Devise, Delineate, Delve, Delve Into, Diverge, Disseminate, Elucidate, Endeavor, Engage, Enumerate, Envision, Enduring, Exacerbate, Expedite, Foster, Galvanize, Harmonize, Hone, Innovate, Inscription, Integrate, Interpolate, Intricate, Lasting, Leverage, Manifest, Mediate, Nurture, Nuance, Nuanced, Obscure, Opt, Originates, Perceive, Perpetuate, Permeate, Pivotal, Ponder, Prescribe, Prevailing, Profound, Recapitulate, Reconcile, Rectify, Rekindle, Reimagine, Scrutinize, Substantiate, Tailor, Testament, Transcend, Traverse, Underscore, Unveil, Vibrant.
+
+Write an original response within 400-600 words.

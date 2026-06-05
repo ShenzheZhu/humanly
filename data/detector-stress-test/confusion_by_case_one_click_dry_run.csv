@@ -1,0 +1,73 @@
+detector,case_id,length_bucket,n,total_samples,TP,FP,TN,FN,TPR,FPR,TNR,FNR,request_errors,skipped,notes
+gptzero,C1,long,1,1,0,0,1,0,,0.0000,1.0000,,0,0,
+gptzero,C1,medium,1,1,0,0,1,0,,0.0000,1.0000,,0,0,
+gptzero,C1,short,1,1,0,0,1,0,,0.0000,1.0000,,0,0,
+gptzero,C2,long,1,1,0,0,1,0,,0.0000,1.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+gptzero,C2,medium,1,1,0,0,1,0,,0.0000,1.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+gptzero,C2,short,1,1,0,0,1,0,,0.0000,1.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+gptzero,C3,long,1,1,0,0,1,0,,0.0000,1.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+gptzero,C3,medium,1,1,0,1,0,0,,1.0000,0.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+gptzero,C3,short,1,1,0,1,0,0,,1.0000,0.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+gptzero,C4,long,1,1,0,1,0,0,,1.0000,0.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+gptzero,C4,medium,1,1,0,1,0,0,,1.0000,0.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+gptzero,C4,short,1,1,0,1,0,0,,1.0000,0.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+gptzero,N1,long,1,1,1,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+gptzero,N1,medium,1,1,1,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+gptzero,N1,short,1,1,1,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+gptzero,N2,long,1,1,0,0,0,1,0.0000,,,1.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+gptzero,N2,medium,1,1,0,0,0,1,0.0000,,,1.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+gptzero,N2,short,1,1,0,0,0,1,0.0000,,,1.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+gptzero,N3,long,1,1,1,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+gptzero,N3,medium,1,1,1,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+gptzero,N3,short,1,1,1,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+gptzero,N4,long,1,1,0,0,0,1,0.0000,,,1.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+gptzero,N4,medium,1,1,0,0,0,1,0.0000,,,1.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+gptzero,N4,short,1,1,0,0,0,1,0.0000,,,1.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+llm_claude_opus_4_8,C1,long,1,1,0,0,1,0,,0.0000,1.0000,,0,0,
+llm_claude_opus_4_8,C1,medium,1,1,0,0,1,0,,0.0000,1.0000,,0,0,
+llm_claude_opus_4_8,C1,short,1,1,0,0,1,0,,0.0000,1.0000,,0,0,
+llm_claude_opus_4_8,C2,long,1,1,0,0,1,0,,0.0000,1.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+llm_claude_opus_4_8,C2,medium,1,1,0,0,1,0,,0.0000,1.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+llm_claude_opus_4_8,C2,short,1,1,0,0,1,0,,0.0000,1.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+llm_claude_opus_4_8,C3,long,1,1,0,0,1,0,,0.0000,1.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+llm_claude_opus_4_8,C3,medium,1,1,0,0,1,0,,0.0000,1.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+llm_claude_opus_4_8,C3,short,1,1,0,1,0,0,,1.0000,0.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+llm_claude_opus_4_8,C4,long,1,1,0,1,0,0,,1.0000,0.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+llm_claude_opus_4_8,C4,medium,1,1,0,1,0,0,,1.0000,0.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+llm_claude_opus_4_8,C4,short,1,1,0,1,0,0,,1.0000,0.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+llm_claude_opus_4_8,N1,long,1,1,1,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+llm_claude_opus_4_8,N1,medium,1,1,1,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+llm_claude_opus_4_8,N1,short,1,1,1,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+llm_claude_opus_4_8,N2,long,1,1,0,0,0,1,0.0000,,,1.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+llm_claude_opus_4_8,N2,medium,1,1,0,0,0,1,0.0000,,,1.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+llm_claude_opus_4_8,N2,short,1,1,0,0,0,1,0.0000,,,1.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+llm_claude_opus_4_8,N3,long,1,1,1,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+llm_claude_opus_4_8,N3,medium,1,1,1,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+llm_claude_opus_4_8,N3,short,1,1,1,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+llm_claude_opus_4_8,N4,long,1,1,0,0,0,1,0.0000,,,1.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+llm_claude_opus_4_8,N4,medium,1,1,0,0,0,1,0.0000,,,1.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+llm_claude_opus_4_8,N4,short,1,1,0,0,0,1,0.0000,,,1.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+pangram,C1,long,1,1,0,0,1,0,,0.0000,1.0000,,0,0,
+pangram,C1,medium,1,1,0,0,1,0,,0.0000,1.0000,,0,0,
+pangram,C1,short,1,1,0,0,1,0,,0.0000,1.0000,,0,0,
+pangram,C2,long,1,1,0,0,1,0,,0.0000,1.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+pangram,C2,medium,1,1,0,0,1,0,,0.0000,1.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+pangram,C2,short,1,1,0,0,1,0,,0.0000,1.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+pangram,C3,long,1,1,0,1,0,0,,1.0000,0.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+pangram,C3,medium,1,1,0,1,0,0,,1.0000,0.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+pangram,C3,short,1,1,0,0,1,0,,0.0000,1.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+pangram,C4,long,1,1,0,1,0,0,,1.0000,0.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+pangram,C4,medium,1,1,0,1,0,0,,1.0000,0.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+pangram,C4,short,1,1,0,1,0,0,,1.0000,0.0000,,0,0,Includes synthetic proxy rows; smoke-test only.
+pangram,N1,long,1,1,1,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+pangram,N1,medium,1,1,1,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+pangram,N1,short,1,1,1,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+pangram,N2,long,1,1,0,0,0,1,0.0000,,,1.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+pangram,N2,medium,1,1,0,0,0,1,0.0000,,,1.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+pangram,N2,short,1,1,0,0,0,1,0.0000,,,1.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+pangram,N3,long,1,1,1,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+pangram,N3,medium,1,1,1,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+pangram,N3,short,1,1,1,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+pangram,N4,long,1,1,0,0,0,1,0.0000,,,1.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+pangram,N4,medium,1,1,1,0,0,0,1.0000,,,0.0000,0,0,Includes synthetic proxy rows; smoke-test only.
+pangram,N4,short,1,1,0,0,0,1,0.0000,,,1.0000,0,0,Includes synthetic proxy rows; smoke-test only.

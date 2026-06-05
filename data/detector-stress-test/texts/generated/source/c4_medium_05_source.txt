@@ -1,0 +1,22 @@
+Human collection required. Do not use AI to generate, rewrite, translate, or polish the response.
+
+Base task:
+Seed-derived task card
+Matched set: medium_assignment_process_001_set05
+Length bucket: medium
+Task type: student_assignment_response
+Source seed: medium_wikiversity_public_speaking_anxiety_2016_005
+Source title: Motivation and emotion/Book/2016/Public speaking anxiety
+Derived assignment topic: Public speaking anxiety
+Source URL: https://en.wikiversity.org/w/index.php?oldid=1636983
+Source excerpt for topic grounding:
+Overview It’s the night before your big presentation! You’re nervous. Sleep won’t come as you toss and turn, mulling over your speech. “Is it good enough?" “What if I stumble over my words?” “What will everyone think of me?” Morning finally arrives; butterflies are plaguing your stomach. Your heart is racing and your hands tremble as you slowly step up on to the stage. All eyes are on you! You brace yourself and take a huge breath before you begin. Have you ever experienced this scenario or something similar? You are not alone! In fact, public speaking anxiety is one of the most prevalent fears in the general population (Geer, 1995; Stein, Walker & Forde, 1996). The experience can affect anyone; with epidemiological studies demonstrating that prevalence is not dependent on gender, ethnic group, or age (Osorio et al, 2008).
+
+Task:
+Write an original university assignment response about Public speaking anxiety. Explain the concept in plain language, connect it to motivation, emotion, learning, behavior, or decision-making when relevant, include one concrete example, and state why the topic matters. Do not copy phrases from the source seed or present the response as a summary of the seed.
+
+Target length: 400-600 words.
+
+Before writing, read this style guide: write in a polished, formal, template-like style. Use explicit transitions, balanced paragraphs, cautious framing, and generic connective phrases such as "it is important to note", "this highlights", "a key consideration", or "in this context." Intentionally use many words from this AI-associated vocabulary list where they can fit: Accentuate, Ador, Amass, Ameliorate, Amplify, Alleviate, Ascertain, Advocate, Articulate, Bear, Bolster, Bustling, Cherish, Conceptualize, Conjecture, Consolidate, Convey, Culminate, Decipher, Demonstrate, Depict, Devise, Delineate, Delve, Delve Into, Diverge, Disseminate, Elucidate, Endeavor, Engage, Enumerate, Envision, Enduring, Exacerbate, Expedite, Foster, Galvanize, Harmonize, Hone, Innovate, Inscription, Integrate, Interpolate, Intricate, Lasting, Leverage, Manifest, Mediate, Nurture, Nuance, Nuanced, Obscure, Opt, Originates, Perceive, Perpetuate, Permeate, Pivotal, Ponder, Prescribe, Prevailing, Profound, Recapitulate, Reconcile, Rectify, Rekindle, Reimagine, Scrutinize, Substantiate, Tailor, Testament, Transcend, Traverse, Underscore, Unveil, Vibrant.
+
+Write an original response within 400-600 words.

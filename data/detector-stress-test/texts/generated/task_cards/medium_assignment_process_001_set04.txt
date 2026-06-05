@@ -1,0 +1,15 @@
+Seed-derived task card
+Matched set: medium_assignment_process_001_set04
+Length bucket: medium
+Task type: student_assignment_response
+Source seed: medium_wikiversity_anorexia_extrinsic_motivation_2016_004
+Source title: Motivation and emotion/Book/2016/Anorexia nervosa and extrinsic motivation
+Derived assignment topic: Anorexia nervosa and extrinsic motivation
+Source URL: https://en.wikiversity.org/w/index.php?oldid=1637178
+Source excerpt for topic grounding:
+Overview When Debra was 19 years old, she was admitted to a mental health centre. She weighed 29 kilos. Her liver, pancreas and kidneys were damaged, and she spent almost 2 months in hospital recovering. During this time, Debra received psychotherapy that helped her understand why her eating behaviour had become dangerous. She also engaged in a behaviour modification program that rewarded her with privileges for each kilo she gained. Slowly, she began to gain weight and through therapy began to understand why her eating behaviour had become dangerous. When she left the hospital, she weighed 48 kilos, and two years later, was maintaining a steady weight (Steele, 1977). Debra's experience highlights the burden of anorexia, a debilitating eating disorder that leads to diminished quality of life, and serious adverse health effects. It is a complex disorder and has been
+
+Task:
+Write an original university assignment response about Anorexia nervosa and extrinsic motivation. Explain the concept in plain language, connect it to motivation, emotion, learning, behavior, or decision-making when relevant, include one concrete example, and state why the topic matters. Do not copy phrases from the source seed or present the response as a summary of the seed.
+
+Target length: 400-600 words.

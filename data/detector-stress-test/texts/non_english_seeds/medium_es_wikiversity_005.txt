@@ -1,0 +1,13 @@
+Este proyecto forma parte de la Wikiversidad. Te invitamos a saber más sobre ella y a descubrir cómo dar tus primeros pasos por aquí. Además te informamos de que la Wikiversidad tiene un manual de estilo y ha definido unas políticas que deben respetarse a la hora de editar cualquiera de sus wiki-páginas.
+
+Este proyecto de aprendizaje ofrece la posibilidad de conocer los fundamentos de los videojuegos actuales, así como las principales técnicas de creación y diseño de los mismos, así como algunas herramientas para desarrollarlos que se utilizan en el entorno profesional de la industria del entretenimiento interactivo. El énfasis se pone en capacitar a los participantes en el diseño de juegos, tanto a nivel mecánico, dinámico y estético, integrando los recursos audiovisuales con la programación de los comportamientos, etc. para crear una obra de calidad.
+
+Además se incita a los participantes a poner en práctica lo aprendido mediante el desarrollo de una serie de prácticas en forma de pequeños juegos que ilustran todos los principios y procesos vistos en la teoría, y que permiten ir iniciándose en la profesión de diseñador de videojuegos.
+
+Materiales didácticos Los principales materiales didácticos de este proyecto son las lecciones que se desarrollan colaborativamente entre todos los participantes. Estas lecciones, y en general cualquier actividad de este proyecto de aprendizaje, puede tener asociadas lecturas recomendadas: fuentes bibliográficas, guías, artículos de la propia Wikipedia o de Wikilibros... y por supuesto referencias a videojuegos. Los complementos más relevantes para todo el proyecto de aprendizaje se recopilan en la sección de referencias de esta misma página.
+
+Aunque tenga una cierta componente teórica, este proyecto de aprendizaje incluye actividades de carácter práctico. Son bienvenidos los ejercicios, casos prácticos, pruebas de nivel de conocimientos, trabajos en grupo o tareas similares, todas ellas actividades que deberán estar asociadas a sus respectivas lecciones.
+
+Existe un calendario de clases con las fechas reales del curso de máster universitario que realizan los "primeros participantes" y que suponen el inicio de este proyecto de aprendizaje. El calendario incluye las tareas y prácticas reales que semana a semana se iban realizando, de manera que pueda servir como referencia a la hora de adaptar el proyecto de aprendizaje a las circunstancias concretas de cada nuevo participante:
+
+Lecciones A continuación se presenta el listado con las distintas lecciones que se han ido generando como material didáctico de este proyecto de aprendizaje. Las lecciones están organizadas en seis bloques (o temas) y al final hay una sección con anexos que complementan la información de las lecciones.

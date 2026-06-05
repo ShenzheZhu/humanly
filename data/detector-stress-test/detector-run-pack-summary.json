@@ -1,0 +1,75 @@
+{
+  "generated_at_utc": "2026-06-05T05:23:06.770Z",
+  "detectors": [
+    "pangram",
+    "gptzero",
+    "llm_claude_opus_4_8"
+  ],
+  "counts": {
+    "pilot_samples": 24,
+    "pilot_queue_rows": 72,
+    "main_samples": 240,
+    "main_queue_rows": 720,
+    "pilot_sample_readiness": {
+      "text_ready_rights_pending": 2,
+      "not_paper_ready": 21,
+      "ready": 1
+    },
+    "main_sample_status": {
+      "ready": 30,
+      "synthetic_proxy_ready": 210
+    },
+    "main_policy_labels": {
+      "compliant": 90,
+      "compliant_proxy": 30,
+      "non_compliant": 120
+    }
+  },
+  "pilot_detector_coverage": [
+    {
+      "detector": "pangram",
+      "covered": 0,
+      "missing": 24,
+      "total": 24
+    },
+    {
+      "detector": "gptzero",
+      "covered": 0,
+      "missing": 24,
+      "total": 24
+    },
+    {
+      "detector": "llm_claude_opus_4_8",
+      "covered": 0,
+      "missing": 24,
+      "total": 24
+    }
+  ],
+  "main_detector_coverage": [
+    {
+      "detector": "pangram",
+      "covered": 0,
+      "missing": 240,
+      "total": 240
+    },
+    {
+      "detector": "gptzero",
+      "covered": 0,
+      "missing": 240,
+      "total": 240
+    },
+    {
+      "detector": "llm_claude_opus_4_8",
+      "covered": 0,
+      "missing": 240,
+      "total": 240
+    }
+  ],
+  "files": {
+    "pilot_manifest": "detector-run-pack-pilot-manifest.csv",
+    "pilot_queue": "detector-run-pack-pilot-queue.csv",
+    "main_queue": "detector-run-pack-main-queue.csv",
+    "markdown": "detector-run-pack.md",
+    "json": "detector-run-pack-summary.json"
+  }
+}

@@ -1,0 +1,39 @@
+The submission addresses an important problem: final text alone is a weak basis for judging whether a writer followed an AI-use policy. Its main strength is the shift from retrospective classification to process evidence. A certificate that records writing activity, paste events, revisions, and in-platform AI interactions could help instructors and reviewers reason about how a document was produced rather than guessing from style alone.
+
+The system contribution is clear, but the evaluation needs careful framing. A detector stress test can show where text-only tools fail, especially for polished human writing, translated human writing, and AI text that has been rewritten to sound less generic. The paper should avoid claiming that process evidence proves intent. It can show what happened inside the writing environment, which is a narrower and stronger claim.
+
+The most useful comparison is not whether Humanly is more accurate than a detector. It is whether the system provides evidence that detectors cannot observe. This matters for peer review because reviewers may be allowed to use AI for grammar or document understanding while still being responsible for the substance of the review. A replayable trace gives chairs a way to inspect that boundary.
+
+A weakness is that the system may not capture covert external AI use. The authors should describe this as a limitation and separate it from the core demo. The demo is strongest when it shows enforceable writing environments, configurable AI access, activity logs, and certificates that make policy compliance auditable.
+
+Overall, the system is promising as a provenance tool. I would recommend acceptance if the demo clearly shows the writer workflow, the admin policy controls, and the verification surface, and if the evaluation reports concrete failure cases for final-text detectors rather than broad claims about authenticity.
+
+The submission addresses an important problem: final text alone is a weak basis for judging whether a writer followed an AI-use policy. Its main strength is the shift from retrospective classification to process evidence. A certificate that records writing activity, paste events, revisions, and in-platform AI interactions could help instructors and reviewers reason about how a document was produced rather than guessing from style alone.
+
+The system contribution is clear, but the evaluation needs careful framing. A detector stress test can show where text-only tools fail, especially for polished human writing, translated human writing, and AI text that has been rewritten to sound less generic. The paper should avoid claiming that process evidence proves intent. It can show what happened inside the writing environment, which is a narrower and stronger claim.
+
+The most useful comparison is not whether Humanly is more accurate than a detector. It is whether the system provides evidence that detectors cannot observe. This matters for peer review because reviewers may be allowed to use AI for grammar or document understanding while still being responsible for the substance of the review. A replayable trace gives chairs a way to inspect that boundary.
+
+A weakness is that the system may not capture covert external AI use. The authors should describe this as a limitation and separate it from the core demo. The demo is strongest when it shows enforceable writing environments, configurable AI access, activity logs, and certificates that make policy compliance auditable.
+
+Overall, the system is promising as a provenance tool. I would recommend acceptance if the demo clearly shows the writer workflow, the admin policy controls, and the verification surface, and if the evaluation reports concrete failure cases for final-text detectors rather than broad claims about authenticity.
+
+The submission addresses an important problem: final text alone is a weak basis for judging whether a writer followed an AI-use policy. Its main strength is the shift from retrospective classification to process evidence. A certificate that records writing activity, paste events, revisions, and in-platform AI interactions could help instructors and reviewers reason about how a document was produced rather than guessing from style alone.
+
+The system contribution is clear, but the evaluation needs careful framing. A detector stress test can show where text-only tools fail, especially for polished human writing, translated human writing, and AI text that has been rewritten to sound less generic. The paper should avoid claiming that process evidence proves intent. It can show what happened inside the writing environment, which is a narrower and stronger claim.
+
+The most useful comparison is not whether Humanly is more accurate than a detector. It is whether the system provides evidence that detectors cannot observe. This matters for peer review because reviewers may be allowed to use AI for grammar or document understanding while still being responsible for the substance of the review. A replayable trace gives chairs a way to inspect that boundary.
+
+A weakness is that the system may not capture covert external AI use. The authors should describe this as a limitation and separate it from the core demo. The demo is strongest when it shows enforceable writing environments, configurable AI access, activity logs, and certificates that make policy compliance auditable.
+
+Overall, the system is promising as a provenance tool. I would recommend acceptance if the demo clearly shows the writer workflow, the admin policy controls, and the verification surface, and if the evaluation reports concrete failure cases for final-text detectors rather than broad claims about authenticity.
+
+The submission addresses an important problem: final text alone is a weak basis for judging whether a writer followed an AI-use policy. Its main strength is the shift from retrospective classification to process evidence. A certificate that records writing activity, paste events, revisions, and in-platform AI interactions could help instructors and reviewers reason about how a document was produced rather than guessing from style alone.
+
+The system contribution is clear, but the evaluation needs careful framing. A detector stress test can show where text-only tools fail, especially for polished human writing, translated human writing, and AI text that has been rewritten to sound less generic. The paper should avoid claiming that process evidence proves intent. It can show what happened inside the writing environment, which is a narrower and stronger claim.
+
+The most useful comparison is not whether Humanly is more accurate than a detector. It is whether the system provides evidence that detectors cannot observe. This matters for peer review because reviewers may be allowed to use AI for grammar or document understanding while still being responsible for the substance of the review. A replayable trace gives chairs a way to inspect that boundary.
+
+A weakness is that the system may not capture covert external AI use. The authors should describe this as a limitation and separate it from the core demo. The demo is strongest when it shows enforceable writing environments, configurable AI access, activity logs, and certificates that make policy compliance auditable.
+
+Overall, the system is promising as a provenance tool. I would recommend acceptance if the demo clearly shows the writer workflow, the admin policy controls, and the verification surface, and if the evaluation reports concrete failure cases for final-text detectors rather than broad claims about authenticity.

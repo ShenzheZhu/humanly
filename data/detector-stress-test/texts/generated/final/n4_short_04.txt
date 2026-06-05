@@ -1,0 +1,7 @@
+Final-text AI detection is too blunt for real writing policies. A student might write every sentence and use AI only for grammar, while another person might submit a model-written draft that sounds natural. The finished text can look similar in both cases.
+
+Process evidence is more useful because it shows how the work was made. If the trace records typing, paste events, revisions, and allowed AI polish, the policy judgment can focus on behavior instead of style. The practical takeaway is simple: use detectors cautiously, and rely on writing-process evidence when the policy itself is about process.
+
+Final-text AI detection is too blunt for real writing policies. A student might write every sentence and use AI only for grammar, while another person might submit a model-written draft that sounds natural. The finished text can look similar in both cases.
+
+Process evidence is more useful because it shows how the work was made. If the trace records typing, paste events, revisions, and allowed AI polish, the policy judgment can focus on behavior instead of style. The practical takeaway is simple: use detectors cautiously, and rely on writing-process evidence when the policy itself is about process.

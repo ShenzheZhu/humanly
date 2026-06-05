@@ -1,0 +1,35 @@
+Summary: The paper presents an approach, the Neural Answer Construction Model, for the task of answering non-factoid questions, in particular, love-advice questions. The two main features of the proposed model are the following: 1) it incorporates the semantic biases behind questions into word embeddings, and 2) in addition to optimizing for closeness between questions and answers, it also optimizes for the optimal combination of sentences in the predicted answer. The proposed model is evaluated using a dataset from a Japanese online QA service and is shown to outperform the baseline model (Tan et al. 2015) by 20% relatively (6% absolutely). The paper also experiments with a few other baseline models (ablations of the proposed model).
+
+Strengths:
+
+1. The two motivations behind the proposed approach—the need to understand the ambiguous use of words depending on context, and the need to generate new answers rather than just selecting from answers held by QA sites—are reasonable.
+
+2. The novelty in the paper involves the following: 1) incorporating the semantic biases behind questions into word embeddings using a paragraph2vec-like model, modified to take as inputs words from questions, a question title token, and a question category token; 2) modeling the optimal combination of sentences (conclusion and supplement sentences) in the predicted answer; 3) designing an abstract scenario for answers, inspired by the automated web-service composition framework (Rao & Su, 2005); and 4) extracting important topics in the conclusion sentence and emphasizing them in the supplemental sentence using an attention mechanism (the attention mechanism is similar to Tan et al. 2016).
+
+3. The proposed method is shown to outperform the current best method (Tan et al. 2015) by 20% relatively (6% absolutely), which seems to be a significant improvement.
+
+4. The paper presents a few ablation studies that provide insights into how much different components of the model, such as incorporating biases into word embeddings and incorporating attention from the conclusion to the supplement, contribute to performance improvement.
+
+Weaknesses/Suggestions/Questions:
+
+1. How are the abstract patterns determined, i.e., how did the authors determine that the answers to love-advice questions generally consist of sympathy, conclusion, supplement for the conclusion, and encouragement? How much is the improvement in performance when using abstract patterns compared to the case where these patterns are not used, i.e., when candidate answers are picked from the union of all corpora rather than from their respective corpora (corpora for sympathy, conclusion, etc.)?
+
+2. It seems that the abstract patterns are specific to the type of question. Thus, the abstract patterns for love advice will be different from those for business advice. It therefore seems that the abstract patterns need to be hand-coded for different types, and hence one model cannot generalize across different types.
+
+3. The paper should present an explicit analysis of how much combinational optimization between sentences helps—a comparison between model performance with and without combinational optimization, keeping the rest of the model architecture the same. The authors could also plot the accuracy of the model as a function of the combinational optimization scores. This would provide insights into how significant the combinational optimization scores are for overall model accuracy.
+
+4. The paper says that current systems designed for non-factoid QA cannot generalize to questions outside those stored in QA sites and claims that this is one of the contributions of this paper. To ground that claim, the paper should show experimentally how well the proposed method generalizes to such out-of-domain questions. Although the questions asked by human experts in the human evaluation were not from the evaluation datasets, the paper should analyze how different those questions were from the questions present in the evaluation datasets.
+
+5. For the human evaluation, were the outputs of the proposed model and those of the QA-LSTM model each judged by both human experts, or did one human expert judge the outputs of one system and the other human expert judge the outputs of the other system? If both sets of outputs were each judged by both human experts, how were the ratings of the two experts combined for each question?
+
+6. I wonder why the authors did not do a human evaluation where they simply ask human workers (not experts) to compare the output of the proposed model with that of the QA-LSTM model—which of the two outputs they would like to hear when asking for advice. Such an evaluation would not be biased by whether each sentence is good or not, or whether the combination is good or not. Looking at the qualitative examples in Table 4, I personally like the output of the QA-LSTM more than that of the proposed model because it seems to provide a more direct answer to the question. For example, in the first example, the output of the QA-LSTM says, “You should wait until you feel excited,” whereas the output of the proposed model says, “It is better to concentrate on how to confess your love to her,” which seems a bit indirect for the question asked.
+
+7. Given a question, is the ground-truth answer different in the two tasks—answer selection and answer construction?
+
+8. The paper mentions that Attentive LSTM (Tan et al. 2016) is evaluated as the current best answer selection method (Section 5.2). So why is its accuracy lower than that of QA-LSTM in Table 1? The authors explain this by pointing out the issue of questions being very long compared to answers and hence the attention being noisy. But did these issues not exist in the dataset used by Tan et al. 2016?
+
+9. The paper says the proposed method achieves a 20% gain over the current best method (in the Conclusion section), where the authors refer to QA-LSTM as the current best method. However, in the description of Attentive LSTM (Section 5.2), the paper mentions that Attentive LSTM is the current best method. Could the authors please clarify this discrepancy?
+
+10. Minor correction: remove the space between 20 and % in the abstract.
+
+Review Summary: The problem of non-factoid QA addressed in the paper is interesting and useful. The motivations presented in the paper behind the proposed approach are reasonable. The experiments show that the proposed model outperforms the baseline model. However, the use of abstract patterns to determine the answer seems like hand-designing, and it therefore seems that these abstract patterns need to be designed for every other type of non-factoid question. Hence, the proposed approach does not appear to be generalizable to other types. Also, the paper needs more analysis of the results to provide insights into the contributions of different model components.

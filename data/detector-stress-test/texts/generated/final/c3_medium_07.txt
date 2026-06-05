@@ -1,0 +1,45 @@
+This learning resource is a lesson originally created as teaching material for the learning project Direction and Management of Projects and Information Systems. One of the fundamental aspects of project management is organizing the work team that will carry it forward. In this lesson we talk about the formation of these teams and the complex task of directing them.
+
+Introduction
+
+There are various possible structures that can be used to shape the team. Mantei, Weinberg, and Baker are some of the theorists who have addressed these questions, and who have compared the different structures with one another in order to check their effectiveness in different situations. In the following sections we break down some of their most common elements.
+
+The team leader
+
+The head of a work team is a very important figure because this is the person who should lead the group. This person organizes the work to be done and distributes it among the members, encourages and motivates them to work, solves high-level problems, and takes responsibility for the team and the task to be carried out.
+
+When the leader has a good work strategy and is able to organize the group and keep its members motivated, he or she can lead the team in the right direction so that it can complete its work effectively. The leader/head will provide a “why” it has to be done, and the team will provide a “how” it should be done.
+
+Leadership
+
+Leadership is the ability to meet the proposed objectives by directing the team. True leadership consists of a relationship established between the head of the team and the other members, not an “innate talent” of the leader. Its success consists of achieving results with the collaboration of others, so it is not a one-way relationship, but rather a relationship of trust that really works in both directions.
+
+Characteristics of a good leader
+
+A good leader has his or her own characteristics in addition to characteristics as a professional. A good computer specialist is not necessarily a good team leader. We will see, among others:
+
+Leadership styles
+
+A leadership style is the method through which a leader directs, organizes, and motivates people.
+
+Encouraging achievements
+
+This is the ability to optimize a team’s productivity by rewarding initiative and achievements. In addition to financial incentives, there are other forms of motivation. For example, flexible working hours make it possible to reconcile personal, work, and family life. A continuous working day makes it possible to enjoy more leisure time. The choice of days off and holidays helps employees with children select days that coincide with school holidays. Other ways of providing incentives are recognizing achievements so that workers feel their effort is worthwhile, and a good atmosphere that encourages collaboration and trust at work.
+
+Conclusions
+
+Both the head of the team and the other project roles/workers must be properly motivated, and have the appropriate aptitudes and attitudes to develop the project. There are some “good practices” for this, which we can summarize by saying that it is necessary to “lead” more and “command” less.
+
+An interesting analysis is to check how each of the team members deals with change, according to his or her personality, since there are different typologies and aspects of the person are studied, such as emotional intelligence or social skills.
+
+References
+
+Active participants
+
+Active participants in this learning group and involved in the development of this lesson:
+
+Category: Learning resources
+
+Category: Lessons
+
+Category: Computing

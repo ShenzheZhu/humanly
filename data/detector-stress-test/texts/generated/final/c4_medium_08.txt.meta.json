@@ -1,0 +1,7 @@
+{
+  "sample_id": "c4_medium_08",
+  "case_id": "C4",
+  "generation_mode": "synthetic_proxy",
+  "generated_at_utc": "2026-06-04T16:08:55.977Z",
+  "notes": "Offline synthetic proxy for exercising the C4 pipeline. This is not human-origin and must not be used as paper-ready C4 evidence."
+}

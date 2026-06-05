@@ -1,0 +1,203 @@
+{
+  "generated_at_utc": "2026-06-05T18:14:45.132Z",
+  "files": {
+    "humanSeeds": {
+      "path": "human-seeds.csv",
+      "exists": true
+    },
+    "translationSeeds": {
+      "path": "translation-seeds.csv",
+      "exists": true
+    },
+    "generatedSamples": {
+      "path": "generated-samples.csv",
+      "exists": true
+    },
+    "proxySamples": {
+      "path": "samples-generated-proxy.csv",
+      "exists": true
+    },
+    "pilotProxySamples": {
+      "path": "samples-generated-pilot-proxy.csv",
+      "exists": true
+    },
+    "generationJobs": {
+      "path": "case-generation-jobs.jsonl",
+      "exists": true
+    },
+    "generationResults": {
+      "path": "case-generation-job-results.csv",
+      "exists": true
+    },
+    "detectorOutputs": {
+      "path": "detector_outputs_local_heuristic_proxy.csv",
+      "exists": true
+    },
+    "confusion": {
+      "path": "confusion_by_case_local_heuristic_proxy.csv",
+      "exists": true
+    },
+    "aggregatedConfusion": {
+      "path": "confusion_by_case_aggregated.csv",
+      "exists": true
+    },
+    "pangramDashboardOutputs": {
+      "path": "detector_outputs_pangram_free_dashboard_smoke.csv",
+      "exists": true,
+      "optional": true
+    },
+    "copyleaksDashboardOutputs": {
+      "path": "detector_outputs_copyleaks_free_dashboard_smoke.csv",
+      "exists": true,
+      "optional": true
+    },
+    "gptzeroDashboardOutputs": {
+      "path": "detector_outputs_gptzero_free_dashboard_smoke.csv",
+      "exists": true,
+      "optional": true
+    },
+    "combinedDashboardSamples": {
+      "path": "samples-dashboard-smoke-combined.csv",
+      "exists": true,
+      "optional": true
+    },
+    "combinedDashboardOutputs": {
+      "path": "detector_outputs_dashboard_smoke_combined.csv",
+      "exists": true,
+      "optional": true
+    },
+    "combinedDashboardConfusion": {
+      "path": "confusion_by_case_dashboard_smoke_combined.csv",
+      "exists": true,
+      "optional": true
+    },
+    "detectorCoverageSummary": {
+      "path": "detector-coverage-summary.csv",
+      "exists": true,
+      "optional": true
+    },
+    "paperReadyGateAudit": {
+      "path": "paper-ready-gate-audit.json",
+      "exists": true,
+      "optional": true
+    },
+    "detectorRunPackPilotManifest": {
+      "path": "detector-run-pack-pilot-manifest.csv",
+      "exists": true,
+      "optional": true
+    },
+    "detectorRunPackPilotQueue": {
+      "path": "detector-run-pack-pilot-queue.csv",
+      "exists": true,
+      "optional": true
+    },
+    "detectorRunPackMainQueue": {
+      "path": "detector-run-pack-main-queue.csv",
+      "exists": true,
+      "optional": true
+    },
+    "detectorRunPackSummary": {
+      "path": "detector-run-pack-summary.json",
+      "exists": true,
+      "optional": true
+    },
+    "c4HumanCollectionManifest": {
+      "path": "c4-human-collection-manifest.csv",
+      "exists": true,
+      "optional": true
+    },
+    "n4HumanEditManifest": {
+      "path": "n4-human-edit-manifest.csv",
+      "exists": true,
+      "optional": true
+    },
+    "detectorVendorCostEstimate": {
+      "path": "detector-vendor-cost-estimate.csv",
+      "exists": true,
+      "optional": true
+    },
+    "prolificC4WritingItems": {
+      "path": "prolific/c4-writing-items.csv",
+      "exists": true,
+      "optional": true
+    },
+    "prolificC4WritingBudget": {
+      "path": "prolific/c4-writing-budget-estimate.csv",
+      "exists": true,
+      "optional": true
+    },
+    "prolificN4EditingItems": {
+      "path": "prolific/n4-editing-items.csv",
+      "exists": true,
+      "optional": true
+    },
+    "prolificN4EditingBudget": {
+      "path": "prolific/n4-editing-budget-estimate.csv",
+      "exists": true,
+      "optional": true
+    }
+  },
+  "counts": {
+    "humanSeeds": 30,
+    "translationSeeds": 30,
+    "generatedSamples": 240,
+    "proxySamples": 240,
+    "pilotProxySamples": 24,
+    "generationJobs": 180,
+    "generationResults": 180,
+    "detectorOutputs": 240,
+    "confusionRows": 24,
+    "aggregatedConfusionRows": 24,
+    "pangramDashboardOutputs": 4,
+    "copyleaksDashboardOutputs": 5,
+    "gptzeroDashboardOutputs": 1,
+    "combinedDashboardSamples": 5,
+    "combinedDashboardOutputs": 10,
+    "combinedDashboardConfusionRows": 15,
+    "detectorCoverageSummaryRows": 72,
+    "paperReadyGateStatus": "not_ready",
+    "detectorRunPackPilotManifestRows": 24,
+    "detectorRunPackPilotQueueRows": 72,
+    "detectorRunPackMainQueueRows": 720,
+    "detectorRunPackSummaryGeneratedAt": "2026-06-05T05:23:06.770Z",
+    "c4HumanCollectionManifestRows": 30,
+    "n4HumanEditManifestRows": 30,
+    "detectorVendorCostEstimateRows": 9,
+    "prolificC4WritingItemRows": 30,
+    "prolificC4WritingBudgetRows": 3,
+    "prolificN4EditingItemRows": 30,
+    "prolificN4EditingBudgetRows": 3,
+    "generatedByCase": {
+      "C1": 30,
+      "C2": 30,
+      "C3": 30,
+      "C4": 30,
+      "N1": 30,
+      "N2": 30,
+      "N3": 30,
+      "N4": 30
+    },
+    "generatedByLength": {
+      "short": 80,
+      "medium": 80,
+      "long": 80
+    },
+    "generatedByStatus": {
+      "ready": 180,
+      "synthetic_proxy_ready": 60
+    },
+    "generatedByPolicy": {
+      "compliant": 90,
+      "compliant_proxy": 30,
+      "non_compliant": 120
+    },
+    "generatedByOrigin": {
+      "human_origin": 90,
+      "synthetic_proxy_origin": 30,
+      "ai_origin": 90,
+      "mixed_ai_origin": 30
+    }
+  },
+  "issues": [],
+  "status": "pass"
+}

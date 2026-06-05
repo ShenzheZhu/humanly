@@ -1,0 +1,17 @@
+Seed-derived task card
+Matched set: medium_assignment_process_001_set08
+Length bucket: medium
+Task type: student_assignment_response
+Source seed: medium_wikiversity_broaden_build_2016_008
+Source title: Motivation and emotion/Book/2016/Broaden-and-build theory of positive emotions
+Derived assignment topic: Broaden-and-build theory of positive emotions
+Source URL: https://en.wikiversity.org/w/index.php?oldid=1630905
+Source excerpt for topic grounding:
+Overview Positive emotions enable us to achieve higher functioning. Happiness is not only the result of hard work and success, but it is also present before we experience our greatest achievements or moments of higher functioning. Positive emotions build an individual's long-term psychological, intellectual, social and physical well-being and resources (Fredrickson, 2004). Positive emotions are the building blocks for people to become the best version of themselves, helping them to learn, grow, thrive and hold a higher level of life satisfaction. To help support and understand the effect positive emotions have in a person's life, Barbara Fredrickson developed a theory which explains how people's minds are broadened through experiencing positive emotions. The Broaden-and-Build Theory of Positive Emotions suggests that positive emotions broaden a person's awareness and encourage exploratory thoughts and actions. In light of the discoveries made by Fredrickson and
+
+Task:
+Write an original university assignment response about Broaden-and-build theory of positive emotions. Explain the concept in plain language, connect it to motivation, emotion, learning, behavior, or decision-making when relevant, include one concrete example, and state why the topic matters. Do not copy phrases from the source seed or present the response as a summary of the seed.
+
+Target length: 400-600 words.
+
+Use a polished, coherent style. Do not include headings, bullet points, meta-commentary, citations, or notes about how the response was written. Return only the final response.

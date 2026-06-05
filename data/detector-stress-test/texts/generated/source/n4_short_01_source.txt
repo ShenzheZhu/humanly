@@ -1,0 +1,17 @@
+Seed-derived task card
+Matched set: short_social_process_001_set01
+Length bucket: short
+Task type: social_media_post
+Source seed: short_reddit_finished_first_novel_2014_001
+Source title: Today, at 9:09PM, November 17th, I finished the first draft of my first novel. I'm fourteen, it's unreadable crap, but I couldn't be any prouder. Any advice?
+Source note: Pre-2017 social-media self-post about finishing a first novel draft.
+Source URL: https://old.reddit.com/r/writing/comments/2mmh3m/today_at_909pm_november_17th_i_finished_the_first/
+Source excerpt for topic grounding:
+I've always loved writing and reading. In fact, I wrote my first short story when I was four year old. It was about a space man who goes out into space and "thought" all the animals. (Forgive me, four year old me actually knew how to spell "fought" but he thought "thoughting" animals was cooler) Anyways, today I finished the first draft of my first book (384 pages!!!). It is a sci-fi, dystopian novel that can be described as if all the cliches from every piece of YA fiction gathered in a room, shat in a bucket, and then sprinkled it it with some magical purple prose powder that made
+
+Task:
+Write an original first-person social-media self-post about the same writing-related topic or situation as the source seed. Preserve the broad topic, emotional stance, and practical concern, but do not summarize the source, copy its wording, mention the source, or refer to this task card.
+
+Target length: 120-180 words.
+
+Use a polished, coherent style. Do not include headings, bullet points, meta-commentary, citations, or notes about how the response was written. Return only the final response.
