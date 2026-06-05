@@ -1,4 +1,4 @@
-ai_draft_to_edit,META_sample_id,META_case_id,META_length_bucket,META_task_type,META_prompt_id,META_matched_set_id,META_ai_prompt_path,META_ai_draft_path,META_editor_input_path,META_final_text_path,META_TASK_GROUP_ID
+Draft,META_sample_id,META_case_id,META_length_bucket,META_task_type,META_prompt_id,META_matched_set_id,META_ai_prompt_path,META_ai_draft_path,META_editor_input_path,META_final_text_path,META_TASK_GROUP_ID
 "I just typed “The End” on the first draft of my first novel, and I’m still kind of staring at the screen like it might disappear if I blink.
 
 I’m fifteen, and I started this thing last year because I had a cool idea and absolutely no understanding of pacing, character arcs, or how many times one person can “smirk” in a chapter before it becomes a crime. It’s a fantasy/sci-fi mess with too many dramatic speeches, a villain who changes motivations every hundred pages, and at least three plot twists I’m pretty sure make no sense.

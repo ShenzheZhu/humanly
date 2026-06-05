@@ -12,16 +12,16 @@ drafts did not deduct funds.
 
 The same three draft study IDs were updated in place to use replacement batches
 with participant-facing names and simplified task display. The visible left-side
-task data now contains only one field: `ai_draft_to_edit`. All sample mapping
+task data now contains only one field: `Draft`. All sample mapping
 fields are stored as `META_` metadata.
 
 ## Draft Studies
 
 | Arm | Participant-facing study name | Study ID | Current batch ID | Dataset rows | Batch tasks | Task groups | Places | Reward | Prolific total cost |
 | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| short | Lightly edit a short AI-written draft | `6a233d71c5d393fbc762e3f7` | `019e99b1-d894-714d-b692-1037f2459ae1` | 10 | 10 | 10 | 10 | $1.60 | $21.33 |
-| medium | Lightly edit a medium-length AI-written draft | `6a233d8eecaffc2bbd69bc85` | `019e99b2-9d4d-776f-a7b9-32e1259254a8` | 10 | 10 | 10 | 10 | $3.60 | $48.00 |
-| long | Lightly edit a long AI-written draft | `6a233d9b2269b8ab2047272c` | `019e99b2-d8ac-7560-bd99-86b084e13502` | 10 | 10 | 10 | 10 | $10.00 | $133.33 |
+| short | Lightly edit a short AI-written draft | `6a233d71c5d393fbc762e3f7` | `019e99b9-5522-7345-8b55-5ce20a7f419f` | 10 | 10 | 10 | 10 | $1.60 | $21.33 |
+| medium | Lightly edit a medium-length AI-written draft | `6a233d8eecaffc2bbd69bc85` | `019e99b9-8af7-776b-ac51-92100004b740` | 10 | 10 | 10 | 10 | $3.60 | $48.00 |
+| long | Lightly edit a long AI-written draft | `6a233d9b2269b8ab2047272c` | `019e99b9-b5df-7650-8053-21445e034a79` | 10 | 10 | 10 | 10 | $10.00 | $133.33 |
 
 ## Participant Task Wording
 

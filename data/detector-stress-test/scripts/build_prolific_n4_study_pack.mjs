@@ -244,7 +244,7 @@ for (const row of manifestRows) {
 }
 
 const atbColumns = [
-  "ai_draft_to_edit",
+  "Draft",
   "META_sample_id",
   "META_case_id",
   "META_length_bucket",
@@ -264,7 +264,7 @@ const atbRowsByBucket = new Map(
     itemRows
       .filter((row) => row.length_bucket === lengthBucket)
       .map((row) => ({
-        ai_draft_to_edit: row.ai_draft_text,
+        Draft: row.ai_draft_text,
         META_sample_id: row.sample_id,
         META_case_id: row.META_case_id,
         META_length_bucket: row.length_bucket,
@@ -388,7 +388,7 @@ later made light local edits.
   instructions for a Prolific external-link study.
 - \`prolific/n4-atb-{short,medium,long}-items.csv\`: AI Task Builder Batch
   dataset CSVs, one row per task and one task per participant. The only
-  participant-visible data column is \`ai_draft_to_edit\`; all sample mapping
+  participant-visible data column is \`Draft\`; all sample mapping
   fields use the \`META_\` prefix.
 - \`prolific/n4-atb-{short,medium,long}-payloads.json\`: payload templates for
   creating unpublished Prolific draft studies.
