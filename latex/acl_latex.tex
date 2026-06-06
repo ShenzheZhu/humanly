@@ -166,7 +166,7 @@ Writers compose in a Lexical-based editor shared by personal documents and assig
 \vspace{0.5em}
 
 \paragraph{Process Capture.}
-During drafting, the capture layer records text changes, clipboard actions, selection, focus, blur, formatting, and AI events (Figure~\ref{fig:log-surface}). Selection-level AI logs store action type, original text, suggestion, and accept/reject decision. Chat logs store document context, model metadata, messages, and tool traces. External forms use the same event schema through a JavaScript tracker.
+During drafting, the capture layer records text changes, clipboard actions, selection, focus, blur, formatting, and AI events (Figure~\ref{fig:log-surface}). Selection-level AI logs store action type, original text, suggestion, and accept/reject decision. Chat logs store document context, model metadata, messages, and tool traces. A JavaScript tracker exposes the same event schema to external forms.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -177,10 +177,10 @@ During drafting, the capture layer records text changes, clipboard actions, sele
 \vspace{0.5em}
 
 \paragraph{Evidence Store.}
-The backend stores snapshots, event streams, enrollments, submissions, files, AI sessions, AI actions, and certificates. PostgreSQL/TimescaleDB handles high-frequency events. Redis backs jobs and caching; WebSocket channels carry live updates. These records produce logs, timelines, typed/pasted statistics, AI-use statistics, and replay data.
+The backend stores snapshots, event streams, enrollments, submissions, files, AI sessions, AI actions, and certificates. PostgreSQL/TimescaleDB handles high-frequency events; Redis backs jobs and caching; WebSocket channels carry live updates. Stored records drive logs, timelines, typed/pasted statistics, AI-use statistics, and replay data.
 
 \paragraph{Certificate and Verification.}
-Before certificate generation or task submission, Humanly flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate binds final text to event counts, typed/pasted and editing metrics, AI-use metrics, a verification token, and a signed payload. Readers inspect a PDF or JSON certificate and any permitted replay/logs.
+Before certificate generation or task submission, Humanly flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate binds final text to event counts, typed/pasted and editing metrics, AI-use metrics, a verification token, and a signed payload. Readers inspect the PDF or JSON certificate and any permitted replay/logs.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
