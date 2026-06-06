@@ -55,15 +55,15 @@
 \maketitle
 
 \begin{abstract}
-The same final text can result from sustained drafting, AI polish, translation, or generated text moved into an editor. We present \textsc{Humanly}, a deployed platform that records writing under an explicit policy. Writers or task owners configure AI access, paste rules, length, time, and guest submission. While drafting, Humanly captures typing, paste, focus, selection, and in-platform AI events. It packages the final text with metrics, logs, replay, PDF/JSON exports, and public verification. Personal writing, assigned tasks, public links, guest submissions, and peer review share this flow. A 240-sample stress test shows that GPTZero and Pangram catch most prohibited generation but falsely flag at least one quarter of compliant cases. The live system is available at \url{https://app.writehumanly.net/}.
+The same final text can result from sustained drafting, AI polish, translation, or generated text moved into an editor. We present \textsc{Humanly}, a deployed platform that records writing under an explicit policy. Writers or task owners configure AI access, paste rules, length, time, and guest-submission rules. While drafting, Humanly captures typing, paste, focus, selection, and in-platform AI events. It packages the final text with metrics, logs, replay, PDF/JSON exports, and public verification. Personal writing, assigned tasks, public links, guest submissions, and peer review use this pipeline. A 240-sample stress test shows that GPTZero and Pangram catch most disallowed generation but falsely flag at least one quarter of compliant cases. The live system is available at \url{https://app.writehumanly.net/}.
 \end{abstract}
 
 \section{Introduction}
 \label{sec:intro}
 
-Academic assignments, peer review, and writing certificates often turn on process, not text alone. Similar submissions may reflect sustained drafting, grammar-only AI polish, machine translation, chat-based explanation, or generated text moved into an editor.
+Academic assignments, peer review, and authenticity certification often turn on process, not text alone. Similar submissions may reflect sustained drafting, grammar-only AI polish, machine translation, chat-based explanation, or generated text moved into an editor.
 
-Post-hoc detectors answer a narrower question: whether the submitted text resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. This helps when a policy bans generation and the output is mostly machine-written. Mixed workflows break that assumption. Human prose may be wrongly flagged, especially when style differs from detector training assumptions \citep{liang2023gpt}; generated prose can be rewritten, translated, humanized, or prompted to sound human. A detector score alone cannot determine policy compliance.
+Post-hoc detectors answer a narrower question: whether the submitted text resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. That evidence is useful when a policy bans generation and the output is mostly machine-written. Mixed workflows break the assumption. Human prose may be wrongly flagged, especially when style differs from detector training assumptions \citep{liang2023gpt}; generated prose can be rewritten, translated, humanized, or prompted to sound human. A detector score alone cannot determine policy compliance.
 
 Replay tools expose document history but usually depend on a host editor or assignment platform. They reconstruct edits or label source categories, while task policy, AI-assistant actions, metrics, replay, and verification often remain separate. Instructors, program chairs, and readers must reconcile separate artifacts rather than inspect one policy-bound record.
 
