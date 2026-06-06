@@ -61,13 +61,13 @@ Final text alone cannot show whether a writer drafted, polished with AI, transla
 \section{Introduction}
 \label{sec:intro}
 
-Academic assignments, peer review, and authenticity certification depend on production history. The relevant distinction is whether a writer drafted, polished, translated, consulted AI, or imported generated text. Final text often cannot answer.
+Authenticity disputes in assignments, peer review, and certification are disputes about production history: who wrote what, which tools were used, and what policy governed that use. Final text alone is weak evidence for that question.
 
 Post-hoc detectors score whether submitted text resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. They help when generation is banned and violations are machine-written. Mixed workflows break that assumption: human prose may be flagged when style differs from detector training data \citep{liang2023gpt}, while generated prose can be rewritten, translated, or humanized. A detector score is not a policy record.
 
-Document-replay tools add history, but policy, AI-assistant actions, metrics, replay, and verification often remain separate. Readers must reconcile artifacts instead of inspecting one policy-bound record.
+Document-replay tools add edit history, but policy, AI-assistant actions, metrics, replay, and verification often remain separate artifacts. Readers must reconstruct the policy record themselves.
 
-\textsc{Humanly} makes policy-bound provenance explicit. Policy is set before writing; human and in-platform AI actions are recorded during drafting; certificates expose logs, replay, metrics, and verification after drafting. The same record spans personal, assigned, public-link, guest, and peer-review workflows.
+\textsc{Humanly} records policy-bound provenance directly. Policy is set before writing; human and in-platform AI actions are recorded during drafting; certificates expose logs, replay, metrics, and verification after drafting. The same record spans personal, assigned, public-link, guest, and peer-review workflows.
 
 Three constraints guide the design: policy precedes drafting, AI assistance stays inside the recorded workspace, and readers inspect one evidence package rather than separate logs, scores, and exports.
 
