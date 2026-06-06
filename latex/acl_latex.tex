@@ -55,7 +55,7 @@
 \maketitle
 
 \begin{abstract}
-Final text alone cannot distinguish sustained drafting from AI polish, translation, or imported generation. \textsc{Humanly} is a deployed writing platform that records process evidence under task policy. Policies specify AI access, paste, length, time, and guest rules before writing begins. The editor then records typing, paste, focus, selection, and in-platform AI actions. PDF/JSON certificates bind final text to metrics, logs, replay, and public verification links across personal writing, assigned tasks, public links, guest submissions, and peer review. In a 240-sample stress test, GPTZero and Pangram detect most disallowed generation but mark 25--27\% of compliant cases as suspicious. The live system is available at \url{https://app.writehumanly.net/}.
+Final text alone cannot distinguish sustained drafting from AI polish, translation, or text generated elsewhere. \textsc{Humanly} is a deployed writing platform that records process evidence under task policy. Policies specify AI access, paste, length, time, and guest rules before writing begins. The editor then records typing, paste, focus, selection, and in-platform AI actions. PDF/JSON certificates bind final text to metrics, logs, replay, and public verification links across personal writing, assigned tasks, public links, guest submissions, and peer review. In a 240-sample stress test, GPTZero and Pangram detect most disallowed generation but mark 25--27\% of compliant cases as suspicious. The live system is available at \url{https://app.writehumanly.net/}.
 \end{abstract}
 
 \section{Introduction}
@@ -77,7 +77,7 @@ We present:
 \begin{enumerate}
   \item a controlled editor that enforces task policy while recording human and AI actions;
   \item task flows for personal writing, assigned work, public links, guest submissions, and peer review;
-  \item certificate and replay artifacts that expose writing statistics, AI-use records, logs, and verification;
+  \item certificate and replay artifacts that report writing statistics, AI-use records, logs, and verification;
   \item a 240-sample stress test showing where final-text predictors fail under policy labels.
 \end{enumerate}
 
@@ -201,7 +201,7 @@ Peer review is policy-sensitive: reviewers may use AI for grammar or document un
 
 \subsection{Classroom Writing Assignments}
 
-Instructors assign writing tasks, distribute invite codes or public links, and review submissions with timelines, AI logs, metrics, and certificates.
+Instructors assign writing tasks, distribute invite codes or public links, and review submissions with timelines, AI logs, metrics, and certificates. The workflow gives both sides a shared record of the assigned policy and the submitted process.
 
 \subsection{Personal Writing Certification}
 
@@ -222,7 +222,7 @@ Final text collapses different histories. A human draft polished by AI, a human 
 
 Process and replay tools move beyond detector scores by reconstructing document history. Turnitin Clarity combines assignments, writing reports, and AI-assistance visibility \citep{turnitin2026clarity}. Grammarly Authorship labels typed, pasted, AI-generated, AI-rephrased, and Grammarly-edited text across supported writing surfaces \citep{grammarly2026authorship}. GPTZero Writing Reports combine AI review, detection, and Google Docs process evidence \citep{gptzero2026writingreport,gptzero2026turnitinbrisk}. Draftback, Brisk Inspect Writing, Integrito, WritingTrace, and PaperTrail Inspect derive timelines from Google Docs data \citep{draftback2026replay,brisk2025inspectwriting,integrito2026activityreport,writingtrace2026,papertrail2026inspect}.
 
-The comparison turns on scope. Some tools reconstruct edits; some label text origins; some support assigned tasks. Humanly combines configurable policy, native AI logs, assigned-task enrollment, replay, and certificate analytics in one controlled workspace. Table~\ref{tab:feature-comparison} compares these requirements. A partial mark denotes support only in a narrower context, such as a Google Docs extension or an assignment-specific report.
+Table~\ref{tab:feature-comparison} compares systems by environment, governance, capture, and evidence. Some tools reconstruct edits; some label text origins; some support assigned tasks. Humanly combines configurable policy, native AI logs, assigned-task enrollment, replay, and certificate analytics in one controlled workspace. A partial mark denotes support only in a narrower context, such as a Google Docs extension or an assignment-specific report.
 
 \begin{table*}[t]
 \small
@@ -286,7 +286,7 @@ Pangram \citep{pangram2026detector} & 0.4542 & 0.8667 & 0.2500 & 0.0167 \\
 \label{tab:detector-results}
 \end{table}
 
-Table~\ref{tab:detector-results} separates document-class and policy errors. Opus 4.8 assigns the correct three-class label to 82/240 samples and misses many disallowed AI-origin cases. GPTZero and Pangram are policy-correct on 205/240 and 208/240 samples, missing only 3 and 2 of 120 non-compliant samples. Their main error is false positives: 32 and 30 of 120 compliant samples are marked suspicious. This includes all 30 C4 samples, where humans intentionally write in an AI-like style. Final-text predictors can flag many AI-origin documents, but they cannot verify policy compliance.
+Table~\ref{tab:detector-results} separates document-class and policy errors. Opus 4.8 assigns the correct three-class label to 82/240 samples and misses many disallowed AI-origin cases. GPTZero and Pangram are policy-correct on 205/240 and 208/240 samples, missing only 3 and 2 of 120 non-compliant samples. Their main error is false positives: 32 and 30 of 120 compliant samples are marked suspicious. All 30 C4 samples, where humans intentionally write in an AI-like style, fall into this error class. Final-text predictors can flag many AI-origin documents, but they cannot verify policy compliance.
 
 \subsection{Human Study}
 \label{sec:study}
@@ -330,7 +330,7 @@ Study prompts avoid sensitive topics, process recording is disclosed, and person
 \section{Conclusion}
 \label{sec:conclusion}
 
-\textsc{Humanly} treats writing authenticity as a question of policy and recorded process. Its tracked editor, AI policy controls, assigned-task flow, and certificates expose how a draft was produced. The stress test shows why final text is insufficient: GPTZero and Pangram detect most non-compliant generation yet flag many compliant cases, while Opus 4.8 misses many policy violations. Humanly does not replace judgment; it gives reviewers the process record behind the text.
+\textsc{Humanly} treats writing authenticity as a question of policy and recorded process. Its tracked editor, AI policy controls, assigned-task flow, and certificates show how a draft was produced. The stress test shows why final text is insufficient: GPTZero and Pangram detect most non-compliant generation yet flag many compliant cases, while Opus 4.8 misses many policy violations. Humanly does not replace judgment; it gives reviewers the process record behind the text.
 
 % Bibliography entries for the entire Anthology, followed by custom entries
 %\bibliography{anthology,custom}
