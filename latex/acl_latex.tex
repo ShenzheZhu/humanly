@@ -55,7 +55,7 @@
 \maketitle
 
 \begin{abstract}
-Final text alone cannot distinguish sustained drafting from AI polish, translation, or imported generation. \textsc{Humanly} is a deployed writing platform that records process evidence under task policy. Before writing, policies define AI access, paste rules, length and time limits, and guest access. During writing, the editor records typing, paste, focus, selection, and in-platform AI actions. PDF/JSON certificates bind final text to metrics, logs, replay, and public verification across personal, assigned, public-link, guest, and peer-review workflows. In a 240-sample stress test, GPTZero and Pangram detect most disallowed generation but mark 25--27\% of compliant cases as suspicious. The live system is available at \url{https://app.writehumanly.net/}.
+Final text alone cannot show whether a writer drafted, polished with AI, translated with AI, or imported generated prose. We present \textsc{Humanly}, a deployed writing platform for policy-bound process evidence. Task owners configure AI access, paste rules, time and length limits, and guest access before drafting. The editor records typing, paste, focus, selection, and in-platform AI actions; certificates package the final text with metrics, logs, replay, and public verification. Humanly supports personal writing, assigned tasks, public links, guest submissions, and peer review. In a 240-sample stress test, GPTZero and Pangram detect most disallowed generation but mark 25--27\% of compliant cases as suspicious, motivating process evidence alongside final-text scoring. The live system is available at \url{https://app.writehumanly.net/}.
 \end{abstract}
 
 \section{Introduction}
@@ -330,7 +330,7 @@ Study prompts avoid sensitive topics, process recording is disclosed, and person
 \section{Conclusion}
 \label{sec:conclusion}
 
-\textsc{Humanly} treats writing authenticity as policy and process. Its editor, AI controls, task flow, and certificates show how a draft was produced. The stress test shows why final text is insufficient: GPTZero and Pangram detect most non-compliant generation yet flag many compliant cases, while Opus 4.8 misses many policy violations. Humanly does not replace judgment; it gives reviewers the process record behind the text.
+\textsc{Humanly} shifts writing-authenticity review from final-text scoring to policy-bound process evidence. It records writer and in-platform AI actions under configured task policies and packages them as certificates, logs, and replay. The stress test shows the need: GPTZero and Pangram catch most non-compliant generation but flag many compliant samples, while Opus 4.8 misses many policy violations. Humanly does not automate judgment; it gives reviewers the process record needed to make one.
 
 % Bibliography entries for the entire Anthology, followed by custom entries
 %\bibliography{anthology,custom}
