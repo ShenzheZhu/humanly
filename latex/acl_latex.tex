@@ -69,11 +69,10 @@ Document-replay tools add edit history, but they rarely make the policy record e
 
 \textsc{Humanly} records policy-bound provenance directly. Policy is set before writing; human and in-platform AI actions are recorded during drafting; certificates expose logs, replay, metrics, and verification after drafting. The same record spans personal, assigned, public-link, guest, and peer-review workflows.
 
-\textsc{Humanly} has been designed, developed, and deployed around two goals (Figure~\ref{fig:workflow}):
-\begin{enumerate}
-  \item \textbf{High flexibility and compatibility.} Humanly supports multiple writing environments rather than a single fixed policy. Personal writers and task owners can configure resources, AI access, paste rules, time and length limits, guest access, and submission mode. Across those settings, Humanly supports personal writing, assigned tasks, public links, guest submissions, and peer review, with AI access ranging from no AI to polish-only, chat-only, and full assistance.
-  \item \textbf{High accountability and transparency.} Humanly is a native human-AI writing platform rather than an after-the-fact detector. Its editor records fine-grained human actions and in-platform AI actions during drafting, including typing, paste, focus, selection, AI chat, rewrite suggestions, and accept/reject decisions. Certificates, logs, replay, metrics, and public verification expose this process record for later inspection.
-\end{enumerate}
+\textsc{Humanly} follows two design goals (Figure~\ref{fig:workflow}). The first is \textbf{high flexibility and compatibility}. Humanly supports multiple writing environments rather than a single fixed policy. It exposes highly configurable settings for resources, AI access, paste rules, time and length limits, guest access, and submission mode. These settings support personal writing, assigned tasks, public links, guest submissions, and peer review. AI access can range from no AI to polish-only, chat-only, and full assistance.
+
+\textbf{High accountability and transparency} means treating Humanly as a native human-AI writing platform rather than an after-the-fact detector. Its editor records fine-grained human actions and in-platform AI actions during drafting, including typing, paste, focus, selection, AI chat, rewrite suggestions, and accept/reject decisions. Certificates, logs, replay, metrics, and public verification expose this process record for later inspection.
+
 The rest of the paper follows these goals. Architecture connects configuration, writing, event capture, and certificate generation (Section~\ref{sec:architecture}). We then walk through peer review, classroom writing, and personal certification (Section~\ref{sec:workflows}). Comparison positions Humanly against final-text detectors and replay systems (Section~\ref{sec:comparison}). Evaluation reports a 240-sample stress test and outlines human-study and boundary-evaluation plans (Section~\ref{sec:evaluation}).
 
 \section{System Architecture}
