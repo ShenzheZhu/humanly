@@ -73,16 +73,16 @@ Humanly exposes four AI policies: \textsc{off} hides AI controls, \textsc{polish
 
 We present:
 \begin{enumerate}
-  \item a controlled writing workspace that binds task policy to human and AI actions;
-  \item a workflow layer for personal documents, assigned tasks, public links, guest submissions, and peer review;
-  \item a certificate and replay format connecting typed/pasted statistics, AI-use records, logs, and verification;
-  \item a 240-sample stress test of final-text predictors under policy labels.
+  \item a controlled editor that enforces task policy while recording human and AI actions;
+  \item task flows for personal writing, assigned work, public links, guest submissions, and peer review;
+  \item certificate and replay artifacts that expose writing statistics, AI-use records, logs, and verification;
+  \item a 240-sample stress test showing where final-text predictors fail under policy labels.
 \end{enumerate}
 
 \section{System Architecture}
 \label{sec:architecture}
 
-Humanly has three system stages: policy configuration, event capture, and evidence review. The writer portal, admin dashboard, and public verification pages implement these stages. Figure~\ref{fig:workflow} shows personal and assigned-task paths entering the capture-and-certification pipeline.
+Humanly has three system stages: policy configuration, event capture, and evidence review. The writer portal, admin dashboard, and public verification pages map to these stages. Figure~\ref{fig:workflow} shows personal and assigned-task paths entering the capture-and-certification pipeline.
 
 \begin{figure*}[t]
 \centering
@@ -142,7 +142,7 @@ Humanly has three system stages: policy configuration, event capture, and eviden
 \end{figure*}
 
 \paragraph{Configuration.}
-Personal writers configure documents; task owners configure shared tasks before distributing invite codes or public links (Figure~\ref{fig:configuration-surface}). Policies specify resources, AI provider/model, AI mode, request/token budget, paste rules, time/length limits, and guest submissions. The editor enforces this policy during drafting.
+Personal writers configure documents; task owners configure shared tasks before distributing invite codes or public links (Figure~\ref{fig:configuration-surface}). Policies specify resources, AI provider/model, AI access, request/token budget, paste rules, time/length limits, and guest submissions. The editor enforces this policy during drafting.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -175,7 +175,7 @@ During drafting, the capture layer records text changes, clipboard actions, sele
 \vspace{0.5em}
 
 \paragraph{Evidence Store.}
-The backend stores snapshots, event streams, enrollments, submissions, files, AI sessions/actions, and certificates. PostgreSQL/TimescaleDB handles high-frequency events; Redis backs jobs and caching; WebSocket channels carry live updates. These records feed logs, timelines, typed/pasted statistics, AI-use statistics, and replay data.
+The backend stores snapshots, event streams, enrollments, submissions, files, AI sessions/actions, and certificates. PostgreSQL/TimescaleDB handles high-frequency events; Redis backs jobs and caching; WebSocket channels carry live updates. Logs, timelines, typed/pasted statistics, AI-use statistics, and replay data are derived from these records.
 
 \paragraph{Certificate and Verification.}
 When a certificate is generated or a task is submitted, Humanly flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate binds final text to event counts, typed/pasted and editing metrics, AI-use metrics, a verification token, and a signed payload. Readers inspect a PDF or JSON certificate plus permitted replay/logs.
@@ -191,7 +191,7 @@ When a certificate is generated or a task is submitted, Humanly flushes pending 
 \section{Workflows and Use Cases}
 \label{sec:workflows}
 
-Every workflow follows the same contract: policy before writing, evidence after writing. Workflows differ by policy owner and record reader.
+Across workflows, policy is fixed before writing and evidence is reviewed after writing. Workflows differ by policy owner and record reader.
 
 \subsection{Peer Review}
 
