@@ -1,0 +1,25 @@
+case_id,case_name,length_bucket,policy_label,n,TP,FP,TN,FN,accuracy,TPR,FPR,TNR,FNR
+C1,Human original,long,compliant,10,0,0,10,0,1.0000,,0.0000,1.0000,
+C1,Human original,medium,compliant,10,0,0,10,0,1.0000,,0.0000,1.0000,
+C1,Human original,short,compliant,10,0,0,10,0,1.0000,,0.0000,1.0000,
+C2,Human + AI polish,long,compliant,10,0,0,10,0,1.0000,,0.0000,1.0000,
+C2,Human + AI polish,medium,compliant,10,0,0,10,0,1.0000,,0.0000,1.0000,
+C2,Human + AI polish,short,compliant,10,0,2,8,0,0.8000,,0.2000,0.8000,
+C3,Human + AI translation,long,compliant,10,0,0,10,0,1.0000,,0.0000,1.0000,
+C3,Human + AI translation,medium,compliant,10,0,0,10,0,1.0000,,0.0000,1.0000,
+C3,Human + AI translation,short,compliant,10,0,0,10,0,1.0000,,0.0000,1.0000,
+C4,Human-written AI-style text,long,compliant,10,0,10,0,0,0.0000,,1.0000,0.0000,
+C4,Human-written AI-style text,medium,compliant,10,0,10,0,0,0.0000,,1.0000,0.0000,
+C4,Human-written AI-style text,short,compliant,10,0,10,0,0,0.0000,,1.0000,0.0000,
+N1,Direct AI-generated,long,non_compliant,10,10,0,0,0,1.0000,1.0000,,,0.0000
+N1,Direct AI-generated,medium,non_compliant,10,10,0,0,0,1.0000,1.0000,,,0.0000
+N1,Direct AI-generated,short,non_compliant,10,10,0,0,0,1.0000,1.0000,,,0.0000
+N2,AI-obfuscated,long,non_compliant,10,10,0,0,0,1.0000,1.0000,,,0.0000
+N2,AI-obfuscated,medium,non_compliant,10,10,0,0,0,1.0000,1.0000,,,0.0000
+N2,AI-obfuscated,short,non_compliant,10,10,0,0,0,1.0000,1.0000,,,0.0000
+N3,AI cross-lingual transform,long,non_compliant,10,9,0,0,1,0.9000,0.9000,,,0.1000
+N3,AI cross-lingual transform,medium,non_compliant,10,9,0,0,1,0.9000,0.9000,,,0.1000
+N3,AI cross-lingual transform,short,non_compliant,10,9,0,0,1,0.9000,0.9000,,,0.1000
+N4,AI-generated + human light edits,long,non_compliant,10,10,0,0,0,1.0000,1.0000,,,0.0000
+N4,AI-generated + human light edits,medium,non_compliant,10,10,0,0,0,1.0000,1.0000,,,0.0000
+N4,AI-generated + human light edits,short,non_compliant,10,10,0,0,0,1.0000,1.0000,,,0.0000
