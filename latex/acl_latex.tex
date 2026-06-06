@@ -371,7 +371,7 @@ N4 & AI-written substantive draft with light human edits & \textsc{mixed} & NC &
 
 The benchmark contains 240 samples: eight cases \(\times\) three length buckets \(\times\) ten matched task sets. Buckets cover social-media-style posts, student responses, and long review-style texts. Each row records task metadata, source language, policy label, document class, text path, construction note, license note, and word count.
 
-Inputs are frozen as local files before generation; source URLs remain metadata only. Human-origin seeds supply C1--C3: English for C1/C2 and non-English for C3. C4 contains collected human-written AI-style texts. Non-compliant samples use matched topics: direct AI drafting (N1), rewriting or humanizing (N2), non-English AI drafting plus translation (N3), and light human editing of N1 drafts (N4). Preprocessing removes markup, boilerplate, and templates without polishing the prose. Detector runs include only \texttt{ready} rows. GPTZero and Pangram each returned 240/240 valid outputs.
+Inputs are frozen as local files before generation; source URLs remain metadata only. Human-origin seeds supply C1--C3: English for C1/C2 and non-English for C3. C4 contains collected human-written AI-style texts. Non-compliant samples use matched topics: direct AI drafting (N1), rewriting or humanizing (N2), non-English AI drafting plus translation (N3), and light human editing of N1 drafts (N4). Preprocessing removes markup, boilerplate, and templates without polishing the prose. Detector runs include only \texttt{ready} rows. GPTZero and Pangram each returned 240/240 valid outputs with no missing samples or request errors; GPTZero used API version \texttt{2026-05-11-base}.
 
 \subsection{Metric Definitions}
 
