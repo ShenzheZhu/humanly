@@ -55,7 +55,7 @@
 \maketitle
 
 \begin{abstract}
-The same submitted text can result from sustained drafting, AI polish, translation, or generated text moved into an editor. We present \textsc{Humanly}, a deployed platform that records writing policy and composition actions. Writers or task owners configure AI access, paste, length, time, and guest-submission rules. Humanly captures typing, paste, focus, selection, and in-platform AI events, then exports the final text with metrics, logs, replay, PDF/JSON records, and public verification. Personal writing, assigned tasks, public links, guest submissions, and peer review share this pipeline. In a 240-sample stress test, GPTZero and Pangram catch most disallowed generation but falsely flag at least one quarter of compliant cases. The live system is available at \url{https://app.writehumanly.net/}.
+Identical submissions can arise from sustained drafting, AI polish, translation, or generated text moved into an editor. We present \textsc{Humanly}, a deployed platform that records writing policy and composition actions. Writers or task owners configure AI access, paste, length, time, and guest-submission rules. Humanly captures typing, paste, focus, selection, and in-platform AI events, then exports the final text with metrics, logs, replay, PDF/JSON records, and public verification. Personal writing, assigned tasks, public links, guest submissions, and peer review share this pipeline. In a 240-sample stress test, GPTZero and Pangram catch most disallowed generation but falsely flag at least one quarter of compliant cases. The live system is available at \url{https://app.writehumanly.net/}.
 \end{abstract}
 
 \section{Introduction}
@@ -63,13 +63,13 @@ The same submitted text can result from sustained drafting, AI polish, translati
 
 Academic assignments, peer review, and authenticity certification often depend on process, not text alone. Similar submissions may reflect sustained drafting, grammar-only AI polish, machine translation, chat-based explanation, or generated text moved into an editor.
 
-Post-hoc detectors answer a narrower question: whether the submitted text resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. This helps when a task bans generation and the output is mostly machine-written. Mixed workflows do not fit that premise. Human prose may be wrongly flagged, especially when style differs from detector training assumptions \citep{liang2023gpt}; generated prose can be rewritten, translated, humanized, or prompted to sound human. A detector score alone cannot determine policy compliance.
+Post-hoc detectors answer a narrower question: whether the submitted text resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. That signal is useful when a task bans generation and the output is mostly machine-written. Mixed workflows do not fit that premise. Human prose may be wrongly flagged, especially when style differs from detector training assumptions \citep{liang2023gpt}; generated prose can be rewritten, translated, humanized, or prompted to sound human. A detector score alone cannot determine policy compliance.
 
 Replay tools recover document history but usually depend on a host editor or assignment platform. They reconstruct edits or label source categories, while task policy, AI-assistant actions, metrics, replay, and verification remain separate. Instructors, program chairs, and readers must reconcile artifacts rather than inspect one policy-bound record.
 
 \textsc{Humanly} links task policy and write-time events in one provenance record. Users set policy before writing; the platform records human and in-platform AI actions during drafting; certificates present logs, replay, metrics, and verification after drafting. The same record supports personal, assigned, public-link, guest, and peer-review workflows.
 
-AI assistance is governed by policy, not by a binary label. Humanly has four modes: \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full}. \textsc{Polish} enables constrained selection rewrites such as grammar fixing and simplification. \textsc{Chat} enables agent chat without selection-level rewrite actions. \textsc{Full} enables both. The editor and certificate show the active policy.
+AI assistance is governed by policy, not by a binary label. Humanly implements four modes: \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full}. \textsc{Polish} enables constrained selection rewrites such as grammar fixing and simplification. \textsc{Chat} enables agent chat without selection-level rewrite actions. \textsc{Full} enables both. The editor and certificate show the active policy.
 
 We contribute:
 \begin{enumerate}
@@ -82,7 +82,7 @@ We contribute:
 \section{System Architecture}
 \label{sec:architecture}
 
-Humanly has three interfaces. The writer portal handles personal tasks and drafting; the admin dashboard handles assigned tasks, rules, submissions, and activity review; public pages verify certificates and show permitted evidence. Figure~\ref{fig:workflow} shows how personal and assigned-task paths enter the same capture-and-certification pipeline.
+Humanly is organized around three interfaces. The writer portal handles personal tasks and drafting; the admin dashboard handles assigned tasks, rules, submissions, and activity review; public pages verify certificates and show permitted evidence. Figure~\ref{fig:workflow} shows how personal and assigned-task paths enter the same capture-and-certification pipeline.
 
 \begin{figure*}[t]
 \centering
@@ -142,7 +142,7 @@ Humanly has three interfaces. The writer portal handles personal tasks and draft
 \end{figure*}
 
 \paragraph{Configuration.}
-Configuration specifies the writing environment before drafting begins (Figure~\ref{fig:configuration-surface}). Personal writers configure documents; task owners configure shared tasks before distributing invite codes or public links. Each configuration includes task resources, AI provider and model, AI mode, request or token budget, paste policy, time and length limits, and guest-submission policy. During drafting, these settings control the editor.
+Configuration specifies the writing environment before drafting begins (Figure~\ref{fig:configuration-surface}). Personal writers set document policy; task owners set shared-task policy before distributing invite codes or public links. Each configuration includes task resources, AI provider and model, AI mode, request or token budget, paste policy, time and length limits, and guest-submission policy. During drafting, these settings control the editor.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -203,7 +203,7 @@ An instructor creates an assigned task, sets AI, paste, time, length, and guest 
 
 \subsection{Personal Writing Certification}
 
-A personal writer creates a document, selects AI and paste policy, drafts in Humanly, and generates a certificate. The certificate reports typed and pasted text, editing time, and in-platform AI use instead of a detector score.
+A personal writer creates a document, selects AI and paste policy, drafts in Humanly, and generates a certificate. The certificate reports typed and pasted text, editing time, and in-platform AI use rather than a detector score.
 
 \section{Comparison with Existing Systems}
 \label{sec:comparison}
@@ -212,7 +212,7 @@ Final-text detectors and process/replay tools differ in what they observe: only 
 
 \subsection{Final-Text Detectors}
 
-Final-text detectors such as GPTZero, Pangram, Originality.AI, and Copyleaks score the submitted text after writing ends \citep{gptzero2026detector,pangram2026detector,originality2026detector,copyleaks2026detector}. Such scores matter when a task bans generation and the output is mostly machine-written. They do not observe the writing process, so they cannot separate allowed AI assistance from policy-violating AI use.
+Final-text detectors such as GPTZero, Pangram, Originality.AI, and Copyleaks score the submitted text after writing ends \citep{gptzero2026detector,pangram2026detector,originality2026detector,copyleaks2026detector}. Such scores matter when a task bans generation and the output is mostly machine-written. Because they do not observe writing, they cannot separate allowed AI assistance from policy-violating AI use.
 
 Final text collapses different histories. A human draft polished by AI, a human draft translated by AI, and an AI answer paraphrased by a humanizer may all yield fluent prose. Human prose may also be formal, template-like, or non-native in ways that resemble model output \citep{liang2023gpt}. The policy question is whether the process matched the allowed assistance, not whether the text looks machine-written.
 
