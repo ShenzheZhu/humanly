@@ -258,7 +258,7 @@ Final-text detectors answer what the text resembles. Process and replay tools an
 \section{Evaluation}
 \label{sec:evaluation}
 
-Evaluation covers final-text prediction, reader interpretation, and boundary cases.
+Evaluation asks three questions: whether policy compliance can be inferred from final text, whether readers can interpret process evidence, and where capture assumptions fail.
 
 \subsection{Final-Text Detector Stress Test}
 \label{sec:detector-eval}
@@ -300,7 +300,7 @@ Writers complete short Humanly tasks under \textsc{off}, \textsc{polish}, \texts
 Readers inspect three information conditions: final text only, final text plus detector score, and final text plus Humanly certificate/replay. Reader-side measures are process-label accuracy, confidence, time-to-judgment, perceived fairness, and cited evidence fields.
 
 \paragraph{Analysis.}
-Analysis compares writer measures across AI modes and reader measures across information conditions. Open-ended responses identify which certificate and replay fields readers use or misread.
+Analysis compares writer measures across AI modes and reader measures across information conditions. Open-ended responses identify which certificate and replay fields readers use, ignore, or misread.
 % TODO: Finalize prompt pool, recruitment size, condition assignment, participant payment, and analysis plan.
 
 \subsection{Boundary and Red-Team Analysis}
@@ -315,13 +315,13 @@ Boundary cases also define a trace taxonomy for certificates and replay: human-o
 \label{sec:limitations}
 
 \paragraph{Process Evidence Is Not Proof.}
-Certificates support interpretation rather than automatic authorship verdicts.
+A certificate is an audit record, not an authorship verdict. It records in-platform actions and leaves policy judgment to reviewers.
 
 \paragraph{Adversarial Behavior.}
 Humanly logs or blocks in-platform actions, such as paste when policy disallows it, but cannot prevent every external-AI workflow. A determined user may transcribe external AI output, use voice input, mimic revisions, or route text through another device. The record captures in-platform activity; covert channels remain possible.
 
 \paragraph{Privacy and Surveillance.}
-Process recording is sensitive: it captures typing behavior, paste activity, focus changes, and AI interactions. Deployments require writer-facing transparency, context limits, and clear access rules for logs, certificates, and replays.
+Process recording is sensitive because it captures typing behavior, paste activity, focus changes, and AI interactions. Deployments require writer-facing transparency, context limits, and clear access rules for logs, certificates, and replays.
 
 \paragraph{Study Ethics.}
 Study prompts avoid sensitive topics, process recording is disclosed, and personally identifying information is limited to participant payment. Any withholding about paste behavior requires justification and debriefing.
