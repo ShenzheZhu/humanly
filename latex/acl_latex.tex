@@ -71,18 +71,18 @@ Document-replay tools reconstruct host-editor history. Task policy, AI-assistant
 
 Humanly treats AI access as task policy rather than a binary switch. Four modes implement this policy. Mode \textsc{off} hides AI controls. Selection rewrite is available only in \textsc{polish} and \textsc{full}; chat is available only in \textsc{chat} and \textsc{full}. The editor displays this policy during writing, and the certificate reports it after drafting.
 
-We contribute:
+This paper presents:
 \begin{enumerate}
-  \item a tracked writing workspace binding task policy to human and AI actions;
-  \item a configuration model spanning personal, assigned, public-link, guest, and peer-review writing;
-  \item a certificate format linking typed/pasted statistics, AI-use records, replay, and verification;
-  \item a 240-sample stress test of final-text predictors under policy labels.
+  \item a controlled writing workspace that binds task policy to human and AI actions;
+  \item a workflow layer for personal documents, assigned tasks, public links, guest submissions, and peer review;
+  \item a certificate and replay format connecting typed/pasted statistics, AI-use records, logs, and verification;
+  \item a 240-sample stress test showing how final-text predictors behave under policy labels.
 \end{enumerate}
 
 \section{System Architecture}
 \label{sec:architecture}
 
-Humanly consists of a writer portal, an admin dashboard, and public verification pages. Figure~\ref{fig:workflow} shows personal and assigned-task paths entering the same capture-and-certification pipeline.
+Humanly is organized around three requirements: fix policy before writing, capture events during composition, and make evidence reviewable after completion. A writer portal, admin dashboard, and public verification pages implement this flow. Figure~\ref{fig:workflow} shows personal and assigned-task paths entering the same capture-and-certification pipeline.
 
 \begin{figure*}[t]
 \centering
@@ -142,7 +142,7 @@ Humanly consists of a writer portal, an admin dashboard, and public verification
 \end{figure*}
 
 \paragraph{Configuration.}
-Configuration defines the writing environment before drafting (Figure~\ref{fig:configuration-surface}). Personal writers set document policy; task owners set shared-task policy before sharing invite codes or public links. Policies specify resources, AI provider/model, AI mode, request/token budget, paste rules, time/length limits, and guest submissions. The editor enforces them during drafting.
+Configuration fixes the writing policy before drafting (Figure~\ref{fig:configuration-surface}). Personal writers set document policy; task owners set shared-task policy before sharing invite codes or public links. Policies specify resources, AI provider/model, AI mode, request/token budget, paste rules, time/length limits, and guest submissions. The editor enforces them during drafting.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -153,7 +153,7 @@ Configuration defines the writing environment before drafting (Figure~\ref{fig:c
 \vspace{0.5em}
 
 \paragraph{Writing Workspace.}
-Writers compose in a Lexical-based editor (Figure~\ref{fig:workspace-surface}) shared by personal documents and assigned tasks. Attached PDFs and reference files remain beside the editor. The interface enforces AI policy: \textsc{off} hides AI, \textsc{polish} limits AI to selection rewrites, \textsc{chat} limits AI to agent chat, and \textsc{full} combines both.
+Writers compose in a Lexical-based editor (Figure~\ref{fig:workspace-surface}) shared by personal documents and assigned tasks. Attached PDFs and reference files remain beside the editor. The interface exposes only the AI controls allowed by the active policy.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -199,11 +199,11 @@ Peer review is policy-sensitive: reviewers may use AI for grammar or document un
 
 \subsection{Classroom Writing Assignments}
 
-An instructor creates an assigned task, sets AI, paste, time, length, and guest policies, and distributes an invite code or public link. Students write in the policy-bound editor; the instructor reviews submitted text, timeline, AI logs, metrics, and certificate.
+Instructors use the configuration layer to assign writing tasks, distribute invite codes or public links, and review submitted text with timeline, AI logs, metrics, and certificate.
 
 \subsection{Personal Writing Certification}
 
-A personal writer creates a document, selects AI and paste policy, drafts in Humanly, and generates a certificate. The certificate reports typed and pasted text, editing time, and in-platform AI use, not a detector score.
+Personal writers use the same pipeline without an instructor. They set policy, draft in Humanly, and generate a certificate reporting typed and pasted text, editing time, and in-platform AI use, not a detector score.
 
 \section{Comparison with Existing Systems}
 \label{sec:comparison}
