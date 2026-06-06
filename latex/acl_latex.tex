@@ -55,7 +55,7 @@
 \maketitle
 
 \begin{abstract}
-Final text alone cannot distinguish sustained drafting from AI polish, translation, or generated text imported into an editor. \textsc{Humanly} is a deployed platform for policy-bound process evidence. Writers or task owners set AI access, paste, length, time, and guest policies before drafting. The editor records typing, paste, focus, selection, and in-platform AI actions; certificates package final text, metrics, logs, replay, PDF/JSON records, and public verification links. Personal writing, assigned tasks, public links, guest submissions, and peer review use the same pipeline. In a 240-sample stress test, GPTZero and Pangram detect most disallowed generation but mark 25--27\% of compliant cases as suspicious. The live system is available at \url{https://app.writehumanly.net/}.
+Final text alone cannot distinguish sustained drafting from AI polish, translation, or generated text imported into an editor. \textsc{Humanly} is a deployed platform for policy-bound process evidence. Writers or task owners set AI access, paste, length, time, and guest policies before drafting. The editor records typing, paste, focus, selection, and in-platform AI actions; certificates link final text to metrics, logs, replay, PDF/JSON records, and public verification links. Personal writing, assigned tasks, public links, guest submissions, and peer review use the same pipeline. In a 240-sample stress test, GPTZero and Pangram detect most disallowed generation but mark 25--27\% of compliant cases as suspicious. The live system is available at \url{https://app.writehumanly.net/}.
 \end{abstract}
 
 \section{Introduction}
@@ -247,13 +247,11 @@ PaperTrail \citep{papertrail2026inspect} & \nofeature & \nofeature & \nofeature 
 \label{tab:feature-comparison}
 \end{table*}
 
-The closest baselines cover complementary evidence. Turnitin Clarity combines assignment workflows with writing playback and AI-assistance visibility. Grammarly Authorship labels typed, pasted, AI-generated, and AI-rephrased text. WritingTrace and PaperTrail Inspect focus on writing history rather than detector probability.
-
-Humanly keeps these parts in one write-time record: policy before writing, enforcement during composition, and certificate after drafting.
+The closest baselines cover subsets of this evidence. Turnitin Clarity combines assignment workflows with writing playback and AI-assistance visibility. Grammarly Authorship labels typed, pasted, AI-generated, and AI-rephrased text. WritingTrace and PaperTrail Inspect focus on writing history rather than detector probability. Humanly binds policy, enforcement, and certificate in one write-time record.
 
 \subsection{Synthesis}
 
-Final-text detectors answer what the text resembles. Process and replay tools answer what happened inside a host document. Humanly asks whether the recorded process followed the task policy. That question requires evidence that binds policy to process.
+Final-text detectors answer what the text resembles. Process and replay tools answer what happened inside a host document. Humanly asks whether the recorded process followed the task policy.
 
 \section{Evaluation}
 \label{sec:evaluation}
