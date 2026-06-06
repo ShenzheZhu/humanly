@@ -258,14 +258,14 @@ Final-text detectors answer what the text resembles. Process and replay tools an
 \section{Evaluation}
 \label{sec:evaluation}
 
-We evaluate Humanly through final-text prediction, reader interpretation, and boundary cases.
+Evaluation covers final-text prediction, reader interpretation, and boundary cases.
 
 \subsection{Final-Text Detector Stress Test}
 \label{sec:detector-eval}
 
-Our benchmark uses eight policy cases, not a binary human-vs-AI label. Human writing, AI polish, and AI translation are compliant; substantive AI generation is not. The test asks whether final-text predictors recover policy compliance without process evidence. Appendix~\ref{sec:appendix-detector-metrics} defines the cases and labels. Prompted transformations preserve meaning and avoid added facts, following public research-writing prompt templates such as \citet{leey2026awesomewriting}. Human-origin cases start from human-written seeds before polish, translation, or AI-style human rewriting.
+The benchmark uses eight policy cases rather than a binary human-vs-AI label. Human writing, AI polish, and AI translation are compliant; substantive AI generation is not. This setup measures whether final-text predictors infer policy compliance without process evidence. Appendix~\ref{sec:appendix-detector-metrics} defines the cases and labels. Prompted transformations preserve meaning and avoid added facts, following public research-writing prompt templates such as \citet{leey2026awesomewriting}. Human-origin cases start from human-written seeds before polish, translation, or AI-style human rewriting.
 
-The stress test has 240 samples: eight cases, three length buckets, and ten matched task sets. Buckets correspond to social-media posts, student assignment responses, and long review-style texts. Each predictor sees only final text and returns \textsc{human\_only}, \textsc{mixed}, or \textsc{ai\_only}. We evaluate Claude Opus 4.8 \citep{anthropic2026opus48}, GPTZero \citep{gptzero2026detector}, and Pangram \citep{pangram2026detector}. Metrics are exact document-class accuracy (Layer 1) and policy accuracy after mapping \textsc{human\_only} to \textit{human-compliant} and the other labels to \textit{AI-suspicious} (Layer 2).
+The stress test has 240 samples: eight cases, three length buckets, and ten matched task sets. Buckets correspond to social-media posts, student assignment responses, and long review-style texts. Predictors receive final text only and return \textsc{human\_only}, \textsc{mixed}, or \textsc{ai\_only}. We evaluate Claude Opus 4.8 \citep{anthropic2026opus48}, GPTZero \citep{gptzero2026detector}, and Pangram \citep{pangram2026detector}. Metrics are exact document-class accuracy (Layer 1) and policy accuracy after mapping \textsc{human\_only} to \textit{human-compliant} and the other labels to \textit{AI-suspicious} (Layer 2).
 
 \begin{table}[t]
 \small
@@ -343,7 +343,7 @@ Study prompts avoid sensitive topics, process recording is disclosed, and person
 
 \subsection{Cases and Labels}
 
-Table~\ref{tab:appendix-detector-cases} defines the detector stress-test cases. The benchmark policy allows human writing, AI polish, and AI translation, but disallows substantive AI generation. C1--C4 measure false-positive risk; N1--N4 measure false-negative risk. N4 is \textsc{mixed} because the final text combines an AI-written substantive draft with light human edits.
+Table~\ref{tab:appendix-detector-cases} defines the detector stress-test cases. The benchmark policy allows human writing, AI polish, and AI translation, but disallows substantive AI generation. C1--C4 target false positives; N1--N4 target false negatives. N4 is \textsc{mixed} because the final text combines an AI-written substantive draft with light human edits.
 
 \begin{table}[t]
 \small
@@ -363,22 +363,22 @@ N3 & AI-generated non-English text translated into English & \textsc{ai\_only} &
 N4 & AI-written substantive draft with light human edits & \textsc{mixed} & NC & FN \\
 \bottomrule
 \end{tabularx}
-\caption{Detector stress-test case matrix. C = compliant; NC = non-compliant. Target marks whether the case measures false positives or false negatives.}
+\caption{Detector stress-test case matrix. C = compliant; NC = non-compliant. Target marks the error type being stressed.}
 \label{tab:appendix-detector-cases}
 \end{table}
 
 \subsection{Data and Preprocessing}
 
-The benchmark contains 240 samples: eight cases \(\times\) three length buckets \(\times\) ten matched task sets. Buckets cover social-media-style posts, student responses, and long review-style texts. Rows store task metadata, source language, policy label, document class, text path, construction note, license note, and word count.
+The benchmark contains 240 samples: eight cases \(\times\) three length buckets \(\times\) ten matched task sets. Buckets cover social-media-style posts, student responses, and long review-style texts. Each row records task metadata, source language, policy label, document class, text path, construction note, license note, and word count.
 
-Inputs are frozen as local files before generation; source URLs remain only as metadata. Human-origin seeds supply C1--C3: English for C1/C2 and non-English for C3. C4 uses newly collected human-written AI-style texts. Non-compliant cases use matched topics: N1 creates an AI draft, N2 rewrites it, N3 translates non-English AI text, and N4 lightly human-edits N1. Seed material is stripped of markup, boilerplate, and templates, but not polished. Detector inputs include only \texttt{ready} rows. GPTZero and Pangram each returned 240/240 valid outputs.
+Inputs are frozen as local files before generation; source URLs remain metadata only. Human-origin seeds supply C1--C3: English for C1/C2 and non-English for C3. C4 contains collected human-written AI-style texts. Non-compliant samples use matched topics: direct AI drafting (N1), rewriting or humanizing (N2), non-English AI drafting plus translation (N3), and light human editing of N1 drafts (N4). Seed material is stripped of markup, boilerplate, and templates, but not polished. Detector runs include only \texttt{ready} rows. GPTZero and Pangram each returned 240/240 valid outputs.
 
 \subsection{Metric Definitions}
 
-We report two metric layers.
+Two metric layers are reported.
 
-\noindent\textbf{Layer 1: Final-text document class.} A prediction is correct only if it exactly matches the expected document class: \textsc{human\_only}, \textsc{mixed}, or \textsc{ai\_only}. This layer measures final-text construction independent of policy.
+\noindent\textbf{Layer 1: Final-text document class.} A prediction is correct only if it exactly matches the expected document class: \textsc{human\_only}, \textsc{mixed}, or \textsc{ai\_only}. This layer scores construction history, not policy.
 
-\noindent\textbf{Layer 2: Policy compliance.} We map detector outputs to binary policy evidence: \textsc{human\_only} becomes \textit{human-compliant}; \textsc{mixed} and \textsc{ai\_only} become \textit{AI-suspicious}. Non-compliance is the positive class. TP/FN count non-compliant samples predicted as AI-suspicious/human-compliant; TN/FP count compliant samples predicted as human-compliant/AI-suspicious.
+\noindent\textbf{Layer 2: Policy compliance.} Detector outputs are mapped to binary policy evidence: \textsc{human\_only} becomes \textit{human-compliant}; \textsc{mixed} and \textsc{ai\_only} become \textit{AI-suspicious}. Non-compliance is the positive class. True positives and false negatives are non-compliant samples predicted as AI-suspicious or human-compliant; true negatives and false positives are compliant samples predicted as human-compliant or AI-suspicious.
 
 \end{document}
