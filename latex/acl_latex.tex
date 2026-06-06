@@ -258,14 +258,14 @@ Final-text detectors answer what the text resembles. Process and replay tools an
 \section{Evaluation}
 \label{sec:evaluation}
 
-We evaluate Humanly through a final-text stress test, a certificate-based human study protocol, and boundary cases where process records can be bypassed or misread. In all three, the certificate is evidence for human judgment rather than an automatic verdict.
+Two claims guide the evaluation. Final text alone is a weak proxy for whether a writer followed a task policy. Process evidence must be interpretable by the writers and readers who use it. A final-text stress test targets the first claim; a certificate-based human-study protocol targets the second. Boundary cases identify where a process record can be bypassed or misread. In all settings, the certificate is evidence for human judgment rather than an automatic verdict.
 
 \subsection{Final-Text Detector Stress Test}
 \label{sec:detector-eval}
 
-The stress test uses eight policy cases, not one aggregate score. The benchmark policy allows human writing, AI polish, and AI translation, but disallows substantive AI generation of final content. Appendix~\ref{sec:appendix-detector-metrics} defines the cases, document-class labels, and policy labels. We adapt prompt-control rules from public research-writing prompt templates such as \citet{leey2026awesomewriting}: transformations must preserve meaning, avoid added facts, and return detector-ready final text. Human-origin cases start from human-written seeds for each length bucket before polish, translation, or AI-style human rewriting.
+As a failure-mode analysis for final-text prediction, the stress test uses eight policy cases rather than one aggregate score. The benchmark policy allows human writing, AI polish, and AI translation, but disallows substantive AI generation of final content. Appendix~\ref{sec:appendix-detector-metrics} defines the cases, document-class labels, and policy labels. We adapt prompt-control rules from public research-writing prompt templates such as \citet{leey2026awesomewriting}: transformations must preserve meaning, avoid added facts, and return detector-ready final text. Human-origin cases start from human-written seeds for each length bucket before polish, translation, or AI-style human rewriting.
 
-The reported run contains 240 samples across eight cases and three lengths: social-media-style posts, student assignment responses, and long-form review-style texts. Claude Opus 4.8 \citep{anthropic2026opus48} sees only the final text and predicts one of three document classes: \textsc{human\_only}, \textsc{mixed}, or \textsc{ai\_only}. We score exact document-class accuracy (Layer 1) and policy accuracy after mapping \textsc{human\_only} to \textit{human-compliant} and the other two labels to \textit{AI-suspicious} (Layer 2).
+The run contains 240 samples across eight cases and three lengths: social-media-style posts, student assignment responses, and long-form review-style texts. Claude Opus 4.8 \citep{anthropic2026opus48} sees only the final text and predicts one of three document classes: \textsc{human\_only}, \textsc{mixed}, or \textsc{ai\_only}. We score exact document-class accuracy (Layer 1) and policy accuracy after mapping \textsc{human\_only} to \textit{human-compliant} and the other two labels to \textit{AI-suspicious} (Layer 2).
 
 \begin{table}[t]
 \small
@@ -286,12 +286,12 @@ Pangram \citep{pangram2026detector} & -- & -- & -- & -- \\
 \label{tab:detector-results}
 \end{table}
 
-Table~\ref{tab:detector-results} shows low accuracy at both layers. Opus 4.8 assigns the correct three-class document label to 82 of 240 samples (accuracy \(0.342\)); policy accuracy is \(0.529\). The false-positive rate is \(0.333\): many allowed cases are marked suspicious, especially human-written AI-style prose and some translation or polish cases. The false-negative rate is \(0.608\): many disallowed AI-origin cases are marked compliant. In N4, where a human lightly edits a substantive AI draft, 19 of 30 samples are marked human-compliant even though the process is non-compliant. Final text supports similarity judgments, not policy judgments.
+Results in Table~\ref{tab:detector-results} show low accuracy at both layers. Opus 4.8 assigns the correct three-class document label to 82 of 240 samples (accuracy \(0.342\)); policy accuracy is \(0.529\). These errors are structured rather than random. Allowed cases are falsely marked suspicious at rate \(0.333\), especially human-written AI-style prose and some translation or polish cases. Disallowed AI-origin cases are falsely marked compliant at rate \(0.608\). In N4, where a human lightly edits a substantive AI draft, 19 of 30 samples are marked human-compliant even though the process is non-compliant. Final text supports similarity judgments, not policy judgments.
 
 \subsection{Human Study}
 \label{sec:study}
 
-The human study has writer and reader tasks. The writer task measures usability and policy clarity. The reader task measures whether certificates help participants recover known process labels. Tasks cover peer review, classroom writing, online survey responses, and social-media-style posts. Peer review is the primary setting because it combines writing quality, document understanding, confidentiality, and explicit AI-use policy.
+We frame the human study as an expert-centered workflow evaluation rather than a general adoption study. The protocol has writer and reader tasks. Writer-side measures test whether participants can complete realistic writing under configured AI policies without losing the normal drafting workflow. Reader-side measures test whether certificates help participants recover known process labels. Tasks cover peer review, classroom writing, online survey responses, and social-media-style posts. Peer review is the primary setting because it combines writing quality, document understanding, confidentiality, and explicit AI-use policy.
 
 \paragraph{Writer-Side Task.}
 Participants write short documents in Humanly under \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full} policies. The study records usability ratings, perceived friction, policy clarity, and trajectory statistics. Surveys measure ease of use, willingness to use Humanly outside the study, and comfort with process recording.
@@ -300,13 +300,13 @@ Participants write short documents in Humanly under \textsc{off}, \textsc{polish
 Readers inspect writing evidence under three information conditions: final text only, final text plus detector score, and final text plus Humanly certificate/replay. The study measures accuracy against known process labels, confidence, time-to-judgment, perceived fairness, and reported evidence use.
 
 \paragraph{Analysis.}
-The analysis reports writer usability, policy clarity, reader accuracy, confidence, and which certificate or replay fields readers use when making judgments.
+The analysis compares writer usability and policy clarity across AI modes. It also compares reader accuracy, confidence, and time-to-judgment across information conditions, then uses qualitative comments to identify which certificate or replay fields are useful or confusing.
 % TODO: Finalize prompt pool, recruitment size, condition assignment, participant payment, and analysis plan.
 
 \subsection{Boundary and Red-Team Analysis}
 \label{sec:redteam}
 
-The detector stress test targets final text. Boundary analysis targets the recorder itself. Boundary cases include phone-assisted generation, memorized AI text, manual retyping of an external AI answer, and GUI-agent imitation of human writing. These cases attack the recording workflow rather than the submitted text, so they are separate from the detector benchmark.
+The detector stress test targets final text; boundary analysis targets the recorder itself. Boundary cases include phone-assisted generation, memorized AI text, manual retyping of an external AI answer, and GUI-agent imitation of human writing. These cases attack the capture assumptions rather than the submitted text, so they are separate from the detector benchmark.
 
 These cases refine the trace taxonomy used in the certificate and replay views. The taxonomy separates human-only writing, mostly human writing with some paste, human typing plus AI editing, and AI brainstorming followed by human writing. It also covers AI-generated passages and fully AI-generated text.
 % TODO: Decide which red-team cases are feasible for the demo-paper evaluation versus future work.
