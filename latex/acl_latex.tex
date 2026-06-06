@@ -258,12 +258,12 @@ Final-text detectors classify style. Replay tools reconstruct host-document hist
 \section{Evaluation}
 \label{sec:evaluation}
 
-Evaluation asks three questions: whether policy compliance can be inferred from final text, whether readers can interpret process evidence, and where capture assumptions fail.
+Evaluation is organized around final-text policy inference, process-evidence interpretation, and capture boundaries.
 
 \subsection{Final-Text Detector Stress Test}
 \label{sec:detector-eval}
 
-We use eight policy cases rather than a binary human-vs-AI label. Human writing, AI polish, and AI translation are compliant; substantive AI generation is not. The task is to infer policy compliance from final text alone. Appendix~\ref{sec:appendix-detector-metrics} defines the cases and labels. Prompted transformations preserve meaning and avoid added facts, following public research-writing prompt templates such as \citet{leey2026awesomewriting}. Human-origin cases start from human-written seeds before polish, translation, or AI-style human rewriting.
+The detector stress test uses eight policy cases rather than a binary human-vs-AI label. Human writing, AI polish, and AI translation are compliant; substantive AI generation is not. Predictors infer policy compliance from final text alone. Appendix~\ref{sec:appendix-detector-metrics} defines the cases and labels. Prompted transformations preserve meaning and avoid added facts, following public research-writing prompt templates such as \citet{leey2026awesomewriting}. Human-origin cases start from human-written seeds before polish, translation, or AI-style human rewriting.
 
 The stress test has 240 samples: eight cases, three length buckets, and ten matched task sets. Buckets correspond to social-media posts, student assignment responses, and long review-style texts. Predictors receive final text only and return \textsc{human\_only}, \textsc{mixed}, or \textsc{ai\_only}. We evaluate Claude Opus 4.8 \citep{anthropic2026opus48}, GPTZero \citep{gptzero2026detector}, and Pangram \citep{pangram2026detector}. Metrics are exact document-class accuracy (Layer 1) and policy accuracy after mapping \textsc{human\_only} to \textit{human-compliant} and the other labels to \textit{AI-suspicious} (Layer 2).
 
