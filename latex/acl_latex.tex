@@ -77,22 +77,19 @@ Document-replay tools add edit history, but they rarely make the policy record e
 
 \textsc{Humanly} records policy-bound provenance directly. Policy is set before writing; human and in-platform AI actions are recorded during drafting; certificates expose logs, replay, metrics, and verification after drafting. The same record spans personal, assigned, public-link, guest, and peer-review workflows.
 
-Three constraints guide the design. First, policy precedes drafting, so writers know which actions are allowed before they begin. Second, permitted AI assistance stays inside the recorded workspace, so AI use can be logged rather than inferred. Third, readers inspect one evidence package rather than separate logs, scores, and exports.
-
-Four AI policies control the editor: \textsc{off} hides AI controls, \textsc{polish} exposes only selection rewrites, \textsc{chat} exposes only chat, and \textsc{full} exposes both. The editor displays the active policy during writing; the certificate reports it after drafting.
-
-This paper makes three system contributions:
+\textsc{Humanly} has been designed, developed, and deployed around four goals (Figure~\ref{fig:workflow}):
 \begin{enumerate}
-  \item a policy-bound writing workspace that records human and in-platform AI actions;
-  \item task workflows for personal writing, assigned work, public links, guest submissions, and peer review, all backed by the same event stream;
-  \item certificates and replay that attach final text to writing statistics, AI-use records, logs, and public verification.
+  \item \textbf{Policy-first writing.} Task rules are configured before drafting and visibly gate the editor. Four AI policies control the writing surface: \textsc{off} hides AI controls, \textsc{polish} exposes only selection rewrites, \textsc{chat} exposes only chat, and \textsc{full} exposes both.
+  \item \textbf{Native process capture.} Human writing actions and in-platform AI actions are recorded in the same workspace, so AI use is logged rather than inferred from final prose.
+  \item \textbf{Reviewable evidence.} Certificates, logs, replay, metrics, and public verification are packaged together, allowing readers to inspect one process record instead of separate exports.
+  \item \textbf{Deployable workflows.} The same event model supports personal writing, assigned tasks, public links, guest submissions, and peer review.
 \end{enumerate}
-We also report a 240-sample stress test showing where final-text predictors fail under policy labels.
+The paper describes the deployed system and reports a 240-sample stress test showing where final-text predictors fail under policy labels.
 
 \section{System Architecture}
 \label{sec:architecture}
 
-Figure~\ref{fig:workflow} shows the Humanly data path from policy configuration to evidence review. Personal writing and assigned tasks start from different surfaces because their policy owners differ. A personal writer configures their own environment; an instructor, organizer, or administrator configures a task before distribution. After that entry point, both paths share the same editor, event schema, storage layer, and certificate pipeline.
+Figure~\ref{fig:workflow} turns the four design goals into a data path from policy configuration to evidence review. Policy-first writing begins with task packets and policy configurations. Native process capture happens in the tracked workspace and event stream. Reviewable evidence is produced as certificates, logs, replay, metrics, and verification tokens. Deployable workflows share this path even when their entry points differ: a personal writer configures their own environment, while an instructor, organizer, or administrator configures a task before distribution.
 
 \begin{figure*}[t]
 \centering
@@ -224,7 +221,7 @@ Figure~\ref{fig:workflow} shows the Humanly data path from policy configuration 
   \draw[softarr] (workspace.south) -- node[label, right] {generate / submit} (cert.north west);
 \end{tikzpicture}
 }
-\caption{Humanly workflow. Task packets and policy configurations are rendered into a tracked writing workspace. The workspace updates session state, records writing and AI events, and produces certificates, logs, replay, and verification for later review.}
+\caption{Humanly workflow and design goals. Task packets and policy configurations support policy-first writing. The tracked workspace and event stream provide native process capture. Certificates, logs, replay, and verification form reviewable evidence.}
 \label{fig:workflow}
 \end{figure*}
 
