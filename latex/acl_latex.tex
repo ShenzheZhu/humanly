@@ -210,19 +210,19 @@ For self-certification, writers set policy, draft in Humanly, and generate a cer
 \section{Comparison with Existing Systems}
 \label{sec:comparison}
 
-Existing systems differ by observation scope: submitted text, host-document history, or a policy-bound writing process.
+Existing systems differ by where they observe writing: submitted text, host-document history, or a policy-bound production process.
 
 \subsection{Final-Text Detectors}
 
-Final-text detectors such as GPTZero, Pangram, Originality.AI, and Copyleaks score submitted text after writing ends \citep{gptzero2026detector,pangram2026detector,originality2026detector,copyleaks2026detector}. They can flag likely machine-written submissions, but without write-time evidence they cannot separate allowed AI assistance from policy violations.
+Final-text detectors such as GPTZero, Pangram, Originality.AI, and Copyleaks score submitted text after writing ends \citep{gptzero2026detector,pangram2026detector,originality2026detector,copyleaks2026detector}. They can flag likely machine-written submissions, but without write-time evidence they conflate allowed AI assistance with policy violations.
 
-Final text collapses different histories. A human draft polished by AI, a human draft translated by AI, and an AI answer paraphrased by a humanizer may all look fluent. Human prose may also be formal, template-like, or non-native in ways that resemble model output \citep{liang2023gpt}. The policy question is whether the process matched the allowed assistance, not whether the text looks machine-written.
+Final text collapses production histories. A human draft polished by AI, a human draft translated by AI, and an AI answer paraphrased by a humanizer may all look fluent. Human prose may also be formal, template-like, or non-native in ways that resemble model output \citep{liang2023gpt}. The policy question is process, not style.
 
 \subsection{Process and Replay Systems}
 
-Process and replay tools move beyond detector scores by reconstructing document history. Turnitin Clarity combines assignments, writing reports, and AI-assistance visibility \citep{turnitin2026clarity}. Grammarly Authorship labels typed, pasted, AI-generated, AI-rephrased, and Grammarly-edited text across supported writing surfaces \citep{grammarly2026authorship}. GPTZero Writing Reports combine AI review, detection, and Google Docs process evidence \citep{gptzero2026writingreport,gptzero2026turnitinbrisk}. Other replay systems, including Draftback, Brisk Inspect Writing, Integrito, WritingTrace, and PaperTrail Inspect, derive timelines from Google Docs data \citep{draftback2026replay,brisk2025inspectwriting,integrito2026activityreport,writingtrace2026,papertrail2026inspect}.
+Process and replay tools reconstruct document history rather than scoring text alone. Turnitin Clarity combines assignments, writing reports, and AI-assistance visibility \citep{turnitin2026clarity}. Grammarly Authorship labels typed, pasted, AI-generated, AI-rephrased, and Grammarly-edited text across supported writing surfaces \citep{grammarly2026authorship}. GPTZero Writing Reports combine AI review, detection, and Google Docs process evidence \citep{gptzero2026writingreport,gptzero2026turnitinbrisk}. Other replay systems, including Draftback, Brisk Inspect Writing, Integrito, WritingTrace, and PaperTrail Inspect, derive timelines from Google Docs data \citep{draftback2026replay,brisk2025inspectwriting,integrito2026activityreport,writingtrace2026,papertrail2026inspect}.
 
-Table~\ref{tab:feature-comparison} compares systems by environment, governance, capture, and evidence. Existing tools reconstruct edits, label text origins, or support assigned tasks, but rarely combine these functions. Humanly combines configurable policy, native AI logs, assigned-task enrollment, replay, and certificate analytics in one controlled workspace. A partial mark denotes narrower support, such as a Google Docs extension or an assignment-specific report.
+Table~\ref{tab:feature-comparison} compares systems by environment, governance, capture, and evidence. The surveyed tools reconstruct edits, label text origins, or support assigned tasks, but rarely combine these functions. Humanly combines configurable policy, native AI logs, assigned-task enrollment, replay, and certificate analytics in one controlled workspace. A partial mark denotes narrower support, such as a Google Docs extension or an assignment-specific report.
 
 \begin{table*}[t]
 \small
@@ -249,11 +249,11 @@ PaperTrail \citep{papertrail2026inspect} & \nofeature & \nofeature & \nofeature 
 \label{tab:feature-comparison}
 \end{table*}
 
-No comparator combines all columns. Turnitin Clarity is closest on assignment workflow; Grammarly Authorship is closest on source labels; WritingTrace and PaperTrail Inspect are closest on writing history. Humanly binds policy, enforcement, replay, and certificates in one write-time record.
+No surveyed system covers the full matrix. Turnitin Clarity is closest on assignment workflow; Grammarly Authorship is closest on source labels; WritingTrace and PaperTrail Inspect are closest on writing history. Humanly binds policy, enforcement, replay, and certificates in one write-time record.
 
 \subsection{Synthesis}
 
-Final-text detectors answer what the text resembles. Process and replay tools answer what happened inside a host document. Humanly records the missing premise: what policy applied and what actions occurred.
+Final-text detectors answer what the text resembles. Process and replay tools answer what happened inside a host document. Humanly adds the missing premise: what policy applied and what actions occurred.
 
 \section{Evaluation}
 \label{sec:evaluation}
