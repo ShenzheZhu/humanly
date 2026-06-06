@@ -61,15 +61,15 @@ Final text alone cannot distinguish sustained drafting from AI polish, translati
 \section{Introduction}
 \label{sec:intro}
 
-Academic assignments, peer review, and authenticity certification require production history. The key distinction is whether a writer drafted, polished, translated, consulted AI, or imported generated text. Final text often cannot answer.
+Academic assignments, peer review, and authenticity certification depend on production history. The relevant distinction is whether a writer drafted, polished, translated, consulted AI, or imported generated text. Final text often cannot answer.
 
-Post-hoc detectors score whether submitted text resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. They help when generation is banned and violations are machine-written. Mixed workflows break that assumption: human prose may be flagged when style differs from detector training data \citep{liang2023gpt}, while generated prose can be rewritten, translated, or humanized. A detector score alone cannot determine policy compliance.
+Post-hoc detectors score whether submitted text resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. They help when generation is banned and violations are machine-written. Mixed workflows break that assumption: human prose may be flagged when style differs from detector training data \citep{liang2023gpt}, while generated prose can be rewritten, translated, or humanized. A detector score is not a policy record.
 
 Document-replay tools add history, but policy, AI-assistant actions, metrics, replay, and verification often remain separate. Readers must reconcile artifacts instead of inspecting one policy-bound record.
 
-\textsc{Humanly} makes policy-bound provenance explicit. Policy is set before writing; human and in-platform AI actions are recorded during drafting; certificates present logs, replay, metrics, and verification after drafting. The same record spans personal, assigned, public-link, guest, and peer-review workflows.
+\textsc{Humanly} makes policy-bound provenance explicit. Policy is set before writing; human and in-platform AI actions are recorded during drafting; certificates expose logs, replay, metrics, and verification after drafting. The same record spans personal, assigned, public-link, guest, and peer-review workflows.
 
-The platform enforces three constraints: policy precedes drafting, AI assistance stays inside the recorded workspace, and readers inspect one evidence package rather than separate logs, scores, and exports.
+Three constraints guide the design: policy precedes drafting, AI assistance stays inside the recorded workspace, and readers inspect one evidence package rather than separate logs, scores, and exports.
 
 Four AI policies control the editor: \textsc{off} hides AI controls, \textsc{polish} exposes only selection rewrites, \textsc{chat} exposes only chat, and \textsc{full} exposes both. The editor displays the active policy during writing; the certificate reports it after drafting.
 
@@ -77,14 +77,14 @@ We present:
 \begin{enumerate}
   \item a controlled editor that enforces task policy while recording human and AI actions;
   \item task flows for personal writing, assigned work, public links, guest submissions, and peer review;
-  \item certificate and replay artifacts for writing statistics, AI-use records, logs, and verification;
+  \item certificate and replay artifacts that connect final text to writing statistics, AI-use records, logs, and verification;
   \item a 240-sample stress test quantifying final-text predictor errors under policy labels.
 \end{enumerate}
 
 \section{System Architecture}
 \label{sec:architecture}
 
-Humanly has three stages: policy configuration, event capture, and evidence review. The writer portal, admin dashboard, and public verification pages support personal and assigned writing across these stages (Figure~\ref{fig:workflow}).
+Humanly has three stages: policy configuration, event capture, and evidence review (Figure~\ref{fig:workflow}). The writer portal, admin dashboard, and public verification pages implement these stages for personal and assigned writing.
 
 \begin{figure*}[t]
 \centering
