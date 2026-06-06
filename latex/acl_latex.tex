@@ -55,13 +55,13 @@
 \maketitle
 
 \begin{abstract}
-Final text alone cannot distinguish sustained drafting from AI polish, translation, or imported generation. \textsc{Humanly} is a deployed writing platform that records process evidence under task policy. Policies set AI access, paste rules, length limits, time limits, and guest access before writing begins. The editor then records typing, paste, focus, selection, and in-platform AI actions. PDF/JSON certificates bind final text to metrics, logs, replay, and public verification across personal writing, assigned tasks, public links, guest submissions, and peer review. In a 240-sample stress test, GPTZero and Pangram detect most disallowed generation but mark 25--27\% of compliant cases as suspicious. The live system is available at \url{https://app.writehumanly.net/}.
+Final text alone cannot distinguish sustained drafting from AI polish, translation, or imported generation. \textsc{Humanly} is a deployed writing platform that records process evidence under task policy. Before writing, policies define AI access, paste rules, length and time limits, and guest access. During writing, the editor records typing, paste, focus, selection, and in-platform AI actions. PDF/JSON certificates bind final text to metrics, logs, replay, and public verification across personal, assigned, public-link, guest, and peer-review workflows. In a 240-sample stress test, GPTZero and Pangram detect most disallowed generation but mark 25--27\% of compliant cases as suspicious. The live system is available at \url{https://app.writehumanly.net/}.
 \end{abstract}
 
 \section{Introduction}
 \label{sec:intro}
 
-Academic assignments, peer review, and authenticity certification require a production history: whether a writer drafted, polished, translated, consulted AI, or imported generated text. Final text often cannot answer.
+Academic assignments, peer review, and authenticity certification require production history. The key distinction is whether a writer drafted, polished, translated, consulted AI, or imported generated text. Final text often cannot answer.
 
 Post-hoc detectors score whether submitted text resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. They help when generation is banned and violations are machine-written. Mixed workflows break that assumption: human prose may be flagged when style differs from detector training data \citep{liang2023gpt}, while generated prose can be rewritten, translated, or humanized. A detector score alone cannot determine policy compliance.
 
@@ -69,7 +69,7 @@ Document-replay tools add history, but policy, AI-assistant actions, metrics, re
 
 \textsc{Humanly} makes policy-bound provenance explicit. Policy is set before writing; human and in-platform AI actions are recorded during drafting; certificates present logs, replay, metrics, and verification after drafting. The same record spans personal, assigned, public-link, guest, and peer-review workflows.
 
-Humanly is organized around three constraints: policy precedes drafting, AI assistance stays inside the recorded workspace, and readers inspect one evidence package rather than separate logs, scores, and exports.
+The platform enforces three constraints: policy precedes drafting, AI assistance stays inside the recorded workspace, and readers inspect one evidence package rather than separate logs, scores, and exports.
 
 Four AI policies control the editor: \textsc{off} hides AI controls, \textsc{polish} exposes only selection rewrites, \textsc{chat} exposes only chat, and \textsc{full} exposes both. The editor displays the active policy during writing; the certificate reports it after drafting.
 
@@ -84,7 +84,7 @@ We present:
 \section{System Architecture}
 \label{sec:architecture}
 
-Implementation follows three stages: policy configuration, event capture, and evidence review. The writer portal, admin dashboard, and public verification pages support personal and assigned writing across these stages (Figure~\ref{fig:workflow}).
+Humanly has three stages: policy configuration, event capture, and evidence review. The writer portal, admin dashboard, and public verification pages support personal and assigned writing across these stages (Figure~\ref{fig:workflow}).
 
 \begin{figure*}[t]
 \centering
@@ -220,7 +220,7 @@ Final text collapses different histories. A human draft polished by AI, a human 
 
 \subsection{Process and Replay Systems}
 
-Process and replay tools move beyond detector scores by reconstructing document history. Turnitin Clarity combines assignments, writing reports, and AI-assistance visibility \citep{turnitin2026clarity}. Grammarly Authorship labels typed, pasted, AI-generated, AI-rephrased, and Grammarly-edited text across supported writing surfaces \citep{grammarly2026authorship}. GPTZero Writing Reports combine AI review, detection, and Google Docs process evidence \citep{gptzero2026writingreport,gptzero2026turnitinbrisk}. Draftback, Brisk Inspect Writing, Integrito, WritingTrace, and PaperTrail Inspect derive timelines from Google Docs data \citep{draftback2026replay,brisk2025inspectwriting,integrito2026activityreport,writingtrace2026,papertrail2026inspect}.
+Process and replay tools move beyond detector scores by reconstructing document history. Turnitin Clarity combines assignments, writing reports, and AI-assistance visibility \citep{turnitin2026clarity}. Grammarly Authorship labels typed, pasted, AI-generated, AI-rephrased, and Grammarly-edited text across supported writing surfaces \citep{grammarly2026authorship}. GPTZero Writing Reports combine AI review, detection, and Google Docs process evidence \citep{gptzero2026writingreport,gptzero2026turnitinbrisk}. Other replay systems, including Draftback, Brisk Inspect Writing, Integrito, WritingTrace, and PaperTrail Inspect, derive timelines from Google Docs data \citep{draftback2026replay,brisk2025inspectwriting,integrito2026activityreport,writingtrace2026,papertrail2026inspect}.
 
 Table~\ref{tab:feature-comparison} compares systems by environment, governance, capture, and evidence. Existing tools reconstruct edits, label text origins, or support assigned tasks, but rarely combine these functions. Humanly combines configurable policy, native AI logs, assigned-task enrollment, replay, and certificate analytics in one controlled workspace. A partial mark denotes narrower support, such as a Google Docs extension or an assignment-specific report.
 
