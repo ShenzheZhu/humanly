@@ -291,22 +291,22 @@ Table~\ref{tab:detector-results} separates document-class and policy errors. Opu
 \subsection{Human Study}
 \label{sec:study}
 
-The study evaluates whether writers can work under configured AI policies and whether readers can interpret process evidence without treating it as a verdict. Tasks include peer review, classroom writing, online survey responses, and social-media-style posts. Peer review is primary because it combines writing quality, document understanding, confidentiality, and explicit AI policy.
+We structure the human study around two linked tasks. Writers draft under configured AI policies; readers then interpret evidence packages for selected drafts. The design tests whether policy-bound writing remains usable and whether certificates help readers reason about process without turning them into authorship verdicts. Tasks include peer review, classroom writing, online survey responses, and social-media-style posts. Peer review is primary because it combines writing quality, document understanding, confidentiality, and explicit AI policy.
 
 \paragraph{Writer-Side Task.}
-Participants write short documents in Humanly under \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full} policies. Writer-side measures include usability, friction, policy clarity, comfort with recording, reuse intent, and event-derived writing statistics.
+Participants write short documents in Humanly under \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full} policies. Measures cover usability, friction, policy clarity, comfort with recording, reuse intent, and event-derived writing statistics.
 
 \paragraph{Reader-Side Task.}
-Readers inspect three information conditions: final text only, final text plus detector score, and final text plus Humanly certificate/replay. Reader-side measures include process-label accuracy, confidence, time-to-judgment, perceived fairness, and reported evidence use.
+Readers inspect three information conditions: final text only, final text plus detector score, and final text plus Humanly certificate/replay. Measures cover process-label accuracy, confidence, time-to-judgment, perceived fairness, and reported evidence use.
 
 \paragraph{Analysis.}
-Analysis compares writer measures across AI modes and reader measures across information conditions. Open-ended responses identify certificate and replay fields that help or confuse readers.
+We compare writer measures across AI modes and reader measures across information conditions. Open-ended responses identify which certificate and replay fields help or confuse readers.
 % TODO: Finalize prompt pool, recruitment size, condition assignment, participant payment, and analysis plan.
 
 \subsection{Boundary and Red-Team Analysis}
 \label{sec:redteam}
 
-The detector stress test targets final text; boundary analysis targets capture assumptions. Boundary cases include phone-assisted generation, memorized AI text, manual retyping of an external AI answer, and GUI-agent imitation of human writing. These cases test observability rather than detector accuracy.
+The detector stress test targets final text; boundary analysis targets capture assumptions. Cases include phone-assisted generation, memorized AI text, manual retyping of an external AI answer, and GUI-agent imitation of human writing. These cases test observability rather than detector accuracy.
 
 These cases also refine the trace taxonomy behind certificates and replay. The taxonomy separates human-only writing, mostly human writing with paste, human typing plus AI editing, AI brainstorming followed by human writing, AI-generated passages, and fully AI-generated text.
 % TODO: Decide which red-team cases are feasible for the demo-paper evaluation versus future work.
@@ -369,7 +369,7 @@ N4 & \textbf{Construction:} AI-written substantive draft with light human edits.
 
 \subsection{Data and Preprocessing}
 
-The benchmark contains 240 final-text samples: eight cases, three length buckets, and ten matched task sets per bucket. Length buckets correspond to social-media-style posts, student assignment responses, and long-form review-style texts. Each row records task metadata, source language, policy label, document class, text paths, construction notes, license notes, and word count.
+The benchmark contains 240 final-text samples: eight cases, three length buckets, and ten matched task sets per bucket. Length buckets correspond to social-media-style posts, student assignment responses, and long-form review-style texts. Rows store task metadata, source language, policy label, document class, text paths, construction notes, license notes, and word count.
 
 Source collection and generation are separated. Inputs are frozen as local files before generation; source URLs remain only as metadata. Human-origin seeds supply C1--C3: English for C1 and C2, and non-English for C3. C4 uses newly collected human-written AI-style texts. Non-compliant cases use matched topics: N1 creates an AI draft, N2 rewrites it, N3 translates non-English AI text, and N4 lightly human-edits N1. Seed material is stripped of markup, boilerplate, and templates, but not polished. Detector inputs include only \texttt{ready} rows. GPTZero and Pangram each produced 240 valid outputs, with no missing rows or request errors.
 
