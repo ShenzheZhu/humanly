@@ -69,19 +69,17 @@ Document-replay tools add edit history, but they rarely make the policy record e
 
 \textsc{Humanly} records policy-bound provenance directly. Policy is set before writing; human and in-platform AI actions are recorded during drafting; certificates expose logs, replay, metrics, and verification after drafting. The same record spans personal, assigned, public-link, guest, and peer-review workflows.
 
-\textsc{Humanly} has been designed, developed, and deployed around four goals (Figure~\ref{fig:workflow}):
+\textsc{Humanly} has been designed, developed, and deployed around two goals (Figure~\ref{fig:workflow}):
 \begin{enumerate}
-  \item \textbf{Policy-first writing.} Task rules are configured before drafting and visibly gate the editor. Four AI policies control the writing surface: \textsc{off} hides AI controls, \textsc{polish} exposes only selection rewrites, \textsc{chat} exposes only chat, and \textsc{full} exposes both.
-  \item \textbf{Native process capture.} Human writing actions and in-platform AI actions are recorded in the same workspace, so AI use is logged rather than inferred from final prose.
-  \item \textbf{Reviewable evidence.} Certificates, logs, replay, metrics, and public verification are packaged together, allowing readers to inspect one process record instead of separate exports.
-  \item \textbf{Deployable workflows.} The same event model supports personal writing, assigned tasks, public links, guest submissions, and peer review.
+  \item \textbf{High flexibility and compatibility.} Humanly supports multiple writing environments rather than a single fixed policy. Personal writers and task owners can configure resources, AI access, paste rules, time and length limits, guest access, and submission mode. Across those settings, Humanly supports personal writing, assigned tasks, public links, guest submissions, and peer review, with AI access ranging from no AI to polish-only, chat-only, and full assistance.
+  \item \textbf{High accountability and transparency.} Humanly is a native human-AI writing platform rather than an after-the-fact detector. Its editor records fine-grained human actions and in-platform AI actions during drafting, including typing, paste, focus, selection, AI chat, rewrite suggestions, and accept/reject decisions. Certificates, logs, replay, metrics, and public verification expose this process record for later inspection.
 \end{enumerate}
 The paper describes the deployed system and reports a 240-sample stress test showing where final-text predictors fail under policy labels.
 
 \section{System Architecture}
 \label{sec:architecture}
 
-Figure~\ref{fig:workflow} turns the four design goals into a data path from policy configuration to evidence review. Policy-first writing begins with task packets and policy configurations. Native process capture happens in the tracked workspace and event stream. Reviewable evidence is produced as certificates, logs, replay, metrics, and verification tokens. Deployable workflows share this path even when their entry points differ: a personal writer configures their own environment, while an instructor, organizer, or administrator configures a task before distribution.
+Figure~\ref{fig:workflow} shows how these two goals are implemented as a shared workflow. Flexibility appears at the entry points: a personal writer can create an environment, while an instructor, organizer, or administrator can configure an assigned task or public link. Compatibility appears in the shared editor and event schema, which allow these different workflows to converge on the same writing surface. Accountability and transparency appear downstream: the workspace records writing and AI actions, then produces logs, replay, certificates, and verification for readers.
 
 \begin{figure*}[t]
 \centering

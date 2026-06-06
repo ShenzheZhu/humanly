@@ -12,12 +12,10 @@ The writing is concrete. It names task types, files, configuration formats, logi
 
 ## Lessons for Humanly
 
-Humanly should foreground system requirements before feature lists:
+Humanly should foreground system requirements before feature lists. The current design is better summarized by two high-level goals:
 
-- policy-first writing environment;
-- native capture of writing and AI events;
-- shareable evidence through certificates, logs, replay, and verification;
-- workflows for personal writing, assigned tasks, public links, guest submissions, and peer review.
+- high flexibility and compatibility across writing environments, task types, and AI policies;
+- high accountability and transparency through fine-grained native logging, certificates, replay, and public verification.
 
 The abstract should make those capabilities legible in one paragraph, then report the detector stress-test result as evidence that final text is insufficient.
 
@@ -49,12 +47,10 @@ For Humanly, the analogous paper spine should be:
 - comparison columns aligned with those goals;
 - evaluation framed as testing whether final-text-only systems fail the process-evidence problem.
 
-The Humanly design goals should likely be:
+The Humanly design goals should be:
 
-1. Policy-first writing: task rules are configured before drafting and visibly gate the editor.
-2. Native process capture: writing and in-platform AI actions are recorded in the same workspace.
-3. Reviewable evidence: certificates, logs, replay, metrics, and verification are packaged for readers.
-4. Deployable workflows: the same event model supports personal writing, assigned tasks, public links, guest submissions, and peer review.
+1. High flexibility and compatibility: the platform supports rich settings, personal writing, assigned tasks, public links, guest submissions, peer review, and AI policies ranging from no AI to full assistance.
+2. High accountability and transparency: the platform is native to human-AI writing, records fine-grained human and AI actions, and exposes certificates, logs, replay, metrics, and public verification.
 
 ## Section-by-Section Writing Implications
 
@@ -63,7 +59,7 @@ The main lesson is not that Humanly needs a longer introduction. The lesson is t
 - Abstract: name the system, state the access/deployment model, list the capability groups, report the compact evaluation, and provide the URL.
 - Introduction: move quickly from the authenticity problem to the design goals. Avoid ending the introduction with a generic contribution list if the design goals can do the organizational work.
 - Workflow figure: show user-facing artifacts and system state, not only infrastructure boxes. POTATO's Figure 2 works because `Config.yaml`, JSON input, user state, and rendered UI are all visible in the same diagram.
-- Architecture: explain how modules realize the design goals. For Humanly, configuration implements policy-first writing; the editor and event stream implement native process capture; the certificate pipeline implements reviewable evidence; public links, enrollments, guest mode, and peer review implement deployable workflows.
+- Architecture: explain how modules realize the design goals. For Humanly, configuration, public links, enrollments, guest mode, peer review, and AI-mode settings implement flexibility and compatibility. The editor, event stream, AI logs, certificate pipeline, replay, and public verification implement accountability and transparency.
 - Comparison: keep columns aligned with the design goals. Humanly's table should compare environment, governance, capture, and evidence because those are the requirements established earlier.
 - Evaluation: do not turn the detector stress test into a detector leaderboard. Use it to test whether final-text-only systems can answer the policy/provenance question that motivates the system.
 
