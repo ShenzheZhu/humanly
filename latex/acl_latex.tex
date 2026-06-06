@@ -286,18 +286,18 @@ Pangram \citep{pangram2026detector} & 0.4542 & 0.8667 & 0.2500 & 0.0167 \\
 \label{tab:detector-results}
 \end{table}
 
-Table~\ref{tab:detector-results} shows a common tradeoff. Opus 4.8 assigns the correct three-class label to 82/240 samples and misses many disallowed AI-origin cases. GPTZero and Pangram recover policy better, with 205/240 and 208/240 correct decisions, and miss only 3 and 2 of 120 non-compliant samples. Their main error is false positives: 32 and 30 of 120 compliant samples are marked suspicious. All 30 C4 samples, where humans intentionally write in an AI-like style, fall into this error class. Final-text predictors flag many AI-origin documents, but they do not verify policy compliance.
+Table~\ref{tab:detector-results} separates two failure modes. Opus 4.8 assigns the correct three-class label to 82/240 samples and misses 73/120 non-compliant samples. GPTZero and Pangram are more policy-accurate, with 205/240 and 208/240 correct decisions, and miss only 3 and 2 of 120 non-compliant samples. Their main error is false positives: 32 and 30 of 120 compliant samples are marked suspicious. C4 exposes this failure: all 30 human-written AI-style samples are marked suspicious. Final-text predictors can flag AI-origin documents, but they do not verify policy compliance.
 
 \subsection{Human Study}
 \label{sec:study}
 
-For the human study, production and interpretation are separated. Writers draft under configured AI policies; readers judge selected drafts from evidence packages. The primary task is peer review, where writing quality, document understanding, confidentiality, and AI policy interact.
+The human study separates production from interpretation. Writers draft under configured AI policies; readers judge selected drafts from evidence packages. Peer review is the primary task because it combines writing quality, document understanding, confidentiality, and AI policy.
 
 \paragraph{Writer-Side Task.}
-Writers complete short Humanly tasks under \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full} policies. Outcomes include usability, friction, policy clarity, comfort with recording, reuse intent, and event-derived writing statistics.
+Writers complete short Humanly tasks under \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full} policies. Writer outcomes include usability, friction, policy clarity, comfort with recording, reuse intent, and event-derived writing statistics.
 
 \paragraph{Reader-Side Task.}
-Readers inspect three information conditions: final text only, final text plus detector score, and final text plus Humanly certificate/replay. Outcomes include process-label accuracy, confidence, time-to-judgment, perceived fairness, and cited evidence fields.
+Readers inspect three information conditions: final text only, final text plus detector score, and final text plus Humanly certificate/replay. Reader outcomes include process-label accuracy, confidence, time-to-judgment, perceived fairness, and cited evidence fields.
 
 \paragraph{Analysis.}
 We compare writer outcomes across AI modes and reader outcomes across information conditions. Open-ended responses identify which certificate and replay fields readers use or misread.
