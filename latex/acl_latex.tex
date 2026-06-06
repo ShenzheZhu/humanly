@@ -289,13 +289,13 @@ Table~\ref{tab:detector-results} separates document-class and policy errors. Opu
 \subsection{Human Study}
 \label{sec:study}
 
-A two-part human study asks writers to draft under configured AI policies and readers to interpret evidence packages for selected drafts. The study measures whether policy-bound writing remains usable and whether certificates help readers reason about process without treating them as authorship verdicts. Tasks include peer review, classroom writing, online survey responses, and social-media-style posts. Peer review is primary because it combines writing quality, document understanding, confidentiality, and explicit AI policy.
+A two-part human study covers writer use and reader interpretation. Writers draft under configured AI policies; readers judge selected drafts from evidence packages. The study measures usability, policy clarity, evidence interpretation, and fairness across peer review, classroom writing, online survey responses, and social-media-style posts. Peer review is primary because it combines writing quality, document understanding, confidentiality, and explicit AI policy.
 
 \paragraph{Writer-Side Task.}
-Participants write short documents in Humanly under \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full} policies. Measures cover usability, friction, policy clarity, comfort with recording, reuse intent, and event-derived writing statistics.
+Participants write short documents in Humanly under \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full} policies. Measures include usability, friction, policy clarity, comfort with recording, reuse intent, and event-derived writing statistics.
 
 \paragraph{Reader-Side Task.}
-Readers inspect three information conditions: final text only, final text plus detector score, and final text plus Humanly certificate/replay. Measures cover process-label accuracy, confidence, time-to-judgment, perceived fairness, and reported evidence use.
+Readers inspect three information conditions: final text only, final text plus detector score, and final text plus Humanly certificate/replay. Measures include process-label accuracy, confidence, time-to-judgment, perceived fairness, and reported evidence use.
 
 \paragraph{Analysis.}
 We compare writer measures across AI modes and reader measures across information conditions. Open-ended responses identify which certificate and replay fields readers use or misread.
@@ -319,10 +319,10 @@ Humanly issues process evidence, not an authorship verdict. Certificates support
 Humanly blocks or logs some policy-governed actions, such as paste, but it cannot prevent every external-AI workflow. A determined user may transcribe external AI output, use voice input, mimic revisions, or route text through another device. The record captures in-platform process; it cannot rule out every covert channel.
 
 \paragraph{Privacy and Surveillance.}
-Process recording is sensitive because it captures typing behavior, paste activity, focus changes, and AI interactions. Deployments need writer-facing transparency, context limits, and clear access rules for logs, certificates, and replays.
+Process recording is sensitive because it captures typing behavior, paste activity, focus changes, and AI interactions. Deployments require writer-facing transparency, context limits, and clear access rules for logs, certificates, and replays.
 
 \paragraph{Study Ethics.}
-Study prompts are non-sensitive, process recording is disclosed, and personally identifying information is limited to participant payment. If a task involves mild deception, such as withholding details about paste behavior, the protocol must justify the necessity and include debriefing.
+Study prompts are non-sensitive, process recording is disclosed, and personally identifying information is limited to participant payment. Any mild deception, such as withholding details about paste behavior, requires justification and debriefing.
 % TODO: Finalize ethics text once the actual study protocol is locked.
 
 \section{Conclusion}
