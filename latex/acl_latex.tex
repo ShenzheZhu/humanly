@@ -55,19 +55,19 @@
 \maketitle
 
 \begin{abstract}
-A fluent submission can come from sustained typing, AI polishing, machine translation, or generated text pasted into an editor. We present \textsc{Humanly}, a deployed writing platform that records drafting provenance. Writers or task owners configure AI access, paste rules, length limits, and time windows. Humanly logs typing, paste, focus, selection, and in-platform AI events, then packages the final text, event log, replay, PDF/JSON exports, and verification link into a certificate. Humanly supports personal writing, assigned tasks, share links, and peer review. We describe the architecture and compare Humanly with detector and replay systems. A 240-sample stress test shows that Claude Opus 4.8 fails to recover policy compliance from final text alone. The live system is available at \url{https://app.writehumanly.net/}.
+A fluent submission can come from sustained drafting, AI polish, translation, or generated text moved into an editor. We present \textsc{Humanly}, a deployed writing platform that records how text is produced under a policy. Writers and task owners set AI, paste, length, time, and guest policies before drafting. The editor logs typing, paste, focus, selection, and in-platform AI events, then generates a certificate with the final text, metrics, event log, replay, PDF/JSON exports, and verification link. Humanly supports personal writing, assigned tasks, public share links, guest submissions, and peer review. A 240-sample stress test shows that Claude Opus 4.8 fails to recover policy compliance from final text alone. The live system is available at \url{https://app.writehumanly.net/}.
 \end{abstract}
 
 \section{Introduction}
 \label{sec:intro}
 
-Writing authenticity has become a process question. In academic assignments, peer review, and personal certification, the same fluent submission can reflect allowed and disallowed paths. Examples include sustained drafting, grammar-only AI polish, machine translation, chat-based explanation, and generated text moved into an editor. The relevant question is not only whether the final text resembles AI output. It is whether the writer followed the policy governing the task.
+Writing authenticity is now a process question. In academic assignments, peer review, and personal certification, the same fluent submission can reflect allowed and disallowed histories. These include sustained drafting, grammar-only AI polish, machine translation, chat-based explanation, or generated text moved into an editor. The policy question is not only whether the output resembles AI text, but whether the writer followed the rules of the task.
 
-Current tools only partially answer that question. Final-text AI detectors estimate whether a submission resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. They work best when a policy bans generation and the submission is fully generated. Mixed workflows break that assumption. Human prose can be wrongly flagged, especially when writing style differs from detector training assumptions \citep{liang2023gpt}; generated prose can also be rewritten, translated, humanized, or prompted to sound human. A detector score alone cannot tell whether the writer followed the task policy.
+Current tools only partially answer that question. Final-text AI detectors estimate whether a submission resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. They are most useful when a policy bans generation and the submission is fully generated. Mixed workflows break that assumption. Human prose can be wrongly flagged, especially when writing style differs from detector training assumptions \citep{liang2023gpt}; generated prose can be rewritten, translated, humanized, or prompted to sound human. A detector score alone cannot determine policy compliance.
 
-Process and replay tools provide more context, but they usually start from a host document or assignment platform. They can reconstruct edits or label source categories, yet the task policy, AI-assistant actions, replay, metrics, and verification link often remain separate. For instructors, program chairs, and readers, this produces evidence fragments rather than one policy-bound process record.
+Process and replay tools add context, but usually inherit a host document or assignment platform. They can reconstruct edits or label source categories, yet task policy, AI-assistant actions, replay, metrics, and verification often remain separate. Instructors, program chairs, and readers receive evidence fragments rather than one policy-bound process record.
 
-\textsc{Humanly} treats authenticity as provenance by linking task policy, write-time events, and reviewable evidence in one record. A writer or task owner configures the environment, the editor records human and AI actions, and the certificate presents the record for review. The system is designed around four requirements. First, the writing policy must be explicit before drafting begins. Second, capture must cover both human edits and in-platform AI actions. Third, the evidence must be inspectable through certificates, logs, and replay. Fourth, the same editor must support personal writing, assigned tasks, public links, guest submissions, and peer review.
+\textsc{Humanly} treats authenticity as provenance: task policy, write-time events, and reviewable evidence are linked in one record. In the system, a writer or task owner configures the environment; the editor records human and AI actions; and the certificate presents the record for review. The design has four requirements: explicit policy before drafting; capture of human edits and in-platform AI actions; and inspectable certificates, logs, and replay. It must also support personal, assigned, public-link, guest, and peer-review workflows in the same editor.
 
 AI assistance is a policy choice, not a binary attribute. Humanly has four modes: \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full}. \textsc{Polish} exposes constrained selection rewrites such as grammar fixing and simplification. \textsc{Chat} exposes agent chat without selection-level rewrite actions. \textsc{Full} exposes both. The editor and certificate both show the active policy.
 
@@ -76,13 +76,13 @@ We contribute:
   \item a deployed writing workspace that records task policy, human actions, and AI actions;
   \item a configuration model for personal, assigned, public-link, and guest writing with explicit AI, paste, time, length, and guest policies;
   \item a certificate pipeline with typed/pasted statistics, AI-use records, replayable history, and public verification;
-  \item a 240-sample final-text detector stress test and human-study protocol for evaluating provenance evidence.
+  \item a 240-sample final-text detector stress test and human-study protocol for evaluating process evidence.
 \end{enumerate}
 
 \section{System Architecture}
 \label{sec:architecture}
 
-Humanly is a web platform with three interfaces: a writer portal, an admin dashboard, and public verification pages. The writer portal hosts the tracked editor. The admin dashboard creates assigned tasks, sets writing rules, lists submissions, and inspects activity. Verification pages show shared certificate fields. Figure~\ref{fig:workflow} shows how users enter a task, write under a policy, generate a certificate, and share verification evidence.
+Humanly has three web interfaces: a writer portal, an admin dashboard, and public verification pages. Writers draft in the tracked editor. Administrators create tasks, set writing rules, list submissions, and inspect activity. Verification pages expose shared certificate fields. Figure~\ref{fig:workflow} shows how users enter a task, write under a policy, generate a certificate, and share verification evidence.
 
 \begin{figure*}[t]
 \centering
@@ -142,7 +142,7 @@ Humanly is a web platform with three interfaces: a writer portal, an admin dashb
 \end{figure*}
 
 \paragraph{Configuration.}
-Configuration is the task-specification layer (Figure~\ref{fig:configuration-surface}). Personal writers configure it when creating a document; task owners configure it before sharing an invite code or public link. The environment records task resources, AI provider, model, mode, token or request budget, paste policy, time and length limits, and guest-submission policy. The editor uses this environment to decide which controls are available during drafting.
+Configuration defines the writing environment (Figure~\ref{fig:configuration-surface}). Personal writers set it when creating a document; task owners set it before sharing an invite code or public link. The environment stores task resources, AI provider, model, mode, token or request budget, paste policy, time and length limits, and guest-submission policy. During drafting, the editor uses these settings to decide which controls are available.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -153,7 +153,7 @@ Configuration is the task-specification layer (Figure~\ref{fig:configuration-sur
 \vspace{0.5em}
 
 \paragraph{Writing Workspace.}
-Writers compose in a Lexical-based editor (Figure~\ref{fig:workspace-surface}) used for both personal documents and admin-assigned tasks. Instruction PDFs and reference files appear beside the editor if provided. The AI policy is enforced in the interface: \textsc{off} hides AI, \textsc{polish} exposes selection rewrites, \textsc{chat} exposes only agent chat, and \textsc{full} exposes both.
+Writers compose in a Lexical-based editor (Figure~\ref{fig:workspace-surface}) shared by personal documents and assigned tasks. Instruction PDFs and reference files appear beside the editor when provided. The interface enforces the AI policy: \textsc{off} hides AI, \textsc{polish} exposes selection rewrites, \textsc{chat} exposes only agent chat, and \textsc{full} exposes both.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -178,7 +178,7 @@ Humanly records write-time events during drafting (Figure~\ref{fig:log-surface})
 The backend stores document snapshots, event streams, task enrollments, submissions, AI sessions, AI action logs, files, and certificates. PostgreSQL/TimescaleDB stores high-frequency events; Redis handles caching and background jobs; WebSocket channels carry live activity. Derived views turn raw events into logs, timelines, typed/pasted statistics, AI-use statistics, and replay data.
 
 \paragraph{Certificate and Verification.}
-Before certificate generation or task submission, Humanly flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate contains the final text, event counts, typed/pasted and editing metrics, AI-use metrics, a verification token, and a signed payload. Writers can export PDF or JSON. Readers can inspect the certificate, metrics, and permitted replay/log evidence.
+Before certificate generation or task submission, Humanly flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate contains the final text, event counts, typed/pasted and editing metrics, AI-use metrics, a verification token, and a signed payload. Writers can export PDF or JSON; readers inspect the certificate, metrics, and permitted replay/log evidence.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -191,36 +191,36 @@ Before certificate generation or task submission, Humanly flushes pending editor
 \section{Workflows and Use Cases}
 \label{sec:workflows}
 
-Humanly supports three workflows. Each pairs a writing policy with a recorded process and shareable evidence.
+Humanly supports three workflows, each pairing a writing policy with a recorded process and shareable evidence.
 
 \subsection{Personal Writing Certification}
 
-In the personal workflow, a writer creates a document, chooses a writing environment, drafts in Humanly, and generates a certificate. The record reports typed and pasted text, editing time, and in-platform AI use rather than a detector score.
+A personal writer creates a document, chooses a writing environment, drafts in Humanly, and generates a certificate. The record reports typed and pasted text, editing time, and in-platform AI use rather than a detector score.
 
 \subsection{Classroom Writing Assignments}
 
-In the classroom workflow, an instructor creates an assigned task, sets AI, paste, time, length, and guest policies, and distributes an invite code or public link. Students write in the policy-bound editor. On submission, the instructor reviews the final text, activity timeline, AI logs, metrics, and certificate.
+An instructor creates an assigned task, sets AI, paste, time, length, and guest policies, and distributes an invite code or public link. Students write in the policy-bound editor. On submission, the instructor reviews the final text, activity timeline, AI logs, metrics, and certificate.
 
 \subsection{Peer Review}
 
-Peer review is policy-sensitive: reviewers may use AI for grammar or document understanding while remaining responsible for the substantive judgment. Humanly routes review writing through an assigned task with attached paper context, configured AI policy, and a tracked editor. The certificate and replay show whether a review was typed, pasted, AI-assisted, revised, or generated through in-platform tools. The record shows process, not review quality.
+Peer review is policy-sensitive: reviewers may use AI for grammar or document understanding while remaining responsible for the substantive judgment. Humanly routes review writing through an assigned task with attached paper context, configured AI policy, and a tracked editor. Certificates and replay show whether a review was typed, pasted, AI-assisted, revised, or generated through in-platform tools. The record does not score review quality; it shows how the review was produced.
 
 \section{Comparison with Existing Systems}
 \label{sec:comparison}
 
-We compare Humanly with two classes of systems: final-text detectors and process/replay tools. The comparison follows the four design requirements above: writing environment, policy governance, action capture, and reviewable evidence. Section~\ref{sec:evaluation} then tests whether final text alone can recover policy compliance.
+We compare Humanly with final-text detectors and process/replay tools. The comparison follows the four design requirements above: writing environment, policy governance, action capture, and reviewable evidence. Section~\ref{sec:evaluation} then tests whether final text alone can recover policy compliance.
 
 \subsection{Final-Text Detectors}
 
-Final-text detectors such as GPTZero, Pangram, Originality.AI, and Copyleaks score the submitted text after writing ends \citep{gptzero2026detector,pangram2026detector,originality2026detector,copyleaks2026detector}. Such scores help when a task bans generated text and the output is mostly machine-generated. They do not observe the writing process, so they cannot separate allowed AI assistance from policy-violating AI use.
+Final-text detectors such as GPTZero, Pangram, Originality.AI, and Copyleaks score the submitted text after writing ends \citep{gptzero2026detector,pangram2026detector,originality2026detector,copyleaks2026detector}. Such scores help when a task bans generation and the output is mostly machine-written. They do not observe the writing process, so they cannot separate allowed AI assistance from policy-violating AI use.
 
-Final text collapses different histories. A human draft polished by AI, a human draft translated by AI, and an AI answer paraphrased by a humanizer can all yield fluent prose. Human prose can also be formal, template-like, or non-native in ways that resemble model output \citep{liang2023gpt}. The policy question is whether the process matched the allowed assistance, not whether the text looks AI-generated.
+Final text collapses different histories. A human draft polished by AI, a human draft translated by AI, and an AI answer paraphrased by a humanizer can all yield fluent prose. Human prose can also be formal, template-like, or non-native in ways that resemble model output \citep{liang2023gpt}. The policy question is whether the process matched the allowed assistance, not whether the text looks machine-written.
 
 \subsection{Process and Replay Systems}
 
-Process and replay tools expose document history. Turnitin Clarity provides writing reports and AI-assistance visibility in assignment workflows \citep{turnitin2026clarity}. Grammarly Authorship labels typed, pasted, AI-generated, AI-rephrased, and Grammarly-edited text across supported writing surfaces \citep{grammarly2026authorship}. GPTZero Writing Reports combine detector-adjacent authorship reports with Google Docs process evidence \citep{gptzero2026writingreport}. Google Docs replay tools such as Draftback, Brisk Inspect Writing, Integrito, WritingTrace, and PaperTrail Inspect reconstruct document history from host-editor data \citep{draftback2026replay,brisk2025inspectwriting,integrito2026activityreport,writingtrace2026,papertrail2026inspect}.
+Process and replay tools expose document history. Turnitin Clarity provides writing reports and AI-assistance visibility in assignment workflows \citep{turnitin2026clarity}. Grammarly Authorship labels typed, pasted, AI-generated, AI-rephrased, and Grammarly-edited text across supported writing surfaces \citep{grammarly2026authorship}. GPTZero Writing Reports combine detector-adjacent authorship reports with Google Docs process evidence \citep{gptzero2026writingreport}. Google Docs replay tools such as Draftback, Brisk Inspect Writing, Integrito, WritingTrace, and PaperTrail Inspect reconstruct history from host-editor data \citep{draftback2026replay,brisk2025inspectwriting,integrito2026activityreport,writingtrace2026,papertrail2026inspect}.
 
-Humanly combines configurable writing environments, native AI-use logs, assigned-task enrollment, replay, and certificate analytics in one controlled workspace. Table~\ref{tab:feature-comparison} summarizes the feature comparison. The columns correspond to the design requirements in Section~\ref{sec:intro}: environment, governance, capture, and evidence. We mark a feature as partial when public documentation shows support only in a narrower context, such as a Google Docs extension or an assignment-specific report.
+Humanly combines configurable writing environments, native AI-use logs, assigned-task enrollment, replay, and certificate analytics in one controlled workspace. Table~\ref{tab:feature-comparison} maps each system to the design requirements in Section~\ref{sec:intro}. A partial mark means public documentation shows support only in a narrower context, such as a Google Docs extension or an assignment-specific report.
 
 \begin{table*}[t]
 \small
@@ -247,13 +247,13 @@ PaperTrail \citep{papertrail2026inspect} & \nofeature & \nofeature & \nofeature 
 \label{tab:feature-comparison}
 \end{table*}
 
-The comparison shows that replay is not the main gap: several systems already reconstruct document history. Turnitin Clarity is the most direct education baseline because it combines assignment workflows with writing playback and AI-assistance visibility. Grammarly Authorship is the most direct source-attribution baseline, labeling typed, pasted, AI-generated, and AI-rephrased text. WritingTrace and PaperTrail Inspect focus on writing history rather than detector probability. GPTZero packages AI reviewing, writing replay, plagiarism checks, and AI detection for classrooms \citep{gptzero2026turnitinbrisk}.
+Replay itself is not the main gap: several systems already reconstruct document history. Turnitin Clarity is the closest education baseline because it combines assignment workflows with writing playback and AI-assistance visibility. Grammarly Authorship is the closest source-attribution baseline, labeling typed, pasted, AI-generated, and AI-rephrased text. WritingTrace and PaperTrail Inspect focus on writing history rather than detector probability. GPTZero packages AI reviewing, writing replay, plagiarism checks, and AI detection for classrooms \citep{gptzero2026turnitinbrisk}.
 
-Humanly instead grounds all evidence in one write-time record. A writer or task owner sets the task policy before writing. The editor enforces AI modes and logs AI actions and fine-grained writing events during composition. Humanly generates the certificate from the same event stream.
+Humanly instead grounds policy, AI actions, writing events, replay, and certificate metrics in one write-time record. A writer or task owner sets the policy before writing; the editor enforces it during composition; the certificate is generated from the same event stream.
 
 \subsection{Synthesis}
 
-Final-text detectors answer what the text resembles. Process and replay tools answer what happened inside a host document. Humanly asks whether the recorded process followed the task policy. Because AI assistance is not binary, a course or venue may allow grammar correction, prohibit generation, permit chat-based explanation, or allow full collaboration. The record must include both policy and process.
+Final-text detectors answer what the text resembles. Process and replay tools answer what happened inside a host document. Humanly asks whether the recorded process followed the task policy. Because AI assistance is not binary, the record must include both policy and process.
 
 \section{Evaluation}
 \label{sec:evaluation}
@@ -318,7 +318,7 @@ These cases refine the trace taxonomy used in the certificate and replay views. 
 Humanly issues process evidence, not an authorship verdict. Certificates support interpretation; they do not decide authorship.
 
 \paragraph{Adversarial Behavior.}
-Humanly can block or log some actions, such as paste under task policy, but it cannot prevent every external-AI workflow. A determined user may transcribe external AI output, use voice input, mimic revisions, or route text through another device. Humanly provides process evidence; it does not close every channel for covert assistance.
+Humanly can block or log some actions, such as paste under task policy, but it cannot prevent every external-AI workflow. A determined user may transcribe external AI output, use voice input, mimic revisions, or route text through another device. The platform provides process evidence; it does not close every channel for covert assistance.
 
 \paragraph{Privacy and Surveillance.}
 Process recording is sensitive. It captures typing behavior, paste activity, focus changes, and AI interactions. Deployments should be transparent to writers, limited to contexts where process evidence is appropriate, and paired with clear access rules for logs, certificates, and replays.
@@ -330,7 +330,7 @@ The studies use non-sensitive prompts, disclose process recording, and avoid col
 \section{Conclusion}
 \label{sec:conclusion}
 
-\textsc{Humanly} treats writing authenticity as provenance: did the process comply with the task policy? The platform implements this view through a tracked editor, configurable AI access, assigned-task policy, and verifiable certificates. The stress test shows why final text is insufficient: Claude Opus 4.8 misses many policy-violating cases and flags many compliant ones. Humanly does not replace human judgment; it supplies process evidence for that judgment.
+\textsc{Humanly} treats writing authenticity as provenance: did the process comply with the task policy? This view is implemented through a tracked editor, configurable AI access, assigned-task policy, and verifiable certificates. The stress test shows why final text is insufficient: Claude Opus 4.8 misses many policy-violating cases and flags many compliant ones. Humanly does not replace human judgment; it supplies the process evidence that judgment requires.
 
 % Bibliography entries for the entire Anthology, followed by custom entries
 %\bibliography{anthology,custom}
