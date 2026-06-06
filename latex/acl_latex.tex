@@ -67,9 +67,9 @@ Post-hoc detectors answer a narrower question: whether the submitted text resemb
 
 Document-replay tools usually depend on a host editor or assignment platform. They reconstruct edits or label source categories, while task policy, AI-assistant actions, metrics, replay, and verification remain separate. Readers must reconcile artifacts rather than inspect one policy-bound record.
 
-\textsc{Humanly} links task policy and write-time events in one provenance record. Policy is set before writing, human and in-platform AI actions are recorded during drafting, and certificates present logs, replay, metrics, and verification after drafting. The record covers personal, assigned, public-link, guest, and peer-review workflows.
+\textsc{Humanly} links task policy and write-time events in one provenance record. Users set policy before writing; Humanly records human and in-platform AI actions during drafting; certificates present logs, replay, metrics, and verification after drafting. The record covers personal, assigned, public-link, guest, and peer-review workflows.
 
-AI assistance is governed by policy, not by a binary label. Humanly implements four modes: \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full}. \textsc{Polish} enables constrained selection rewrites such as grammar fixing and simplification. \textsc{Chat} enables agent chat without selection-level rewrite actions. \textsc{Full} enables both. The editor and certificate show the active policy.
+AI assistance is governed by policy, not by a binary label. Humanly implements four modes: \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full}. In \textsc{polish}, writers use constrained selection rewrites such as grammar fixing and simplification. Under \textsc{chat}, they use agent chat without selection-level rewrite actions. \textsc{full} exposes both. The editor and certificate show the active policy.
 
 We contribute:
 \begin{enumerate}
@@ -82,7 +82,7 @@ We contribute:
 \section{System Architecture}
 \label{sec:architecture}
 
-Humanly exposes three interfaces: a writer portal for personal tasks and drafting, an admin dashboard for assigned tasks and activity review, and public pages for certificate verification. Figure~\ref{fig:workflow} shows how personal and assigned-task paths enter the same capture-and-certification pipeline.
+Humanly exposes three interfaces: a writer portal for personal tasks and drafting, an admin dashboard for assigned tasks and activity review, and public pages for certificate verification. Figure~\ref{fig:workflow} summarizes how personal and assigned-task paths enter the same capture-and-certification pipeline.
 
 \begin{figure*}[t]
 \centering
@@ -153,7 +153,7 @@ Configuration sets the writing environment before drafting begins (Figure~\ref{f
 \vspace{0.5em}
 
 \paragraph{Writing Workspace.}
-Writers compose in a Lexical-based editor (Figure~\ref{fig:workspace-surface}) shared by personal documents and assigned tasks. Provided PDFs and reference files appear beside the editor. The interface enforces the AI policy: \textsc{off} hides AI, \textsc{polish} limits AI to selection rewrites, \textsc{chat} limits AI to agent chat, and \textsc{full} combines both.
+Writers compose in a Lexical-based editor (Figure~\ref{fig:workspace-surface}) shared by personal documents and assigned tasks. Attached PDFs and reference files sit beside the editor. The interface enforces the AI policy: \textsc{off} hides AI, \textsc{polish} limits AI to selection rewrites, \textsc{chat} limits AI to agent chat, and \textsc{full} combines both.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -286,12 +286,12 @@ Pangram \citep{pangram2026detector} & 0.4542 & 0.8667 & 0.2500 & 0.0167 \\
 \label{tab:detector-results}
 \end{table}
 
-Table~\ref{tab:detector-results} separates document-class and policy errors. Opus 4.8 assigns the correct three-class label to 82/240 samples and misses many disallowed AI-origin cases. GPTZero and Pangram make 205/240 and 208/240 correct policy decisions, missing only 3 and 2 of 120 non-compliant samples. At the document-class layer, however, both remain below 0.50 accuracy and mark 32 and 30 of 120 compliant samples as suspicious. C4 is the hardest compliant case: humans intentionally write in an AI-like style, and both detectors flag all 30 C4 samples. Final text may identify obvious AI-origin documents, but it cannot explain whether a writing process followed the task policy.
+Table~\ref{tab:detector-results} separates document-class and policy errors. Opus 4.8 assigns the correct three-class label to 82/240 samples and misses many disallowed AI-origin cases. GPTZero and Pangram are policy-correct on 205/240 and 208/240 samples, missing only 3 and 2 of 120 non-compliant samples. At the document-class layer, however, both remain below 0.50 accuracy and mark 32 and 30 of 120 compliant samples as suspicious. C4 is the hardest compliant case: humans intentionally write in an AI-like style, and both detectors flag all 30 C4 samples. Final text may identify obvious AI-origin documents, but it cannot explain whether a writing process followed the task policy.
 
 \subsection{Human Study}
 \label{sec:study}
 
-The human study tests interpretability, not automated judgment. Writers complete tasks under configured AI policies; readers infer process labels from evidence. Tasks cover peer review, classroom writing, online survey responses, and social-media-style posts. Peer review is the primary setting because it combines writing quality, document understanding, confidentiality, and explicit AI policy.
+The human study tests interpretability, not automated judgment. Writers complete tasks under configured AI policies; readers infer process labels from evidence. Tasks include peer review, classroom writing, online survey responses, and social-media-style posts. Peer review is the primary setting because it combines writing quality, document understanding, confidentiality, and explicit AI policy.
 
 \paragraph{Writer-Side Task.}
 Participants write short documents in Humanly under \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full} policies. Writer-side measures cover usability, friction, policy clarity, comfort with recording, reuse intent, and event-derived writing statistics.
@@ -306,7 +306,7 @@ Analysis compares writer measures across AI modes and reader measures across inf
 \subsection{Boundary and Red-Team Analysis}
 \label{sec:redteam}
 
-The detector stress test targets final text; boundary analysis targets capture assumptions. Boundary cases include phone-assisted generation, memorized AI text, manual retyping of an external AI answer, and GUI-agent imitation of human writing. These cases attack observability and are separate from the detector benchmark.
+The detector stress test targets final text; boundary analysis targets capture assumptions. Boundary cases include phone-assisted generation, memorized AI text, manual retyping of an external AI answer, and GUI-agent imitation of human writing. These cases test observability and are separate from the detector benchmark.
 
 These cases also refine the trace taxonomy behind certificates and replay. The taxonomy separates human-only writing, mostly human writing with paste, human typing plus AI editing, AI brainstorming followed by human writing, AI-generated passages, and fully AI-generated text.
 % TODO: Decide which red-team cases are feasible for the demo-paper evaluation versus future work.
@@ -321,7 +321,7 @@ Humanly issues process evidence, not an authorship verdict. Certificates support
 Humanly blocks or logs some policy-governed actions, such as paste, but it cannot prevent every external-AI workflow. A determined user may transcribe external AI output, use voice input, mimic revisions, or route text through another device. The record captures in-platform process; it cannot rule out every covert channel.
 
 \paragraph{Privacy and Surveillance.}
-Process recording is sensitive. It captures typing behavior, paste activity, focus changes, and AI interactions. Deployments therefore need writer-facing transparency, context limits, and clear access rules for logs, certificates, and replays.
+Process recording is sensitive because it captures typing behavior, paste activity, focus changes, and AI interactions. Deployments need writer-facing transparency, context limits, and clear access rules for logs, certificates, and replays.
 
 \paragraph{Study Ethics.}
 Study prompts are non-sensitive, process recording is disclosed, and personally identifying information is limited to participant payment. If a task involves mild deception, such as withholding details about paste behavior, the protocol must justify the necessity and include debriefing.
@@ -330,7 +330,7 @@ Study prompts are non-sensitive, process recording is disclosed, and personally 
 \section{Conclusion}
 \label{sec:conclusion}
 
-\textsc{Humanly} makes writing authenticity reviewable as policy-bound process evidence. Its tracked editor, configurable AI access, assigned-task flow, and certificates turn writing events into an inspectable record. The stress test shows why final text is insufficient: GPTZero and Pangram catch most disallowed generation but still flag many compliant cases, while Opus 4.8 misses many policy violations. Humanly does not replace judgment; it gives reviewers an auditable record.
+\textsc{Humanly} reframes writing authenticity as policy-bound process evidence. Its tracked editor, configurable AI access, assigned-task flow, and certificates turn writing events into an inspectable record. The stress test shows why final text is insufficient: GPTZero and Pangram identify most disallowed generation but still flag many compliant cases, while Opus 4.8 misses many policy violations. Humanly does not replace judgment; it gives reviewers an auditable record.
 
 % Bibliography entries for the entire Anthology, followed by custom entries
 %\bibliography{anthology,custom}
