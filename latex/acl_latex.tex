@@ -63,7 +63,7 @@ Final text alone cannot distinguish sustained drafting from AI polish, translati
 
 Academic assignments, peer review, and authenticity certification depend on how text was produced, not final text alone. Similar submissions may come from sustained drafting, grammar-only AI polish, machine translation, chat-based explanation, or generated text imported into an editor.
 
-Post-hoc detectors score whether submitted text resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. They fit settings where generation is banned and violations are mostly machine-written. Mixed workflows are different: human prose may be wrongly flagged when style differs from detector training data \citep{liang2023gpt}, while generated prose can be rewritten, translated, or humanized. A detector score alone cannot determine policy compliance.
+Post-hoc detectors score whether submitted text resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. Such scores are useful when generation is banned and violations are mostly machine-written. Mixed workflows fall outside that setting: human prose may be wrongly flagged when style differs from detector training data \citep{liang2023gpt}, while generated prose can be rewritten, translated, or humanized. A detector score alone cannot determine policy compliance.
 
 Document-replay tools reconstruct host-editor history, but task policy, AI-assistant actions, metrics, replay, and verification often remain separate. Readers must reconcile artifacts instead of inspecting one policy-bound record.
 
@@ -82,7 +82,7 @@ We present:
 \section{System Architecture}
 \label{sec:architecture}
 
-Humanly has three stages: configure policy before writing, capture events during composition, and review evidence after completion. The writer portal, admin dashboard, and public verification pages implement this flow. Figure~\ref{fig:workflow} shows personal and assigned-task paths entering the capture-and-certification pipeline.
+Humanly organizes writing into three stages: configure policy before writing, capture events during composition, and review evidence after completion. The writer portal, admin dashboard, and public verification pages implement this flow. Figure~\ref{fig:workflow} shows personal and assigned-task paths entering the capture-and-certification pipeline.
 
 \begin{figure*}[t]
 \centering
@@ -289,7 +289,7 @@ Table~\ref{tab:detector-results} separates document-class and policy errors. Opu
 \subsection{Human Study}
 \label{sec:study}
 
-Human study design separates production from interpretation. Writers draft under configured AI policies; readers judge selected drafts from evidence packages. The study measures usability, policy clarity, evidence interpretation, and fairness across peer review, classroom writing, online survey responses, and social-media-style posts. Peer review is primary because it combines writing quality, document understanding, confidentiality, and explicit AI policy.
+The human study separates production from interpretation. Writers draft under configured AI policies; readers judge selected drafts from evidence packages. It measures usability, policy clarity, evidence interpretation, and fairness across peer review, classroom writing, online survey responses, and social-media-style posts. Peer review is primary because it combines writing quality, document understanding, confidentiality, and explicit AI policy.
 
 \paragraph{Writer-Side Task.}
 Participants write short documents in Humanly under \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full} policies. Measures include usability, friction, policy clarity, comfort with recording, reuse intent, and event-derived writing statistics.
@@ -361,7 +361,7 @@ N3 & \textbf{Construction:} AI-generated non-English text translated into Englis
 N4 & \textbf{Construction:} AI-written substantive draft with light human edits. \textbf{Document class:} \textsc{mixed}. \textbf{Policy:} non-compliant. \textbf{Risk:} false negative. \\
 \bottomrule
 \end{tabularx}
-\caption{Detector stress-test case matrix. Document class describes the final-text construction history. Policy label describes whether the construction is allowed under the benchmark policy.}
+\caption{Detector stress-test case matrix. Document class describes final-text construction; policy label marks whether the benchmark policy allows that construction.}
 \label{tab:appendix-detector-cases}
 \end{table}
 
@@ -377,6 +377,6 @@ The evaluation uses two metric layers.
 
 \noindent\textbf{Layer 1: Final-text document class.} A prediction is correct only if it exactly matches the expected document class: \textsc{human\_only}, \textsc{mixed}, or \textsc{ai\_only}. This layer measures final-text construction independent of policy.
 
-\noindent\textbf{Layer 2: Policy compliance.} Detector outputs are mapped into binary policy evidence: \textsc{human\_only} becomes \textit{human-compliant}; \textsc{mixed} and \textsc{ai\_only} become \textit{AI-suspicious}. The mapped prediction is compared with the benchmark policy label, with non-compliance as the positive class. TP/FN are non-compliant samples predicted as AI-suspicious/human-compliant; TN/FP are compliant samples predicted as human-compliant/AI-suspicious.
+\noindent\textbf{Layer 2: Policy compliance.} Detector outputs are mapped into binary policy evidence: \textsc{human\_only} becomes \textit{human-compliant}; \textsc{mixed} and \textsc{ai\_only} become \textit{AI-suspicious}. The mapped prediction is compared with the benchmark policy label, with non-compliance as the positive class. TP/FN count non-compliant samples predicted as AI-suspicious/human-compliant; TN/FP count compliant samples predicted as human-compliant/AI-suspicious.
 
 \end{document}
