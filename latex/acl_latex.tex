@@ -63,9 +63,9 @@ A fluent submission can come from sustained drafting, AI polish, translation, or
 
 Writing authenticity is now a process question. In academic assignments, peer review, and personal certification, the same fluent submission can reflect allowed and disallowed histories. These include sustained drafting, grammar-only AI polish, machine translation, chat-based explanation, or generated text moved into an editor. Policy compliance depends on how the text was produced, not only on what the final text resembles.
 
-Current tools only partially answer that question. Final-text AI detectors estimate whether a submission resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. They are most useful when a policy bans generation and the submission is fully generated. Mixed workflows break that assumption. Human prose can be wrongly flagged, especially when writing style differs from detector training assumptions \citep{liang2023gpt}; generated prose can be rewritten, translated, humanized, or prompted to sound human. A detector score alone cannot determine policy compliance.
+Current systems leave that policy question underspecified. Final-text AI detectors estimate whether a submission resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. They fit cases where a policy bans generation and the submission is fully generated. Mixed workflows break that assumption. Human prose can be wrongly flagged, especially when writing style differs from detector training assumptions \citep{liang2023gpt}; generated prose can be rewritten, translated, humanized, or prompted to sound human. A detector score alone cannot determine policy compliance.
 
-Process and replay tools add context, but usually inherit a host document or assignment platform. They can reconstruct edits or label source categories, yet task policy, AI-assistant actions, replay, metrics, and verification often remain separate. Instructors, program chairs, and readers receive evidence fragments rather than one policy-bound process record.
+Process and replay tools add context, but usually inherit a host document or assignment platform. They can reconstruct edits or label source categories, yet task policy, AI-assistant actions, replay, metrics, and verification often remain separate. Instructors, program chairs, and readers therefore receive fragments rather than one policy-bound process record.
 
 \textsc{Humanly} treats authenticity as provenance: task policy, write-time events, and reviewable evidence are linked in one record. In the system, a writer or task owner configures the environment; the editor records human and AI actions; and the certificate presents the record for review. The design has four requirements: explicit policy before drafting; capture of human edits and in-platform AI actions; and inspectable certificates, logs, and replay. It must also support personal, assigned, public-link, guest, and peer-review workflows in the same editor.
 
@@ -147,7 +147,7 @@ Configuration defines the writing environment (Figure~\ref{fig:configuration-sur
 \noindent\begin{minipage}{\columnwidth}
 \centering
 \includegraphics[width=\columnwidth]{figures/fig-section2-config-ai-on.png}
-\captionof{figure}{Configuration surface for AI access, paste rules, resources, and writing constraints.}
+\captionof{figure}{Task configuration for AI access, paste rules, resources, and writing constraints.}
 \label{fig:configuration-surface}
 \end{minipage}
 \vspace{0.5em}
@@ -169,7 +169,7 @@ Humanly records write-time events during drafting (Figure~\ref{fig:log-surface})
 \noindent\begin{minipage}{\columnwidth}
 \centering
 \includegraphics[width=\columnwidth]{figures/fig-section2-log.png}
-\captionof{figure}{Document activity log showing recorded typing, paste, formatting, selection, and AI chat events.}
+\captionof{figure}{Activity log for recorded typing, paste, formatting, selection, and AI chat events.}
 \label{fig:log-surface}
 \end{minipage}
 \vspace{0.5em}
@@ -183,7 +183,7 @@ Before certificate generation or task submission, Humanly flushes pending editor
 \noindent\begin{minipage}{\columnwidth}
 \centering
 \includegraphics[width=\columnwidth]{figures/fig-section2-certificate-verification.png}
-\captionof{figure}{Certificate surface with authorship metrics, AI-assistance counts, verification controls, access settings, and identifiers.}
+\captionof{figure}{Certificate view with authorship metrics, AI-assistance counts, verification controls, access settings, and identifiers.}
 \label{fig:certificate-surface}
 \end{minipage}
 \vspace{0.5em}
@@ -282,7 +282,7 @@ Pangram \citep{pangram2026detector} & -- & -- & -- & -- \\
 \bottomrule
 \end{tabular}
 }
-\caption{Final-text-only predictor result. Document accuracy is exact three-class agreement with the expected final-text document class. Policy accuracy maps \textsc{mixed} and \textsc{ai\_only} predictions to AI-suspicious and then scores compliance with the benchmark policy.}
+\caption{Final-text-only predictor result. Document accuracy is exact three-class agreement with the expected final-text class. Policy accuracy maps \textsc{mixed} and \textsc{ai\_only} predictions to AI-suspicious, then scores agreement with the benchmark policy.}
 \label{tab:detector-results}
 \end{table}
 
