@@ -193,19 +193,19 @@ Before certificate generation or task submission, Humanly flushes pending editor
 \section{Workflows and Use Cases}
 \label{sec:workflows}
 
-Across workflows, policy is fixed before writing and evidence is reviewed after writing. Workflows differ by policy owner and record reader.
+Each workflow fixes policy before writing and reviews evidence afterward. They differ in policy owner and record reader.
 
 \subsection{Peer Review}
 
-Peer review is policy-sensitive: AI may be allowed for grammar or document understanding, but reviewers remain responsible for judgment. Humanly treats review writing as an assigned task with paper context, AI policy, and a tracked editor. Certificates and replay show whether a review was typed, pasted, AI-assisted, revised, or generated through in-platform tools. The record describes production, not quality.
+Peer review is policy-sensitive: AI may be allowed for grammar or document understanding, while reviewers retain responsibility for judgment. Humanly treats review writing as an assigned task with paper context, AI policy, and a tracked editor. Certificates and replay show whether a review was typed, pasted, AI-assisted, revised, or generated through in-platform tools. The record describes production, not quality.
 
 \subsection{Classroom Writing Assignments}
 
-Instructors assign writing tasks, distribute invite codes or public links, and review submissions with timelines, AI logs, metrics, and certificates. The workflow gives both sides a shared record of the assigned policy and the submitted process.
+Instructors configure tasks, distribute invite codes or public links, and review submissions through timelines, AI logs, metrics, and certificates. Both sides see the assigned policy and the submitted process.
 
 \subsection{Personal Writing Certification}
 
-For self-certification, writers set policy, draft in Humanly, and generate a certificate reporting typed and pasted text, editing time, and in-platform AI use, not a detector score.
+For self-certification, writers set policy, draft in Humanly, and generate a certificate reporting typed text, pasted text, editing time, and in-platform AI use rather than a detector score.
 
 \section{Comparison with Existing Systems}
 \label{sec:comparison}
@@ -306,25 +306,25 @@ We compare writer outcomes across AI modes and reader outcomes across informatio
 \subsection{Boundary and Red-Team Analysis}
 \label{sec:redteam}
 
-The detector stress test targets final text; boundary analysis targets capture assumptions. Cases include phone-assisted generation, memorized AI text, manual retyping of an external AI answer, and GUI-agent imitation of human writing. These cases test observability, not detector accuracy.
+The detector stress test targets final text; boundary analysis targets capture assumptions. Cases include phone-assisted generation, memorized AI text, manual retyping of an external AI answer, and GUI-agent imitation of human writing. They test observability, not detector accuracy.
 
-They also define a trace taxonomy for certificates and replay: human-only writing, mostly human writing with paste, AI editing, AI brainstorming, AI-generated passages, and fully AI-generated text.
+Boundary cases also define a trace taxonomy for certificates and replay: human-only writing, mostly human writing with paste, AI editing, AI brainstorming, AI-generated passages, and fully AI-generated text.
 % TODO: Decide which red-team cases are feasible for the demo-paper evaluation versus future work.
 
 \section{Limitations and Ethical Considerations}
 \label{sec:limitations}
 
 \paragraph{Process Evidence Is Not Proof.}
-Certificates support interpretation; they are not authorship verdicts.
+Certificates support interpretation rather than automatic authorship verdicts.
 
 \paragraph{Adversarial Behavior.}
-Humanly logs or blocks in-platform actions, such as paste when policy disallows it, but cannot prevent every external-AI workflow. A determined user may transcribe external AI output, use voice input, mimic revisions, or route text through another device. The record captures in-platform activity; it cannot rule out every covert channel.
+Humanly logs or blocks in-platform actions, such as paste when policy disallows it, but cannot prevent every external-AI workflow. A determined user may transcribe external AI output, use voice input, mimic revisions, or route text through another device. The record captures in-platform activity; covert channels remain possible.
 
 \paragraph{Privacy and Surveillance.}
 Process recording is sensitive: it captures typing behavior, paste activity, focus changes, and AI interactions. Deployments require writer-facing transparency, context limits, and clear access rules for logs, certificates, and replays.
 
 \paragraph{Study Ethics.}
-Study prompts avoid sensitive topics, process recording is disclosed, and personally identifying information is limited to participant payment. If the protocol withholds details about paste behavior, it requires justification and debriefing.
+Study prompts avoid sensitive topics, process recording is disclosed, and personally identifying information is limited to participant payment. Any withholding about paste behavior requires justification and debriefing.
 % TODO: Finalize ethics text once the actual study protocol is locked.
 
 \section{Conclusion}
