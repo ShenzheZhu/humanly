@@ -67,9 +67,9 @@ Post-hoc detectors answer a narrower question: whether the submitted text resemb
 
 Document-replay tools usually depend on a host editor or assignment platform. They reconstruct edits or label source categories, while task policy, AI-assistant actions, metrics, replay, and verification remain separate. Readers must reconcile artifacts rather than inspect one policy-bound record.
 
-\textsc{Humanly} links task policy and write-time events in one provenance record. Users set policy before writing; Humanly records human and in-platform AI actions during drafting; certificates present logs, replay, metrics, and verification after drafting. The record covers personal, assigned, public-link, guest, and peer-review workflows.
+\textsc{Humanly} links task policy and write-time events in one provenance record. Users set policy before writing; Humanly records human and in-platform AI actions during drafting; certificates present logs, replay, metrics, and verification after drafting. The same record spans personal, assigned, public-link, guest, and peer-review workflows.
 
-AI assistance is governed by policy, not by a binary label. Humanly implements four modes. \textsc{off} removes AI controls; \textsc{polish} limits AI to selection rewrites; \textsc{chat} permits chat but no selection rewrite; \textsc{full} permits both. The editor and certificate show the active policy.
+AI assistance is governed by policy, not by a binary label. Humanly implements four modes. \textsc{off} removes AI controls; \textsc{polish} limits AI to selection rewrites; \textsc{chat} permits chat but no selection rewrite; \textsc{full} permits both. The editor and certificate display the active policy.
 
 We contribute:
 \begin{enumerate}
@@ -164,7 +164,7 @@ Writers compose in a Lexical-based editor (Figure~\ref{fig:workspace-surface}) s
 \vspace{0.5em}
 
 \paragraph{Process Capture.}
-Humanly records write-time events during drafting (Figure~\ref{fig:log-surface}). The editor logs text changes, clipboard actions, selection, focus, blur, formatting, and AI events. Selection-level AI records store the action type, original text, suggestion, and accept/reject decision; chat records store document context, model metadata, messages, and tool-call traces. A separate JavaScript tracker supports third-party forms.
+Humanly records write-time events during drafting (Figure~\ref{fig:log-surface}). The editor logs text changes, clipboard actions, selection, focus, blur, formatting, and AI events. Selection-level AI records store the action type, original text, suggestion, and accept/reject decision; chat records store document context, model metadata, messages, and tool-call traces. External forms can emit the same event schema through a JavaScript tracker.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -191,7 +191,7 @@ Before certificate generation or task submission, Humanly flushes pending editor
 \section{Workflows and Use Cases}
 \label{sec:workflows}
 
-All workflows share the same sequence: set policy, write, and review evidence. They differ in who sets the policy and who reads the record.
+Across workflows, policy precedes writing and evidence follows it. Workflows differ in who sets the policy and who reads the record.
 
 \subsection{Peer Review}
 
@@ -263,9 +263,9 @@ Evaluation targets two questions: whether final text recovers policy compliance,
 \subsection{Final-Text Detector Stress Test}
 \label{sec:detector-eval}
 
-We use eight policy cases rather than one human-vs-AI label. The benchmark policy allows human writing, AI polish, and AI translation, but disallows substantive AI generation; this design tests whether a final-text-only predictor can substitute for process evidence. Appendix~\ref{sec:appendix-detector-metrics} defines the cases, document-class labels, and policy labels. Prompted transformations preserve meaning, avoid added facts, and return detector-ready final text, following public research-writing prompt templates such as \citet{leey2026awesomewriting}. Human-origin cases start from human-written seeds before polish, translation, or AI-style human rewriting.
+The detector benchmark uses eight policy cases rather than one human-vs-AI label. Its policy allows human writing, AI polish, and AI translation, but disallows substantive AI generation; this design tests whether a final-text-only predictor can substitute for process evidence. Appendix~\ref{sec:appendix-detector-metrics} defines the cases, document-class labels, and policy labels. Prompted transformations preserve meaning, avoid added facts, and return detector-ready final text, following public research-writing prompt templates such as \citet{leey2026awesomewriting}. Human-origin cases start from human-written seeds before polish, translation, or AI-style human rewriting.
 
-The stress test contains 240 samples: eight cases, three lengths, and ten matched task sets per length. Lengths correspond to social-media-style posts, student assignment responses, and long-form review-style texts. Each predictor receives only final text; outputs are normalized to \textsc{human\_only}, \textsc{mixed}, or \textsc{ai\_only}. Predictors are Claude Opus 4.8 \citep{anthropic2026opus48}, GPTZero \citep{gptzero2026detector}, and Pangram \citep{pangram2026detector}. We score exact document-class accuracy (Layer 1) and policy accuracy after mapping \textsc{human\_only} to \textit{human-compliant} and the other labels to \textit{AI-suspicious} (Layer 2).
+The stress test contains 240 samples: eight cases, three lengths, and ten matched task sets per length. Lengths correspond to social-media-style posts, student assignment responses, and long-form review-style texts. Each predictor receives only final text; outputs are normalized to \textsc{human\_only}, \textsc{mixed}, or \textsc{ai\_only}. Predictors are Claude Opus 4.8 \citep{anthropic2026opus48}, GPTZero \citep{gptzero2026detector}, and Pangram \citep{pangram2026detector}. Metrics are exact document-class accuracy (Layer 1) and policy accuracy after mapping \textsc{human\_only} to \textit{human-compliant} and the other labels to \textit{AI-suspicious} (Layer 2).
 
 \begin{table}[t]
 \small
@@ -300,7 +300,7 @@ Participants write short documents in Humanly under \textsc{off}, \textsc{polish
 Readers inspect three information conditions: final text only, final text plus detector score, and final text plus Humanly certificate/replay. Reader-side measures include process-label accuracy, confidence, time-to-judgment, perceived fairness, and reported evidence use.
 
 \paragraph{Analysis.}
-Analysis compares writer measures across AI modes and reader measures across information conditions. Open-ended responses identify helpful or confusing certificate and replay fields.
+Analysis compares writer measures across AI modes and reader measures across information conditions. Open-ended responses identify certificate and replay fields that help or confuse readers.
 % TODO: Finalize prompt pool, recruitment size, condition assignment, participant payment, and analysis plan.
 
 \subsection{Boundary and Red-Team Analysis}
