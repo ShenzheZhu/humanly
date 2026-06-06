@@ -452,6 +452,31 @@ N4 & AI-written substantive draft with light human edits & \textsc{mixed} & NC &
 \label{tab:appendix-detector-cases}
 \end{table}
 
+\noindent\textbf{Case-level results.}
+Table~\ref{tab:appendix-case-results} reports detector accuracy by construction case. The entries show that high policy accuracy can hide an incorrect process label. In C2 and C3, GPTZero and Pangram usually predict \textsc{human\_only}, so policy is often correct but the AI-polish or AI-translation process is missed. N4 shows a different collapse: detectors usually predict \textsc{ai\_only}, so policy is again often correct while the human-edit portion is erased. C4 shows the opposite risk: human-written AI-style text is treated as suspicious.
+
+\begin{table*}[!t]
+\small
+\centering
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\textwidth}{@{}lYccc@{}}
+\toprule
+Case & Construction & Opus 4.8 & GPTZero & Pangram \\
+\midrule
+C1 & Human original & 0.933 / 0.933 & 1.000 / 1.000 & 1.000 / 1.000 \\
+C2 & Human writing with AI polish & 0.200 / 0.800 & 0.067 / 0.933 & 0.000 / 1.000 \\
+C3 & Human non-English writing translated with AI & 0.333 / 0.667 & 0.000 / 1.000 & 0.000 / 1.000 \\
+C4 & Human prose intentionally imitating AI style & 0.267 / 0.267 & 0.000 / 0.000 & 0.000 / 0.000 \\
+N1 & Direct AI-generated final text & 0.267 / 0.367 & 1.000 / 1.000 & 1.000 / 1.000 \\
+N2 & AI-generated text rewritten or humanized & 0.300 / 0.367 & 0.967 / 1.000 & 1.000 / 1.000 \\
+N3 & AI-generated non-English text translated into English & 0.233 / 0.467 & 0.767 / 0.900 & 0.633 / 0.967 \\
+N4 & AI-written substantive draft with light human edits & 0.200 / 0.367 & 0.000 / 1.000 & 0.000 / 0.967 \\
+\bottomrule
+\end{tabularx}
+\caption{Case-level detector stress-test results. Each entry is document-class accuracy / policy accuracy over 30 samples.}
+\label{tab:appendix-case-results}
+\end{table*}
+
 \subsection{Data and Preprocessing}
 
 The benchmark contains 240 samples: eight cases \(\times\) three length buckets \(\times\) ten matched task sets. Buckets cover social-media-style posts, student responses, and long review-style texts. Each row records task metadata, source language, policy label, document class, text path, construction note, license note, and word count.
@@ -497,31 +522,5 @@ y=0 & FP & TN \\
 \[
 \mathrm{FNR}=\frac{FN}{FN+TP}.
 \]
-
-\subsection{Case-Level Results}
-
-Table~\ref{tab:appendix-case-results} reports detector accuracy by construction case. The entries show that high policy accuracy can hide an incorrect process label. In C2 and C3, GPTZero and Pangram usually predict \textsc{human\_only}, so policy is often correct but the AI-polish or AI-translation process is missed. N4 shows a different collapse: detectors usually predict \textsc{ai\_only}, so policy is again often correct while the human-edit portion is erased. C4 shows the opposite risk: human-written AI-style text is treated as suspicious.
-
-\begin{table*}[t]
-\small
-\centering
-\setlength{\tabcolsep}{4pt}
-\begin{tabularx}{\textwidth}{@{}lYccc@{}}
-\toprule
-Case & Construction & Opus 4.8 & GPTZero & Pangram \\
-\midrule
-C1 & Human original & 0.933 / 0.933 & 1.000 / 1.000 & 1.000 / 1.000 \\
-C2 & Human writing with AI polish & 0.200 / 0.800 & 0.067 / 0.933 & 0.000 / 1.000 \\
-C3 & Human non-English writing translated with AI & 0.333 / 0.667 & 0.000 / 1.000 & 0.000 / 1.000 \\
-C4 & Human prose intentionally imitating AI style & 0.267 / 0.267 & 0.000 / 0.000 & 0.000 / 0.000 \\
-N1 & Direct AI-generated final text & 0.267 / 0.367 & 1.000 / 1.000 & 1.000 / 1.000 \\
-N2 & AI-generated text rewritten or humanized & 0.300 / 0.367 & 0.967 / 1.000 & 1.000 / 1.000 \\
-N3 & AI-generated non-English text translated into English & 0.233 / 0.467 & 0.767 / 0.900 & 0.633 / 0.967 \\
-N4 & AI-written substantive draft with light human edits & 0.200 / 0.367 & 0.000 / 1.000 & 0.000 / 0.967 \\
-\bottomrule
-\end{tabularx}
-\caption{Case-level detector stress-test results. Each entry is document-class accuracy / policy accuracy over 30 samples.}
-\label{tab:appendix-case-results}
-\end{table*}
 
 \end{document}
