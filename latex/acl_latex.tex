@@ -69,7 +69,7 @@ Document-replay tools reconstruct host-editor history, but task policy, AI-assis
 
 \textsc{Humanly} binds task policy to write-time events in one provenance record. Policy is set before writing, human and in-platform AI actions are recorded during drafting, and certificates present logs, replay, metrics, and verification after drafting. The same record spans personal, assigned, public-link, guest, and peer-review workflows.
 
-Humanly treats AI access as task policy rather than a binary switch. Four modes implement this policy. Mode \textsc{off} hides AI controls. Selection rewrite is available only in \textsc{polish} and \textsc{full}; chat is available only in \textsc{chat} and \textsc{full}. The editor displays the active policy during writing, and the certificate reports it after drafting.
+Humanly configures AI access as four task modes: \textsc{off} hides AI controls, \textsc{polish} exposes only selection rewrites, \textsc{chat} exposes only chat, and \textsc{full} exposes both. The editor displays the active mode during writing, and the certificate reports it after drafting.
 
 This paper presents:
 \begin{enumerate}
@@ -142,7 +142,7 @@ Humanly has three design requirements: set policy before writing, capture events
 \end{figure*}
 
 \paragraph{Configuration.}
-Configuration fixes the writing policy before drafting (Figure~\ref{fig:configuration-surface}). Personal writers set document policy; task owners set shared-task policy before sharing invite codes or public links. Policies specify resources, AI provider/model, AI mode, request/token budget, paste rules, time/length limits, and guest submissions. The editor enforces them during drafting.
+Before drafting, personal writers set document policy and task owners set shared-task policy before sharing invite codes or public links (Figure~\ref{fig:configuration-surface}). Policies specify resources, AI provider/model, AI mode, request/token budget, paste rules, time/length limits, and guest submissions. The editor enforces them during drafting.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -164,7 +164,7 @@ Writers compose in a Lexical-based editor (Figure~\ref{fig:workspace-surface}) s
 \vspace{0.5em}
 
 \paragraph{Process Capture.}
-Humanly records write-time events during drafting (Figure~\ref{fig:log-surface}). The editor logs text changes, clipboard actions, selection, focus, blur, formatting, and AI events. Selection-level AI records include the action type, original text, suggestion, and accept/reject decision. Chat records include document context, model metadata, messages, and tool-call traces. External forms can emit the same event schema through a JavaScript tracker.
+During drafting, Humanly records write-time events (Figure~\ref{fig:log-surface}). The editor logs text changes, clipboard actions, selection, focus, blur, formatting, and AI events. Selection-level AI records include the action type, original text, suggestion, and accept/reject decision. Chat records include document context, model metadata, messages, and tool-call traces. External forms can emit the same event schema through a JavaScript tracker.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -220,7 +220,7 @@ Final text collapses different histories. A human draft polished by AI, a human 
 
 Process and replay tools reconstruct document history. Turnitin Clarity provides writing reports and AI-assistance visibility in assignment workflows \citep{turnitin2026clarity}. Grammarly Authorship labels typed, pasted, AI-generated, AI-rephrased, and Grammarly-edited text across supported writing surfaces \citep{grammarly2026authorship}. GPTZero Writing Reports combine AI review, detection, and Google Docs process evidence \citep{gptzero2026writingreport,gptzero2026turnitinbrisk}. Draftback, Brisk Inspect Writing, Integrito, WritingTrace, and PaperTrail Inspect derive timelines from Google Docs data \citep{draftback2026replay,brisk2025inspectwriting,integrito2026activityreport,writingtrace2026,papertrail2026inspect}.
 
-Humanly unifies configurable environments, native AI-use logs, assigned-task enrollment, replay, and certificate analytics in one controlled workspace. Table~\ref{tab:feature-comparison} compares these requirements across systems. A partial mark denotes support only in a narrower context, such as a Google Docs extension or an assignment-specific report.
+Humanly combines configurable environments, native AI-use logs, assigned-task enrollment, replay, and certificate analytics in one controlled workspace. Table~\ref{tab:feature-comparison} compares these requirements across systems. A partial mark denotes support only in a narrower context, such as a Google Docs extension or an assignment-specific report.
 
 \begin{table*}[t]
 \small
