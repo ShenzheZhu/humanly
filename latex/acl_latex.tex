@@ -63,7 +63,7 @@ A fluent submission can result from sustained typing, AI polishing, machine tran
 
 In many writing settings, authenticity depends on process, not surface form. A fluent draft may come from sustained human typing, limited AI polishing, machine translation, or off-platform generation. Instructors, program chairs, and readers therefore need more than a label for whether text ``is AI.'' They need to know which policy governed the task and what process produced the submission.
 
-Final-text AI detectors answer whether a text resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. They work best when a policy bans generation and a submission is fully generated. They are weaker for mixed workflows. Human prose can be wrongly flagged, especially when a writer's style differs from detector training assumptions \citep{liang2023gpt}; generated prose can also be rewritten, translated, humanized, or prompted to sound human. A detector score alone cannot tell whether the writer followed the task policy.
+Final-text AI detectors estimate whether a text resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. They work best when a policy bans generation and a submission is fully generated. They fail to resolve mixed workflows. Human prose can be wrongly flagged, especially when a writer's style differs from detector training assumptions \citep{liang2023gpt}; generated prose can also be rewritten, translated, humanized, or prompted to sound human. A detector score alone cannot tell whether the writer followed the task policy.
 
 \textsc{Humanly} treats authenticity as provenance by linking task policy, write-time events, and reviewable evidence. A writer or task owner configures the environment, the editor records human and AI actions, and the certificate presents the record for review.
 
@@ -206,11 +206,11 @@ Peer review is policy-sensitive: reviewers may use AI for grammar or document un
 \section{Comparison with Existing Systems}
 \label{sec:comparison}
 
-Humanly sits between final-text detectors and process/replay systems. The key distinction is the question each class can answer. Section~\ref{sec:evaluation} then tests whether final text alone recovers policy compliance.
+Humanly differs from both final-text detectors and process/replay systems. The key distinction is the question each class can answer. Section~\ref{sec:evaluation} then tests whether final text alone recovers policy compliance.
 
 \subsection{Final-Text Detectors}
 
-Final-text detectors such as GPTZero, Pangram, Originality.AI, and Copyleaks score the submitted text after writing ends \citep{gptzero2026detector,pangram2026detector,originality2026detector,copyleaks2026detector}. These scores are useful when a task bans generated text and the output is mostly machine-generated. They do not observe the writing process, so they cannot separate allowed AI assistance from policy-violating AI use.
+Final-text detectors such as GPTZero, Pangram, Originality.AI, and Copyleaks score the submitted text after writing ends \citep{gptzero2026detector,pangram2026detector,originality2026detector,copyleaks2026detector}. These scores are informative when a task bans generated text and the output is mostly machine-generated. They do not observe the writing process, so they cannot separate allowed AI assistance from policy-violating AI use.
 
 This limitation is structural. A human draft polished by AI, a human draft translated by AI, and an AI answer paraphrased by a humanizer can all yield fluent prose. Human prose can also be formal, template-like, or non-native in ways that resemble model output \citep{liang2023gpt}. The policy question is whether the process matched the allowed assistance, not whether the text looks AI-generated.
 
@@ -254,7 +254,7 @@ Final-text detectors estimate what the text resembles. Process and replay tools 
 \section{Evaluation}
 \label{sec:evaluation}
 
-Evaluation separates text-only prediction, human use, and adversarial boundaries. The final-text stress test asks whether text-only predictors recover task-policy compliance from submitted text alone. The human-study protocol asks whether writers and readers can use process evidence in realistic workflows. Boundary analysis identifies cases where process evidence can be bypassed or misread. In all three, the certificate is a record for human judgment rather than an automatic verdict.
+Evaluation separates text-only prediction, human use, and adversarial boundaries. The final-text stress test asks whether text-only predictors recover task-policy compliance from submitted text alone. The human-study protocol asks whether writers and readers can use process evidence in assigned-writing and peer-review tasks. Boundary analysis identifies cases where process evidence can be bypassed or misread. In all three, the certificate is a record for human judgment rather than an automatic verdict.
 
 \subsection{Final-Text Detector Stress Test}
 \label{sec:detector-eval}
@@ -293,16 +293,16 @@ The human study measures writer usability, policy clarity, and reader judgment w
 Participants write short documents in Humanly under selected policies: \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full}. The study records usability ratings, perceived friction, policy clarity, and trajectory statistics. Surveys measure ease of use, willingness to use Humanly in real settings, and comfort with process recording.
 
 \paragraph{Reader-Side Task.}
-Readers inspect writing evidence under three information conditions: final text only, final text plus detector score, and final text plus Humanly certificate/replay. The study measures accuracy against known workflow labels, confidence, time-to-judgment, perceived fairness, and reported evidence use.
+Readers inspect writing evidence under three information conditions: final text only, final text plus detector score, and final text plus Humanly certificate/replay. The study measures accuracy against known process labels, confidence, time-to-judgment, perceived fairness, and reported evidence use.
 
 \paragraph{Analysis.}
-The analysis reports writer usability, policy clarity, reader accuracy, confidence, and qualitative evidence about where certificate/replay helps or confuses readers.
+The analysis reports writer usability, policy clarity, reader accuracy, confidence, and which certificate or replay fields readers use when making judgments.
 % TODO: Finalize prompt pool, recruitment size, condition assignment, participant payment, and analysis plan.
 
 \subsection{Boundary and Red-Team Analysis}
 \label{sec:redteam}
 
-The detector stress test isolates final-text failures under policy cases. Boundary analysis studies where process evidence itself can be bypassed or misread. Candidate attacks include phone-assisted generation, memorized AI text, manual retyping of an external AI answer, and GUI-agent imitation of human writing. These cases target the recording workflow rather than the submitted text and are therefore separate from the detector benchmark.
+The detector stress test isolates final-text failures under policy cases. Boundary analysis studies where process evidence itself can be bypassed or misread. Boundary cases include phone-assisted generation, memorized AI text, manual retyping of an external AI answer, and GUI-agent imitation of human writing. These cases target the recording workflow rather than the submitted text and are therefore separate from the detector benchmark.
 
 These cases refine the trace taxonomy used in the certificate and replay views. The taxonomy separates human-only writing, mostly human writing with some paste, human typing plus AI editing, and AI brainstorming followed by human writing. It also covers AI-generated portions and fully AI-generated text.
 % TODO: Decide which red-team cases are feasible for the demo-paper evaluation versus future work.
@@ -367,7 +367,7 @@ N4 & \textbf{Construction:} AI-written substantive draft with human light edits.
 
 The benchmark contains 240 final-text samples: eight cases, three length buckets, and ten matched task sets per bucket. The buckets correspond to social-media-style posts, student assignment responses, and long-form review-style texts. Each row stores task metadata, source language, policy label, expected document class, text paths, construction notes, license notes, and word count.
 
-Source collection and generation are separated. Before generation, all inputs are frozen as local files under the detector stress-test data directory; source URLs remain only as provenance metadata. Human English seeds provide C1 and the source texts for C2 polishing. Human non-English seeds provide C3 translation inputs. C4 contains newly collected human-written AI-style texts. N1 is generated from the matched task topic, N2 rewrites the matched N1 draft, N3 generates non-English AI text and translates it into English, and N4 lightly edits the matched N1 draft through human editing. Markup, boilerplate, and templates are removed from seed material before transformation, but seed prose is not stylistically polished. Detector inputs include only rows marked \texttt{ready}.
+Source collection and generation are separated. Before generation, all inputs are frozen as local files under the detector stress-test data directory; source URLs remain only as provenance metadata. Human English seeds provide C1 and the source texts for C2 polishing. Human non-English seeds provide C3 translation inputs. C4 contains newly collected human-written AI-style texts. N1 is generated from the matched task topic. N2 rewrites the matched N1 draft, N3 generates non-English AI text and translates it into English, and N4 lightly edits the matched N1 draft through human editing. Markup, boilerplate, and templates are removed from seed material before transformation, but seed prose is not stylistically polished. Detector inputs include only rows marked \texttt{ready}.
 
 \subsection{Metric Definitions}
 
