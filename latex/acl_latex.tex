@@ -261,7 +261,7 @@ Evaluation asks three questions: can final text recover policy compliance, can r
 \subsection{Final-Text Detector Stress Test}
 \label{sec:detector-eval}
 
-The stress test uses eight policy cases rather than a binary human-vs-AI label: human writing, AI polish, and AI translation are compliant; substantive AI generation is not. It asks whether final-text predictors can substitute for process evidence. Appendix~\ref{sec:appendix-detector-metrics} defines the cases, document-class labels, and policy labels. Prompted transformations preserve meaning and avoid added facts, following public research-writing prompt templates such as \citet{leey2026awesomewriting}. Human-origin cases start from human-written seeds before polish, translation, or AI-style human rewriting.
+The stress test uses eight policy cases rather than a binary human-vs-AI label: human writing, AI polish, and AI translation are compliant; substantive AI generation is not. It tests whether final-text predictors can substitute for process evidence. Appendix~\ref{sec:appendix-detector-metrics} defines the cases and labels. Prompted transformations preserve meaning and avoid added facts, following public research-writing prompt templates such as \citet{leey2026awesomewriting}. Human-origin cases start from human-written seeds before polish, translation, or AI-style human rewriting.
 
 The stress test has 240 samples: eight cases, three length buckets, and ten matched task sets. Length buckets correspond to social-media posts, student assignment responses, and long review-style texts. Predictors see only final text; outputs are normalized to \textsc{human\_only}, \textsc{mixed}, or \textsc{ai\_only}. Evaluated predictors are Claude Opus 4.8 \citep{anthropic2026opus48}, GPTZero \citep{gptzero2026detector}, and Pangram \citep{pangram2026detector}. Metrics are exact document-class accuracy (Layer 1) and policy accuracy after mapping \textsc{human\_only} to \textit{human-compliant} and the other labels to \textit{AI-suspicious} (Layer 2).
 
@@ -367,7 +367,7 @@ N4 & \textbf{Construction:} AI-written substantive draft with light human edits.
 
 \subsection{Data and Preprocessing}
 
-The benchmark contains 240 final-text samples: eight cases, three length buckets, and ten matched task sets per bucket. Buckets correspond to social-media-style posts, student assignment responses, and long-form review-style texts. Rows store task metadata, source language, policy label, document class, text paths, construction notes, license notes, and word count.
+The benchmark contains 240 final-text samples: eight cases, three length buckets, and ten matched task sets per bucket. Buckets correspond to social-media-style posts, student assignment responses, and long-form review-style texts. Each row stores task metadata, source language, policy label, document class, text paths, construction notes, license notes, and word count.
 
 Inputs are frozen as local files before generation; source URLs remain only as metadata. Human-origin seeds supply C1--C3: English for C1 and C2, and non-English for C3. C4 uses newly collected human-written AI-style texts. Non-compliant cases use matched topics: N1 creates an AI draft, N2 rewrites it, N3 translates non-English AI text, and N4 lightly human-edits N1. Seed material is stripped of markup, boilerplate, and templates, but not polished. Detector inputs include only \texttt{ready} rows. GPTZero and Pangram each produced 240/240 valid outputs, with no missing rows or request errors.
 
@@ -375,8 +375,8 @@ Inputs are frozen as local files before generation; source URLs remain only as m
 
 The evaluation uses two metric layers.
 
-\noindent\textbf{Layer 1: Final-text document class.} A prediction is correct only if it exactly matches the expected document class: \textsc{human\_only}, \textsc{mixed}, or \textsc{ai\_only}. This layer measures whether a detector can recover how the final text was constructed, independent of whether the workflow was allowed.
+\noindent\textbf{Layer 1: Final-text document class.} A prediction is correct only if it exactly matches the expected document class: \textsc{human\_only}, \textsc{mixed}, or \textsc{ai\_only}. This layer measures final-text construction independent of policy.
 
-\noindent\textbf{Layer 2: Policy compliance.} Detector outputs are mapped into binary policy evidence: \textsc{human\_only} becomes \textit{human-compliant}; \textsc{mixed} and \textsc{ai\_only} become \textit{AI-suspicious}. The mapped prediction is compared with the benchmark policy label, with non-compliance as the positive class. Under this convention, TP/FN are non-compliant samples predicted as AI-suspicious/human-compliant, and TN/FP are compliant samples predicted as human-compliant/AI-suspicious.
+\noindent\textbf{Layer 2: Policy compliance.} Detector outputs are mapped into binary policy evidence: \textsc{human\_only} becomes \textit{human-compliant}; \textsc{mixed} and \textsc{ai\_only} become \textit{AI-suspicious}. The mapped prediction is compared with the benchmark policy label, with non-compliance as the positive class. TP/FN are non-compliant samples predicted as AI-suspicious/human-compliant; TN/FP are compliant samples predicted as human-compliant/AI-suspicious.
 
 \end{document}
