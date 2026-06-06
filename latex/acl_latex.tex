@@ -193,19 +193,19 @@ Before certificate generation or task submission, Humanly flushes pending editor
 \section{Workflows and Use Cases}
 \label{sec:workflows}
 
-Each workflow fixes policy before writing and reviews evidence afterward. They differ in policy owner and record reader.
+Each workflow has a policy owner, a writer, and a reader of process evidence. The same editor, event stream, certificate, and replay serve all three.
 
 \subsection{Peer Review}
 
-Peer review is policy-sensitive: AI may be allowed for grammar or document understanding, while reviewers retain responsibility for judgment. Humanly treats review writing as an assigned task with paper context, AI policy, and a tracked editor. Certificates and replay show whether a review was typed, pasted, AI-assisted, revised, or generated through in-platform tools. The record describes production, not quality.
+Peer review is policy-sensitive: AI may be allowed for grammar or document understanding, while reviewers retain responsibility for judgment. Program chairs assign a paper, AI policy, and constraints; reviewers write in the tracked workspace. Certificates and replay show whether a review was typed, pasted, AI-assisted, revised, or generated through in-platform tools. The record describes production, not quality.
 
 \subsection{Classroom Writing Assignments}
 
-Instructors configure tasks, distribute invite codes or public links, and review submissions through timelines, AI logs, metrics, and certificates. Both sides see the assigned policy and the submitted process.
+Instructors configure tasks, distribute invite codes or public links, and set whether guest submissions are allowed. Students see the policy before writing. Submissions include timelines, AI logs, metrics, and certificates, so instructors can inspect compliance with the stated policy rather than infer intent from final prose.
 
 \subsection{Personal Writing Certification}
 
-For self-certification, writers set policy, draft in Humanly, and generate a certificate reporting typed text, pasted text, editing time, and in-platform AI use rather than a detector score.
+For self-certification, writers set policy, draft in Humanly, and export PDF/JSON evidence. The certificate reports typed text, pasted text, editing time, and in-platform AI use rather than a detector score.
 
 \section{Comparison with Existing Systems}
 \label{sec:comparison}
