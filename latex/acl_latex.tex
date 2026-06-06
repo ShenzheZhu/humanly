@@ -55,23 +55,23 @@
 \maketitle
 
 \begin{abstract}
-A fluent submission can come from sustained drafting, AI polish, translation, or generated text moved into an editor. We present \textsc{Humanly}, a deployed writing platform that records how text is produced under a policy. Writers and task owners set AI, paste, length, time, and guest policies before drafting. Humanly logs typing, paste, focus, selection, and in-platform AI events, then generates a certificate with the final text, metrics, event log, replay, PDF/JSON exports, and verification link. This workflow covers personal writing, assigned tasks, public links, guest submissions, and peer review. A 240-sample stress test shows that Claude Opus 4.8 fails to recover policy compliance from final text alone. The live system is available at \url{https://app.writehumanly.net/}.
+A fluent submission can come from sustained drafting, AI polish, translation, or generated text moved into an editor. We present \textsc{Humanly}, a deployed writing platform that records how text is produced under a policy. Writers and task owners set AI, paste, length, time, and guest policies before drafting. Humanly logs typing, paste, focus, selection, and in-platform AI events, then generates a certificate with the final text, metrics, event log, replay, PDF/JSON exports, and verification link. This workflow covers personal writing, assigned tasks, public links, guest submissions, and peer review. A 240-sample stress test shows that final-text predictors misread policy-relevant writing histories: GPTZero and Pangram catch most prohibited generation but falsely flag at least one quarter of compliant cases. The live system is available at \url{https://app.writehumanly.net/}.
 \end{abstract}
 
 \section{Introduction}
 \label{sec:intro}
 
-Writing authenticity is now a process question. In academic assignments, peer review, and personal certification, the same fluent submission can reflect allowed and disallowed histories. These include sustained drafting, grammar-only AI polish, machine translation, chat-based explanation, or generated text moved into an editor. Policy compliance depends on how the text was produced, not only on what the final text resembles.
+Writing authenticity is now a process question. In academic assignments, peer review, and personal certification, the same fluent submission can reflect allowed and disallowed histories. These histories include sustained drafting, grammar-only AI polish, machine translation, chat-based explanation, or generated text moved into an editor. Policy compliance depends on how the text was produced, not only on what the final text resembles.
 
 Current systems leave that policy question underspecified. Final-text AI detectors estimate whether a submission resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. They fit cases where a policy bans generation and the submission is fully generated. Mixed workflows break that assumption. Human prose can be wrongly flagged, especially when writing style differs from detector training assumptions \citep{liang2023gpt}; generated prose can be rewritten, translated, humanized, or prompted to sound human. A detector score alone cannot determine policy compliance.
 
-Process and replay tools add context, but usually inherit a host document or assignment platform. They can reconstruct edits or label source categories, yet task policy, AI-assistant actions, replay, metrics, and verification often remain separate. Instructors, program chairs, and readers therefore receive fragments rather than one policy-bound process record.
+Process and replay tools add context, but usually inherit a host document or assignment platform. They can reconstruct edits or label source categories, yet task policy, AI-assistant actions, replay, metrics, and verification often remain separate. Instructors, program chairs, and readers receive fragments rather than one policy-bound process record.
 
-\textsc{Humanly} treats authenticity as provenance: task policy, write-time events, and reviewable evidence are linked in one record. In the system, a writer or task owner configures the environment; the editor records human and AI actions; and the certificate presents the record for review. The design has four requirements: explicit policy before drafting; capture of human edits and in-platform AI actions; and inspectable certificates, logs, and replay. It must also support personal, assigned, public-link, guest, and peer-review workflows in the same editor.
+\textsc{Humanly} treats authenticity as provenance: task policy, write-time events, and reviewable evidence are linked in one record. The system is built around four design goals. First, policy is configured before drafting. Second, the editor enforces that policy while writers compose. Third, the platform records both human writing actions and in-platform AI actions. Fourth, the certificate packages the resulting evidence for review. These goals must hold across personal, assigned, public-link, guest, and peer-review workflows.
 
 AI assistance is a policy choice, not a binary attribute. Humanly has four modes: \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full}. \textsc{Polish} exposes constrained selection rewrites such as grammar fixing and simplification. \textsc{Chat} exposes agent chat without selection-level rewrite actions. \textsc{Full} exposes both. The editor and certificate both show the active policy.
 
-The paper contributes:
+This paper contributes:
 \begin{enumerate}
   \item a tracked writing workspace that binds task policy to human and AI actions;
   \item a configuration model for personal, assigned, public-link, guest, and peer-review writing;
@@ -82,7 +82,7 @@ The paper contributes:
 \section{System Architecture}
 \label{sec:architecture}
 
-Humanly has three web interfaces: a writer portal, an admin dashboard, and public verification pages. Writers draft in the tracked editor. Administrators create tasks, set writing rules, list submissions, and inspect activity. Verification pages expose shared certificate fields. Figure~\ref{fig:workflow} traces the personal and assigned-task paths into the same capture and certification flow.
+Humanly has three web interfaces: a writer portal, an admin dashboard, and public verification pages. In the writer portal, users draft in the tracked editor and create personal writing tasks. Administrators create tasks, set writing rules, list submissions, and inspect activity in the dashboard. Public verification pages expose certificate evidence to readers. Figure~\ref{fig:workflow} traces the personal and assigned-task paths into the same capture and certification flow.
 
 \begin{figure*}[t]
 \centering
@@ -142,7 +142,7 @@ Humanly has three web interfaces: a writer portal, an admin dashboard, and publi
 \end{figure*}
 
 \paragraph{Configuration.}
-Configuration defines the writing environment (Figure~\ref{fig:configuration-surface}). Personal writers set it when creating a document; task owners set it before sharing an invite code or public link. The environment stores task resources, AI provider, model, mode, token or request budget, paste policy, time and length limits, and guest-submission policy. During drafting, the editor uses these settings to decide which controls are available.
+Configuration defines the writing environment before any text is produced (Figure~\ref{fig:configuration-surface}). Personal writers set it when creating a document; task owners set it before sharing an invite code or public link. The environment stores task resources, AI provider, model, AI mode, token or request budget, paste policy, time and length limits, and guest-submission policy. During drafting, the editor uses these settings to decide which controls are available.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -265,7 +265,7 @@ Evaluation targets two claims. Final text alone is a weak proxy for policy compl
 
 For final-text prediction, the stress test is a failure-mode analysis. It uses eight policy cases rather than one aggregate score. The benchmark policy allows human writing, AI polish, and AI translation, but disallows substantive AI generation of final content. Appendix~\ref{sec:appendix-detector-metrics} defines the cases, document-class labels, and policy labels. We adapt prompt-control rules from public research-writing prompt templates such as \citet{leey2026awesomewriting}: transformations must preserve meaning, avoid added facts, and return detector-ready final text. Human-origin cases start from human-written seeds for each length bucket before polish, translation, or AI-style human rewriting.
 
-The run contains 240 samples across eight cases and three lengths: social-media-style posts, student assignment responses, and long-form review-style texts. Claude Opus 4.8 \citep{anthropic2026opus48} sees only the final text and predicts one of three document classes: \textsc{human\_only}, \textsc{mixed}, or \textsc{ai\_only}. We score exact document-class accuracy (Layer 1) and policy accuracy after mapping \textsc{human\_only} to \textit{human-compliant} and the other two labels to \textit{AI-suspicious} (Layer 2).
+The run contains 240 samples across eight cases and three lengths: social-media-style posts, student assignment responses, and long-form review-style texts. Each predictor sees only the final text and returns or is normalized to one of three document classes: \textsc{human\_only}, \textsc{mixed}, or \textsc{ai\_only}. Predictors are Claude Opus 4.8 \citep{anthropic2026opus48}, GPTZero \citep{gptzero2026detector}, and Pangram \citep{pangram2026detector}. Scoring uses exact document-class accuracy (Layer 1) and policy accuracy after mapping \textsc{human\_only} to \textit{human-compliant} and the other two labels to \textit{AI-suspicious} (Layer 2).
 
 \begin{table}[t]
 \small
@@ -276,17 +276,17 @@ The run contains 240 samples across eight cases and three lengths: social-media-
 \toprule
 Predictor & Doc Acc & Policy Acc & FPR & FNR \\
 \midrule
-Opus 4.8 \citep{anthropic2026opus48} & 0.342 & 0.529 & 0.333 & 0.608 \\
-GPTZero \citep{gptzero2026detector} & -- & -- & -- & -- \\
-Pangram \citep{pangram2026detector} & -- & -- & -- & -- \\
+Opus 4.8 \citep{anthropic2026opus48} & 0.3417 & 0.5292 & 0.3333 & 0.6083 \\
+GPTZero \citep{gptzero2026detector} & 0.4750 & 0.8542 & 0.2667 & 0.0250 \\
+Pangram \citep{pangram2026detector} & 0.4542 & 0.8667 & 0.2500 & 0.0167 \\
 \bottomrule
 \end{tabular}
 }
-\caption{Final-text-only predictor result. Document accuracy is exact three-class agreement with the expected final-text class. Policy accuracy maps \textsc{mixed} and \textsc{ai\_only} predictions to AI-suspicious, then scores agreement with the benchmark policy.}
+\caption{Final-text-only predictor results. Document accuracy is exact three-class agreement with the expected final-text class. Policy accuracy maps \textsc{mixed} and \textsc{ai\_only} predictions to AI-suspicious, then scores agreement with the benchmark policy.}
 \label{tab:detector-results}
 \end{table}
 
-Results in Table~\ref{tab:detector-results} show low accuracy at both layers. Opus 4.8 assigns the correct three-class document label to 82 of 240 samples (accuracy \(0.342\)); policy accuracy is \(0.529\). These errors are structured rather than random. Allowed cases are falsely marked suspicious at rate \(0.333\), especially human-written AI-style prose and some translation or polish cases. Disallowed AI-origin cases are falsely marked compliant at rate \(0.608\). In N4, where a human lightly edits a substantive AI draft, 19 of 30 samples are marked human-compliant even though the process is non-compliant. Final text supports similarity judgments, not policy judgments.
+Table~\ref{tab:detector-results} separates two failure modes. Opus 4.8 assigns the correct three-class document label to 82 of 240 samples and misses many disallowed AI-origin cases. GPTZero and Pangram are stronger at the binary policy layer: they miss only 3 and 2 of 120 non-compliant samples, respectively. However, their document-class accuracy remains below 0.50, and they falsely mark 32 and 30 of 120 compliant samples as suspicious. The hardest compliant case is C4, where humans intentionally write in an AI-like style; both detectors flag all 30 C4 samples. These results support the central claim: final text can identify many obvious AI-origin documents, but it cannot reliably explain whether a writing process followed the task policy.
 
 \subsection{Human Study}
 \label{sec:study}
