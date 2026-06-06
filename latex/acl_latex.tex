@@ -222,7 +222,7 @@ Final text collapses production histories. A human draft polished by AI, a human
 
 Process and replay tools reconstruct document history rather than scoring text alone. Turnitin Clarity combines assignments, writing reports, and AI-assistance visibility \citep{turnitin2026clarity}. Grammarly Authorship labels typed, pasted, AI-generated, AI-rephrased, and Grammarly-edited text across supported writing surfaces \citep{grammarly2026authorship}. GPTZero Writing Reports combine AI review, detection, and Google Docs process evidence \citep{gptzero2026writingreport,gptzero2026turnitinbrisk}. Other replay systems, including Draftback, Brisk Inspect Writing, Integrito, WritingTrace, and PaperTrail Inspect, derive timelines from Google Docs data \citep{draftback2026replay,brisk2025inspectwriting,integrito2026activityreport,writingtrace2026,papertrail2026inspect}.
 
-Table~\ref{tab:feature-comparison} compares systems by environment, governance, capture, and evidence. The surveyed tools reconstruct edits, label text origins, or support assigned tasks, but rarely combine these functions. Humanly combines configurable policy, native AI logs, assigned-task enrollment, replay, and certificate analytics in one controlled workspace. A partial mark denotes narrower support, such as a Google Docs extension or an assignment-specific report.
+Table~\ref{tab:feature-comparison} compares systems by environment, governance, capture, and evidence. The surveyed tools specialize in different functions: final-text scoring, host-document replay, source labeling, or assignment reports. Humanly combines configurable policy, native AI logs, assigned-task enrollment, replay, and certificate analytics in one controlled workspace. A partial mark denotes narrower support, such as a Google Docs extension or an assignment-specific report.
 
 \begin{table*}[t]
 \small
@@ -249,11 +249,11 @@ PaperTrail \citep{papertrail2026inspect} & \nofeature & \nofeature & \nofeature 
 \label{tab:feature-comparison}
 \end{table*}
 
-No surveyed system covers the full matrix. Turnitin Clarity is closest on assignment workflow; Grammarly Authorship is closest on source labels; WritingTrace and PaperTrail Inspect are closest on writing history. Humanly binds policy, enforcement, replay, and certificates in one write-time record.
+Related systems cluster around these functions: Turnitin Clarity emphasizes assignment workflow, Grammarly Authorship emphasizes source labels, and WritingTrace and PaperTrail Inspect emphasize revision history. Humanly is organized around a policy-bound write-time record: enforcement, replay, and certificates use the same event stream.
 
 \subsection{Synthesis}
 
-Final-text detectors answer what the text resembles. Process and replay tools answer what happened inside a host document. Humanly adds the missing premise: what policy applied and what actions occurred.
+Final-text detectors ask what the text resembles. Process and replay tools ask what happened inside a host document. Humanly asks whether recorded actions match the policy under which the text was written.
 
 \section{Evaluation}
 \label{sec:evaluation}
