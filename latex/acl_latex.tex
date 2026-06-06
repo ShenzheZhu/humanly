@@ -286,7 +286,7 @@ Pangram \citep{pangram2026detector} & 0.4542 & 0.8667 & 0.2500 & 0.0167 \\
 \label{tab:detector-results}
 \end{table}
 
-Table~\ref{tab:detector-results} separates two failure modes. Opus 4.8 assigns the correct three-class label to 82/240 samples and misses 73/120 non-compliant samples. GPTZero and Pangram are more policy-accurate, with 205/240 and 208/240 correct decisions, and miss only 3 and 2 of 120 non-compliant samples. Their main error is false positives: 32 and 30 of 120 compliant samples are marked suspicious. C4 exposes this failure: all 30 human-written AI-style samples are marked suspicious. Final-text predictors can flag AI-origin documents, but they do not verify policy compliance.
+Table~\ref{tab:detector-results} separates two failure modes. Opus 4.8 assigns the correct three-class label to 82/240 samples and misses 73/120 non-compliant samples. GPTZero and Pangram make 205/240 and 208/240 correct policy decisions, missing only 3 and 2 of 120 non-compliant samples. Their main error is false positives: 32 and 30 of 120 compliant samples are marked suspicious, including all 30 C4 human-written AI-style samples. Final-text predictors can flag AI-origin documents, but they do not verify policy compliance.
 
 \subsection{Human Study}
 \label{sec:study}
@@ -371,7 +371,7 @@ N4 & AI-written substantive draft with light human edits & \textsc{mixed} & NC &
 
 The benchmark contains 240 samples: eight cases \(\times\) three length buckets \(\times\) ten matched task sets. Buckets cover social-media-style posts, student responses, and long review-style texts. Each row records task metadata, source language, policy label, document class, text path, construction note, license note, and word count.
 
-Inputs are frozen as local files before generation; source URLs remain metadata only. Human-origin seeds supply C1--C3: English for C1/C2 and non-English for C3. C4 contains collected human-written AI-style texts. Non-compliant samples use matched topics: direct AI drafting (N1), rewriting or humanizing (N2), non-English AI drafting plus translation (N3), and light human editing of N1 drafts (N4). Seed material is stripped of markup, boilerplate, and templates, but not polished. Detector runs include only \texttt{ready} rows. GPTZero and Pangram each returned 240/240 valid outputs.
+Inputs are frozen as local files before generation; source URLs remain metadata only. Human-origin seeds supply C1--C3: English for C1/C2 and non-English for C3. C4 contains collected human-written AI-style texts. Non-compliant samples use matched topics: direct AI drafting (N1), rewriting or humanizing (N2), non-English AI drafting plus translation (N3), and light human editing of N1 drafts (N4). Preprocessing removes markup, boilerplate, and templates without polishing the prose. Detector runs include only \texttt{ready} rows. GPTZero and Pangram each returned 240/240 valid outputs.
 
 \subsection{Metric Definitions}
 
