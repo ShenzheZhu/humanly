@@ -55,13 +55,13 @@
 \maketitle
 
 \begin{abstract}
-Similar submissions can come from sustained drafting, AI polish, translation, or generated text moved into an editor. We present \textsc{Humanly}, a deployed platform that records writing under an explicit policy. Writers or task owners configure AI access, paste rules, length, time, and guest submission. While drafting, Humanly captures typing, paste, focus, selection, and in-platform AI events. It packages the final text with metrics, logs, replay, PDF/JSON exports, and public verification. Personal writing, assigned tasks, public links, guest submissions, and peer review share this flow. A 240-sample stress test shows that GPTZero and Pangram catch most prohibited generation but falsely flag at least one quarter of compliant cases. The live system is available at \url{https://app.writehumanly.net/}.
+The same final text can result from sustained drafting, AI polish, translation, or generated text moved into an editor. We present \textsc{Humanly}, a deployed platform that records writing under an explicit policy. Writers or task owners configure AI access, paste rules, length, time, and guest submission. While drafting, Humanly captures typing, paste, focus, selection, and in-platform AI events. It packages the final text with metrics, logs, replay, PDF/JSON exports, and public verification. Personal writing, assigned tasks, public links, guest submissions, and peer review share this flow. A 240-sample stress test shows that GPTZero and Pangram catch most prohibited generation but falsely flag at least one quarter of compliant cases. The live system is available at \url{https://app.writehumanly.net/}.
 \end{abstract}
 
 \section{Introduction}
 \label{sec:intro}
 
-Academic assignments, peer review, and writing certificates often judge process, not only text. Similar submissions may reflect sustained drafting, grammar-only AI polish, machine translation, chat-based explanation, or generated text moved into an editor.
+Academic assignments, peer review, and writing certificates often turn on process, not text alone. Similar submissions may reflect sustained drafting, grammar-only AI polish, machine translation, chat-based explanation, or generated text moved into an editor.
 
 Post-hoc detectors answer a narrower question: whether the submitted text resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. This helps when a policy bans generation and the output is mostly machine-written. Mixed workflows break that assumption. Human prose may be wrongly flagged, especially when style differs from detector training assumptions \citep{liang2023gpt}; generated prose can be rewritten, translated, humanized, or prompted to sound human. A detector score alone cannot determine policy compliance.
 
@@ -69,7 +69,7 @@ Replay tools expose document history but usually depend on a host editor or assi
 
 \textsc{Humanly} links task policy and write-time events in one provenance record. Before writing, users configure policy; during drafting, the platform captures human and in-platform AI actions; after drafting, logs, replay, metrics, and verification expose the record. The same design supports personal, assigned, public-link, guest, and peer-review workflows.
 
-AI assistance is a policy choice, not a binary attribute. Humanly has four modes: \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full}. \textsc{Polish} exposes constrained selection rewrites such as grammar fixing and simplification. \textsc{Chat} exposes agent chat without selection-level rewrite actions. \textsc{Full} exposes both. The editor and certificate both show the active policy.
+AI assistance is governed by policy, not by a binary label. Humanly has four modes: \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full}. \textsc{Polish} exposes constrained selection rewrites such as grammar fixing and simplification. \textsc{Chat} exposes agent chat without selection-level rewrite actions. \textsc{Full} exposes both. The editor and certificate both show the active policy.
 
 This paper contributes:
 \begin{enumerate}
@@ -191,7 +191,7 @@ Before certificate generation or task submission, Humanly flushes pending editor
 \section{Workflows and Use Cases}
 \label{sec:workflows}
 
-Every workflow follows the same loop: set policy, write, and review evidence. What changes is who sets the policy and who reads the record.
+All workflows share one loop: set policy, write, and review evidence. They differ in who sets the policy and who reads the record.
 
 \subsection{Peer Review}
 
@@ -258,7 +258,7 @@ Final-text detectors answer what the text resembles. Process and replay tools an
 \section{Evaluation}
 \label{sec:evaluation}
 
-Evaluation serves two roles: testing whether final text recovers policy compliance, and whether people interpret process evidence without treating it as a verdict. Boundary cases identify where a process record can be bypassed or misread.
+Evaluation asks whether final text recovers policy compliance and whether people interpret process evidence without treating it as a verdict. Boundary cases identify where a process record can be bypassed or misread.
 
 \subsection{Final-Text Detector Stress Test}
 \label{sec:detector-eval}
