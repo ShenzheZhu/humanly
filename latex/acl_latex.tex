@@ -65,7 +65,7 @@ In many writing settings, authenticity depends on process, not surface form. A f
 
 Final-text AI detectors answer whether a text resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. That signal is informative when a task bans generated text and the submission is fully generated. It is less useful for mixed workflows. Human prose can be wrongly flagged, especially when a writer's style differs from detector training assumptions \citep{liang2023gpt}; generated prose can also be rewritten, translated, humanized, or prompted to sound human. A detector score alone does not establish whether the writer followed the task policy.
 
-\textsc{Humanly} reframes authenticity as provenance by keeping policy and process in the same record. A personal writer or task owner configures the writing environment before drafting. The editor then records typing, paste, selection, focus, timing, and in-platform AI events, and packages the final text with a certificate, replay, activity log, PDF/JSON exports, and public verification.
+\textsc{Humanly} reframes authenticity as provenance by keeping policy and write-time events in one record. A writer or task owner configures the environment, the editor records human and AI actions, and the certificate exposes the resulting evidence for review.
 
 AI assistance is a policy choice. Humanly has four modes: \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full}. \textsc{Polish} exposes constrained selection rewrites such as grammar fixing and simplification. \textsc{Chat} exposes agent chat without selection-level rewrite actions. \textsc{Full} exposes both. The policy appears in the editor and in the evidence trail.
 
@@ -73,7 +73,7 @@ We contribute:
 \begin{enumerate}
   \item a deployed platform for policy-bound human-AI writing;
   \item a writing environment model covering personal, assigned, public-link, and guest workflows with explicit AI, paste, time, and length policies;
-  \item a certificate pipeline that links the final text to typed/pasted statistics, AI-use records, replayable document history, and public verification;
+  \item a certificate pipeline for typed/pasted statistics, AI-use records, replayable history, and public verification;
   \item a 240-sample final-text detector stress test and human-study protocol for evaluating provenance evidence.
 \end{enumerate}
 
@@ -140,7 +140,7 @@ Humanly is organized around three interfaces: a writer portal, an admin dashboar
 \end{figure*}
 
 \paragraph{Configuration.}
-Each document has a writing environment (Figure~\ref{fig:configuration-surface}). Personal writers set it when creating a document; task owners set it before sharing an invite code or public link. The configuration stores task type, instruction files, AI provider/model, AI mode, token or request budget, paste policy, time window, writing timer, length limit, and guest-submission policy.
+Each document has a writing environment (Figure~\ref{fig:configuration-surface}). Personal writers set it when creating a document; task owners set it before sharing an invite code or public link. The configuration records task type and resources, AI provider/model/mode, token or request budget, paste policy, time and length limits, and guest-submission policy.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -173,10 +173,10 @@ Humanly records write-time events during drafting (Figure~\ref{fig:log-surface})
 \vspace{0.5em}
 
 \paragraph{Evidence store.}
-The backend stores document snapshots, event streams, task enrollments, submissions, AI chat sessions, AI interaction logs, AI selection actions, files, and certificates. PostgreSQL/TimescaleDB stores high-frequency events. Redis handles caching and background jobs. WebSocket channels carry live activity. Derived views turn raw events into logs, timelines, analytics, and certificates.
+The backend stores snapshots, event streams, task enrollments, submissions, AI sessions, AI action logs, files, and certificates. PostgreSQL/TimescaleDB stores high-frequency events. Redis handles caching and background jobs. WebSocket channels carry live activity. Derived views turn raw events into logs, timelines, analytics, and certificates.
 
 \paragraph{Certificate and verification.}
-Before certificate generation or task submission, Humanly flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate contains the final text, typed and pasted character counts, event counts, editing time, AI quick-action statistics, AI question statistics, a verification token, and a signed payload. Writers can export PDF or JSON. Readers can open the verification link to inspect the certificate, metrics, and, when permitted, replay/log evidence.
+Before certificate generation or task submission, Humanly flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate contains the final text, authorship metrics, AI-use metrics, a verification token, and a signed payload. Writers can export PDF or JSON. Readers can inspect the certificate, metrics, and, when permitted, replay/log evidence.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -311,7 +311,7 @@ These cases refine the trace taxonomy used in the certificate and replay views. 
 \label{sec:limitations}
 
 \paragraph{Process evidence is not automatic proof.}
-Humanly issues process evidence, not an authorship verdict. A certificate shows typed characters, pasted characters, AI-use statistics, and replayable history; readers still interpret that evidence in context.
+Humanly issues process evidence, not an authorship verdict. Certificates support interpretation; they do not decide authorship.
 
 \paragraph{Adversarial behavior.}
 Humanly can block or log some actions, such as paste under task policy, but it cannot prevent every external-AI workflow. A determined user may transcribe external AI output, use voice input, mimic revisions, or route text through another device. Humanly is evidence infrastructure, not a complete anti-cheating mechanism.
