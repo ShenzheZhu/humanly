@@ -69,7 +69,7 @@ Document-replay tools reconstruct host-editor history, but policy, AI-assistant 
 
 \textsc{Humanly} binds task policy to write-time events in one provenance record. Policy is set before writing; human and in-platform AI actions are recorded during drafting; certificates present logs, replay, metrics, and verification after drafting. The same record spans personal, assigned, public-link, guest, and peer-review workflows.
 
-Humanly exposes four AI policies: \textsc{off} hides AI controls, \textsc{polish} exposes only selection rewrites, \textsc{chat} exposes only chat, and \textsc{full} exposes both. The editor displays the active policy during writing; the certificate reports it after drafting.
+Four AI policies control the editor: \textsc{off} hides AI controls, \textsc{polish} exposes only selection rewrites, \textsc{chat} exposes only chat, and \textsc{full} exposes both. The editor displays the active policy during writing; the certificate reports it after drafting.
 
 We present:
 \begin{enumerate}
@@ -137,12 +137,12 @@ Humanly has three system stages: policy configuration, event capture, and eviden
   \draw[arr] (capture.east) -| node[small, below, pos=.22] {events + snapshots} (cert.south);
 \end{tikzpicture}
 }
-\caption{Humanly workflow. Personal writing and assigned or public-link tasks enter through separate policies and converge on the same tracked editor, event-capture layer, certificate, and replay surfaces.}
+\caption{Humanly workflow. Personal writing and assigned or public-link tasks enter through separate policies and converge on the same tracked editor, event log, certificate, and replay.}
 \label{fig:workflow}
 \end{figure*}
 
 \paragraph{Configuration.}
-Personal writers configure documents; task owners configure shared tasks before distributing invite codes or public links (Figure~\ref{fig:configuration-surface}). Policies specify resources, AI provider/model, AI access, request/token budget, paste rules, time/length limits, and guest submissions. The editor enforces this policy during drafting.
+Personal writers configure documents; task owners configure shared tasks before distributing invite codes or public links (Figure~\ref{fig:configuration-surface}). Policies set resources, AI provider/model, AI access, request/token budget, paste rules, time/length limits, and guest submissions. The editor enforces this policy during drafting.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -164,7 +164,7 @@ Writers compose in a Lexical-based editor shared by personal documents and assig
 \vspace{0.5em}
 
 \paragraph{Process Capture.}
-During drafting, the capture layer records text changes, clipboard actions, selection, focus, blur, formatting, and AI events (Figure~\ref{fig:log-surface}). Selection-level AI logs store the action type, original text, suggestion, and accept/reject decision. Chat logs store document context, model metadata, messages, and tool traces. A JavaScript tracker emits the same event schema for external forms.
+The capture layer records text changes, clipboard actions, selection, focus, blur, formatting, and AI events during drafting (Figure~\ref{fig:log-surface}). Selection-level AI logs store the action type, original text, suggestion, and accept/reject decision. Chat logs store document context, model metadata, messages, and tool traces. A JavaScript tracker emits the same event schema for external forms.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -175,10 +175,10 @@ During drafting, the capture layer records text changes, clipboard actions, sele
 \vspace{0.5em}
 
 \paragraph{Evidence Store.}
-The backend stores snapshots, event streams, enrollments, submissions, files, AI sessions/actions, and certificates. PostgreSQL/TimescaleDB handles high-frequency events; Redis backs jobs and caching; WebSocket channels carry live updates. Logs, timelines, typed/pasted statistics, AI-use statistics, and replay data are derived from these records.
+The backend stores snapshots, event streams, enrollments, submissions, files, AI sessions, AI actions, and certificates. PostgreSQL/TimescaleDB handles high-frequency events; Redis backs jobs and caching; WebSocket channels carry live updates. Logs, timelines, typed/pasted statistics, AI-use statistics, and replay data are derived from these records.
 
 \paragraph{Certificate and Verification.}
-When a certificate is generated or a task is submitted, Humanly flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate binds final text to event counts, typed/pasted and editing metrics, AI-use metrics, a verification token, and a signed payload. Readers inspect a PDF or JSON certificate plus permitted replay/logs.
+Before certificate generation or task submission, Humanly flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate binds final text to event counts, typed/pasted and editing metrics, AI-use metrics, a verification token, and a signed payload. Readers inspect a PDF or JSON certificate plus permitted replay/logs.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -208,7 +208,7 @@ For self-certification, writers set policy, draft in Humanly, and generate a cer
 \section{Comparison with Existing Systems}
 \label{sec:comparison}
 
-The systems differ by observation scope: submitted text, host-document history, or a policy-bound writing process.
+Existing approaches differ by observation scope: submitted text, host-document history, or a policy-bound writing process.
 
 \subsection{Final-Text Detectors}
 
@@ -247,7 +247,7 @@ PaperTrail \citep{papertrail2026inspect} & \nofeature & \nofeature & \nofeature 
 \label{tab:feature-comparison}
 \end{table*}
 
-The closest baselines cover parts of this record. Turnitin Clarity pairs assignments with playback and AI-assistance visibility. Grammarly Authorship labels typed, pasted, AI-generated, and AI-rephrased text. WritingTrace and PaperTrail Inspect focus on writing history. Humanly binds policy, enforcement, replay, and certificates in one write-time record.
+No baseline covers the full record. Turnitin Clarity pairs assignments with playback and AI-assistance visibility. Grammarly Authorship labels typed, pasted, AI-generated, and AI-rephrased text. WritingTrace and PaperTrail Inspect focus on writing history. Humanly binds policy, enforcement, replay, and certificates in one write-time record.
 
 \subsection{Synthesis}
 
@@ -316,7 +316,7 @@ These cases define the trace taxonomy behind certificates and replay. Categories
 Humanly issues process evidence, not an authorship verdict. Certificates support interpretation; they do not decide authorship.
 
 \paragraph{Adversarial Behavior.}
-Humanly blocks or logs some policy-governed actions, such as paste, but it cannot prevent every external-AI workflow. A determined user may transcribe external AI output, use voice input, mimic revisions, or route text through another device. The record captures in-platform process; it cannot rule out every covert channel.
+Humanly blocks or logs some policy-governed actions, such as paste, but it cannot prevent every external-AI workflow. A determined user may transcribe external AI output, use voice input, mimic revisions, or route text through another device. The record captures in-platform activity; it cannot rule out every covert channel.
 
 \paragraph{Privacy and Surveillance.}
 Process recording is sensitive because it captures typing behavior, paste activity, focus changes, and AI interactions. Deployments require writer-facing transparency, context limits, and clear access rules for logs, certificates, and replays.
@@ -328,7 +328,7 @@ Study prompts are non-sensitive, process recording is disclosed, and personally 
 \section{Conclusion}
 \label{sec:conclusion}
 
-\textsc{Humanly} reframes writing authenticity as policy-bound process evidence. Its tracked editor, AI policy controls, assigned-task flow, and certificates turn writing events into reviewable records. The stress test shows why final text is insufficient: GPTZero and Pangram detect most non-compliant generation yet flag many compliant cases, while Opus 4.8 misses many policy violations. Humanly does not replace judgment; it supplies the record that judgment needs.
+\textsc{Humanly} reframes writing authenticity as policy-bound process evidence. Its tracked editor, AI policy controls, assigned-task flow, and certificates turn writing events into reviewable records. The stress test shows why final text is insufficient: GPTZero and Pangram detect most non-compliant generation yet flag many compliant cases, while Opus 4.8 misses many policy violations. Humanly does not replace judgment; it supplies the record needed for judgment.
 
 % Bibliography entries for the entire Anthology, followed by custom entries
 %\bibliography{anthology,custom}
