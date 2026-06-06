@@ -286,7 +286,7 @@ Pangram \citep{pangram2026detector} & 0.4542 & 0.8667 & 0.2500 & 0.0167 \\
 \label{tab:detector-results}
 \end{table}
 
-Table~\ref{tab:detector-results} separates two failure modes. Opus 4.8 assigns the correct three-class label to 82/240 samples and misses 73/120 non-compliant samples. GPTZero and Pangram make 205/240 and 208/240 correct policy decisions, missing only 3 and 2 of 120 non-compliant samples. Their main error is false positives: 32 and 30 of 120 compliant samples are marked suspicious, including all 30 C4 human-written AI-style samples. Final-text predictors can flag AI-origin documents, but they do not verify policy compliance.
+Tables~\ref{tab:detector-results} and~\ref{tab:appendix-case-results} separate binary suspicion from process understanding. GPTZero and Pangram are stronger than Opus 4.8 as AI-suspicion filters: they make 205/240 and 208/240 correct policy decisions, missing only 3 and 2 of 120 non-compliant samples. Their policy accuracy is coarse, however. GPTZero recovers only 2/90 \textsc{mixed} cases and Pangram recovers 0/90. They usually collapse compliant polish and translation into \textsc{human\_only}, and non-compliant AI drafts with human edits into \textsc{ai\_only}; the policy decision can be right while the process label is wrong. Both also mark all 30 C4 human-written AI-style samples suspicious. Final-text predictors can triage likely AI-origin text, but they do not answer how AI entered the writing process.
 
 \subsection{Human Study}
 \label{sec:study}
@@ -380,5 +380,31 @@ Two metric layers are reported.
 \noindent\textbf{Layer 1: Final-text document class.} A prediction is correct only if it exactly matches the expected document class: \textsc{human\_only}, \textsc{mixed}, or \textsc{ai\_only}. This layer scores construction history, not policy.
 
 \noindent\textbf{Layer 2: Policy compliance.} Detector outputs are mapped to binary policy evidence: \textsc{human\_only} becomes \textit{human-compliant}; \textsc{mixed} and \textsc{ai\_only} become \textit{AI-suspicious}. Non-compliance is the positive class. True positives and false negatives are non-compliant samples predicted as AI-suspicious or human-compliant; true negatives and false positives are compliant samples predicted as human-compliant or AI-suspicious.
+
+\subsection{Case-Level Results}
+
+Table~\ref{tab:appendix-case-results} reports detector accuracy by construction case. The entries show that high policy accuracy can hide an incorrect process label. For C2 and C3, GPTZero and Pangram usually predict \textsc{human\_only}, so policy is often correct but the AI-polish or AI-translation process is missed. For N4, they usually predict \textsc{ai\_only}, so policy is again often correct while the human-edit portion is erased. C4 shows the opposite risk: human-written AI-style text is treated as suspicious.
+
+\begin{table*}[t]
+\small
+\centering
+\setlength{\tabcolsep}{4pt}
+\begin{tabularx}{\textwidth}{@{}lYccc@{}}
+\toprule
+Case & Construction & Opus 4.8 & GPTZero & Pangram \\
+\midrule
+C1 & Human original & 0.933 / 0.933 & 1.000 / 1.000 & 1.000 / 1.000 \\
+C2 & Human writing with AI polish & 0.200 / 0.800 & 0.067 / 0.933 & 0.000 / 1.000 \\
+C3 & Human non-English writing translated with AI & 0.333 / 0.667 & 0.000 / 1.000 & 0.000 / 1.000 \\
+C4 & Human prose intentionally imitating AI style & 0.267 / 0.267 & 0.000 / 0.000 & 0.000 / 0.000 \\
+N1 & Direct AI-generated final text & 0.267 / 0.367 & 1.000 / 1.000 & 1.000 / 1.000 \\
+N2 & AI-generated text rewritten or humanized & 0.300 / 0.367 & 0.967 / 1.000 & 1.000 / 1.000 \\
+N3 & AI-generated non-English text translated into English & 0.233 / 0.467 & 0.767 / 0.900 & 0.633 / 0.967 \\
+N4 & AI-written substantive draft with light human edits & 0.200 / 0.367 & 0.000 / 1.000 & 0.000 / 0.967 \\
+\bottomrule
+\end{tabularx}
+\caption{Case-level detector stress-test results. Each entry is document-class accuracy / policy accuracy over 30 samples.}
+\label{tab:appendix-case-results}
+\end{table*}
 
 \end{document}
