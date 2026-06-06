@@ -258,12 +258,12 @@ Final-text detectors answer what the text resembles. Process and replay tools an
 \section{Evaluation}
 \label{sec:evaluation}
 
-Evaluation asks three questions: whether final text predicts policy compliance, whether readers interpret process evidence correctly, and where the record can be bypassed or misread.
+The evaluation covers final-text prediction, reader interpretation, and boundary cases.
 
 \subsection{Final-Text Detector Stress Test}
 \label{sec:detector-eval}
 
-We use eight policy cases rather than a binary human-vs-AI label. Human writing, AI polish, and AI translation are compliant; substantive AI generation is not. The test asks whether final-text predictors can substitute for process evidence. Appendix~\ref{sec:appendix-detector-metrics} defines the cases and labels. Prompted transformations preserve meaning and avoid added facts, following public research-writing prompt templates such as \citet{leey2026awesomewriting}. Human-origin cases start from human-written seeds before polish, translation, or AI-style human rewriting.
+We use eight policy cases rather than a binary human-vs-AI label. Human writing, AI polish, and AI translation are compliant; substantive AI generation is not. The test measures whether final-text predictors recover policy compliance without process evidence. Appendix~\ref{sec:appendix-detector-metrics} defines the cases and labels. Prompted transformations preserve meaning and avoid added facts, following public research-writing prompt templates such as \citet{leey2026awesomewriting}. Human-origin cases start from human-written seeds before polish, translation, or AI-style human rewriting.
 
 The stress test has 240 samples: eight cases, three length buckets, and ten matched task sets. Length buckets correspond to social-media posts, student assignment responses, and long review-style texts. Predictors see only final text; outputs are normalized to \textsc{human\_only}, \textsc{mixed}, or \textsc{ai\_only}. We evaluate Claude Opus 4.8 \citep{anthropic2026opus48}, GPTZero \citep{gptzero2026detector}, and Pangram \citep{pangram2026detector}. Metrics are exact document-class accuracy (Layer 1) and policy accuracy after mapping \textsc{human\_only} to \textit{human-compliant} and the other labels to \textit{AI-suspicious} (Layer 2).
 
@@ -306,25 +306,25 @@ We compare writer measures across AI modes and reader measures across informatio
 \subsection{Boundary and Red-Team Analysis}
 \label{sec:redteam}
 
-The detector stress test targets final text; boundary analysis targets capture assumptions. Cases include phone-assisted generation, memorized AI text, manual retyping of an external AI answer, and GUI-agent imitation of human writing. These cases test observability, not detector accuracy.
+The detector stress test targets final text; boundary analysis targets capture assumptions. Cases include phone-assisted generation, memorized AI text, manual retyping of an external AI answer, and GUI-agent imitation of human writing. These cases test observability rather than detector accuracy.
 
-These cases define the trace taxonomy behind certificates and replay. Categories include human-only writing, mostly human writing with paste, AI editing, AI brainstorming, AI-generated passages, and fully AI-generated text.
+They also motivate the trace taxonomy behind certificates and replay: human-only writing, mostly human writing with paste, AI editing, AI brainstorming, AI-generated passages, and fully AI-generated text.
 % TODO: Decide which red-team cases are feasible for the demo-paper evaluation versus future work.
 
 \section{Limitations and Ethical Considerations}
 \label{sec:limitations}
 
 \paragraph{Process Evidence Is Not Proof.}
-Certificates are evidence, not authorship verdicts. They support interpretation; they do not decide authorship.
+Certificates support interpretation; they are not authorship verdicts.
 
 \paragraph{Adversarial Behavior.}
-Humanly blocks or logs some policy-governed actions, such as paste, but it cannot prevent every external-AI workflow. A determined user may transcribe external AI output, use voice input, mimic revisions, or route text through another device. The record captures in-platform activity; it cannot rule out every covert channel.
+Humanly logs or blocks in-platform actions, such as paste when policy disallows it, but it cannot prevent every external-AI workflow. A determined user may transcribe external AI output, use voice input, mimic revisions, or route text through another device. The record captures in-platform activity; it cannot rule out every covert channel.
 
 \paragraph{Privacy and Surveillance.}
 Process recording is sensitive because it captures typing behavior, paste activity, focus changes, and AI interactions. Deployments require writer-facing transparency, context limits, and clear access rules for logs, certificates, and replays.
 
 \paragraph{Study Ethics.}
-Study prompts avoid sensitive topics, process recording is disclosed, and personally identifying information is limited to participant payment. Any mild deception, such as withholding details about paste behavior, requires justification and debriefing.
+Study prompts avoid sensitive topics, process recording is disclosed, and personally identifying information is limited to participant payment. If the protocol withholds details about paste behavior, it requires justification and debriefing.
 % TODO: Finalize ethics text once the actual study protocol is locked.
 
 \section{Conclusion}
