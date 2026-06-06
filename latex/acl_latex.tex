@@ -55,7 +55,7 @@
 \maketitle
 
 \begin{abstract}
-Final text rarely shows how a piece of writing was produced. A submission may be typed, AI-polished, translated, or generated elsewhere and pasted into an editor, yet each can read as fluent prose. We present \textsc{Humanly}, a deployed writing platform that records provenance while writers draft. Before writing, a writer or task owner configures AI access, paste rules, length limits, and time windows. During writing, Humanly records typing, paste, focus, selection, and in-platform AI events. At submission, it packages the final text, event record, replay, certificate, PDF/JSON exports, and verification link. Humanly supports personal writing, assigned tasks, public share links, and peer-review workflows. We describe the architecture, compare Humanly with text detectors and replay systems, and report a 240-sample stress test in which Claude Opus 4.8, used as a final-text-only predictor, fails to recover policy compliance. The live system is available at \url{https://app.writehumanly.net/}.
+Final text is a weak record of the writing process: typed, AI-polished, translated, and generated-then-pasted submissions can read the same. We present \textsc{Humanly}, a deployed platform that records writing provenance during drafting. Writers or task owners configure AI access, paste rules, length limits, and time windows. Humanly logs typing, paste, focus, selection, and in-platform AI events, then packages the final text, event record, replay, PDF/JSON exports, and verification link into a certificate. Humanly covers personal writing, assigned tasks, public share links, and peer review. We describe the architecture, compare Humanly with text detectors and replay systems, and report a 240-sample stress test showing that Claude Opus 4.8 cannot recover policy compliance from final text alone. The live system is available at \url{https://app.writehumanly.net/}.
 \end{abstract}
 
 \section{Introduction}
@@ -71,10 +71,10 @@ AI assistance is a policy choice. Humanly has four modes: \textsc{off}, \textsc{
 
 We contribute:
 \begin{enumerate}
-  \item a deployed writing platform for process evidence in human-AI writing;
-  \item a configurable writing environment for personal documents, assigned tasks, public share links, guest submissions, AI modes, paste policy, time limits, and length limits;
+  \item a deployed platform for policy-bound human-AI writing;
+  \item a writing environment model covering personal, assigned, public-link, and guest workflows with explicit AI, paste, time, and length policies;
   \item a certificate pipeline that links the final text to typed/pasted statistics, AI-use records, replayable document history, and public verification;
-  \item an evaluation protocol and final-text detector stress test showing why policy compliance cannot be reduced to final-text appearance.
+  \item a 240-sample final-text detector stress test and human-study protocol for evaluating provenance evidence.
 \end{enumerate}
 
 \section{System Architecture}
