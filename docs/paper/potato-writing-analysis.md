@@ -21,6 +21,8 @@ The abstract should make those capabilities legible in one paragraph, then repor
 
 The introduction should not read as a generic AI-detection motivation. It should quickly move from the authenticity problem to Humanly's design goals, then state the contribution as a deployed system.
 
+The core motivation is that common writing practices are becoming mixed. AI polishing, translation, document understanding, brainstorming, and selected-passage revision are different from direct AI generation, but final-text tools and policy debates often collapse them into coarse AI/non-AI labels. Humanly should be framed as infrastructure for recording policy-governed writing processes, not as another detector.
+
 The workflow section should start with the most distinctive use case, peer review, because it best shows why policy-bound process evidence matters. Classroom and personal writing can then show generality.
 
 The comparison section should follow PotatO's pattern: compare systems along dimensions that match Humanly's requirements, then explain the table narrowly.
