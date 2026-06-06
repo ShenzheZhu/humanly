@@ -222,7 +222,7 @@ Final text collapses production histories. A human draft polished by AI, a human
 
 Process and replay tools reconstruct document history rather than scoring text alone. Turnitin Clarity combines assignments, writing reports, and AI-assistance visibility \citep{turnitin2026clarity}. Grammarly Authorship labels typed, pasted, AI-generated, AI-rephrased, and Grammarly-edited text across supported writing surfaces \citep{grammarly2026authorship}. GPTZero Writing Reports combine AI review, detection, and Google Docs process evidence \citep{gptzero2026writingreport,gptzero2026turnitinbrisk}. Other replay systems, including Draftback, Brisk Inspect Writing, Integrito, WritingTrace, and PaperTrail Inspect, derive timelines from Google Docs data \citep{draftback2026replay,brisk2025inspectwriting,integrito2026activityreport,writingtrace2026,papertrail2026inspect}.
 
-Table~\ref{tab:feature-comparison} compares systems by environment, governance, capture, and evidence. The surveyed tools specialize in different functions: final-text scoring, host-document replay, source labeling, or assignment reports. Humanly combines configurable policy, native AI logs, assigned-task enrollment, replay, and certificate analytics in one controlled workspace. A partial mark denotes narrower support, such as a Google Docs extension or an assignment-specific report.
+Table~\ref{tab:feature-comparison} compares systems by environment, governance, capture, and evidence. Final-text detectors provide no write-time environment. Host-document replay tools inherit the surrounding editor and usually lack task policy or native AI logs. Humanly places policy, writing, AI assistance, capture, replay, and certification in one workspace. A partial mark denotes narrower support, such as a browser extension, Google Docs report, or assignment-specific report.
 
 \begin{table*}[t]
 \small
@@ -249,11 +249,11 @@ PaperTrail \citep{papertrail2026inspect} & \nofeature & \nofeature & \nofeature 
 \label{tab:feature-comparison}
 \end{table*}
 
-Related systems cluster around these functions: Turnitin Clarity emphasizes assignment workflow, Grammarly Authorship emphasizes source labels, and WritingTrace and PaperTrail Inspect emphasize revision history. Humanly is organized around a policy-bound write-time record: enforcement, replay, and certificates use the same event stream.
+The distinction is not only whether a system shows writing history. In Humanly, the same event stream gates policy, logs AI actions, computes certificate metrics, and drives replay.
 
 \subsection{Synthesis}
 
-Final-text detectors ask what the text resembles. Process and replay tools ask what happened inside a host document. Humanly asks whether recorded actions match the policy under which the text was written.
+Final-text detectors classify style. Replay tools reconstruct host-document history. Humanly exposes whether recorded actions match the writing policy.
 
 \section{Evaluation}
 \label{sec:evaluation}
@@ -306,9 +306,9 @@ Analysis compares writer measures across AI modes and reader measures across inf
 \subsection{Boundary and Red-Team Analysis}
 \label{sec:redteam}
 
-The detector stress test targets final text; boundary analysis targets capture assumptions. Cases include phone-assisted generation, memorized AI text, manual retyping of an external AI answer, and GUI-agent imitation of human writing. They test observability, not detector accuracy.
+Final-text stress tests do not cover every threat model. External-device generation, memorized AI output, manual retyping, and GUI-agent imitation bypass or imitate the workspace rather than changing detector accuracy. They test what the event stream can observe and which claims a certificate should avoid.
 
-Boundary cases also define a trace taxonomy for certificates and replay: human-only writing, mostly human writing with paste, AI editing, AI brainstorming, AI-generated passages, and fully AI-generated text.
+These boundaries organize trace categories for certificates and replay: human-only drafting, human drafting with paste, AI editing, AI brainstorming, AI-generated passages, and fully AI-generated text.
 % TODO: Decide which red-team cases are feasible for the demo-paper evaluation versus future work.
 
 \section{Limitations and Ethical Considerations}
