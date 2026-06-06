@@ -63,7 +63,7 @@ Final text alone cannot distinguish sustained drafting from AI polish, translati
 
 Academic assignments, peer review, and authenticity certification depend on how text was produced, not final text alone. Similar submissions may come from sustained drafting, grammar-only AI polish, machine translation, chat-based explanation, or generated text imported into an editor.
 
-Post-hoc detectors score whether submitted text resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. This framing fits settings where generation is banned and violations are mostly machine-written. Mixed workflows are not binary: human prose may be wrongly flagged when style differs from detector training data \citep{liang2023gpt}, while generated prose can be rewritten, translated, or humanized. A detector score alone cannot determine policy compliance.
+Post-hoc detectors score whether submitted text resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. This framing fits settings where generation is banned and violations are mostly machine-written. Mixed workflows do not fit that binary: human prose may be wrongly flagged when style differs from detector training data \citep{liang2023gpt}, while generated prose can be rewritten, translated, or humanized. A detector score alone cannot determine policy compliance.
 
 Document-replay tools reconstruct host-editor history, but task policy, AI-assistant actions, metrics, replay, and verification often remain separate. Readers must reconcile artifacts instead of inspecting one policy-bound record.
 
@@ -199,11 +199,11 @@ Peer review is policy-sensitive: reviewers may use AI for grammar or document un
 
 \subsection{Classroom Writing Assignments}
 
-Instructors use the configuration layer to assign writing tasks, distribute invite codes or public links, and review submitted text with timeline, AI logs, metrics, and certificate.
+Instructors assign writing tasks, distribute invite codes or public links, and review submissions with timelines, AI logs, metrics, and certificates.
 
 \subsection{Personal Writing Certification}
 
-Personal writers use the same pipeline without an instructor. They set policy, draft in Humanly, and generate a certificate reporting typed and pasted text, editing time, and in-platform AI use, not a detector score.
+For self-certification, writers set policy, draft in Humanly, and generate a certificate reporting typed and pasted text, editing time, and in-platform AI use, not a detector score.
 
 \section{Comparison with Existing Systems}
 \label{sec:comparison}
@@ -251,12 +251,12 @@ The closest baselines cover parts of this record. Turnitin Clarity pairs assignm
 
 \subsection{Synthesis}
 
-Final-text detectors answer what the text resembles. Process and replay tools answer what happened inside a host document. Humanly records whether the writing process followed the task policy.
+Final-text detectors answer what the text resembles. Process and replay tools answer what happened inside a host document. Humanly records the policy and process needed to judge compliance.
 
 \section{Evaluation}
 \label{sec:evaluation}
 
-Evaluation separates three questions: whether final text recovers policy compliance, whether readers interpret process evidence correctly, and where the record can be bypassed or misread.
+Evaluation separates three questions: whether final text predicts policy compliance, whether readers interpret process evidence correctly, and where the record can be bypassed or misread.
 
 \subsection{Final-Text Detector Stress Test}
 \label{sec:detector-eval}
@@ -284,12 +284,12 @@ Pangram \citep{pangram2026detector} & 0.4542 & 0.8667 & 0.2500 & 0.0167 \\
 \label{tab:detector-results}
 \end{table}
 
-Table~\ref{tab:detector-results} separates document-class and policy errors. Opus 4.8 assigns the correct three-class label to 82/240 samples and misses many disallowed AI-origin cases. GPTZero and Pangram are policy-correct on 205/240 and 208/240 samples, missing only 3 and 2 of 120 non-compliant samples. The cost is false positives: 32 and 30 of 120 compliant samples are marked suspicious, including all 30 C4 samples, where humans intentionally write in an AI-like style. Final-text predictors can flag many AI-origin documents, but they cannot explain whether the writing process followed the task policy.
+Table~\ref{tab:detector-results} separates document-class and policy errors. Opus 4.8 assigns the correct three-class label to 82/240 samples and misses many disallowed AI-origin cases. GPTZero and Pangram are policy-correct on 205/240 and 208/240 samples, missing only 3 and 2 of 120 non-compliant samples. That policy accuracy comes with false positives: 32 and 30 of 120 compliant samples are marked suspicious, including all 30 C4 samples, where humans intentionally write in an AI-like style. Final-text predictors can flag many AI-origin documents, but they cannot explain whether the writing process followed the task policy.
 
 \subsection{Human Study}
 \label{sec:study}
 
-The human study has two parts: writers draft under configured AI policies, and readers judge selected drafts from evidence packages. It measures usability, policy clarity, evidence interpretation, and fairness across peer review, classroom writing, online survey responses, and social-media-style posts. Peer review is primary because it combines writing quality, document understanding, confidentiality, and explicit AI policy.
+Human study design separates production from interpretation. Writers draft under configured AI policies; readers judge selected drafts from evidence packages. The study measures usability, policy clarity, evidence interpretation, and fairness across peer review, classroom writing, online survey responses, and social-media-style posts. Peer review is primary because it combines writing quality, document understanding, confidentiality, and explicit AI policy.
 
 \paragraph{Writer-Side Task.}
 Participants write short documents in Humanly under \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full} policies. Measures include usability, friction, policy clarity, comfort with recording, reuse intent, and event-derived writing statistics.
@@ -306,7 +306,7 @@ We compare writer measures across AI modes and reader measures across informatio
 
 The detector stress test targets final text; boundary analysis targets capture assumptions. Cases include phone-assisted generation, memorized AI text, manual retyping of an external AI answer, and GUI-agent imitation of human writing. These cases test observability, not detector accuracy.
 
-They also refine the trace taxonomy behind certificates and replay. Categories include human-only writing, mostly human writing with paste, human typing plus AI editing, AI brainstorming followed by human writing, AI-generated passages, and fully AI-generated text.
+These cases also refine the trace taxonomy behind certificates and replay. Categories include human-only writing, mostly human writing with paste, human typing plus AI editing, AI brainstorming followed by human writing, AI-generated passages, and fully AI-generated text.
 % TODO: Decide which red-team cases are feasible for the demo-paper evaluation versus future work.
 
 \section{Limitations and Ethical Considerations}
