@@ -55,7 +55,7 @@
 \maketitle
 
 \begin{abstract}
-Final text is a weak record of the writing process: typed, AI-polished, translated, and generated-then-pasted submissions can read the same. We present \textsc{Humanly}, a deployed platform that records writing provenance during drafting. Writers or task owners configure AI access, paste rules, length limits, and time windows. Humanly logs typing, paste, focus, selection, and in-platform AI events, then packages the final text, event record, replay, PDF/JSON exports, and verification link into a certificate. Humanly covers personal writing, assigned tasks, public share links, and peer review. We describe the architecture, compare Humanly with text detectors and replay systems, and report a 240-sample stress test showing that Claude Opus 4.8 cannot recover policy compliance from final text alone. The live system is available at \url{https://app.writehumanly.net/}.
+Final text is a weak record of the writing process: typed, AI-polished, translated, and generated-then-pasted submissions can read the same. We present \textsc{Humanly}, a deployed platform that records writing provenance during drafting. Writers or task owners configure AI access, paste rules, length limits, and time windows. Humanly logs typing, paste, focus, selection, and in-platform AI events, then packages the final text, event record, replay, PDF/JSON exports, and verification link into a certificate. The same system handles personal writing, assigned tasks, public share links, and peer review. We describe the architecture, compare Humanly with text detectors and replay systems, and report a 240-sample stress test showing that Claude Opus 4.8 cannot recover policy compliance from final text alone. The live system is available at \url{https://app.writehumanly.net/}.
 \end{abstract}
 
 \section{Introduction}
@@ -218,7 +218,7 @@ This limitation is structural. A human draft polished by AI, a human draft trans
 
 Process and replay tools expose how a document changed over time. Turnitin Clarity provides writing reports and AI-assistance visibility in assignment workflows \citep{turnitin2026clarity}. Grammarly Authorship labels typed, pasted, AI-generated, AI-rephrased, and Grammarly-edited text across supported writing surfaces \citep{grammarly2026authorship}. GPTZero Writing Reports combine detector-adjacent authorship reports with Google Docs process evidence \citep{gptzero2026writingreport}. Google Docs replay tools such as Draftback, Brisk Inspect Writing, Integrito, WritingTrace, and PaperTrail Inspect reconstruct document history from host-editor data \citep{draftback2026replay,brisk2025inspectwriting,integrito2026activityreport,writingtrace2026,papertrail2026inspect}.
 
-Replay itself is not the contribution. Humanly integrates four elements that usually appear separately: configurable writing environments, native AI-use logs, assigned-task enrollment, and certificate analytics beyond replay. Table~\ref{tab:feature-comparison} summarizes the comparison. We mark a feature as partial when public documentation shows support only in a narrower context, such as a Google Docs extension or an assignment-specific report.
+Humanly's contribution is not replay alone, but the integration of configurable writing environments, native AI-use logs, assigned-task enrollment, and certificate analytics. Table~\ref{tab:feature-comparison} summarizes the comparison. We mark a feature as partial when public documentation shows support only in a narrower context, such as a Google Docs extension or an assignment-specific report.
 
 \begin{table*}[t]
 \small
@@ -245,16 +245,16 @@ PaperTrail \citep{papertrail2026inspect} & \nofeature & \nofeature & \nofeature 
 \label{tab:feature-comparison}
 \end{table*}
 
-The table makes a narrow claim. Turnitin Clarity is the closest education comparator, combining assignment workflows with writing playback and visibility into AI-assisted writing. Grammarly Authorship is the closest source-attribution comparator, labeling typed, pasted, AI-generated, and AI-rephrased text. WritingTrace and PaperTrail Inspect emphasize writing history over detector probability. GPTZero advertises AI reviewing, writing replay, plagiarism checks, and AI detection as a classroom toolkit \citep{gptzero2026turnitinbrisk}. Public documentation does not establish one write-time record that links assistant actions, detector results, replay, task policy, and verification. Humanly contributes that integrated pipeline.
+Turnitin Clarity is the closest education comparator, combining assignment workflows with writing playback and visibility into AI-assisted writing. Grammarly Authorship is the closest source-attribution comparator, labeling typed, pasted, AI-generated, and AI-rephrased text. WritingTrace and PaperTrail Inspect emphasize writing history over detector probability. GPTZero advertises AI reviewing, writing replay, plagiarism checks, and AI detection as a classroom toolkit \citep{gptzero2026turnitinbrisk}. Public documentation does not establish one write-time record that links assistant actions, detector results, replay, task policy, and verification; Humanly integrates those components.
 
 \subsection{Synthesis}
 
-Final-text detectors estimate what the text resembles. Process and replay tools show part of what happened inside a document. Humanly records whether the process complied with the task policy. This distinction matters because AI assistance is not binary: one course or venue may allow grammar correction, prohibit generation, permit chat-based explanation, or allow full collaboration. A writing-authenticity system must record both policy and process.
+Final-text detectors estimate what the text resembles. Process and replay tools show part of what happened inside a document. Humanly records whether the process complied with the task policy. Because AI assistance is not binary, a course or venue may allow grammar correction, prohibit generation, permit chat-based explanation, or allow full collaboration. A writing-authenticity system must record both policy and process.
 
 \section{Evaluation}
 \label{sec:evaluation}
 
-We evaluate Humanly's premise in three ways. A final-text stress test asks whether text-only predictors recover task-policy compliance from submitted text alone. A human-study protocol tests whether writers and readers can use process evidence in realistic workflows. Boundary analysis identifies cases where process evidence can be bypassed or misread. In all three, the certificate is evidence for downstream judgment, not an automatic verdict.
+Evaluation targets three claims. The final-text stress test measures whether text-only predictors recover task-policy compliance from submitted text alone. The human-study protocol measures whether writers and readers can use process evidence in realistic workflows. Boundary analysis identifies cases where process evidence can be bypassed or misread. In all three, the certificate is evidence for downstream judgment, not an automatic verdict.
 
 \subsection{Final-Text Detector Stress Test}
 \label{sec:detector-eval}
@@ -302,7 +302,7 @@ The analysis reports writer usability, policy clarity, reader accuracy, confiden
 \subsection{Boundary and Red-Team Analysis}
 \label{sec:redteam}
 
-The detector stress test asks whether final-text tools fail on policy cases. Boundary analysis asks where process evidence itself can be bypassed or misread. Candidate attacks include phone-assisted generation, memorized AI text, manual retyping of an external AI answer, and GUI-agent imitation of human writing. These cases target the recording workflow rather than the submitted text and are therefore separate from the detector benchmark.
+The detector stress test isolates final-text failures under policy cases. Boundary analysis asks where process evidence itself can be bypassed or misread. Candidate attacks include phone-assisted generation, memorized AI text, manual retyping of an external AI answer, and GUI-agent imitation of human writing. These cases target the recording workflow rather than the submitted text and are therefore separate from the detector benchmark.
 
 These cases refine the trace taxonomy used in the certificate and replay views. The taxonomy separates human-only writing, mostly human writing with some paste, human typing plus AI editing, and AI brainstorming followed by human writing. It also covers AI-generated portions and fully AI-generated text.
 % TODO: Decide which red-team cases are feasible for the demo-paper evaluation versus future work.
