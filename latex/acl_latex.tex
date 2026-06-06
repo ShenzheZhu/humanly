@@ -69,7 +69,7 @@ Document-replay tools reconstruct host-editor history, but policy, AI-assistant 
 
 \textsc{Humanly} binds task policy to write-time events in one provenance record. Policy is set before writing. Human and in-platform AI actions are recorded during drafting. Certificates present logs, replay, metrics, and verification after drafting. The same record spans personal, assigned, public-link, guest, and peer-review workflows.
 
-Humanly enforces three design constraints. Policy is fixed before drafting; AI assistance occurs inside the recorded workspace; readers receive one evidence package rather than separate logs, scores, and exports.
+Humanly enforces three design constraints. Policy precedes drafting; AI assistance stays inside the recorded workspace; readers inspect a single evidence package rather than separate logs, scores, and exports.
 
 Four AI policies control the editor: \textsc{off} hides AI controls, \textsc{polish} exposes only selection rewrites, \textsc{chat} exposes only chat, and \textsc{full} exposes both. The editor displays the active policy during writing; the certificate reports it after drafting.
 
@@ -77,14 +77,14 @@ We present:
 \begin{enumerate}
   \item a controlled editor that enforces task policy while recording human and AI actions;
   \item task flows for personal writing, assigned work, public links, guest submissions, and peer review;
-  \item certificate and replay artifacts that report writing statistics, AI-use records, logs, and verification;
+  \item certificate and replay artifacts for writing statistics, AI-use records, logs, and verification;
   \item a 240-sample stress test showing where final-text predictors fail under policy labels.
 \end{enumerate}
 
 \section{System Architecture}
 \label{sec:architecture}
 
-Implementation follows three stages: policy configuration, event capture, and evidence review. The writer portal, admin dashboard, and public verification pages implement the stages for personal and assigned writing (Figure~\ref{fig:workflow}).
+Implementation follows three stages: policy configuration, event capture, and evidence review. The writer portal, admin dashboard, and public verification pages support personal and assigned writing across these stages (Figure~\ref{fig:workflow}).
 
 \begin{figure*}[t]
 \centering
@@ -155,7 +155,7 @@ Personal writers set document policy; task owners set shared-task policy before 
 \vspace{0.5em}
 
 \paragraph{Writing Workspace.}
-Writers compose in a Lexical-based editor shared by personal documents and assigned tasks (Figure~\ref{fig:workspace-surface}). Attached PDFs and reference files remain beside the editor. The interface shows only the AI controls allowed by the active policy.
+Writers compose in a Lexical-based editor shared by personal documents and assigned tasks (Figure~\ref{fig:workspace-surface}). Attached PDFs and reference files remain beside the editor. Available AI controls match the active policy.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -177,7 +177,7 @@ During drafting, the capture layer records text changes, clipboard actions, sele
 \vspace{0.5em}
 
 \paragraph{Evidence Store.}
-The backend stores snapshots, event streams, enrollments, submissions, files, AI sessions, AI actions, and certificates. PostgreSQL/TimescaleDB handles high-frequency events. Redis backs jobs and caching; WebSocket channels carry live updates. Logs, timelines, typed/pasted statistics, AI-use statistics, and replay data are derived from these records.
+The backend stores snapshots, event streams, enrollments, submissions, files, AI sessions, AI actions, and certificates. PostgreSQL/TimescaleDB handles high-frequency events. Redis backs jobs and caching; WebSocket channels carry live updates. These records produce logs, timelines, typed/pasted statistics, AI-use statistics, and replay data.
 
 \paragraph{Certificate and Verification.}
 Before certificate generation or task submission, Humanly flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate then binds final text to event counts, typed/pasted and editing metrics, AI-use metrics, a verification token, and a signed payload. Readers inspect a PDF or JSON certificate and any permitted replay/logs.
