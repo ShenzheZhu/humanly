@@ -315,16 +315,16 @@ These boundaries organize trace categories for certificates and replay: human-on
 \label{sec:limitations}
 
 \paragraph{Process Evidence Is Not Proof.}
-A certificate is an audit record, not an authorship verdict. It records in-platform actions and leaves policy judgment to reviewers.
+A certificate records observed in-platform actions; it is not an authorship verdict. Policy judgment remains with reviewers.
 
 \paragraph{Adversarial Behavior.}
-Humanly logs or blocks in-platform actions, such as paste when policy disallows it, but cannot prevent every external-AI workflow. A determined user may transcribe external AI output, use voice input, mimic revisions, or route text through another device. The record captures in-platform activity; covert channels remain possible.
+Humanly records in-platform actions and enforces configured controls, such as paste blocking, but cannot close every external channel. A user may transcribe external AI output, use voice input, mimic revisions, or route text through another device. Certificates support review of observed activity, not proof that no outside assistance occurred.
 
 \paragraph{Privacy and Surveillance.}
-Process recording is sensitive because it captures typing behavior, paste activity, focus changes, and AI interactions. Deployments require writer-facing transparency, context limits, and clear access rules for logs, certificates, and replays.
+Because process recording captures typing behavior, paste activity, focus changes, and AI interactions, deployments require writer-facing disclosure, purpose limits, and clear access rules for logs, certificates, and replays.
 
 \paragraph{Study Ethics.}
-Study prompts avoid sensitive topics, process recording is disclosed, and personally identifying information is limited to participant payment. Any withholding about paste behavior requires justification and debriefing.
+Study prompts avoid sensitive topics, disclose process recording, and limit personally identifying information to participant payment. Any withheld detail about paste behavior requires justification and debriefing.
 % TODO: Finalize ethics text once the actual study protocol is locked.
 
 \section{Conclusion}
