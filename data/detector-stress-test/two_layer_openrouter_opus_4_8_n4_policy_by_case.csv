@@ -1,0 +1,4 @@
+case_id,case_name,length_bucket,policy_label,n,TP,FP,TN,FN,accuracy,TPR,FPR,TNR,FNR
+N4,AI-generated + human light edits,long,non_compliant,10,1,0,0,9,0.1000,0.1000,,,0.9000
+N4,AI-generated + human light edits,medium,non_compliant,10,10,0,0,0,1.0000,1.0000,,,0.0000
+N4,AI-generated + human light edits,short,non_compliant,10,0,0,0,10,0.0000,0.0000,,,1.0000

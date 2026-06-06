@@ -1,0 +1,4 @@
+case_id,case_name,length_bucket,expected_document_class,n,correct,incorrect,accuracy,predicted_HUMAN_ONLY,predicted_MIXED,predicted_AI_ONLY
+N4,AI-generated + human light edits,long,MIXED,10,1,9,0.1000,9,1,0
+N4,AI-generated + human light edits,medium,MIXED,10,5,5,0.5000,0,5,5
+N4,AI-generated + human light edits,short,MIXED,10,0,10,0.0000,10,0,0

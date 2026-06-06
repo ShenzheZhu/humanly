@@ -1,0 +1,4 @@
+expected_document_class,predicted_document_class,n
+MIXED,AI_ONLY,5
+MIXED,HUMAN_ONLY,19
+MIXED,MIXED,6

@@ -1,14 +1,14 @@
 {
-  "generated_at_utc": "2026-06-05T18:48:51.031Z",
+  "generated_at_utc": "2026-06-06T00:59:57.134Z",
   "overall_status": "not_ready",
   "counts": {
     "generatedSamples": 240,
     "pilotProxySamples": 24,
     "combinedDashboardSamples": 5,
     "combinedDashboardOutputs": 10,
-    "syntheticProxyRows": 30,
+    "syntheticProxyRows": 0,
     "c4HumanReady": 30,
-    "n4HumanReady": 0,
+    "n4HumanReady": 30,
     "dashboardCoveredCells": 5
   },
   "gates": [
@@ -35,10 +35,10 @@
     {
       "id": "live_generation",
       "title": "Generated rows are live/API or approved human outputs rather than synthetic proxy outputs",
-      "status": "not_ready",
+      "status": "passed",
       "evidence": [
-        "Rows marked synthetic_proxy_ready: 30",
-        "Rows with synthetic_proxy metadata: 30",
+        "Rows marked synthetic_proxy_ready: 0",
+        "Rows with synthetic_proxy metadata: 0",
         "Ready rows with synthetic_proxy metadata: 0"
       ],
       "required_next_step": "Run approved live generation without --synthetic-proxy and rebuild the generated sample manifest."
@@ -57,12 +57,12 @@
     {
       "id": "human_n4",
       "title": "N4 has 30 human-edited AI-draft ready rows",
-      "status": "not_ready",
+      "status": "passed",
       "evidence": [
         "N4 rows: 30",
-        "N4 final rows with human_edited_ai_draft metadata: 0",
+        "N4 final rows with human_edited_ai_draft metadata: 30",
         "N4 rows with live/non-proxy AI draft metadata: 30",
-        "N4 paper-ready rows: 0"
+        "N4 paper-ready rows: 30"
       ],
       "required_next_step": "Generate 10 short, 10 medium, and 10 long live AI drafts, then collect matching human light edits."
     },

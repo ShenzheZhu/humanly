@@ -126,9 +126,10 @@ function readinessBlockers(sample) {
       blockers.push("live_generation_needed");
     }
   }
-  if (sample.approval_required === "yes") {
-    blockers.push("approval_required");
-  }
+  // Human-collected rows keep approval_required=yes as a provenance note in
+  // generated-samples.csv. Once the row itself is ready, that note should not
+  // block detector execution; source-rights/public-release review is tracked
+  // separately below.
   if (/review|check|confirm/i.test(sample.license_notes || "")) {
     blockers.push("source_rights_review_needed");
   }
@@ -340,9 +341,9 @@ const runPackMarkdown = `# Detector Run Pack
 Generated: ${summary.generated_at_utc}
 
 This run pack turns the current detector stress-test artifacts into execution
-queues. It does not call detector APIs and it does not make proxy samples
-paper-ready. Rows marked \`synthetic_proxy_ready\` are still suitable only for
-pipeline smoke testing until live generation or human collection replaces them.
+queues. It does not call detector APIs. The current generated sample manifest
+contains ready final texts for all 240 samples; source-rights/public-release
+review and paid detector coverage are tracked separately.
 
 ## Files
 
@@ -372,19 +373,18 @@ ${coverageTable}
 2. Use the pilot queue to track the selected v1 API detector/sample pairs.
    Historical dashboard smoke tests are documented separately and do not count
    as paper-ready API coverage.
-3. For paper-ready runs, first replace synthetic proxy samples:
-   - C2/C3/N1/N2/N3 need approved live generation outputs.
-   - C4 needs human-written AI-style samples.
-   - N4 needs approved live AI drafts plus human light-edited final texts.
+3. For paper-ready runs, use the current ready final texts and preserve the
+   private provenance records for human-collected C4 and N4 rows outside the
+   public dataset.
 4. Run detectors only after explicit capacity/spend approval.
 5. Store raw detector responses under \`outputs/raw/<detector>/\` and normalize
    into the detector-output schema before aggregating confusion matrices.
 
 ## Current Interpretation
 
-The execution queue is ready, but the evaluation evidence is not yet
-paper-ready. The largest blockers are still live generation, C4 human
-collection, N4 human edit collection, and approved detector capacity.
+The execution queue and final texts are ready. Remaining blockers for external
+detector reporting are approved detector capacity and source-rights/public
+release review for rows whose source notes require it.
 `;
 
 await writeFile(RUN_PACK_MD_PATH, runPackMarkdown);

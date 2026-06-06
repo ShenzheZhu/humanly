@@ -1,6 +1,6 @@
 # Paper-Ready Gate Audit
 
-Generated: 2026-06-05T18:48:51.031Z
+Generated: 2026-06-06T00:59:57.134Z
 
 Overall status: **not_ready**
 
@@ -12,9 +12,9 @@ Overall status: **not_ready**
 | Pilot proxy sample rows | 24 |
 | Combined dashboard smoke samples | 5 |
 | Combined dashboard detector rows | 10 |
-| Synthetic proxy rows | 30 |
+| Synthetic proxy rows | 0 |
 | C4 human ready rows | 30 |
-| N4 human-edited ready rows | 0 |
+| N4 human-edited ready rows | 30 |
 | External dashboard covered case/length cells | 5/24 |
 
 ## Gates
@@ -40,10 +40,10 @@ Overall status: **not_ready**
 ### Generated rows are live/API or approved human outputs rather than synthetic proxy outputs
 
 - Gate id: `live_generation`
-- Status: **not_ready**
+- Status: **passed**
 - Evidence:
-  - Rows marked synthetic_proxy_ready: 30
-  - Rows with synthetic_proxy metadata: 30
+  - Rows marked synthetic_proxy_ready: 0
+  - Rows with synthetic_proxy metadata: 0
   - Ready rows with synthetic_proxy metadata: 0
 - Required next step: Run approved live generation without --synthetic-proxy and rebuild the generated sample manifest.
 
@@ -60,12 +60,12 @@ Overall status: **not_ready**
 ### N4 has 30 human-edited AI-draft ready rows
 
 - Gate id: `human_n4`
-- Status: **not_ready**
+- Status: **passed**
 - Evidence:
   - N4 rows: 30
-  - N4 final rows with human_edited_ai_draft metadata: 0
+  - N4 final rows with human_edited_ai_draft metadata: 30
   - N4 rows with live/non-proxy AI draft metadata: 30
-  - N4 paper-ready rows: 0
+  - N4 paper-ready rows: 30
 - Required next step: Generate 10 short, 10 medium, and 10 long live AI drafts, then collect matching human light edits.
 
 ### External detector coverage reaches the 24-row one-per-case/length pilot

@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-06-05T18:48:51.075Z",
+  "generated_at_utc": "2026-06-06T00:59:57.085Z",
   "files": {
     "humanSeeds": {
       "path": "human-seeds.csv",
@@ -159,7 +159,7 @@
     "detectorRunPackPilotManifestRows": 24,
     "detectorRunPackPilotQueueRows": 72,
     "detectorRunPackMainQueueRows": 720,
-    "detectorRunPackSummaryGeneratedAt": "2026-06-05T18:48:50.556Z",
+    "detectorRunPackSummaryGeneratedAt": "2026-06-06T00:56:05.971Z",
     "c4HumanCollectionManifestRows": 30,
     "n4HumanEditManifestRows": 30,
     "detectorVendorCostEstimateRows": 9,
@@ -183,8 +183,7 @@
       "long": 80
     },
     "generatedByStatus": {
-      "ready": 210,
-      "synthetic_proxy_ready": 30
+      "ready": 240
     },
     "generatedByPolicy": {
       "compliant": 120,

@@ -1,0 +1,4 @@
+detector,case_id,length_bucket,expected_document_class,n,total_samples,HUMAN_ONLY,MIXED,AI_ONLY,exact_matches,exact_errors,exact_accuracy,request_errors,skipped,notes
+llm_claude_opus_4_8,N4,long,MIXED,10,10,9,1,0,1,9,0.100000,0,0,
+llm_claude_opus_4_8,N4,medium,MIXED,10,10,0,5,5,5,5,0.500000,0,0,
+llm_claude_opus_4_8,N4,short,MIXED,10,10,10,0,0,0,10,0.000000,0,0,

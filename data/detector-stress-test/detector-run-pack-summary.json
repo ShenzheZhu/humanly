@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-06-05T18:48:50.556Z",
+  "generated_at_utc": "2026-06-06T00:56:05.971Z",
   "detectors": [
     "pangram",
     "gptzero",
@@ -11,13 +11,12 @@
     "main_samples": 240,
     "main_queue_rows": 720,
     "pilot_sample_readiness": {
-      "text_ready_rights_pending": 4,
+      "text_ready_rights_pending": 7,
       "ready": 14,
-      "not_paper_ready": 6
+      "not_paper_ready": 3
     },
     "main_sample_status": {
-      "ready": 210,
-      "synthetic_proxy_ready": 30
+      "ready": 240
     },
     "main_policy_labels": {
       "compliant": 120,

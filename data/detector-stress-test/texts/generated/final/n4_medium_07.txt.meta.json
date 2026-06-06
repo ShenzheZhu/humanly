@@ -1,10 +1,9 @@
 {
-  "job_id": "n4_medium_07_scripted_light_edit",
   "sample_id": "n4_medium_07",
   "case_id": "N4",
-  "job_type": "scripted_light_edit",
-  "generation_mode": "synthetic_proxy",
-  "status": "synthetic_proxy_success",
-  "generated_at_utc": "2026-06-04T16:08:55.853Z",
-  "notes": "Offline synthetic proxy output for pipeline testing; not paper-ready generation."
+  "generation_mode": "human_edited_ai_draft",
+  "source_path": "texts/human_n4_edits/n4_medium_07.txt",
+  "ai_draft_path": "texts/generated/final/n1_medium_07.txt",
+  "imported_at_utc": "2026-06-06T00:49:47.365Z",
+  "notes": "Human light edit of an AI-origin draft imported for detector stress-test use. Consent/editor confirmation metadata must be tracked separately."
 }
