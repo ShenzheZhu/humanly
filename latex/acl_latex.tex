@@ -67,11 +67,11 @@ Post-hoc detectors answer a narrower question: whether the submitted text resemb
 
 Replay tools expose document history but usually depend on a host editor or assignment platform. They reconstruct edits or label source categories, while task policy, AI-assistant actions, metrics, replay, and verification often remain separate. Instructors, program chairs, and readers must reconcile separate artifacts rather than inspect one policy-bound record.
 
-\textsc{Humanly} links task policy, write-time events, and reviewable evidence in one provenance record. Four requirements drive the design. The platform requires policy configuration before writing and captures human and in-platform AI actions as they occur. It makes logs, replay, metrics, and verification reviewable across personal, assigned, public-link, guest, and peer-review workflows.
+\textsc{Humanly} links task policy and write-time events in one provenance record. Before writing, users configure policy; during drafting, the platform captures human and in-platform AI actions; after drafting, logs, replay, metrics, and verification expose the record. The same design supports personal, assigned, public-link, guest, and peer-review workflows.
 
 AI assistance is a policy choice, not a binary attribute. Humanly has four modes: \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full}. \textsc{Polish} exposes constrained selection rewrites such as grammar fixing and simplification. \textsc{Chat} exposes agent chat without selection-level rewrite actions. \textsc{Full} exposes both. The editor and certificate both show the active policy.
 
-We make four contributions:
+This paper contributes:
 \begin{enumerate}
   \item a tracked writing workspace that binds task policy to human and AI actions;
   \item a configuration model for personal, assigned, public-link, guest, and peer-review writing;
@@ -191,7 +191,7 @@ Before certificate generation or task submission, Humanly flushes pending editor
 \section{Workflows and Use Cases}
 \label{sec:workflows}
 
-Humanly is used through a three-step loop: configure the writing policy, write under that policy, and review the resulting evidence. The workflows differ in who sets the policy and who reads the evidence.
+Every workflow follows the same loop: set policy, write, and review evidence. What changes is who sets the policy and who reads the record.
 
 \subsection{Peer Review}
 
@@ -247,9 +247,9 @@ PaperTrail \citep{papertrail2026inspect} & \nofeature & \nofeature & \nofeature 
 \label{tab:feature-comparison}
 \end{table*}
 
-Replay alone is not enough. Turnitin Clarity is the primary education baseline because it combines assignment workflows with writing playback and AI-assistance visibility. Grammarly Authorship is the primary source-attribution baseline because it labels typed, pasted, AI-generated, and AI-rephrased text. WritingTrace and PaperTrail Inspect focus on writing history rather than detector probability.
+Replay does not by itself answer the policy question. Turnitin Clarity is the primary education baseline because it combines assignment workflows with writing playback and AI-assistance visibility. Grammarly Authorship is the primary source-attribution baseline because it labels typed, pasted, AI-generated, and AI-rephrased text. WritingTrace and PaperTrail Inspect focus on writing history rather than detector probability.
 
-Humanly instead grounds policy, AI actions, writing events, replay, and certificate metrics in one write-time record. A writer or task owner sets the policy before writing; the editor enforces it during composition; the certificate is generated from the same event stream.
+Humanly keeps policy, AI actions, writing events, replay, and certificate metrics in one write-time record. A writer or task owner sets the policy before writing; the editor enforces it during composition; the certificate is generated from the same event stream.
 
 \subsection{Synthesis}
 
@@ -258,7 +258,7 @@ Final-text detectors answer what the text resembles. Process and replay tools an
 \section{Evaluation}
 \label{sec:evaluation}
 
-We evaluate two limits: whether final text recovers policy compliance, and whether people interpret process evidence without treating it as a verdict. The detector stress test and human-study protocol target these limits. Boundary cases identify where a process record can be bypassed or misread.
+Evaluation serves two roles: testing whether final text recovers policy compliance, and whether people interpret process evidence without treating it as a verdict. Boundary cases identify where a process record can be bypassed or misread.
 
 \subsection{Final-Text Detector Stress Test}
 \label{sec:detector-eval}
@@ -286,7 +286,7 @@ Pangram \citep{pangram2026detector} & 0.4542 & 0.8667 & 0.2500 & 0.0167 \\
 \label{tab:detector-results}
 \end{table}
 
-Table~\ref{tab:detector-results} separates document-class and policy errors. Opus 4.8 assigns the correct three-class label to 82 of 240 samples and misses many disallowed AI-origin cases. GPTZero and Pangram are stronger at the policy layer, missing only 3 and 2 of 120 non-compliant samples. Their document-class accuracy still remains below 0.50, and they mark 32 and 30 of 120 compliant samples as suspicious. The hardest compliant case is C4, where humans intentionally write in an AI-like style; both detectors flag all 30 C4 samples. Final text may identify obvious AI-origin documents, but it cannot explain whether a writing process followed the task policy.
+Table~\ref{tab:detector-results} separates document-class and policy errors. Opus 4.8 assigns the correct three-class label to 82 of 240 samples and misses many disallowed AI-origin cases. GPTZero and Pangram are stronger at the policy layer, missing only 3 and 2 of 120 non-compliant samples. Their document-class accuracy remains below 0.50, and they mark 32 and 30 of 120 compliant samples as suspicious. The hardest compliant case is C4, where humans intentionally write in an AI-like style; both detectors flag all 30 C4 samples. Final text may identify obvious AI-origin documents, but it cannot explain whether a writing process followed the task policy.
 
 \subsection{Human Study}
 \label{sec:study}
@@ -294,7 +294,7 @@ Table~\ref{tab:detector-results} separates document-class and policy errors. Opu
 The human study tests whether the evidence is interpretable, not whether it replaces judgment. Writers complete tasks under configured AI policies; readers infer process labels from evidence. Tasks cover peer review, classroom writing, online survey responses, and social-media-style posts. Peer review is the primary setting because it combines writing quality, document understanding, confidentiality, and explicit AI-use policy.
 
 \paragraph{Writer-Side Task.}
-Participants write short documents in Humanly under \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full} policies. Writer-side measures cover usability, friction, policy clarity, comfort with recording, reuse intent, and trajectory statistics.
+Participants write short documents in Humanly under \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full} policies. Writer-side measures cover usability, friction, policy clarity, comfort with recording, reuse intent, and event-derived writing statistics.
 
 \paragraph{Reader-Side Task.}
 Readers inspect writing evidence under three information conditions: final text only, final text plus detector score, and final text plus Humanly certificate/replay. Reader-side measures cover process-label accuracy, confidence, time-to-judgment, perceived fairness, and reported evidence use.
