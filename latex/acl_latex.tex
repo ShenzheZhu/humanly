@@ -69,7 +69,7 @@ Document-replay tools reconstruct host-editor history, but policy, AI-assistant 
 
 \textsc{Humanly} binds task policy to write-time events in one provenance record. Policy is set before writing. Human and in-platform AI actions are recorded during drafting. Certificates present logs, replay, metrics, and verification after drafting. The same record spans personal, assigned, public-link, guest, and peer-review workflows.
 
-The design follows three requirements. Policy is fixed before drafting, AI assistance occurs inside the recorded workspace, and readers receive one evidence package rather than separate logs, scores, and exports.
+Humanly enforces three design constraints. Policy is fixed before drafting; AI assistance occurs inside the recorded workspace; readers receive one evidence package rather than separate logs, scores, and exports.
 
 Four AI policies control the editor: \textsc{off} hides AI controls, \textsc{polish} exposes only selection rewrites, \textsc{chat} exposes only chat, and \textsc{full} exposes both. The editor displays the active policy during writing; the certificate reports it after drafting.
 
@@ -84,7 +84,7 @@ We present:
 \section{System Architecture}
 \label{sec:architecture}
 
-These requirements map to three system stages: policy configuration, event capture, and evidence review. The writer portal, admin dashboard, and public verification pages implement the stages for personal and assigned writing (Figure~\ref{fig:workflow}).
+Implementation follows three stages: policy configuration, event capture, and evidence review. The writer portal, admin dashboard, and public verification pages implement the stages for personal and assigned writing (Figure~\ref{fig:workflow}).
 
 \begin{figure*}[t]
 \centering
@@ -144,7 +144,7 @@ These requirements map to three system stages: policy configuration, event captu
 \end{figure*}
 
 \paragraph{Configuration.}
-Personal writers configure documents; task owners configure shared tasks before distributing invite codes or public links (Figure~\ref{fig:configuration-surface}). Policies set resources, AI provider/model, AI access, request/token budget, paste rules, time/length limits, and guest submissions. The editor enforces the policy during drafting.
+Personal writers set document policy; task owners set shared-task policy before distributing invite codes or public links (Figure~\ref{fig:configuration-surface}). Policies specify resources, AI provider/model, AI access, request/token budget, paste rules, time/length limits, and guest submissions. The editor enforces them during drafting.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -180,7 +180,7 @@ During drafting, the capture layer records text changes, clipboard actions, sele
 The backend stores snapshots, event streams, enrollments, submissions, files, AI sessions, AI actions, and certificates. PostgreSQL/TimescaleDB handles high-frequency events. Redis backs jobs and caching; WebSocket channels carry live updates. Logs, timelines, typed/pasted statistics, AI-use statistics, and replay data are derived from these records.
 
 \paragraph{Certificate and Verification.}
-Before certificate generation or task submission, Humanly flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate binds final text to event counts, typed/pasted and editing metrics, AI-use metrics, a verification token, and a signed payload. Readers inspect a PDF or JSON certificate and any permitted replay/logs.
+Before certificate generation or task submission, Humanly flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate then binds final text to event counts, typed/pasted and editing metrics, AI-use metrics, a verification token, and a signed payload. Readers inspect a PDF or JSON certificate and any permitted replay/logs.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
