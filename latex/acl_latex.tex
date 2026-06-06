@@ -76,7 +76,7 @@ This paper contributes:
   \item a tracked writing workspace that binds task policy to human and AI actions;
   \item a configuration model for personal, assigned, public-link, guest, and peer-review writing;
   \item a certificate format linking typed/pasted statistics, AI-use records, replay, and public verification;
-  \item a 240-sample final-text stress test and human-study protocol for evaluating process evidence.
+  \item a 240-sample stress test of final-text predictors under policy labels.
 \end{enumerate}
 
 \section{System Architecture}
@@ -191,11 +191,11 @@ Before certificate generation or task submission, Humanly flushes pending editor
 \section{Workflows and Use Cases}
 \label{sec:workflows}
 
-Three workflows illustrate how policy, writing, and evidence stay linked.
+We use three workflows to illustrate the same policy-to-certificate path.
 
 \subsection{Personal Writing Certification}
 
-A personal writer creates a document, selects the AI and paste policy, drafts in Humanly, and generates a certificate. The record reports typed and pasted text, editing time, and in-platform AI use instead of a detector score.
+A personal writer creates a document, selects the AI and paste policy, drafts in Humanly, and generates a certificate. The certificate reports typed and pasted text, editing time, and in-platform AI use instead of a detector score.
 
 \subsection{Classroom Writing Assignments}
 
@@ -258,14 +258,14 @@ Final-text detectors answer what the text resembles. Process and replay tools an
 \section{Evaluation}
 \label{sec:evaluation}
 
-Evaluation targets two claims: final text is a weak proxy for policy compliance, and process evidence must be interpretable by writers and readers. A final-text stress test targets the first claim; a certificate-based human-study protocol targets the second. Boundary cases identify where a process record can be bypassed or misread. In all settings, the certificate is evidence for human judgment rather than an automatic verdict.
+Evaluation addresses two questions. First, can final text recover policy compliance? Second, can people interpret process evidence without treating it as an automatic verdict? We report a final-text stress test for the first question and define a certificate-based human-study protocol for the second. Boundary cases mark where a process record can be bypassed or misread.
 
 \subsection{Final-Text Detector Stress Test}
 \label{sec:detector-eval}
 
-For final-text prediction, the stress test is a failure-mode analysis. It uses eight policy cases rather than one aggregate score. The benchmark policy allows human writing, AI polish, and AI translation, but disallows substantive AI generation of final content. Appendix~\ref{sec:appendix-detector-metrics} defines the cases, document-class labels, and policy labels. We adapt prompt-control rules from public research-writing prompt templates such as \citet{leey2026awesomewriting}: transformations must preserve meaning, avoid added facts, and return detector-ready final text. Human-origin cases start from human-written seeds for each length bucket before polish, translation, or AI-style human rewriting.
+The final-text stress test is case-based: eight policy cases replace a single human-vs-AI label. Under this policy, human writing, AI polish, and AI translation are allowed; substantive AI generation is not. Appendix~\ref{sec:appendix-detector-metrics} defines the cases, document-class labels, and policy labels. We adapt prompt-control rules from public research-writing prompt templates such as \citet{leey2026awesomewriting}: transformations must preserve meaning, avoid added facts, and return detector-ready final text. Human-origin cases start from human-written seeds before polish, translation, or AI-style human rewriting.
 
-The run contains 240 samples across eight cases and three lengths: social-media-style posts, student assignment responses, and long-form review-style texts. Each predictor sees only the final text and returns or is normalized to one of three document classes: \textsc{human\_only}, \textsc{mixed}, or \textsc{ai\_only}. Predictors are Claude Opus 4.8 \citep{anthropic2026opus48}, GPTZero \citep{gptzero2026detector}, and Pangram \citep{pangram2026detector}. Scoring uses exact document-class accuracy (Layer 1) and policy accuracy after mapping \textsc{human\_only} to \textit{human-compliant} and the other two labels to \textit{AI-suspicious} (Layer 2).
+The run contains 240 samples across eight cases and three lengths: social-media-style posts, student assignment responses, and long-form review-style texts. Each predictor sees only the final text and returns or is normalized to \textsc{human\_only}, \textsc{mixed}, or \textsc{ai\_only}. Predictors are Claude Opus 4.8 \citep{anthropic2026opus48}, GPTZero \citep{gptzero2026detector}, and Pangram \citep{pangram2026detector}. We score exact document-class accuracy (Layer 1) and policy accuracy after mapping \textsc{human\_only} to \textit{human-compliant} and the other labels to \textit{AI-suspicious} (Layer 2).
 
 \begin{table}[t]
 \small
@@ -286,12 +286,12 @@ Pangram \citep{pangram2026detector} & 0.4542 & 0.8667 & 0.2500 & 0.0167 \\
 \label{tab:detector-results}
 \end{table}
 
-Table~\ref{tab:detector-results} separates two failure modes. Opus 4.8 assigns the correct three-class document label to 82 of 240 samples and misses many disallowed AI-origin cases. GPTZero and Pangram are stronger at the binary policy layer: they miss only 3 and 2 of 120 non-compliant samples, respectively. However, their document-class accuracy remains below 0.50, and they falsely mark 32 and 30 of 120 compliant samples as suspicious. The hardest compliant case is C4, where humans intentionally write in an AI-like style; both detectors flag all 30 C4 samples. These results support the central claim: final text can identify many obvious AI-origin documents, but it cannot reliably explain whether a writing process followed the task policy.
+Table~\ref{tab:detector-results} separates two failure modes. Opus 4.8 assigns the correct three-class label to 82 of 240 samples and misses many disallowed AI-origin cases. GPTZero and Pangram are stronger at the binary policy layer, missing only 3 and 2 of 120 non-compliant samples. Yet their document-class accuracy remains below 0.50, and they falsely mark 32 and 30 of 120 compliant samples as suspicious. The hardest compliant case is C4, where humans intentionally write in an AI-like style; both detectors flag all 30 C4 samples. Final text can identify many obvious AI-origin documents, but it cannot explain whether a writing process followed the task policy.
 
 \subsection{Human Study}
 \label{sec:study}
 
-The human study evaluates two roles. Writers complete realistic tasks under configured AI policies; readers judge process labels from evidence. Tasks cover peer review, classroom writing, online survey responses, and social-media-style posts. Peer review is the primary setting because it combines writing quality, document understanding, confidentiality, and explicit AI-use policy.
+The human-study protocol has two roles. Writers complete tasks under configured AI policies; readers judge process labels from evidence. Tasks cover peer review, classroom writing, online survey responses, and social-media-style posts. Peer review is the primary setting because it combines writing quality, document understanding, confidentiality, and explicit AI-use policy.
 
 \paragraph{Writer-Side Task.}
 Participants write short documents in Humanly under \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full} policies. Outcomes include usability, perceived friction, policy clarity, comfort with process recording, willingness to use Humanly outside the study, and trajectory statistics.
@@ -300,7 +300,7 @@ Participants write short documents in Humanly under \textsc{off}, \textsc{polish
 Readers inspect writing evidence under three information conditions: final text only, final text plus detector score, and final text plus Humanly certificate/replay. Outcomes include accuracy against known process labels, confidence, time-to-judgment, perceived fairness, and reported evidence use.
 
 \paragraph{Analysis.}
-We compare writer usability and policy clarity across AI modes, and reader accuracy, confidence, and time-to-judgment across information conditions. Qualitative comments identify which certificate or replay fields are useful or confusing.
+We compare writer usability and policy clarity across AI modes, and reader accuracy, confidence, and time-to-judgment across information conditions. Open-ended responses identify which certificate or replay fields help or confuse readers.
 % TODO: Finalize prompt pool, recruitment size, condition assignment, participant payment, and analysis plan.
 
 \subsection{Boundary and Red-Team Analysis}
@@ -318,7 +318,7 @@ These cases refine the trace taxonomy behind certificates and replay. The taxono
 Humanly issues process evidence, not an authorship verdict. Certificates inform interpretation; they do not decide authorship.
 
 \paragraph{Adversarial Behavior.}
-Humanly can block or log some policy-governed actions, such as paste, but it cannot prevent every external-AI workflow. A determined user may transcribe external AI output, use voice input, mimic revisions, or route text through another device. The platform provides process evidence; it does not close every channel for covert assistance.
+Humanly can block or log some policy-governed actions, such as paste, but it cannot prevent every external-AI workflow. A determined user may transcribe external AI output, use voice input, mimic revisions, or route text through another device. The platform provides process evidence; it cannot rule out every channel for covert assistance.
 
 \paragraph{Privacy and Surveillance.}
 Process recording is sensitive. It captures typing behavior, paste activity, focus changes, and AI interactions. Deployments should be transparent to writers, limited to contexts where process evidence is appropriate, and paired with clear access rules for logs, certificates, and replays.
