@@ -33,6 +33,14 @@
 \definecolor{featureyes}{RGB}{220,232,216}
 \definecolor{featurepartial}{RGB}{242,226,184}
 \definecolor{featureno}{RGB}{237,211,207}
+\definecolor{workflowinput}{RGB}{255,241,204}
+\definecolor{workflowconfig}{RGB}{229,229,229}
+\definecolor{workflowmodule}{RGB}{205,224,250}
+\definecolor{workflowstate}{RGB}{218,239,211}
+\definecolor{workflowai}{RGB}{249,214,207}
+\definecolor{workflowui}{RGB}{239,240,255}
+\definecolor{workflowevidence}{RGB}{239,217,228}
+\definecolor{workflowline}{RGB}{45,45,45}
 \DeclareRobustCommand{\partialmark}{\ensuremath{\triangle}}
 \DeclareRobustCommand{\featurelegendbox}[2]{\begingroup\setlength{\fboxsep}{1pt}\colorbox{#1}{\makebox[1.15em]{#2}}\endgroup}
 \newcommand{\yesfeature}{\cellcolor{featureyes}\ensuremath{\checkmark}}
@@ -91,55 +99,132 @@ Figure~\ref{fig:workflow} shows the Humanly data path from policy configuration 
 \resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[
   every node/.style={font=\small},
-  box/.style={
-    draw,
-    rounded corners=3pt,
-    align=center,
-    inner sep=4pt,
-    minimum height=10mm,
-    text width=2.55cm
+  artifact/.style={
+    draw=none,
+    fill=workflowinput,
+    align=left,
+    inner sep=5pt,
+    minimum height=12mm,
+    text width=3.45cm,
+    font=\scriptsize\ttfamily
   },
-  entry/.style={box, fill=gray!6},
-  policy/.style={box, fill=gray!10},
-  workspace/.style={box, fill=gray!12},
-  optional/.style={box, fill=gray!3, dashed},
-  record/.style={box, fill=gray!9, text width=3.2cm},
-  arr/.style={-Stealth, thick},
-  small/.style={font=\scriptsize, text=black!68}
+  configartifact/.style={
+    artifact,
+    fill=workflowconfig,
+    minimum height=17mm
+  },
+  module/.style={
+    draw=none,
+    fill=workflowmodule,
+    align=center,
+    inner sep=5pt,
+    minimum height=11mm,
+    text width=2.25cm
+  },
+  statebox/.style={
+    draw=none,
+    fill=workflowstate,
+    align=left,
+    inner sep=5pt,
+    minimum height=13mm,
+    text width=3.8cm,
+    font=\scriptsize
+  },
+  aibox/.style={
+    draw=none,
+    fill=workflowai,
+    align=center,
+    inner sep=5pt,
+    minimum height=11mm,
+    text width=2.45cm
+  },
+  uiwindow/.style={
+    draw=workflowline,
+    fill=white,
+    align=left,
+    inner sep=0pt,
+    minimum height=24mm,
+    text width=3.55cm
+  },
+  evidence/.style={
+    draw=none,
+    fill=workflowevidence,
+    align=left,
+    inner sep=5pt,
+    minimum height=14mm,
+    text width=3.25cm,
+    font=\scriptsize
+  },
+  arr/.style={-Stealth, thick, draw=workflowline},
+  softarr/.style={-Stealth, thick, draw=workflowline!65},
+  looparr/.style={-Stealth, thick, draw=red!55},
+  label/.style={font=\scriptsize, text=black!72}
 ]
-  \node[small] at (2.8,2.15) {personal writing};
-  \node[entry] (auth) at (0,1.35) {\textbf{Login / Register}};
-  \node[entry] (create) at (2.9,1.35) {\textbf{Create Writing}};
-  \node[policy] (setup) at (5.8,1.35) {\textbf{Setup Environment}\\\scriptsize AI, paste, time, character rules};
+  \node[artifact] (task) at (0,1.75) {
+    \textbf{task packet}\\
+    prompt: review paper\\
+    files: PDF, rubric\\
+    mode: assigned / link
+  };
 
-  \node[small] at (2.8,-0.1) {assigned task or share link};
-  \node[entry] (join) at (0,-0.9) {\textbf{Join Task}\\\scriptsize invite code or share link};
-  \node[entry] (mode) at (2.9,-0.9) {\textbf{Choose Mode}\\\scriptsize signed-in or guest};
-  \node[policy] (taskpolicy) at (5.8,-0.9) {\textbf{Task Policy}\\\scriptsize admin configured};
+  \node[configartifact] (policyfile) at (0,-1.45) {
+    \textbf{policy config}\\
+    ai: off | polish | chat | full\\
+    paste: allow | block\\
+    time, length, guest access
+  };
 
-  \node[workspace] (write) at (9.0,0.25) {\textbf{Write}\\\scriptsize editor, files/PDF, AI UI};
-  \node[optional] (logs) at (9.0,1.75) {\textbf{View Logs}\\\scriptsize optional branch};
-  \node[record] (capture) at (9.0,-1.75) {\textbf{Process Capture}\\\scriptsize typing, paste/copy/cut, focus, selection, timing, AI actions};
-  \node[workspace] (cert) at (12.4,0.25) {\textbf{Generate Certificate}\\\scriptsize or submit task};
-  \node[workspace] (verify) at (15.6,0.25) {\textbf{Verify / Replay}\\\scriptsize reader or admin review};
+  \node[module] (taskmgmt) at (3.35,1.75) {\textbf{Task}\\\textbf{Management}\\[-1pt]\scriptsize projects, links, enrollment};
+  \node[module] (policy) at (3.35,-1.45) {\textbf{Policy}\\\textbf{Rendering}\\[-1pt]\scriptsize editor controls};
 
-  \draw[arr] (auth) -- (create);
-  \draw[arr] (create) -- (setup);
-  \draw[arr] (setup.east) -- (write.west);
+  \node[statebox] (state) at (6.95,1.35) {
+    \textbf{Writing Session State}\\
+    user / guest identity\\
+    active policy\\
+    current snapshot\\
+    event counters
+  };
 
-  \draw[arr] (join) -- (mode);
-  \draw[arr] (mode) -- (taskpolicy);
-  \draw[arr] (taskpolicy.east) -- (write.west);
+  \node[aibox] (aigate) at (6.95,-1.35) {\textbf{AI Policy Gate}\\[-1pt]\scriptsize hides or exposes\\[-1pt]selection rewrites and chat};
 
-  \draw[arr] (write) -- (cert);
-  \draw[arr] (cert) -- (verify);
-  \draw[arr] (write) -- (logs);
-  \draw[arr, dashed] (logs.east) -| node[small, above, pos=.25] {inspect before certifying} (cert.north);
-  \draw[arr] (write) -- (capture);
-  \draw[arr] (capture.east) -| node[small, below, pos=.22] {events + snapshots} (cert.south);
+  \node[uiwindow] (workspace) at (10.35,0.0) {};
+  \draw[fill=blue!75, draw=blue!75] ($(workspace.north west)+(0,-0.02)$) rectangle ($(workspace.north east)+(0,-0.38)$);
+  \node[font=\scriptsize\bfseries, text=white, anchor=west] at ($(workspace.north west)+(0.12,-0.20)$) {Tracked Writing Workspace};
+  \draw[fill=workflowui, draw=workflowline!40] ($(workspace.north west)+(0.15,-0.58)$) rectangle ($(workspace.south west)+(1.15,0.20)$);
+  \node[font=\tiny, align=left, anchor=north west] at ($(workspace.north west)+(0.23,-0.70)$) {PDF\\rubric\\AI mode};
+  \draw[fill=white, draw=workflowline!30] ($(workspace.north west)+(1.32,-0.58)$) rectangle ($(workspace.south east)+(-0.15,0.20)$);
+  \node[font=\tiny, align=left, anchor=north west] at ($(workspace.north west)+(1.45,-0.72)$) {writer types, pastes,\\selects text, asks AI,\\accepts or rejects edits};
+
+  \node[statebox] (events) at (13.55,1.35) {
+    \textbf{Event Stream}\\
+    keystrokes, paste, focus\\
+    selection edits\\
+    AI chat and tool traces
+  };
+
+  \node[evidence] (cert) at (13.55,-1.35) {
+    \textbf{Evidence Package}\\
+    certificate metrics\\
+    logs and replay\\
+    verification token
+  };
+
+  \node[module] (review) at (16.55,-0.05) {\textbf{Reader}\\\textbf{Review}\\[-1pt]\scriptsize instructor, chair, verifier};
+
+  \draw[arr] (task.east) -- (taskmgmt.west);
+  \draw[arr] (policyfile.east) -- (policy.west);
+  \draw[arr] (taskmgmt.east) -- node[label, above] {assigned task} (state.west);
+  \draw[arr] (policy.east) -- node[label, below] {active controls} (aigate.west);
+  \draw[softarr] (state.south east) -- (workspace.north west);
+  \draw[softarr] (aigate.east) -- (workspace.west);
+  \draw[arr] (workspace.east) -- node[label, above] {recorded actions} (events.west);
+  \draw[arr] (events.south) -- (cert.north);
+  \draw[arr] (cert.east) -- (review.west);
+  \draw[looparr] (events.west) .. controls +(150:1.2cm) and +(30:1.2cm) .. node[label, above] {live state update} (state.east);
+  \draw[softarr] (workspace.south) -- node[label, right] {generate / submit} (cert.north west);
 \end{tikzpicture}
 }
-\caption{Humanly workflow. Personal writing and assigned or public-link tasks enter through separate policies and converge on the same tracked editor, event log, certificate, and replay.}
+\caption{Humanly workflow. Task packets and policy configurations are rendered into a tracked writing workspace. The workspace updates session state, records writing and AI events, and produces certificates, logs, replay, and verification for later review.}
 \label{fig:workflow}
 \end{figure*}
 
