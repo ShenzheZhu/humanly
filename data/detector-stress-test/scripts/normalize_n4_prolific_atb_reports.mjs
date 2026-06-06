@@ -75,11 +75,20 @@ function csvEscape(value) {
 }
 
 function sampleIdFromRow(row) {
-  return row.sample_id || row.META_sample_id || row.Sample_ID || row["Sample ID"] || "";
+  return row.sample_id || row.META_sample_id || row.META_SAMPLE_ID || row.Sample_ID || row["Sample ID"] || "";
+}
+
+function isEditedTextRow(row) {
+  const taskType = row.Task_Type || row.task_type || "";
+  const question = row.Question || row.question || "";
+  if (taskType && !/free_text/i.test(taskType)) return false;
+  if (question && /confirm/i.test(question)) return false;
+  return true;
 }
 
 function findEditedText(row, sampleId) {
   const candidates = [
+    "Annotator1_Response",
     "edited_text",
     "final_text",
     "response",
@@ -109,10 +118,16 @@ const outputRows = [];
 const seen = new Set();
 let missing = 0;
 
+function sourceReportName(inputPath) {
+  const relative = path.relative(process.cwd(), inputPath);
+  return relative.startsWith("..") ? path.basename(inputPath) : relative;
+}
+
 for (const inputCsvArg of inputCsvArgs) {
   const inputPath = path.resolve(process.cwd(), inputCsvArg);
   const rows = parseCsv(await readFile(inputPath, "utf8"));
   for (const row of rows) {
+    if (!isEditedTextRow(row)) continue;
     const sampleId = sampleIdFromRow(row);
     if (!sampleId) continue;
     const { column, value } = findEditedText(row, sampleId);
@@ -121,7 +136,7 @@ for (const inputCsvArg of inputCsvArgs) {
       outputRows.push({
         sample_id: sampleId,
         edited_text: "",
-        source_report: path.relative(process.cwd(), inputPath),
+        source_report: sourceReportName(inputPath),
         input_column: column,
         status: "missing_edited_text",
       });
@@ -134,7 +149,7 @@ for (const inputCsvArg of inputCsvArgs) {
     outputRows.push({
       sample_id: sampleId,
       edited_text: value,
-      source_report: path.relative(process.cwd(), inputPath),
+      source_report: sourceReportName(inputPath),
       input_column: column,
       status: "ok",
     });
