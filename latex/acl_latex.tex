@@ -343,27 +343,27 @@ Study prompts avoid sensitive topics, process recording is disclosed, and person
 
 \subsection{Cases and Labels}
 
-Table~\ref{tab:appendix-detector-cases} defines the detector stress-test cases. The benchmark policy allows human writing, AI polish, and AI translation, but disallows substantive AI generation. C1--C4 are compliant and measure false-positive risk; N1--N4 are non-compliant and measure false-negative risk. N4 is \textsc{mixed} because the final text combines an AI-written substantive draft with light human edits.
+Table~\ref{tab:appendix-detector-cases} defines the detector stress-test cases. The benchmark policy allows human writing, AI polish, and AI translation, but disallows substantive AI generation. C1--C4 measure false-positive risk; N1--N4 measure false-negative risk. N4 is \textsc{mixed} because the final text combines an AI-written substantive draft with light human edits.
 
 \begin{table}[t]
 \small
 \centering
-\setlength{\tabcolsep}{4pt}
-\begin{tabularx}{\columnwidth}{@{}lY@{}}
+\setlength{\tabcolsep}{3pt}
+\begin{tabularx}{\columnwidth}{@{}lYccc@{}}
 \toprule
-Case & Definition \\
+Case & Construction & Doc & Policy & Target \\
 \midrule
-C1 & \textbf{Construction:} human original. \textbf{Document class:} \textsc{human\_only}. \textbf{Policy:} compliant. \textbf{Risk:} false positive. \\
-C2 & \textbf{Construction:} human writing with AI polish. \textbf{Document class:} \textsc{mixed}. \textbf{Policy:} compliant. \textbf{Risk:} false positive. \\
-C3 & \textbf{Construction:} human non-English writing translated with AI. \textbf{Document class:} \textsc{mixed}. \textbf{Policy:} compliant. \textbf{Risk:} false positive. \\
-C4 & \textbf{Construction:} human-written prose that intentionally imitates AI style. \textbf{Document class:} \textsc{human\_only}. \textbf{Policy:} compliant. \textbf{Risk:} false positive. \\
-N1 & \textbf{Construction:} direct AI-generated final text. \textbf{Document class:} \textsc{ai\_only}. \textbf{Policy:} non-compliant. \textbf{Risk:} false negative. \\
-N2 & \textbf{Construction:} AI-generated text rewritten or humanized. \textbf{Document class:} \textsc{ai\_only}. \textbf{Policy:} non-compliant. \textbf{Risk:} false negative. \\
-N3 & \textbf{Construction:} AI-generated non-English text translated into English. \textbf{Document class:} \textsc{ai\_only}. \textbf{Policy:} non-compliant. \textbf{Risk:} false negative. \\
-N4 & \textbf{Construction:} AI-written substantive draft with light human edits. \textbf{Document class:} \textsc{mixed}. \textbf{Policy:} non-compliant. \textbf{Risk:} false negative. \\
+C1 & Human original & \textsc{human\_only} & C & FP \\
+C2 & Human writing with AI polish & \textsc{mixed} & C & FP \\
+C3 & Human non-English writing translated with AI & \textsc{mixed} & C & FP \\
+C4 & Human prose intentionally imitating AI style & \textsc{human\_only} & C & FP \\
+N1 & Direct AI-generated final text & \textsc{ai\_only} & NC & FN \\
+N2 & AI-generated text rewritten or humanized & \textsc{ai\_only} & NC & FN \\
+N3 & AI-generated non-English text translated into English & \textsc{ai\_only} & NC & FN \\
+N4 & AI-written substantive draft with light human edits & \textsc{mixed} & NC & FN \\
 \bottomrule
 \end{tabularx}
-\caption{Detector stress-test case matrix. Document class describes final-text construction; policy label marks whether the benchmark policy allows that construction.}
+\caption{Detector stress-test case matrix. C = compliant; NC = non-compliant. Target marks whether the case measures false positives or false negatives.}
 \label{tab:appendix-detector-cases}
 \end{table}
 
@@ -371,7 +371,7 @@ N4 & \textbf{Construction:} AI-written substantive draft with light human edits.
 
 The benchmark contains 240 final-text samples: eight cases, three length buckets, and ten matched task sets per bucket. Buckets cover social-media-style posts, student assignment responses, and long-form review-style texts. Each row stores task metadata, source language, policy label, document class, text path, construction note, license note, and word count.
 
-Inputs are frozen as local files before generation; source URLs remain only as metadata. Human-origin seeds supply C1--C3: English for C1 and C2, non-English for C3. C4 uses newly collected human-written AI-style texts. Non-compliant cases use matched topics: N1 creates an AI draft, N2 rewrites it, N3 translates non-English AI text, and N4 lightly human-edits N1. Seed material is stripped of markup, boilerplate, and templates, but not polished. Detector inputs include only \texttt{ready} rows. GPTZero and Pangram each returned 240/240 valid outputs, with no missing rows or request errors.
+Inputs are frozen as local files before generation; source URLs remain only as metadata. Human-origin seeds supply C1--C3: English for C1/C2 and non-English for C3. C4 uses newly collected human-written AI-style texts. Non-compliant cases use matched topics: N1 creates an AI draft, N2 rewrites it, N3 translates non-English AI text, and N4 lightly human-edits N1. Seed material is stripped of markup, boilerplate, and templates, but not polished. Detector inputs include only \texttt{ready} rows. GPTZero and Pangram each returned 240/240 valid outputs.
 
 \subsection{Metric Definitions}
 
