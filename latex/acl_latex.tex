@@ -55,13 +55,13 @@
 \maketitle
 
 \begin{abstract}
-A fluent submission can come from sustained drafting, AI polish, translation, or generated text moved into an editor. We present \textsc{Humanly}, a deployed writing platform that records how text is produced under a policy. Writers and task owners set AI, paste, length, time, and guest policies before drafting. The editor logs typing, paste, focus, selection, and in-platform AI events, then generates a certificate with the final text, metrics, event log, replay, PDF/JSON exports, and verification link. Humanly supports personal writing, assigned tasks, public share links, guest submissions, and peer review. A 240-sample stress test shows that Claude Opus 4.8 fails to recover policy compliance from final text alone. The live system is available at \url{https://app.writehumanly.net/}.
+A fluent submission can come from sustained drafting, AI polish, translation, or generated text moved into an editor. We present \textsc{Humanly}, a deployed writing platform that records how text is produced under a policy. Writers and task owners set AI, paste, length, time, and guest policies before drafting. Humanly logs typing, paste, focus, selection, and in-platform AI events, then generates a certificate with the final text, metrics, event log, replay, PDF/JSON exports, and verification link. This workflow covers personal writing, assigned tasks, public links, guest submissions, and peer review. A 240-sample stress test shows that Claude Opus 4.8 fails to recover policy compliance from final text alone. The live system is available at \url{https://app.writehumanly.net/}.
 \end{abstract}
 
 \section{Introduction}
 \label{sec:intro}
 
-Writing authenticity is now a process question. In academic assignments, peer review, and personal certification, the same fluent submission can reflect allowed and disallowed histories. These include sustained drafting, grammar-only AI polish, machine translation, chat-based explanation, or generated text moved into an editor. The policy question is not only whether the output resembles AI text, but whether the writer followed the rules of the task.
+Writing authenticity is now a process question. In academic assignments, peer review, and personal certification, the same fluent submission can reflect allowed and disallowed histories. These include sustained drafting, grammar-only AI polish, machine translation, chat-based explanation, or generated text moved into an editor. Policy compliance depends on how the text was produced, not only on what the final text resembles.
 
 Current tools only partially answer that question. Final-text AI detectors estimate whether a submission resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. They are most useful when a policy bans generation and the submission is fully generated. Mixed workflows break that assumption. Human prose can be wrongly flagged, especially when writing style differs from detector training assumptions \citep{liang2023gpt}; generated prose can be rewritten, translated, humanized, or prompted to sound human. A detector score alone cannot determine policy compliance.
 
@@ -71,18 +71,18 @@ Process and replay tools add context, but usually inherit a host document or ass
 
 AI assistance is a policy choice, not a binary attribute. Humanly has four modes: \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full}. \textsc{Polish} exposes constrained selection rewrites such as grammar fixing and simplification. \textsc{Chat} exposes agent chat without selection-level rewrite actions. \textsc{Full} exposes both. The editor and certificate both show the active policy.
 
-We contribute:
+The paper contributes:
 \begin{enumerate}
-  \item a deployed writing workspace that records task policy, human actions, and AI actions;
-  \item a configuration model for personal, assigned, public-link, and guest writing with explicit AI, paste, time, length, and guest policies;
-  \item a certificate pipeline with typed/pasted statistics, AI-use records, replayable history, and public verification;
-  \item a 240-sample final-text detector stress test and human-study protocol for evaluating process evidence.
+  \item a tracked writing workspace that binds task policy to human and AI actions;
+  \item a configuration model for personal, assigned, public-link, guest, and peer-review writing;
+  \item a certificate format linking typed/pasted statistics, AI-use records, replay, and public verification;
+  \item a 240-sample final-text stress test and human-study protocol for evaluating process evidence.
 \end{enumerate}
 
 \section{System Architecture}
 \label{sec:architecture}
 
-Humanly has three web interfaces: a writer portal, an admin dashboard, and public verification pages. Writers draft in the tracked editor. Administrators create tasks, set writing rules, list submissions, and inspect activity. Verification pages expose shared certificate fields. Figure~\ref{fig:workflow} shows how users enter a task, write under a policy, generate a certificate, and share verification evidence.
+Humanly has three web interfaces: a writer portal, an admin dashboard, and public verification pages. Writers draft in the tracked editor. Administrators create tasks, set writing rules, list submissions, and inspect activity. Verification pages expose shared certificate fields. Figure~\ref{fig:workflow} traces the personal and assigned-task paths into the same capture and certification flow.
 
 \begin{figure*}[t]
 \centering
@@ -137,7 +137,7 @@ Humanly has three web interfaces: a writer portal, an admin dashboard, and publi
   \draw[arr] (capture.east) -| node[small, below, pos=.22] {events + snapshots} (cert.south);
 \end{tikzpicture}
 }
-\caption{Humanly workflow. Personal writers create a document and configure its environment; assigned and public-link writers enter through task-specific policies. Both paths share the same tracked editor, event-capture layer, certificate, and replay surfaces.}
+\caption{Humanly workflow. Personal writing and assigned or public-link tasks enter through different policies but converge on the same tracked editor, event-capture layer, certificate, and replay surfaces.}
 \label{fig:workflow}
 \end{figure*}
 
@@ -175,7 +175,7 @@ Humanly records write-time events during drafting (Figure~\ref{fig:log-surface})
 \vspace{0.5em}
 
 \paragraph{Evidence Store.}
-The backend stores document snapshots, event streams, task enrollments, submissions, AI sessions, AI action logs, files, and certificates. PostgreSQL/TimescaleDB stores high-frequency events; Redis handles caching and background jobs; WebSocket channels carry live activity. Derived views turn raw events into logs, timelines, typed/pasted statistics, AI-use statistics, and replay data.
+The backend stores document snapshots, event streams, task enrollments, submissions, AI sessions, AI action logs, files, and certificates. PostgreSQL/TimescaleDB stores high-frequency events; Redis handles caching and background jobs; WebSocket channels carry live activity. Derived views materialize logs, timelines, typed/pasted statistics, AI-use statistics, and replay data.
 
 \paragraph{Certificate and Verification.}
 Before certificate generation or task submission, Humanly flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate contains the final text, event counts, typed/pasted and editing metrics, AI-use metrics, a verification token, and a signed payload. Writers can export PDF or JSON; readers inspect the certificate, metrics, and permitted replay/log evidence.
@@ -191,11 +191,11 @@ Before certificate generation or task submission, Humanly flushes pending editor
 \section{Workflows and Use Cases}
 \label{sec:workflows}
 
-Humanly supports three workflows, each pairing a writing policy with a recorded process and shareable evidence.
+Three workflows illustrate how policy, writing, and evidence stay linked.
 
 \subsection{Personal Writing Certification}
 
-A personal writer creates a document, chooses a writing environment, drafts in Humanly, and generates a certificate. The record reports typed and pasted text, editing time, and in-platform AI use rather than a detector score.
+A personal writer creates a document, selects the AI and paste policy, drafts in Humanly, and generates a certificate. The record reports typed and pasted text, editing time, and in-platform AI use rather than a detector score.
 
 \subsection{Classroom Writing Assignments}
 
@@ -220,7 +220,7 @@ Final text collapses different histories. A human draft polished by AI, a human 
 
 Process and replay tools expose document history. Turnitin Clarity provides writing reports and AI-assistance visibility in assignment workflows \citep{turnitin2026clarity}. Grammarly Authorship labels typed, pasted, AI-generated, AI-rephrased, and Grammarly-edited text across supported writing surfaces \citep{grammarly2026authorship}. GPTZero Writing Reports combine detector-adjacent authorship reports with Google Docs process evidence \citep{gptzero2026writingreport}. Google Docs replay tools such as Draftback, Brisk Inspect Writing, Integrito, WritingTrace, and PaperTrail Inspect reconstruct history from host-editor data \citep{draftback2026replay,brisk2025inspectwriting,integrito2026activityreport,writingtrace2026,papertrail2026inspect}.
 
-Humanly combines configurable writing environments, native AI-use logs, assigned-task enrollment, replay, and certificate analytics in one controlled workspace. Table~\ref{tab:feature-comparison} maps each system to the design requirements in Section~\ref{sec:intro}. A partial mark means public documentation shows support only in a narrower context, such as a Google Docs extension or an assignment-specific report.
+Humanly differs by placing configurable environments, native AI-use logs, assigned-task enrollment, replay, and certificate analytics in one controlled workspace. Table~\ref{tab:feature-comparison} maps each system to the design requirements in Section~\ref{sec:intro}. A partial mark means public documentation shows support only in a narrower context, such as a Google Docs extension or an assignment-specific report.
 
 \begin{table*}[t]
 \small
