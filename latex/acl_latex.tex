@@ -276,9 +276,9 @@ The stress test has 240 samples: eight cases, three length buckets, and ten matc
 \toprule
 Predictor & Doc Acc & Policy Acc & FPR & FNR \\
 \midrule
-Opus 4.8 \citep{anthropic2026opus48} & 0.3417 & 0.5292 & 0.3333 & 0.6083 \\
-GPTZero \citep{gptzero2026detector} & 0.4750 & 0.8542 & 0.2667 & 0.0250 \\
-Pangram \citep{pangram2026detector} & 0.4542 & 0.8667 & 0.2500 & 0.0167 \\
+Opus 4.8 \citep{anthropic2026opus48} & 0.342 & 0.529 & 0.333 & 0.608 \\
+GPTZero \citep{gptzero2026detector} & 0.475 & 0.854 & 0.267 & 0.025 \\
+Pangram \citep{pangram2026detector} & 0.454 & 0.867 & 0.250 & 0.017 \\
 \bottomrule
 \end{tabular}
 }
@@ -377,9 +377,19 @@ Inputs are frozen as local files before generation; source URLs remain metadata 
 
 Two metric layers are reported.
 
-\noindent\textbf{Layer 1: Final-text document class.} A prediction is correct only if it exactly matches the expected document class: \textsc{human\_only}, \textsc{mixed}, or \textsc{ai\_only}. This layer scores construction history, not policy.
+\noindent\textbf{Layer 1: Final-text document class.} A prediction is correct only if it exactly matches the expected document class: \textsc{human\_only}, \textsc{mixed}, or \textsc{ai\_only}. For \(N\) samples with expected class \(d_i\) and predicted class \(\hat{d}_i\),
+\[
+\mathrm{DocAcc}=\frac{1}{N}\sum_{i=1}^{N}\mathbf{1}[\hat{d}_i=d_i].
+\]
+This layer scores construction history, not policy.
 
-\noindent\textbf{Layer 2: Policy compliance.} Detector outputs are mapped to binary policy evidence: \textsc{human\_only} becomes \textit{human-compliant}; \textsc{mixed} and \textsc{ai\_only} become \textit{AI-suspicious}. Non-compliance is the positive class. True positives and false negatives are non-compliant samples predicted as AI-suspicious or human-compliant; true negatives and false positives are compliant samples predicted as human-compliant or AI-suspicious.
+\noindent\textbf{Layer 2: Policy compliance.} Detector outputs are mapped to binary policy evidence with \(b(\text{\textsc{human\_only}})=0\) and \(b(\text{\textsc{mixed}})=b(\text{\textsc{ai\_only}})=1\), where 1 denotes AI-suspicious. Non-compliance is the positive class. With true positives, false positives, true negatives, and false negatives computed after this mapping,
+\[
+\mathrm{PolicyAcc}=\frac{TP+TN}{TP+FP+TN+FN},\quad
+\mathrm{FPR}=\frac{FP}{FP+TN},\quad
+\mathrm{FNR}=\frac{FN}{FN+TP}.
+\]
+True positives and false negatives are non-compliant samples predicted as AI-suspicious or human-compliant; true negatives and false positives are compliant samples predicted as human-compliant or AI-suspicious.
 
 \subsection{Case-Level Results}
 
