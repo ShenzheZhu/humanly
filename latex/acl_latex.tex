@@ -55,7 +55,7 @@
 \maketitle
 
 \begin{abstract}
-Final text alone cannot distinguish sustained drafting from AI polish, translation, or generated text imported into an editor. \textsc{Humanly} is a deployed platform for policy-bound process evidence. Writers or task owners set AI access, paste, length, time, and guest policies before drafting. The editor records typing, paste, focus, selection, and in-platform AI actions; certificates combine final text, metrics, logs, replay, PDF/JSON records, and public verification links. Personal writing, assigned tasks, public links, guest submissions, and peer review use the same pipeline. In a 240-sample stress test, GPTZero and Pangram catch most disallowed generation but mark 25--27\% of compliant cases as suspicious. The live system is available at \url{https://app.writehumanly.net/}.
+Final text alone cannot distinguish sustained drafting from AI polish, translation, or generated text imported into an editor. \textsc{Humanly} is a deployed platform for policy-bound process evidence. Writers or task owners set AI access, paste, length, time, and guest policies before drafting. The editor records typing, paste, focus, selection, and in-platform AI actions; certificates combine final text, metrics, logs, replay, PDF/JSON records, and public verification links. Personal writing, assigned tasks, public links, guest submissions, and peer review use the same pipeline. In a 240-sample stress test, GPTZero and Pangram detect most disallowed generation but mark 25--27\% of compliant cases as suspicious. The live system is available at \url{https://app.writehumanly.net/}.
 \end{abstract}
 
 \section{Introduction}
@@ -71,7 +71,7 @@ Document-replay tools reconstruct host-editor history, but task policy, AI-assis
 
 Humanly configures AI access as four task modes: \textsc{off} hides AI controls, \textsc{polish} exposes only selection rewrites, \textsc{chat} exposes only chat, and \textsc{full} exposes both. The editor displays the active mode during writing, and the certificate reports it after drafting.
 
-This paper presents:
+We present:
 \begin{enumerate}
   \item a controlled writing workspace that binds task policy to human and AI actions;
   \item a workflow layer for personal documents, assigned tasks, public links, guest submissions, and peer review;
@@ -142,7 +142,7 @@ Humanly has three design requirements: set policy before writing, capture events
 \end{figure*}
 
 \paragraph{Configuration.}
-Before drafting, personal writers set document policy and task owners set shared-task policy before sharing invite codes or public links (Figure~\ref{fig:configuration-surface}). Policies specify resources, AI provider/model, AI mode, request/token budget, paste rules, time/length limits, and guest submissions. The editor enforces them during drafting.
+Before drafting, personal writers configure documents; task owners configure shared tasks before distributing invite codes or public links (Figure~\ref{fig:configuration-surface}). Policies specify resources, AI provider/model, AI mode, request/token budget, paste rules, time/length limits, and guest submissions. The editor enforces them during drafting.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -191,7 +191,7 @@ Before certificate generation or task submission, Humanly flushes pending editor
 \section{Workflows and Use Cases}
 \label{sec:workflows}
 
-Across workflows, policy precedes writing and evidence follows it. The main differences are who sets the policy and who reads the record.
+Across workflows, policy precedes writing and evidence follows it. Workflows differ by policy owner and record reader.
 
 \subsection{Peer Review}
 
@@ -258,7 +258,7 @@ Final-text detectors answer what the text resembles. Process and replay tools an
 \section{Evaluation}
 \label{sec:evaluation}
 
-Evaluation has three questions: whether final text recovers policy compliance, whether readers can interpret process evidence, and where the record can be bypassed or misread.
+Evaluation asks three questions: can final text recover policy compliance, can readers interpret process evidence, and where can the record be bypassed or misread?
 
 \subsection{Final-Text Detector Stress Test}
 \label{sec:detector-eval}
