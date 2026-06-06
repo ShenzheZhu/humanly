@@ -84,7 +84,7 @@ We present:
 \section{System Architecture}
 \label{sec:architecture}
 
-Humanly has three stages: policy configuration, event capture, and evidence review (Figure~\ref{fig:workflow}). The writer portal, admin dashboard, and public verification pages implement these stages for personal and assigned writing.
+Figure~\ref{fig:workflow} shows the Humanly data path: policy configuration, tracked drafting, event storage, and evidence review. Personal and assigned tasks enter through different policy surfaces, then share one editor, event schema, storage layer, and certificate pipeline.
 
 \begin{figure*}[t]
 \centering
@@ -144,7 +144,7 @@ Humanly has three stages: policy configuration, event capture, and evidence revi
 \end{figure*}
 
 \paragraph{Configuration.}
-Personal writers set document policy; task owners set shared-task policy before distributing invite codes or public links (Figure~\ref{fig:configuration-surface}). Policies specify resources, AI provider/model, AI mode, request/token budget, paste rules, time/length limits, and guest access. The editor enforces them during drafting.
+Personal writers and task owners configure resources, AI provider/model, AI mode, request/token budget, paste rules, time/length limits, and guest access before drafting or distribution (Figure~\ref{fig:configuration-surface}). These settings gate the editor at runtime.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -155,7 +155,7 @@ Personal writers set document policy; task owners set shared-task policy before 
 \vspace{0.5em}
 
 \paragraph{Writing Workspace.}
-Writers compose in a Lexical-based editor shared by personal documents and assigned tasks (Figure~\ref{fig:workspace-surface}). PDFs and reference files remain beside the editor. Available AI controls match the active policy.
+The workspace combines a Lexical-based editor with attached PDFs and reference files (Figure~\ref{fig:workspace-surface}). It renders only the AI controls allowed by the active policy.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -166,7 +166,7 @@ Writers compose in a Lexical-based editor shared by personal documents and assig
 \vspace{0.5em}
 
 \paragraph{Process Capture.}
-During drafting, the capture layer records text changes, clipboard actions, selection, focus, blur, formatting, and AI events (Figure~\ref{fig:log-surface}). Selection-level AI logs store action type, original text, suggestion, and accept/reject decision. Chat logs store document context, model metadata, messages, and tool traces. A JavaScript tracker exposes the same event schema to external forms.
+During drafting, the capture layer records text changes, clipboard actions, selection, focus, blur, formatting, and AI events (Figure~\ref{fig:log-surface}). Selection-level AI logs store action type, original text, suggestion, and accept/reject decision; chat logs store document context, model metadata, messages, and tool traces. A JavaScript tracker exposes the same event schema to external forms.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -177,10 +177,10 @@ During drafting, the capture layer records text changes, clipboard actions, sele
 \vspace{0.5em}
 
 \paragraph{Evidence Store.}
-The backend stores snapshots, event streams, enrollments, submissions, files, AI sessions, AI actions, and certificates. PostgreSQL/TimescaleDB handles high-frequency events; Redis backs jobs and caching; WebSocket channels carry live updates. Stored records drive logs, timelines, typed/pasted statistics, AI-use statistics, and replay data.
+The backend stores snapshots, event streams, enrollments, submissions, files, AI sessions, AI actions, and certificates. PostgreSQL/TimescaleDB handles high-frequency events; Redis backs jobs and caching; WebSocket channels carry live updates. These records drive logs, timelines, typed/pasted statistics, AI-use statistics, and replay data.
 
 \paragraph{Certificate and Verification.}
-Before certificate generation or task submission, Humanly flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate binds final text to event counts, typed/pasted and editing metrics, AI-use metrics, a verification token, and a signed payload. Readers inspect the PDF or JSON certificate and any permitted replay/logs.
+Certificate generation first flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate binds final text to event counts, typed/pasted and editing metrics, AI-use metrics, a verification token, and a signed payload. Readers inspect the PDF or JSON certificate and any permitted replay/logs.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
