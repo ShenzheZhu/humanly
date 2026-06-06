@@ -61,7 +61,7 @@ Final text is a weak record of the writing process: typed, AI-polished, translat
 \section{Introduction}
 \label{sec:intro}
 
-Writing authenticity is now a process question. A fluent draft may come from sustained human typing, limited AI polishing, machine translation, or off-platform generation. Instructors, program chairs, and readers therefore need more than a label for whether text ``is AI.'' They need to know which policy governed the task and what process produced the submission.
+In many writing settings, authenticity depends on process, not surface form. A fluent draft may come from sustained human typing, limited AI polishing, machine translation, or off-platform generation. Instructors, program chairs, and readers therefore need more than a label for whether text ``is AI.'' They need to know which policy governed the task and what process produced the submission.
 
 Final-text AI detectors answer whether a text resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. That signal is informative when a task bans generated text and the submission is fully generated. It is less useful for mixed workflows. Human prose can be wrongly flagged, especially when a writer's style differs from detector training assumptions \citep{liang2023gpt}; generated prose can also be rewritten, translated, humanized, or prompted to sound human. A detector score alone does not establish whether the writer followed the task policy.
 
@@ -80,7 +80,7 @@ We contribute:
 \section{System Architecture}
 \label{sec:architecture}
 
-Humanly exposes three surfaces: a writer portal, an admin dashboard, and public verification pages. The writer portal is the tracked editor. The admin dashboard creates assigned tasks, sets writing rules, lists submissions, and inspects activity. Verification pages let readers check a certificate and inspect the evidence the certificate owner exposes. Figure~\ref{fig:workflow} summarizes the entry paths, writing surface, capture layer, and evidence surfaces.
+Humanly is organized around three interfaces: a writer portal, an admin dashboard, and public verification pages. The writer portal hosts the tracked editor. The admin dashboard creates assigned tasks, sets writing rules, lists submissions, and inspects activity. Verification pages display certificate evidence chosen by the certificate owner. Figure~\ref{fig:workflow} summarizes the entry paths, writing surface, capture layer, and evidence surfaces.
 
 \begin{figure*}[t]
 \centering
@@ -162,7 +162,7 @@ Writers compose in a Lexical-based editor (Figure~\ref{fig:workspace-surface}). 
 \vspace{0.5em}
 
 \paragraph{Process capture.}
-Humanly records write-time events during drafting (Figure~\ref{fig:log-surface}). The editor captures text changes, paste/copy/cut, selection, focus/blur, formatting, and AI events. Selection-level AI actions store the original text, suggested text, and accept/reject decision. Chat logs store document context, model metadata, and tool-call traces when used. A separate JavaScript tracker covers third-party forms; the demo workflow uses the native editor.
+Humanly records write-time events during drafting (Figure~\ref{fig:log-surface}). The editor captures text changes, paste/copy/cut, selection, focus/blur, formatting, and AI events. Selection-level AI actions store the original text, suggested text, and accept/reject decision. Chat logs store document context, model metadata, and tool-call traces when used. A separate JavaScript tracker records third-party form activity; the demo workflow uses the native editor.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -193,15 +193,15 @@ These components serve three workflows, each pairing a writing policy with a rec
 
 \subsection{Personal Writing Certification}
 
-In the personal workflow, a writer creates a document, chooses a writing environment, drafts in Humanly, and generates a certificate. The resulting record lets the writer share a writing sample with process evidence rather than a detector score: typed and pasted text, editing time, and in-platform AI use.
+In the personal workflow, a writer creates a document, chooses a writing environment, drafts in Humanly, and generates a certificate. The record reports typed and pasted text, editing time, and in-platform AI use, giving the writer process evidence rather than a detector score.
 
 \subsection{Classroom Writing Assignments}
 
-In the classroom workflow, an instructor creates an assigned task, sets the AI mode, paste rule, time window, writing timer, character limits, and guest-submission policy, then distributes an invite code or public link. Students write in the policy-bound editor. On submission, Humanly creates a certificate; the instructor reviews the final text, activity timeline, AI logs, and metrics.
+In the classroom workflow, an instructor creates an assigned task, sets the AI mode, paste rule, time window, writing timer, length limit, and guest-submission policy, then distributes an invite code or public link. Students write in the policy-bound editor. On submission, the instructor reviews the final text, activity timeline, AI logs, metrics, and certificate.
 
 \subsection{Peer Review}
 
-Peer review is a policy-sensitive setting: reviewers may use AI for grammar or document understanding while remaining responsible for the substantive judgment. In this workflow, Humanly routes review writing through an assigned task with attached paper context, configured AI policy, and a tracked editor. The certificate and replay let chairs inspect whether a review was typed, pasted, AI-assisted, revised, or generated through in-platform tools. The record does not grade review quality; it shows how the review was produced.
+Peer review is policy-sensitive: reviewers may use AI for grammar or document understanding while remaining responsible for the substantive judgment. Humanly routes review writing through an assigned task with attached paper context, configured AI policy, and a tracked editor. The certificate and replay let chairs inspect whether a review was typed, pasted, AI-assisted, revised, or generated through in-platform tools. The record does not grade review quality; it shows how the review was produced.
 
 \section{Comparison with Existing Systems}
 \label{sec:comparison}
@@ -287,10 +287,10 @@ Table~\ref{tab:detector-results} shows failure at both layers. Opus 4.8 recovers
 \subsection{Human Study}
 \label{sec:study}
 
-The human study targets three questions: whether writers can use the tracked workspace naturally, whether the configured policy is clear during writing, and whether readers make better policy-compliance judgments with certificate evidence. Tasks cover peer review, classroom writing, online survey responses, and social-media-style posts. Peer review is the primary setting because it combines writing quality, document understanding, confidentiality, and explicit AI-use policy.
+The human study measures writer usability, policy clarity, and reader judgment with certificate evidence. Tasks cover peer review, classroom writing, online survey responses, and social-media-style posts. Peer review is the primary setting because it combines writing quality, document understanding, confidentiality, and explicit AI-use policy.
 
 \paragraph{Writer-Side Task.}
-Participants write short documents in Humanly under selected policies: \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full}. The study records usability ratings, perceived friction, policy clarity, and trajectory statistics. Survey items ask whether the interface is easy to use, whether participants would use Humanly in real settings, and how they feel about process recording.
+Participants write short documents in Humanly under selected policies: \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full}. The study records usability ratings, perceived friction, policy clarity, and trajectory statistics. Surveys measure ease of use, willingness to use Humanly in real settings, and comfort with process recording.
 
 \paragraph{Reader-Side Task.}
 Readers inspect writing evidence under three information conditions: final text only, final text plus detector score, and final text plus Humanly certificate/replay. The study measures accuracy against known workflow labels, confidence, time-to-judgment, perceived fairness, and reported evidence use.
@@ -326,7 +326,7 @@ The studies use non-sensitive prompts, disclose process recording, and avoid col
 \section{Conclusion}
 \label{sec:conclusion}
 
-\textsc{Humanly} reframes writing authenticity as process evidence. The central question is not whether a text looks AI-generated, but whether the writing process complied with the task policy. Humanly implements this view through a tracked writing workspace, configurable AI access, assigned-task policy, and verifiable certificates. The stress test shows why final text is insufficient: Claude Opus 4.8, used as a text-only predictor, misses many policy-violating cases and flags many compliant ones. Humanly does not replace human judgment; it gives that judgment a process record.
+\textsc{Humanly} treats writing authenticity as provenance: did the process comply with the task policy? The platform implements this view through a tracked editor, configurable AI access, assigned-task policy, and verifiable certificates. The stress test shows why final text is insufficient: Claude Opus 4.8 misses many policy-violating cases and flags many compliant ones. Humanly does not replace human judgment; it gives that judgment a process record.
 
 % Bibliography entries for the entire Anthology, followed by custom entries
 %\bibliography{anthology,custom}
