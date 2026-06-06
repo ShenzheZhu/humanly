@@ -61,7 +61,7 @@ Final text alone cannot distinguish among sustained drafting, AI polish, transla
 \section{Introduction}
 \label{sec:intro}
 
-Academic assignments, peer review, and authenticity certification depend on how text was produced, not final text alone. Similar submissions may come from sustained drafting, grammar-only AI polish, machine translation, chat-based explanation, or imported generation.
+Academic assignments, peer review, and authenticity certification depend on how text was produced, not final text alone. Similar submissions can come from sustained drafting, grammar-only AI polish, machine translation, chat-based explanation, or imported generation.
 
 Post-hoc detectors score whether submitted text resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. They are informative when generation is banned and violations are machine-written. Mixed workflows break that assumption: human prose may be flagged when style differs from detector training data \citep{liang2023gpt}, while generated prose can be rewritten, translated, or humanized. A detector score alone cannot determine policy compliance.
 
@@ -222,7 +222,7 @@ Final text collapses different histories. A human draft polished by AI, a human 
 
 Process and replay tools move beyond detector scores by reconstructing document history. Turnitin Clarity combines assignments, writing reports, and AI-assistance visibility \citep{turnitin2026clarity}. Grammarly Authorship labels typed, pasted, AI-generated, AI-rephrased, and Grammarly-edited text across supported writing surfaces \citep{grammarly2026authorship}. GPTZero Writing Reports combine AI review, detection, and Google Docs process evidence \citep{gptzero2026writingreport,gptzero2026turnitinbrisk}. Draftback, Brisk Inspect Writing, Integrito, WritingTrace, and PaperTrail Inspect derive timelines from Google Docs data \citep{draftback2026replay,brisk2025inspectwriting,integrito2026activityreport,writingtrace2026,papertrail2026inspect}.
 
-Table~\ref{tab:feature-comparison} compares systems by environment, governance, capture, and evidence. Some tools reconstruct edits; some label text origins; some support assigned tasks. Humanly combines configurable policy, native AI logs, assigned-task enrollment, replay, and certificate analytics in one controlled workspace. A partial mark denotes support only in a narrower context, such as a Google Docs extension or an assignment-specific report.
+Table~\ref{tab:feature-comparison} compares systems by environment, governance, capture, and evidence. Existing tools cover these dimensions unevenly: they reconstruct edits, label text origins, or support assigned tasks, but rarely combine them. Humanly combines configurable policy, native AI logs, assigned-task enrollment, replay, and certificate analytics in one controlled workspace. A partial mark denotes support only in a narrower context, such as a Google Docs extension or an assignment-specific report.
 
 \begin{table*}[t]
 \small
@@ -286,7 +286,7 @@ Pangram \citep{pangram2026detector} & 0.4542 & 0.8667 & 0.2500 & 0.0167 \\
 \label{tab:detector-results}
 \end{table}
 
-Table~\ref{tab:detector-results} separates document-class and policy errors. Opus 4.8 assigns the correct three-class label to 82/240 samples and misses many disallowed AI-origin cases. GPTZero and Pangram are policy-correct on 205/240 and 208/240 samples, missing only 3 and 2 of 120 non-compliant samples. Their main error is false positives: 32 and 30 of 120 compliant samples are marked suspicious. All 30 C4 samples, where humans intentionally write in an AI-like style, fall into this error class. Final-text predictors can flag many AI-origin documents, but they cannot verify policy compliance.
+Table~\ref{tab:detector-results} separates document-class and policy errors. Opus 4.8 assigns the correct three-class label to 82/240 samples and misses many disallowed AI-origin cases. GPTZero and Pangram are policy-correct on 205/240 and 208/240 samples, missing only 3 and 2 of 120 non-compliant samples. Their main error is false positives: 32 and 30 of 120 compliant samples are marked suspicious. All 30 C4 samples, where humans intentionally write in an AI-like style, fall into this error class. Final-text predictors flag many AI-origin documents, but they do not verify policy compliance.
 
 \subsection{Human Study}
 \label{sec:study}
