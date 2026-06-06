@@ -294,19 +294,19 @@ Table~\ref{tab:detector-results} separates two failure modes. Opus 4.8 assigns t
 The human study tests whether the evidence is interpretable, not whether it replaces judgment. Writers complete tasks under configured AI policies; readers infer process labels from evidence. Tasks cover peer review, classroom writing, online survey responses, and social-media-style posts. Peer review is the primary setting because it combines writing quality, document understanding, confidentiality, and explicit AI-use policy.
 
 \paragraph{Writer-Side Task.}
-Participants write short documents in Humanly under \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full} policies. We measure usability, perceived friction, policy clarity, comfort with process recording, willingness to use Humanly outside the study, and trajectory statistics.
+Participants write short documents in Humanly under \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full} policies. Writer outcomes are usability, perceived friction, policy clarity, comfort with process recording, willingness to use Humanly outside the study, and trajectory statistics.
 
 \paragraph{Reader-Side Task.}
-Readers inspect writing evidence under three information conditions: final text only, final text plus detector score, and final text plus Humanly certificate/replay. We measure accuracy against known process labels, confidence, time-to-judgment, perceived fairness, and reported evidence use.
+Readers inspect writing evidence under three information conditions: final text only, final text plus detector score, and final text plus Humanly certificate/replay. Reader outcomes are accuracy against known process labels, confidence, time-to-judgment, perceived fairness, and reported evidence use.
 
 \paragraph{Analysis.}
-We compare writer usability and policy clarity across AI modes, and reader accuracy, confidence, and time-to-judgment across information conditions. Open-ended responses identify which certificate or replay fields help or confuse readers.
+Analysis contrasts writer usability and policy clarity across AI modes, and reader accuracy, confidence, and time-to-judgment across information conditions. Open-ended responses identify which certificate or replay fields help or confuse readers.
 % TODO: Finalize prompt pool, recruitment size, condition assignment, participant payment, and analysis plan.
 
 \subsection{Boundary and Red-Team Analysis}
 \label{sec:redteam}
 
-The detector stress test targets final text; boundary analysis targets the recorder. Boundary cases include phone-assisted generation, memorized AI text, manual retyping of an external AI answer, and GUI-agent imitation of human writing. These cases attack what the recorder can observe rather than what the submitted text resembles, so they are separate from the detector benchmark.
+The detector stress test targets final text; boundary analysis targets capture assumptions. Boundary cases include phone-assisted generation, memorized AI text, manual retyping of an external AI answer, and GUI-agent imitation of human writing. These cases attack what the recorder can observe rather than what the submitted text resembles, so they are separate from the detector benchmark.
 
 Boundary analysis also refines the trace taxonomy behind certificates and replay. The taxonomy separates human-only writing, mostly human writing with some paste, human typing plus AI editing, and AI brainstorming followed by human writing. It also covers AI-generated passages and fully AI-generated text.
 % TODO: Decide which red-team cases are feasible for the demo-paper evaluation versus future work.
@@ -321,7 +321,7 @@ Humanly issues process evidence, not an authorship verdict. Certificates support
 Humanly blocks or logs some policy-governed actions, such as paste, but it cannot prevent every external-AI workflow. A determined user may transcribe external AI output, use voice input, mimic revisions, or route text through another device. The platform provides process evidence; it cannot rule out every channel for covert assistance.
 
 \paragraph{Privacy and Surveillance.}
-Process recording is sensitive. It captures typing behavior, paste activity, focus changes, and AI interactions. Deployments should be transparent to writers, limited to contexts where process evidence is appropriate, and paired with clear access rules for logs, certificates, and replays.
+Process recording is sensitive. It captures typing behavior, paste activity, focus changes, and AI interactions. Deployments therefore need writer-facing transparency, context limits, and clear access rules for logs, certificates, and replays.
 
 \paragraph{Study Ethics.}
 Study prompts are non-sensitive, process recording is disclosed, and personally identifying information is limited to what is needed for participant payment. If a task involves mild deception, such as withholding details about paste behavior, the protocol must justify the necessity and include debriefing.
