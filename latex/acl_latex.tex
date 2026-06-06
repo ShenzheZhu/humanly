@@ -164,7 +164,7 @@ Writers compose in a Lexical-based editor (Figure~\ref{fig:workspace-surface}) s
 \vspace{0.5em}
 
 \paragraph{Process Capture.}
-During drafting, Humanly records text changes, clipboard actions, selection, focus, blur, formatting, and AI events (Figure~\ref{fig:log-surface}). Selection-level AI records include the action type, original text, suggestion, and accept/reject decision. Chat records include document context, model metadata, messages, and tool-call traces. External forms can emit the same event schema through a JavaScript tracker.
+During drafting, Humanly records text changes, clipboard actions, selection, focus, blur, formatting, and AI events (Figure~\ref{fig:log-surface}). Selection-level AI logs store the action type, original text, suggestion, and accept/reject decision. Chat logs store document context, model metadata, messages, and tool traces. External forms can emit the same event schema through a JavaScript tracker.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -175,10 +175,10 @@ During drafting, Humanly records text changes, clipboard actions, selection, foc
 \vspace{0.5em}
 
 \paragraph{Evidence Store.}
-The backend stores snapshots, event streams, enrollments, submissions, AI sessions, AI action logs, files, and certificates. PostgreSQL/TimescaleDB handles high-frequency events; Redis backs caching and background jobs; WebSocket channels carry live activity. These records produce logs, timelines, typed/pasted statistics, AI-use statistics, and replay data.
+Backend storage covers snapshots, event streams, enrollments, submissions, files, AI sessions/actions, and certificates. PostgreSQL/TimescaleDB handles high-frequency events; Redis backs jobs and caching; WebSocket channels carry live updates. The same store feeds logs, timelines, typed/pasted statistics, AI-use statistics, and replay data.
 
 \paragraph{Certificate and Verification.}
-On certificate generation or task submission, Humanly flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate binds final text to event counts, typed/pasted and editing metrics, AI-use metrics, a verification token, and a signed payload. Readers inspect a PDF or JSON certificate plus permitted replay/logs.
+At certificate generation or task submission, Humanly flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate binds final text to event counts, typed/pasted and editing metrics, AI-use metrics, a verification token, and a signed payload. Readers inspect a PDF or JSON certificate plus permitted replay/logs.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -261,9 +261,9 @@ Evaluation separates three questions: whether final text recovers policy complia
 \subsection{Final-Text Detector Stress Test}
 \label{sec:detector-eval}
 
-The stress test uses eight policy cases rather than a binary human-vs-AI label: human writing, AI polish, and AI translation are compliant; substantive AI generation is not. It tests whether final-text predictors can substitute for process evidence. Appendix~\ref{sec:appendix-detector-metrics} defines the cases and labels. Prompted transformations preserve meaning and avoid added facts, following public research-writing prompt templates such as \citet{leey2026awesomewriting}. Human-origin cases start from human-written seeds before polish, translation, or AI-style human rewriting.
+The stress test uses eight policy cases rather than a binary human-vs-AI label. Human writing, AI polish, and AI translation are compliant; substantive AI generation is not. This setup tests whether final-text predictors can substitute for process evidence. Appendix~\ref{sec:appendix-detector-metrics} defines the cases and labels. Prompted transformations preserve meaning and avoid added facts, following public research-writing prompt templates such as \citet{leey2026awesomewriting}. Human-origin cases start from human-written seeds before polish, translation, or AI-style human rewriting.
 
-The stress test has 240 samples: eight cases, three length buckets, and ten matched task sets. Length buckets correspond to social-media posts, student assignment responses, and long review-style texts. Predictors see only final text; outputs are normalized to \textsc{human\_only}, \textsc{mixed}, or \textsc{ai\_only}. Evaluated predictors are Claude Opus 4.8 \citep{anthropic2026opus48}, GPTZero \citep{gptzero2026detector}, and Pangram \citep{pangram2026detector}. Metrics are exact document-class accuracy (Layer 1) and policy accuracy after mapping \textsc{human\_only} to \textit{human-compliant} and the other labels to \textit{AI-suspicious} (Layer 2).
+The stress test has 240 samples: eight cases, three length buckets, and ten matched task sets. Length buckets correspond to social-media posts, student assignment responses, and long review-style texts. Predictors see only final text; outputs are normalized to \textsc{human\_only}, \textsc{mixed}, or \textsc{ai\_only}. We evaluate Claude Opus 4.8 \citep{anthropic2026opus48}, GPTZero \citep{gptzero2026detector}, and Pangram \citep{pangram2026detector}. Metrics are exact document-class accuracy (Layer 1) and policy accuracy after mapping \textsc{human\_only} to \textit{human-compliant} and the other labels to \textit{AI-suspicious} (Layer 2).
 
 \begin{table}[t]
 \small
@@ -284,7 +284,7 @@ Pangram \citep{pangram2026detector} & 0.4542 & 0.8667 & 0.2500 & 0.0167 \\
 \label{tab:detector-results}
 \end{table}
 
-Table~\ref{tab:detector-results} separates document-class and policy errors. Opus 4.8 assigns the correct three-class label to 82/240 samples and misses many disallowed AI-origin cases. GPTZero and Pangram are policy-correct on 205/240 and 208/240 samples, missing only 3 and 2 of 120 non-compliant samples. The tradeoff is false positives: 32 and 30 of 120 compliant samples are marked suspicious, including all 30 C4 samples, where humans intentionally write in an AI-like style. Final-text predictors can flag many AI-origin documents, but they cannot explain whether a writing process followed the task policy.
+Table~\ref{tab:detector-results} separates document-class and policy errors. Opus 4.8 assigns the correct three-class label to 82/240 samples and misses many disallowed AI-origin cases. GPTZero and Pangram are policy-correct on 205/240 and 208/240 samples, missing only 3 and 2 of 120 non-compliant samples. The tradeoff is false positives: 32 and 30 of 120 compliant samples are marked suspicious, including all 30 C4 samples, where humans intentionally write in an AI-like style. Final-text predictors can flag many AI-origin documents, but they cannot explain whether the writing process followed the task policy.
 
 \subsection{Human Study}
 \label{sec:study}
@@ -367,9 +367,9 @@ N4 & \textbf{Construction:} AI-written substantive draft with light human edits.
 
 \subsection{Data and Preprocessing}
 
-The benchmark contains 240 final-text samples: eight cases, three length buckets, and ten matched task sets per bucket. Buckets correspond to social-media-style posts, student assignment responses, and long-form review-style texts. Each row stores task metadata, source language, policy label, document class, text paths, construction notes, license notes, and word count.
+The benchmark contains 240 final-text samples: eight cases, three length buckets, and ten matched task sets per bucket. Buckets correspond to social-media-style posts, student assignment responses, and long-form review-style texts. Each row stores task metadata, source language, policy label, document class, text path, construction note, license note, and word count.
 
-Inputs are frozen as local files before generation; source URLs remain only as metadata. Human-origin seeds supply C1--C3: English for C1 and C2, and non-English for C3. C4 uses newly collected human-written AI-style texts. Non-compliant cases use matched topics: N1 creates an AI draft, N2 rewrites it, N3 translates non-English AI text, and N4 lightly human-edits N1. Seed material is stripped of markup, boilerplate, and templates, but not polished. Detector inputs include only \texttt{ready} rows. GPTZero and Pangram each produced 240/240 valid outputs, with no missing rows or request errors.
+Inputs are frozen as local files before generation; source URLs remain only as metadata. Human-origin seeds supply C1--C3: English for C1 and C2, non-English for C3. C4 uses newly collected human-written AI-style texts. Non-compliant cases use matched topics: N1 creates an AI draft, N2 rewrites it, N3 translates non-English AI text, and N4 lightly human-edits N1. Seed material is stripped of markup, boilerplate, and templates, but not polished. Detector inputs include only \texttt{ready} rows. GPTZero and Pangram each produced 240/240 valid outputs, with no missing rows or request errors.
 
 \subsection{Metric Definitions}
 
