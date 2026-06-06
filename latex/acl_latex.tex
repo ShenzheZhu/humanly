@@ -82,7 +82,7 @@ We present:
 \section{System Architecture}
 \label{sec:architecture}
 
-Humanly has three design requirements: set policy before writing, capture events during composition, and make evidence reviewable after completion. A writer portal, admin dashboard, and public verification pages implement this flow. Figure~\ref{fig:workflow} shows personal and assigned-task paths entering the same capture-and-certification pipeline.
+Humanly follows a three-stage pipeline: configure policy before writing, capture events during composition, and review evidence after completion. A writer portal, admin dashboard, and public verification pages implement this flow. Figure~\ref{fig:workflow} shows personal and assigned-task paths entering the same capture-and-certification pipeline.
 
 \begin{figure*}[t]
 \centering
@@ -142,7 +142,7 @@ Humanly has three design requirements: set policy before writing, capture events
 \end{figure*}
 
 \paragraph{Configuration.}
-Before drafting, personal writers configure documents; task owners configure shared tasks before distributing invite codes or public links (Figure~\ref{fig:configuration-surface}). Policies specify resources, AI provider/model, AI mode, request/token budget, paste rules, time/length limits, and guest submissions. The editor enforces them during drafting.
+Personal writers configure documents; task owners configure shared tasks before distributing invite codes or public links (Figure~\ref{fig:configuration-surface}). Policies specify resources, AI provider/model, AI mode, request/token budget, paste rules, time/length limits, and guest submissions. The editor enforces them during drafting.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -164,7 +164,7 @@ Writers compose in a Lexical-based editor (Figure~\ref{fig:workspace-surface}) s
 \vspace{0.5em}
 
 \paragraph{Process Capture.}
-During drafting, Humanly records write-time events (Figure~\ref{fig:log-surface}). The editor logs text changes, clipboard actions, selection, focus, blur, formatting, and AI events. Selection-level AI records include the action type, original text, suggestion, and accept/reject decision. Chat records include document context, model metadata, messages, and tool-call traces. External forms can emit the same event schema through a JavaScript tracker.
+During drafting, Humanly records text changes, clipboard actions, selection, focus, blur, formatting, and AI events (Figure~\ref{fig:log-surface}). Selection-level AI records include the action type, original text, suggestion, and accept/reject decision. Chat records include document context, model metadata, messages, and tool-call traces. External forms can emit the same event schema through a JavaScript tracker.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -178,7 +178,7 @@ During drafting, Humanly records write-time events (Figure~\ref{fig:log-surface}
 The backend stores snapshots, event streams, enrollments, submissions, AI sessions, AI action logs, files, and certificates. PostgreSQL/TimescaleDB handles high-frequency events; Redis backs caching and background jobs; WebSocket channels carry live activity. These records produce logs, timelines, typed/pasted statistics, AI-use statistics, and replay data.
 
 \paragraph{Certificate and Verification.}
-Before certificate generation or task submission, Humanly flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate binds final text to event counts, typed/pasted and editing metrics, AI-use metrics, a verification token, and a signed payload. Readers inspect a PDF or JSON certificate plus permitted replay/logs.
+On certificate generation or task submission, Humanly flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate binds final text to event counts, typed/pasted and editing metrics, AI-use metrics, a verification token, and a signed payload. Readers inspect a PDF or JSON certificate plus permitted replay/logs.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
