@@ -82,7 +82,7 @@ We contribute:
 \section{System Architecture}
 \label{sec:architecture}
 
-Humanly has three interfaces: a writer portal, an admin dashboard, and public verification pages. The writer portal hosts the tracked editor. Admins use the dashboard to create assigned tasks, set writing rules, list submissions, and inspect activity. Verification pages show shared certificate fields. Figure~\ref{fig:workflow} shows the entry paths, editor, capture layer, and verification surfaces.
+Humanly is a web platform with three interfaces: a writer portal, an admin dashboard, and public verification pages. The writer portal hosts the tracked editor. The admin dashboard creates assigned tasks, sets writing rules, lists submissions, and inspects activity. Verification pages show shared certificate fields. Figure~\ref{fig:workflow} shows how users enter a task, write under a policy, generate a certificate, and share verification evidence.
 
 \begin{figure*}[t]
 \centering
@@ -142,7 +142,7 @@ Humanly has three interfaces: a writer portal, an admin dashboard, and public ve
 \end{figure*}
 
 \paragraph{Configuration.}
-Each document is governed by a writing environment (Figure~\ref{fig:configuration-surface}). Personal writers set it when creating a document; task owners set it before sharing an invite code or public link. The configuration records task resources, AI provider, model, mode, token or request budget, paste policy, time and length limits, and guest-submission policy.
+Configuration is the task-specification layer (Figure~\ref{fig:configuration-surface}). Personal writers configure it when creating a document; task owners configure it before sharing an invite code or public link. The environment records task resources, AI provider, model, mode, token or request budget, paste policy, time and length limits, and guest-submission policy. The editor uses this environment to decide which controls are available during drafting.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -153,7 +153,7 @@ Each document is governed by a writing environment (Figure~\ref{fig:configuratio
 \vspace{0.5em}
 
 \paragraph{Writing Workspace.}
-Writers compose in a Lexical-based editor (Figure~\ref{fig:workspace-surface}) used for both personal documents and admin-assigned tasks. Instruction PDFs and reference files appear beside the editor if provided. The AI policy controls the interface: \textsc{off} hides AI, \textsc{polish} exposes selection rewrites, \textsc{chat} exposes only agent chat, and \textsc{full} exposes both.
+Writers compose in a Lexical-based editor (Figure~\ref{fig:workspace-surface}) used for both personal documents and admin-assigned tasks. Instruction PDFs and reference files appear beside the editor if provided. The AI policy is enforced in the interface: \textsc{off} hides AI, \textsc{polish} exposes selection rewrites, \textsc{chat} exposes only agent chat, and \textsc{full} exposes both.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -164,7 +164,7 @@ Writers compose in a Lexical-based editor (Figure~\ref{fig:workspace-surface}) u
 \vspace{0.5em}
 
 \paragraph{Process Capture.}
-Humanly records write-time events during drafting (Figure~\ref{fig:log-surface}). The editor captures text changes, paste, copy, cut, selection, focus, blur, formatting, and AI events. Selection-level AI actions store the original text, suggested text, and accept/reject decision. Chat logs store document context, model metadata, and tool-call traces. A separate JavaScript tracker records third-party form activity; the demo uses the native editor.
+Humanly records write-time events during drafting (Figure~\ref{fig:log-surface}). The editor captures text changes, paste, copy, cut, selection, focus, blur, formatting, and AI events. Selection-level AI actions store the action type, original text, suggested text, and accept/reject decision. Chat logs store document context, model metadata, messages, and tool-call traces. A separate JavaScript tracker records third-party form activity; the demo uses the native editor.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -175,10 +175,10 @@ Humanly records write-time events during drafting (Figure~\ref{fig:log-surface})
 \vspace{0.5em}
 
 \paragraph{Evidence Store.}
-The backend stores snapshots, event streams, task enrollments, submissions, AI sessions, AI action logs, files, and certificates. PostgreSQL/TimescaleDB stores high-frequency events; Redis handles caching and background jobs; WebSocket channels carry live activity. Derived views turn raw events into logs, timelines, analytics, and certificates.
+The backend stores document snapshots, event streams, task enrollments, submissions, AI sessions, AI action logs, files, and certificates. PostgreSQL/TimescaleDB stores high-frequency events; Redis handles caching and background jobs; WebSocket channels carry live activity. Derived views turn raw events into logs, timelines, typed/pasted statistics, AI-use statistics, and replay data.
 
 \paragraph{Certificate and Verification.}
-Before certificate generation or task submission, Humanly flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate contains the final text, authorship metrics, AI-use metrics, a verification token, and a signed payload. Writers can export PDF or JSON. Readers can inspect the certificate, metrics, and permitted replay/log evidence.
+Before certificate generation or task submission, Humanly flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate contains the final text, event counts, typed/pasted and editing metrics, AI-use metrics, a verification token, and a signed payload. Writers can export PDF or JSON. Readers can inspect the certificate, metrics, and permitted replay/log evidence.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -220,7 +220,7 @@ Final text collapses different histories. A human draft polished by AI, a human 
 
 Process and replay tools expose document history. Turnitin Clarity provides writing reports and AI-assistance visibility in assignment workflows \citep{turnitin2026clarity}. Grammarly Authorship labels typed, pasted, AI-generated, AI-rephrased, and Grammarly-edited text across supported writing surfaces \citep{grammarly2026authorship}. GPTZero Writing Reports combine detector-adjacent authorship reports with Google Docs process evidence \citep{gptzero2026writingreport}. Google Docs replay tools such as Draftback, Brisk Inspect Writing, Integrito, WritingTrace, and PaperTrail Inspect reconstruct document history from host-editor data \citep{draftback2026replay,brisk2025inspectwriting,integrito2026activityreport,writingtrace2026,papertrail2026inspect}.
 
-Humanly combines configurable writing environments, native AI-use logs, assigned-task enrollment, replay, and certificate analytics in one controlled workspace. Table~\ref{tab:feature-comparison} summarizes the feature comparison. We mark a feature as partial when public documentation shows support only in a narrower context, such as a Google Docs extension or an assignment-specific report.
+Humanly combines configurable writing environments, native AI-use logs, assigned-task enrollment, replay, and certificate analytics in one controlled workspace. Table~\ref{tab:feature-comparison} summarizes the feature comparison. The columns correspond to the design requirements in Section~\ref{sec:intro}: environment, governance, capture, and evidence. We mark a feature as partial when public documentation shows support only in a narrower context, such as a Google Docs extension or an assignment-specific report.
 
 \begin{table*}[t]
 \small
@@ -247,7 +247,9 @@ PaperTrail \citep{papertrail2026inspect} & \nofeature & \nofeature & \nofeature 
 \label{tab:feature-comparison}
 \end{table*}
 
-The comparison shows where existing systems stop. Turnitin Clarity is the most direct education baseline because it combines assignment workflows with writing playback and AI-assistance visibility. Grammarly Authorship is the most direct source-attribution baseline, labeling typed, pasted, AI-generated, and AI-rephrased text. WritingTrace and PaperTrail Inspect focus on writing history rather than detector probability. GPTZero packages AI reviewing, writing replay, plagiarism checks, and AI detection for classrooms \citep{gptzero2026turnitinbrisk}. Public documentation does not describe one write-time record that links assistant actions, detector results, replay, task policy, and verification.
+The comparison shows that replay is not the main gap: several systems already reconstruct document history. Turnitin Clarity is the most direct education baseline because it combines assignment workflows with writing playback and AI-assistance visibility. Grammarly Authorship is the most direct source-attribution baseline, labeling typed, pasted, AI-generated, and AI-rephrased text. WritingTrace and PaperTrail Inspect focus on writing history rather than detector probability. GPTZero packages AI reviewing, writing replay, plagiarism checks, and AI detection for classrooms \citep{gptzero2026turnitinbrisk}.
+
+Humanly instead grounds all evidence in one write-time record. A writer or task owner sets the task policy before writing. The editor enforces AI modes and logs AI actions and fine-grained writing events during composition. Humanly generates the certificate from the same event stream.
 
 \subsection{Synthesis}
 
