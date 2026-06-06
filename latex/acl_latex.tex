@@ -55,7 +55,7 @@
 \maketitle
 
 \begin{abstract}
-The same fluent submission can result from sustained typing, AI polishing, machine translation, or generated text pasted into an editor. We present \textsc{Humanly}, a deployed platform that records writing provenance during drafting. Writers or task owners configure AI access, paste rules, length limits, and time windows. Humanly logs typing, paste, focus, selection, and in-platform AI events, then packages the final text, event log, replay, PDF/JSON exports, and verification link into a certificate. The platform supports personal writing, assigned tasks, share links, and peer review. We describe the architecture, compare Humanly with text detectors and replay systems, and report a 240-sample stress test showing that Claude Opus 4.8 cannot recover policy compliance from final text alone. The live system is available at \url{https://app.writehumanly.net/}.
+The same fluent submission can result from sustained typing, AI polishing, machine translation, or generated text pasted into an editor. We present \textsc{Humanly}, a deployed platform that records writing provenance during drafting. Writers or task owners configure AI access, paste rules, length limits, and time windows. Humanly logs typing, paste, focus, selection, and in-platform AI events, then packages the final text, event log, replay, PDF/JSON exports, and verification link into a certificate. The platform supports personal writing, assigned tasks, share links, and peer review. We describe the architecture, compare Humanly with text detectors and replay systems, and run a 240-sample stress test in which Claude Opus 4.8 fails to recover policy compliance from final text alone. The live system is available at \url{https://app.writehumanly.net/}.
 \end{abstract}
 
 \section{Introduction}
@@ -65,7 +65,7 @@ In many writing settings, authenticity depends on the drafting process, not the 
 
 Final-text AI detectors estimate whether a text resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. They work best when a policy bans generation and a submission is fully generated. Mixed workflows break that assumption. Human prose can be wrongly flagged, especially when a writer's style differs from detector training assumptions \citep{liang2023gpt}; generated prose can also be rewritten, translated, humanized, or prompted to sound human. A detector score alone cannot tell whether the writer followed the task policy.
 
-\textsc{Humanly} treats authenticity as provenance: task policy, write-time events, and reviewable evidence belong in one record. A writer or task owner configures the environment, the editor records human and AI actions, and the certificate presents the record for review.
+\textsc{Humanly} treats authenticity as provenance: task policy, write-time events, and reviewable evidence remain in one record. A writer or task owner configures the environment, the editor records human and AI actions, and the certificate presents the record for review.
 
 AI assistance is a policy choice. Humanly has four modes: \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full}. \textsc{Polish} exposes constrained selection rewrites such as grammar fixing and simplification. \textsc{Chat} exposes agent chat without selection-level rewrite actions. \textsc{Full} exposes both. The editor and certificate both show the active policy.
 
@@ -80,7 +80,7 @@ We contribute:
 \section{System Architecture}
 \label{sec:architecture}
 
-Humanly has three interfaces: a writer portal, an admin dashboard, and public verification pages. The writer portal hosts the tracked editor. The admin dashboard creates assigned tasks, sets writing rules, lists submissions, and inspects activity. Verification pages expose shared certificate fields. Figure~\ref{fig:workflow} summarizes the entry paths, writing surface, capture layer, and evidence surfaces.
+Humanly has three interfaces: a writer portal, an admin dashboard, and public verification pages. The writer portal hosts the tracked editor. The admin dashboard creates assigned tasks, sets writing rules, lists submissions, and inspects activity. Verification pages expose shared certificate fields. Figure~\ref{fig:workflow} shows the entry paths, writing surface, capture layer, and evidence surfaces.
 
 \begin{figure*}[t]
 \centering
