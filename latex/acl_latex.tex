@@ -142,7 +142,7 @@ Humanly has three web interfaces: a writer portal, an admin dashboard, and publi
 \end{figure*}
 
 \paragraph{Configuration.}
-Configuration defines the writing environment before drafting begins (Figure~\ref{fig:configuration-surface}). Personal writers set it when creating a document; task owners set it before sharing an invite code or public link. The environment stores task resources, AI provider, model, AI mode, token or request budget, paste policy, time and length limits, and guest-submission policy. During drafting, these settings enable or hide editor controls.
+Configuration defines the writing environment before drafting begins (Figure~\ref{fig:configuration-surface}). Personal writers set it when creating a document; task owners set it before sharing an invite code or public link. The configuration record includes task resources, AI provider and model, AI mode, token or request budget, paste policy, time and length limits, and guest-submission policy. During drafting, these settings enable or hide editor controls.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -164,7 +164,7 @@ Writers compose in a Lexical-based editor (Figure~\ref{fig:workspace-surface}) s
 \vspace{0.5em}
 
 \paragraph{Process Capture.}
-Humanly records write-time events during drafting (Figure~\ref{fig:log-surface}). The editor captures text changes, paste, copy, cut, selection, focus, blur, formatting, and AI events. Selection-level AI actions store the action type, original text, suggestion, and accept/reject decision. Chat logs store document context, model metadata, messages, and tool-call traces. A separate JavaScript tracker records third-party form activity; the demo uses the native editor.
+Humanly records write-time events during drafting (Figure~\ref{fig:log-surface}). The editor logs text changes, clipboard actions, selection, focus, blur, formatting, and AI events. Selection-level AI records include the action type, original text, suggestion, and accept/reject decision; chat records include document context, model metadata, messages, and tool-call traces. A separate JavaScript tracker supports third-party forms, while the demo uses the native editor.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -175,10 +175,10 @@ Humanly records write-time events during drafting (Figure~\ref{fig:log-surface})
 \vspace{0.5em}
 
 \paragraph{Evidence Store.}
-The backend stores document snapshots, event streams, task enrollments, submissions, AI sessions, AI action logs, files, and certificates. PostgreSQL/TimescaleDB stores high-frequency events; Redis handles caching and background jobs; WebSocket channels carry live activity. Derived views produce logs, timelines, typed/pasted statistics, AI-use statistics, and replay data.
+The backend persists document snapshots, event streams, task enrollments, submissions, AI sessions, AI action logs, files, and certificates. PostgreSQL/TimescaleDB stores high-frequency events; Redis handles caching and background jobs; WebSocket channels carry live activity. Derived views produce logs, timelines, typed/pasted statistics, AI-use statistics, and replay data.
 
 \paragraph{Certificate and Verification.}
-Before certificate generation or task submission, Humanly flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate contains the final text, event counts, typed/pasted and editing metrics, AI-use metrics, a verification token, and a signed payload. Writers can export PDF or JSON; readers inspect the certificate, metrics, and permitted replay/log evidence.
+Before certificate generation or task submission, Humanly flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate binds the final text to event counts, typed/pasted and editing metrics, AI-use metrics, a verification token, and a signed payload. Writers can export PDF or JSON; readers inspect the certificate, metrics, and permitted replay/log evidence.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -191,7 +191,7 @@ Before certificate generation or task submission, Humanly flushes pending editor
 \section{Workflows and Use Cases}
 \label{sec:workflows}
 
-Humanly is used through a three-step loop: configure the writing policy, write under that policy, and review the resulting evidence. We describe three workflows that use the same loop.
+Humanly is used through a three-step loop: configure the writing policy, write under that policy, and review the resulting evidence. Three workflows use the same loop.
 
 \subsection{Personal Writing Certification}
 
@@ -369,9 +369,9 @@ N4 & \textbf{Construction:} AI-written substantive draft with light human edits.
 
 \subsection{Data and Preprocessing}
 
-The benchmark contains 240 final-text samples: eight cases, three length buckets, and ten matched task sets per bucket. Length buckets correspond to social-media-style posts, student assignment responses, and long-form review-style texts. Each row stores task metadata, source language, policy label, expected document class, text paths, construction notes, license notes, and word count.
+The benchmark contains 240 final-text samples: eight cases, three length buckets, and ten matched task sets per bucket. Length buckets correspond to social-media-style posts, student assignment responses, and long-form review-style texts. Rows include task metadata, source language, policy label, expected document class, text paths, construction notes, license notes, and word count.
 
-Source collection and generation are separated. Inputs are frozen as local files before generation; source URLs remain only as source metadata. Human-origin seeds supply C1--C3: English for C1 and C2, and non-English for C3. C4 uses newly collected human-written AI-style texts. For non-compliant cases, N1 creates a topic-matched draft. N2 rewrites N1, N3 translates non-English AI text, and N4 lightly human-edits N1. Seed material is stripped of markup, boilerplate, and templates, but not polished. Detector inputs include only rows marked \texttt{ready}.
+Source collection and generation are separated. Inputs are frozen as local files before generation; source URLs remain only as metadata. Human-origin seeds supply C1--C3: English for C1 and C2, and non-English for C3. C4 uses newly collected human-written AI-style texts. For non-compliant cases, N1 creates a topic-matched draft. N2 rewrites N1, N3 translates non-English AI text, and N4 lightly human-edits N1. Seed material is stripped of markup, boilerplate, and templates, but not polished. Detector inputs include only rows marked \texttt{ready}.
 
 \subsection{Metric Definitions}
 
