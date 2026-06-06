@@ -63,9 +63,9 @@ Final text alone cannot distinguish sustained drafting from AI polish, translati
 
 Academic assignments, peer review, and authenticity certification depend on process, not text alone. Similar submissions may reflect sustained drafting, grammar-only AI polish, machine translation, chat-based explanation, or generated text imported into an editor.
 
-Post-hoc detectors answer a narrower question: whether the submitted text resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. The premise holds only when generation is banned and the output is mostly machine-written. Mixed workflows fall outside that setting. Human prose may be wrongly flagged, especially when style differs from detector training assumptions \citep{liang2023gpt}; generated prose can be rewritten, translated, or humanized. A detector score alone cannot determine policy compliance.
+Post-hoc detectors estimate whether submitted text resembles model output \citep{mitchell2023detectgpt, hans2024binoculars, verma2024ghostbuster}. This premise fits tasks that ban generation and produce mostly machine-written outputs. Mixed workflows break it: human prose may be wrongly flagged when style differs from detector training assumptions \citep{liang2023gpt}, while generated prose can be rewritten, translated, or humanized. A detector score alone cannot determine policy compliance.
 
-Document-replay tools depend on a host editor or assignment platform. They reconstruct edits or label source categories, while task policy, AI-assistant actions, metrics, replay, and verification remain separate. Readers must reconcile artifacts rather than inspect one policy-bound record.
+Document-replay tools depend on a host editor or assignment platform. They reconstruct edits or label source categories, while task policy, AI-assistant actions, metrics, replay, and verification remain separate. Readers must reconcile artifacts instead of inspecting one policy-bound record.
 
 \textsc{Humanly} links task policy and write-time events in one provenance record. Policy is set before writing, human and in-platform AI actions are recorded during drafting, and certificates present logs, replay, metrics, and verification after drafting. The same record spans personal, assigned, public-link, guest, and peer-review workflows.
 
@@ -82,7 +82,7 @@ We contribute:
 \section{System Architecture}
 \label{sec:architecture}
 
-Humanly has three interfaces: a writer portal for personal tasks and drafting, an admin dashboard for assigned tasks and activity review, and public pages for certificate verification. Figure~\ref{fig:workflow} shows personal and assigned-task paths entering the same capture-and-certification pipeline.
+Humanly has a writer portal, an admin dashboard, and public verification pages. Figure~\ref{fig:workflow} shows personal and assigned-task paths entering the same capture-and-certification pipeline.
 
 \begin{figure*}[t]
 \centering
@@ -142,7 +142,7 @@ Humanly has three interfaces: a writer portal for personal tasks and drafting, a
 \end{figure*}
 
 \paragraph{Configuration.}
-Configuration defines the writing environment before drafting (Figure~\ref{fig:configuration-surface}). Personal writers set document policy; task owners set shared-task policy before sharing invite codes or public links. Settings cover resources, AI provider and model, AI mode, request or token budget, paste policy, time and length limits, and guest submissions. The editor enforces these settings during drafting.
+Configuration defines the writing environment before drafting (Figure~\ref{fig:configuration-surface}). Personal writers set document policy; task owners set shared-task policy before sharing invite codes or public links. Settings cover resources, AI provider/model, AI mode, request/token budget, paste rules, time/length limits, and guest submissions. The editor enforces these settings during drafting.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
@@ -175,7 +175,7 @@ Humanly records write-time events during drafting (Figure~\ref{fig:log-surface})
 \vspace{0.5em}
 
 \paragraph{Evidence Store.}
-The backend stores snapshots, event streams, enrollments, submissions, AI sessions, AI action logs, files, and certificates. PostgreSQL/TimescaleDB handles high-frequency events; Redis backs caching and background jobs; WebSocket channels carry live activity. Logs, timelines, typed/pasted statistics, AI-use statistics, and replay data are derived from these records.
+The backend stores snapshots, event streams, enrollments, submissions, AI sessions, AI action logs, files, and certificates. PostgreSQL/TimescaleDB handles high-frequency events; Redis backs caching and background jobs; WebSocket channels carry live activity. These records produce logs, timelines, typed/pasted statistics, AI-use statistics, and replay data.
 
 \paragraph{Certificate and Verification.}
 When generating a certificate or submitting a task, Humanly flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate binds the final text to event counts, typed/pasted and editing metrics, AI-use metrics, a verification token, and a signed payload. Readers inspect a PDF or JSON certificate plus permitted replay/logs.
@@ -191,7 +191,7 @@ When generating a certificate or submitting a task, Humanly flushes pending edit
 \section{Workflows and Use Cases}
 \label{sec:workflows}
 
-Across workflows, policy precedes writing and evidence follows it. Workflows differ in who sets the policy and who reads the record.
+Across workflows, policy precedes writing and evidence follows it. The main differences are who sets the policy and who reads the record.
 
 \subsection{Peer Review}
 
@@ -212,7 +212,7 @@ Final-text detectors and process/replay tools differ in what they observe: only 
 
 \subsection{Final-Text Detectors}
 
-Final-text detectors such as GPTZero, Pangram, Originality.AI, and Copyleaks score the submitted text after writing ends \citep{gptzero2026detector,pangram2026detector,originality2026detector,copyleaks2026detector}. These scores help when a task bans generation and the output is mostly machine-written. Without write-time evidence, they cannot separate allowed AI assistance from policy-violating AI use.
+Final-text detectors such as GPTZero, Pangram, Originality.AI, and Copyleaks score submitted text after writing ends \citep{gptzero2026detector,pangram2026detector,originality2026detector,copyleaks2026detector}. These scores help when a task bans generation and the output is mostly machine-written. Without write-time evidence, they cannot separate allowed AI assistance from policy-violating AI use.
 
 Final text collapses different histories. A human draft polished by AI, a human draft translated by AI, and an AI answer paraphrased by a humanizer may all yield fluent prose. Human prose may also be formal, template-like, or non-native in ways that resemble model output \citep{liang2023gpt}. The policy question is whether the process matched the allowed assistance, not whether the text looks machine-written.
 
