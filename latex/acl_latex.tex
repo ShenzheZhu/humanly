@@ -177,10 +177,10 @@ During drafting, the capture layer records text changes, clipboard actions, sele
 \vspace{0.5em}
 
 \paragraph{Evidence Store.}
-The backend stores snapshots, event streams, enrollments, submissions, files, AI sessions, AI actions, and certificates. PostgreSQL/TimescaleDB handles high-frequency events; Redis backs jobs and caching; WebSocket channels carry live updates. These records drive logs, timelines, typed/pasted statistics, AI-use statistics, and replay data.
+The backend persists snapshots, event streams, enrollments, submissions, files, AI sessions, AI actions, and certificates. TimescaleDB stores high-frequency events; Redis handles jobs and caching; WebSocket channels stream live state. These records feed logs, timelines, typed/pasted statistics, AI-use statistics, and replay.
 
 \paragraph{Certificate and Verification.}
-Certificate generation first flushes pending editor events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate binds final text to event counts, typed/pasted and editing metrics, AI-use metrics, a verification token, and a signed payload. Readers inspect the PDF or JSON certificate and any permitted replay/logs.
+Before certificate generation, the editor flushes pending events and saves the latest snapshot (Figure~\ref{fig:certificate-surface}). The certificate binds final text to event counts, typed/pasted and editing metrics, AI-use metrics, a verification token, and a signed payload. Readers inspect the PDF or JSON certificate and any permitted replay/logs.
 
 \noindent\begin{minipage}{\columnwidth}
 \centering
