@@ -247,11 +247,11 @@ PaperTrail \citep{papertrail2026inspect} & \nofeature & \nofeature & \nofeature 
 \label{tab:feature-comparison}
 \end{table*}
 
-No baseline covers the full record. Turnitin Clarity pairs assignments with playback and AI-assistance visibility. Grammarly Authorship labels typed, pasted, AI-generated, and AI-rephrased text. WritingTrace and PaperTrail Inspect focus on writing history. Humanly binds policy, enforcement, replay, and certificates in one write-time record.
+No baseline covers this combination. Turnitin Clarity pairs assignments with playback and AI-assistance visibility. Grammarly Authorship labels typed, pasted, AI-generated, and AI-rephrased text. WritingTrace and PaperTrail Inspect focus on writing history. Humanly binds policy, enforcement, replay, and certificates in one write-time record.
 
 \subsection{Synthesis}
 
-Final-text detectors answer what the text resembles. Process and replay tools answer what happened inside a host document. Humanly records the policy and process needed to judge compliance.
+Final-text detectors answer what the text resembles. Process and replay tools answer what happened inside a host document. Humanly records the missing premise: what policy applied and what actions occurred.
 
 \section{Evaluation}
 \label{sec:evaluation}
@@ -289,10 +289,10 @@ Table~\ref{tab:detector-results} separates document-class and policy errors. Opu
 \subsection{Human Study}
 \label{sec:study}
 
-We separate production from interpretation in the human study. Writers draft under configured AI policies; readers judge selected drafts from evidence packages. The study measures usability, policy clarity, evidence interpretation, and fairness across peer review, classroom writing, online survey responses, and social-media-style posts. Peer review is primary because it combines writing quality, document understanding, confidentiality, and explicit AI policy.
+We separate production from interpretation in the human study. Writers draft under configured AI policies; readers judge selected drafts from evidence packages. The study tests whether writers can complete policy-bound tasks and whether readers can interpret certificates and replay. Peer review is primary because it combines writing quality, document understanding, confidentiality, and explicit AI policy.
 
 \paragraph{Writer-Side Task.}
-Participants write short documents in Humanly under \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full} policies. Measures include usability, friction, policy clarity, comfort with recording, reuse intent, and event-derived writing statistics.
+Writers complete short Humanly tasks under \textsc{off}, \textsc{polish}, \textsc{chat}, and \textsc{full} policies. Measures include usability, friction, policy clarity, comfort with recording, reuse intent, and event-derived writing statistics.
 
 \paragraph{Reader-Side Task.}
 Readers inspect three information conditions: final text only, final text plus detector score, and final text plus Humanly certificate/replay. Measures include process-label accuracy, confidence, time-to-judgment, perceived fairness, and reported evidence use.
@@ -313,7 +313,7 @@ These cases define the trace taxonomy behind certificates and replay. Categories
 \label{sec:limitations}
 
 \paragraph{Process Evidence Is Not Proof.}
-Humanly issues process evidence, not an authorship verdict. Certificates support interpretation; they do not decide authorship.
+Certificates are evidence, not authorship verdicts. They support interpretation; they do not decide authorship.
 
 \paragraph{Adversarial Behavior.}
 Humanly blocks or logs some policy-governed actions, such as paste, but it cannot prevent every external-AI workflow. A determined user may transcribe external AI output, use voice input, mimic revisions, or route text through another device. The record captures in-platform activity; it cannot rule out every covert channel.
@@ -322,7 +322,7 @@ Humanly blocks or logs some policy-governed actions, such as paste, but it canno
 Process recording is sensitive because it captures typing behavior, paste activity, focus changes, and AI interactions. Deployments require writer-facing transparency, context limits, and clear access rules for logs, certificates, and replays.
 
 \paragraph{Study Ethics.}
-Study prompts are non-sensitive, process recording is disclosed, and personally identifying information is limited to participant payment. Any mild deception, such as withholding details about paste behavior, requires justification and debriefing.
+Study prompts avoid sensitive topics, process recording is disclosed, and personally identifying information is limited to participant payment. Any mild deception, such as withholding details about paste behavior, requires justification and debriefing.
 % TODO: Finalize ethics text once the actual study protocol is locked.
 
 \section{Conclusion}
