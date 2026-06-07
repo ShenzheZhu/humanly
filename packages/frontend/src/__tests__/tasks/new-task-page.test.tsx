@@ -95,6 +95,23 @@ const createAdminEnvironmentJson = (overrides: Record<string, unknown> = {}) => 
   ...overrides,
 });
 
+const openCustomEnvironmentDialog = async () => {
+  await act(async () => {
+    fireEvent.click(screen.getByRole('option', { name: 'Custom' }));
+  });
+  return screen.getByRole('dialog', { name: /custom environment/i });
+};
+
+const closeCustomEnvironmentDialog = async () => {
+  const dialog = screen.getByRole('dialog', { name: /custom environment/i });
+  await act(async () => {
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Done' }));
+  });
+  await waitFor(() => {
+    expect(screen.queryByRole('dialog', { name: /custom environment/i })).not.toBeInTheDocument();
+  });
+};
+
 describe('admin new task page', () => {
   beforeEach(() => {
     jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
@@ -201,6 +218,32 @@ describe('admin new task page', () => {
     });
   });
 
+  it('opens custom environment settings in a modal and reopens them from the summary', async () => {
+    render(<NewTaskPage />);
+
+    expect(await screen.findByRole('heading', { name: 'New Task' })).toBeInTheDocument();
+
+    const dialog = await openCustomEnvironmentDialog();
+    expect(within(dialog).getByText('Control whether enrolled users can use assistant support.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Set paste behavior and final submission length rules.')).toBeInTheDocument();
+    expect(screen.getByText('Configure AI, copy-paste, task window, and session timer in a separate dialog.')).toBeInTheDocument();
+
+    await closeCustomEnvironmentDialog();
+
+    expect(screen.queryByRole('dialog', { name: /custom environment/i })).not.toBeInTheDocument();
+    expect(screen.getByText('Custom Environment')).toBeInTheDocument();
+    expect(screen.getByText('Off')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/AI Usage Limit/i)).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Edit Settings/i }));
+    });
+
+    const reopenedDialog = screen.getByRole('dialog', { name: /custom environment/i });
+    expect(within(reopenedDialog).getByText('Control whether enrolled users can use assistant support.')).toBeInTheDocument();
+    expect(within(reopenedDialog).getByRole('option', { name: 'Full' })).toBeInTheDocument();
+  });
+
   it('edits custom task availability in a dialog before creating the task', async () => {
     render(<NewTaskPage />);
 
@@ -211,9 +254,7 @@ describe('admin new task page', () => {
         target: { value: 'Custom Window Task' },
       });
     });
-    await act(async () => {
-      fireEvent.click(screen.getByRole('option', { name: 'Custom' }));
-    });
+    await openCustomEnvironmentDialog();
 
     expect(screen.getByRole('button', { name: /Edit Time Window/i })).toBeInTheDocument();
 
@@ -231,8 +272,9 @@ describe('admin new task page', () => {
       fireEvent.change(endInput, { target: { value: '2026-06-15T17:45' } });
     });
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+      fireEvent.click(within(screen.getByRole('dialog', { name: /task time window/i })).getByRole('button', { name: 'Done' }));
     });
+    await closeCustomEnvironmentDialog();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /^Create Task$/i }));
     });
@@ -263,9 +305,7 @@ describe('admin new task page', () => {
         target: { value: 'Past Window Task' },
       });
     });
-    await act(async () => {
-      fireEvent.click(screen.getByRole('option', { name: 'Custom' }));
-    });
+    await openCustomEnvironmentDialog();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /Edit Time Window/i }));
     });
@@ -281,8 +321,9 @@ describe('admin new task page', () => {
       });
     });
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+      fireEvent.click(within(screen.getByRole('dialog', { name: /task time window/i })).getByRole('button', { name: 'Done' }));
     });
+    await closeCustomEnvironmentDialog();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /^Create Task$/i }));
     });
@@ -302,9 +343,7 @@ describe('admin new task page', () => {
         target: { value: 'Timed Writing Task' },
       });
     });
-    await act(async () => {
-      fireEvent.click(screen.getByRole('option', { name: 'Custom' }));
-    });
+    await openCustomEnvironmentDialog();
     await act(async () => {
       fireEvent.click(screen.getByRole('option', { name: 'Time limited' }));
     });
@@ -315,6 +354,7 @@ describe('admin new task page', () => {
     await act(async () => {
       fireEvent.change(timeLimitInput, { target: { value: '45' } });
     });
+    await closeCustomEnvironmentDialog();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /^Create Task$/i }));
     });
@@ -362,9 +402,7 @@ describe('admin new task page', () => {
         target: { value: 'AI Task' },
       });
     });
-    await act(async () => {
-      fireEvent.click(screen.getByRole('option', { name: 'Custom' }));
-    });
+    await openCustomEnvironmentDialog();
     await act(async () => {
       fireEvent.click(screen.getByRole('option', { name: 'Full' }));
     });
@@ -373,6 +411,7 @@ describe('admin new task page', () => {
         target: { value: 'sk-test' },
       });
     });
+    await closeCustomEnvironmentDialog();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /^Create Task$/i }));
     });
@@ -430,9 +469,7 @@ describe('admin new task page', () => {
         target: { value: 'Polish Task' },
       });
     });
-    await act(async () => {
-      fireEvent.click(screen.getByRole('option', { name: 'Custom' }));
-    });
+    await openCustomEnvironmentDialog();
     await act(async () => {
       fireEvent.click(screen.getByRole('option', { name: 'Only polish' }));
     });
@@ -444,6 +481,7 @@ describe('admin new task page', () => {
         target: { value: 'sk-polish-test' },
       });
     });
+    await closeCustomEnvironmentDialog();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /^Create Task$/i }));
     });
@@ -468,9 +506,7 @@ describe('admin new task page', () => {
     render(<NewTaskPage />);
 
     expect(await screen.findByRole('heading', { name: 'New Task' })).toBeInTheDocument();
-    await act(async () => {
-      fireEvent.click(screen.getByRole('option', { name: 'Custom' }));
-    });
+    await openCustomEnvironmentDialog();
     await act(async () => {
       fireEvent.click(screen.getByRole('option', { name: 'Only agent chat' }));
     });
@@ -512,9 +548,7 @@ describe('admin new task page', () => {
         target: { value: 'OpenAI Task' },
       });
     });
-    await act(async () => {
-      fireEvent.click(screen.getByRole('option', { name: 'Custom' }));
-    });
+    await openCustomEnvironmentDialog();
     await act(async () => {
       fireEvent.click(screen.getByRole('option', { name: 'Full' }));
     });
@@ -535,6 +569,7 @@ describe('admin new task page', () => {
     expect(screen.queryByRole('option', { name: 'Custom model' })).not.toBeInTheDocument();
     expect(screen.queryByRole('option', { name: 'Custom provider' })).not.toBeInTheDocument();
 
+    await closeCustomEnvironmentDialog();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /^Create Task$/i }));
     });
@@ -636,8 +671,14 @@ describe('admin new task page', () => {
       }));
     });
 
-    expect(screen.getByRole('option', { name: 'Full' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByLabelText(/AI Usage Limit/i)).toBeInTheDocument();
+    expect(screen.getByText('Custom Environment')).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Edit Settings/i }));
+    });
+    const dialog = screen.getByRole('dialog', { name: /custom environment/i });
+    expect(within(dialog).getByRole('option', { name: 'Full' })).toHaveAttribute('aria-selected', 'true');
+    expect(within(dialog).getByLabelText(/AI Usage Limit/i)).toBeInTheDocument();
+    await closeCustomEnvironmentDialog();
 
     await act(async () => {
       fireEvent.change(screen.getByLabelText(/Task Name/i), {
@@ -727,8 +768,12 @@ describe('admin new task page', () => {
       fireEvent.change(jsonInput, { target: { files: [environmentFile] } });
     });
 
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Edit Settings/i }));
+    });
+    const dialog = screen.getByRole('dialog', { name: /custom environment/i });
     await waitFor(() => {
-      expect(screen.getByRole('option', { name: 'Only agent chat' })).toHaveAttribute('aria-selected', 'true');
+      expect(within(dialog).getByRole('option', { name: 'Only agent chat' })).toHaveAttribute('aria-selected', 'true');
     });
   });
 

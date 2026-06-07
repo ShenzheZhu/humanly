@@ -54,10 +54,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import {
-  AdminEnvironmentSectionHeading as SectionHeading,
-  AdminEnvironmentSummary,
-} from '@/components/admin-environment-ui';
+import { AdminEnvironmentSectionHeading as SectionHeading } from '@/components/admin-environment-ui';
 import { api } from '@/lib/api-client';
 import { MODEL_WHITELIST, getWhitelist } from '@/lib/ai-models';
 import {
@@ -77,6 +74,7 @@ import {
   WRITING_AI_ACCESS_OPTIONS,
   WRITING_AI_MODELS,
   WRITING_ENVIRONMENT_PRESETS,
+  formatWritingAiAccess,
   isWritingAiChatEnabled,
   isWritingAiPolishEnabled,
   isTaskStartDateTooFarInPast,
@@ -301,6 +299,7 @@ export default function NewTaskPage() {
   const [isTestingAiConnection, setIsTestingAiConnection] = useState(false);
   const [aiConnectionResult, setAiConnectionResult] = useState<AiConnectionResult | null>(null);
   const [testedAiModels, setTestedAiModels] = useState<string[]>([]);
+  const [environmentDialogOpen, setEnvironmentDialogOpen] = useState(false);
   const [timeLimitEnabled, setTimeLimitEnabled] = useState(true);
   const [timeWindowDialogOpen, setTimeWindowDialogOpen] = useState(false);
   const [writingTimeLimitMinutesInput, setWritingTimeLimitMinutesInput] = useState('60');
@@ -335,6 +334,9 @@ export default function NewTaskPage() {
     }
 
     if (isLocalStartDateTooFarInPast(startDate)) {
+      if (environmentSelection === 'custom') {
+        setEnvironmentDialogOpen(true);
+      }
       setTimeWindowDialogOpen(true);
       form.setError('startDate', {
         type: 'validate',
@@ -472,10 +474,12 @@ export default function NewTaskPage() {
   const handleEnvironmentSelectionChange = (value: EnvironmentSelection) => {
     if (value === IMPORT_ENVIRONMENT_VALUE) {
       setEnvironmentSelection(value);
+      setEnvironmentDialogOpen(false);
       return;
     }
 
     applyEnvironmentPreset(value);
+    setEnvironmentDialogOpen(value === 'custom');
   };
 
   const handleEnvironmentImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -498,7 +502,7 @@ export default function NewTaskPage() {
       if (config.aiProvider?.baseUrl) {
         setAiBaseUrl(config.aiProvider.baseUrl);
       }
-      setEnvironmentSelection(IMPORT_ENVIRONMENT_VALUE);
+      setEnvironmentSelection('custom');
       setEnvironmentConfig(config);
       setAiAccessState(config.aiAccess);
       syncAiModelFromEnvironment(config);
@@ -506,6 +510,7 @@ export default function NewTaskPage() {
       setTestedAiModels([]);
       setWritingTimeLimitMinutesInput(getTimeLimitMinutesValue(config.time.timeLimitSeconds));
       form.setValue('aiUsageLimit', config.aiUsageLimit.maxRequests || 100);
+      setEnvironmentDialogOpen(false);
       toast({
         title: 'Environment imported',
         description: 'The JSON configuration was applied to this task.',
@@ -882,7 +887,457 @@ export default function NewTaskPage() {
     setInstructionFiles(files);
   };
 
-  const showDetailedEnvironmentControls = environmentSelection !== 'default_writing';
+  const isImportingEnvironment = environmentSelection === IMPORT_ENVIRONMENT_VALUE;
+  const showCustomEnvironmentSummary = environmentSelection === 'custom';
+  const customEnvironmentControls = (
+    <div className="grid gap-4 xl:grid-cols-2">
+      <div className="space-y-4 rounded-md border p-4 xl:col-span-2">
+        <SectionHeading
+          title="AI"
+          description="Control whether enrolled users can use assistant support."
+        />
+
+        <div className="grid gap-2">
+          <FormLabel>AI</FormLabel>
+          <Select value={aiAccess} onValueChange={(value) => setAiAccess(value as WritingAiAccess)}>
+            <SelectTrigger>
+              <SelectValue placeholder="AI access" />
+            </SelectTrigger>
+            <SelectContent>
+              {WRITING_AI_ACCESS_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {aiAccess !== 'off' && (
+          <div className="grid gap-4 rounded-md border bg-muted/30 p-3">
+            <div className="grid gap-2">
+              <FormLabel htmlFor="ai-api-key">AI API Key</FormLabel>
+              <Input
+                id="ai-api-key"
+                type="password"
+                value={aiApiKey}
+                disabled={isSubmitting}
+                onChange={(event) => {
+                  setAiApiKey(event.target.value);
+                  setAiConnectionResult(null);
+                  setTestedAiModels([]);
+                }}
+                placeholder={hasExistingAiKey ? `Current: ${maskedAiKey || 'saved key'}` : 'Enter API key'}
+              />
+              {hasExistingAiKey && !aiApiKey && (
+                <p className="text-xs text-muted-foreground">
+                  Leave empty to use the saved key.
+                </p>
+              )}
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleTestAiConnection}
+              disabled={isSubmitting || isTestingAiConnection || (!aiApiKey.trim() && !hasExistingAiKey)}
+            >
+              {isTestingAiConnection ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Testing...
+                </>
+              ) : (
+                'Test Connection'
+              )}
+            </Button>
+
+            {aiConnectionResult && (
+              <div className="flex items-start gap-2 text-xs">
+                {aiConnectionResult.success ? (
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                ) : (
+                  <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                )}
+                <p className={aiConnectionResult.success ? 'text-emerald-700' : 'text-destructive'}>
+                  {aiConnectionResult.message}
+                </p>
+              </div>
+            )}
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <FormLabel>Model</FormLabel>
+                <Select
+                  value={aiModel}
+                  onValueChange={(value) => {
+                    setAiModel(value);
+                    setEnvironmentAiModel(value);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {aiModelOptions.map((model) => (
+                      <SelectItem key={model} value={model}>
+                        {model}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <FormLabel>Provider</FormLabel>
+                <Select
+                  value={selectedAiProvider}
+                  onValueChange={(value) => {
+                    setAiBaseUrl(value);
+                    const nextModel = getWhitelist(value)?.[0] || '';
+                    setAiModel(nextModel);
+                    setEnvironmentAiModel(nextModel);
+                    setAiConnectionResult(null);
+                    setTestedAiModels([]);
+                  }}
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger aria-label="AI provider">
+                    <SelectValue placeholder="Select provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AI_PROVIDER_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <FormLabel htmlFor="ai-shortcut-max-tokens">Shortcut Tokens</FormLabel>
+                <Input
+                  id="ai-shortcut-max-tokens"
+                  type="number"
+                  min={AI_MAX_TOKENS_MIN}
+                  max={AI_MAX_TOKENS_MAX}
+                  value={shortcutTokensEnabled ? environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT : ''}
+                  placeholder={shortcutTokensEnabled ? undefined : 'Not available in this mode'}
+                  disabled={isSubmitting || !shortcutTokensEnabled}
+                  onChange={(event) => setAiTokenBudget({
+                    shortcutMaxTokens: Number(event.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+                  })}
+                />
+                <FormDescription>
+                  {shortcutTokensEnabled
+                    ? 'Shortcut actions and fallback answers.'
+                    : 'Not available when AI access is chat only.'}
+                </FormDescription>
+              </div>
+
+              <div className="grid gap-2">
+                <FormLabel htmlFor="ai-chat-max-tokens">Chat Tokens</FormLabel>
+                <Input
+                  id="ai-chat-max-tokens"
+                  type="number"
+                  min={AI_MAX_TOKENS_MIN}
+                  max={AI_MAX_TOKENS_MAX}
+                  value={chatTokensEnabled ? environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT : ''}
+                  placeholder={chatTokensEnabled ? undefined : 'Not available in this mode'}
+                  disabled={isSubmitting || !chatTokensEnabled}
+                  onChange={(event) => setAiTokenBudget({
+                    chatMaxTokens: Number(event.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT,
+                  })}
+                />
+                <FormDescription>
+                  {chatTokensEnabled
+                    ? 'Chat and retrieval tool turns, per model call.'
+                    : 'Not available when AI access is polish only.'}
+                </FormDescription>
+              </div>
+            </div>
+
+            <FormField
+              control={form.control}
+              name="aiUsageLimit"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    AI Usage Limit <span className="text-destructive">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={1}
+                      placeholder="100"
+                      {...field}
+                      disabled={isSubmitting}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Maximum AI requests allowed per enrolled user for this task.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-4 rounded-md border p-4">
+        <SectionHeading
+          title="Writing Control"
+          description="Set paste behavior and final submission length rules."
+        />
+
+        <div className="grid gap-2">
+          <FormLabel>Copy & Paste</FormLabel>
+          <Select
+            value={normalizeCopyPastePolicy(environmentConfig.copyPastePolicy)}
+            onValueChange={(value) => updateEnvironment({
+              copyPastePolicy: normalizeCopyPastePolicy(value),
+            })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Copy-paste policy" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="allowed">Allowed</SelectItem>
+              <SelectItem value="blocked">Blocked</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-2">
+            <FormLabel htmlFor="minimum-characters">Minimum Submission Characters</FormLabel>
+            <Input
+              id="minimum-characters"
+              type="number"
+              min={1}
+              max={SUBMISSION_MIN_CHARACTERS_MAX}
+              value={environmentConfig.submission.minCharacters ?? ''}
+              onChange={(event) => setSubmissionMinimumCharacters(event.target.value)}
+              placeholder="No minimum"
+              disabled={isSubmitting}
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <FormLabel htmlFor="maximum-characters">Maximum Submission Characters</FormLabel>
+            <Input
+              id="maximum-characters"
+              type="number"
+              min={1}
+              max={SUBMISSION_MAX_CHARACTERS_MAX}
+              value={environmentConfig.submission.maxCharacters ?? ''}
+              onChange={(event) => setSubmissionMaximumCharacters(event.target.value)}
+              placeholder="No maximum"
+              disabled={isSubmitting}
+            />
+          </div>
+
+          <FormDescription className="sm:col-span-2">
+            These limits apply to the final submitted document, not copy-paste length.
+          </FormDescription>
+        </div>
+      </div>
+
+      <div className="space-y-4 rounded-md border p-4">
+        <SectionHeading
+          title="Time"
+          description="Set the task availability window shown to enrolled users."
+        />
+
+        <div className="grid gap-2">
+          <FormLabel>Time</FormLabel>
+          <Select
+            value={timeLimitEnabled ? 'on' : 'off'}
+            onValueChange={(value) => setTimeLimitEnabled(value === 'on')}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Time policy" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="off">Off</SelectItem>
+              <SelectItem value="on">On</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {timeLimitEnabled && (
+          <div className="rounded-md border bg-muted/30 p-3">
+            <div className="flex items-start gap-3">
+              <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+              <div className="min-w-0 flex-1 space-y-3">
+                <div className="grid gap-2 text-sm">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Start
+                    </p>
+                    <p className="mt-0.5 font-medium">
+                      {formatTaskWindowDate(watchedStartDate)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      End
+                    </p>
+                    <p className="mt-0.5 font-medium">
+                      {formatTaskWindowDate(watchedEndDate)}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Admin local time: {localTimeZoneLabel}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => setTimeWindowDialogOpen(true)}
+                  disabled={isSubmitting}
+                >
+                  Edit Time Window
+                </Button>
+              </div>
+            </div>
+            <Dialog open={timeWindowDialogOpen} onOpenChange={setTimeWindowDialogOpen}>
+              <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Task Time Window</DialogTitle>
+                  <DialogDescription>
+                    Set when enrolled users can access and submit this task.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="startDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          Task Start Date <span className="text-destructive">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type="datetime-local"
+                            {...field}
+                            disabled={isSubmitting}
+                            onChange={(event) => {
+                              setTimeWindowTouched(true);
+                              field.onChange(event);
+                            }}
+                            onBlur={(event) => {
+                              field.onBlur();
+                              validateStartDateWithinCreateWindow(event.target.value);
+                            }}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Shown in your local timezone: {localTimeZoneLabel}.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="endDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          Task End Date <span className="text-destructive">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type="datetime-local"
+                            {...field}
+                            disabled={isSubmitting}
+                            onChange={(event) => {
+                              setTimeWindowTouched(true);
+                              field.onChange(event);
+                            }}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Defaults to two weeks after the start time. Shown in your local timezone: {localTimeZoneLabel}.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <p className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground">
+                  Students see the same absolute window converted into their own local time.
+                  Your current timezone is {localTimeZoneLabel}.
+                </p>
+
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    onClick={() => setTimeWindowDialogOpen(false)}
+                    disabled={isSubmitting}
+                  >
+                    Done
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-4 rounded-md border p-4">
+        <SectionHeading
+          title="Writing Session Timer"
+          description="Set an optional countdown shown while enrolled users write."
+        />
+
+        <div className="grid gap-2">
+          <FormLabel>Timer</FormLabel>
+          <Select
+            value={environmentConfig.time.timeLimitSeconds ? 'time_limited' : 'unlimited'}
+            onValueChange={(value) => setWritingSessionTimerEnabled(value === 'time_limited')}
+          >
+            <SelectTrigger aria-label="Writing session timer">
+              <SelectValue placeholder="Writing session timer" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="unlimited">No time limit</SelectItem>
+              <SelectItem value="time_limited">Time limited</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {environmentConfig.time.timeLimitSeconds && (
+          <div className="grid gap-2">
+            <FormLabel htmlFor="writing-time-limit-minutes">Time Limit (minutes)</FormLabel>
+            <Input
+              id="writing-time-limit-minutes"
+              type="number"
+              min={1}
+              value={writingTimeLimitMinutesInput}
+              disabled={isSubmitting}
+              onChange={(event) => setWritingSessionTimerMinutes(event.target.value)}
+              onBlur={commitWritingSessionTimerMinutes}
+            />
+            <FormDescription>
+              The editor shows a countdown and blocks submission when the timer reaches zero.
+            </FormDescription>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="mx-auto w-full max-w-6xl py-2">
@@ -1062,10 +1517,10 @@ export default function NewTaskPage() {
                   </div>
                 )}
 
-                {!showDetailedEnvironmentControls ? (
-                  <div className="rounded-md border bg-muted/30 p-4">
+                {!showCustomEnvironmentSummary && !isImportingEnvironment && (
+                  <div className="rounded-lg border border-border/70 bg-muted/35 p-3">
                     <div className="flex items-start gap-3">
-                      <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                      <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#6f8a78]" />
                       <div>
                         <p className="font-medium">Default Environment</p>
                         <p className="text-sm text-muted-foreground">
@@ -1074,465 +1529,73 @@ export default function NewTaskPage() {
                       </div>
                     </div>
 
-                    <AdminEnvironmentSummary
-                      className="mt-4 xl:grid-cols-3"
-                      items={[
-                        { label: 'AI', value: 'Off' },
-                        { label: 'Writing', value: 'Copy & paste allowed' },
-                        { label: 'Time', value: 'Two-week window' },
-                      ]}
-                    />
+                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-lg border border-border/60 bg-background p-2.5">
+                        <p className="humanly-eyebrow">AI</p>
+                        <p className="mt-1 text-sm font-medium">Off</p>
+                      </div>
+                      <div className="rounded-lg border border-border/60 bg-background p-2.5">
+                        <p className="humanly-eyebrow">Writing</p>
+                        <p className="mt-1 text-sm font-medium">Copy & paste allowed</p>
+                      </div>
+                      <div className="rounded-lg border border-border/60 bg-background p-2.5">
+                        <p className="humanly-eyebrow">Time</p>
+                        <p className="mt-1 text-sm font-medium">Two-week window</p>
+                      </div>
+                    </div>
 
-                    <p className="mt-4 text-sm text-muted-foreground">
+                    <p className="mt-3 text-sm text-muted-foreground">
                       Choose Custom to configure AI access, copy-paste rules, or task timing.
                     </p>
                   </div>
-                ) : (
-                  <div className="grid gap-4 xl:grid-cols-2">
-                    <div className="space-y-4 rounded-md border p-4 xl:col-span-2">
-                      <SectionHeading
-                        title="AI"
-                        description="Control whether enrolled users can use assistant support."
-                      />
+                )}
 
-                      <div className="grid gap-2">
-                        <FormLabel>AI</FormLabel>
-                        <Select value={aiAccess} onValueChange={(value) => setAiAccess(value as WritingAiAccess)}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="AI access" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {WRITING_AI_ACCESS_OPTIONS.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {aiAccess !== 'off' && (
-                        <div className="grid gap-4 rounded-md border bg-muted/30 p-3">
-                          <div className="grid gap-2">
-                            <FormLabel htmlFor="ai-api-key">AI API Key</FormLabel>
-                            <Input
-                              id="ai-api-key"
-                              type="password"
-                              value={aiApiKey}
-                              disabled={isSubmitting}
-                              onChange={(event) => {
-                                setAiApiKey(event.target.value);
-                                setAiConnectionResult(null);
-                                setTestedAiModels([]);
-                              }}
-                              placeholder={hasExistingAiKey ? `Current: ${maskedAiKey || 'saved key'}` : 'Enter API key'}
-                            />
-                            {hasExistingAiKey && !aiApiKey && (
-                              <p className="text-xs text-muted-foreground">
-                                Leave empty to use the saved key.
-                              </p>
-                            )}
+                {showCustomEnvironmentSummary && (
+                  <div className="rounded-lg border border-border/70 bg-muted/35 p-3">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 flex-1 space-y-4">
+                        <div className="flex items-start gap-3">
+                          <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#6f8a78]" />
+                          <div>
+                            <p className="font-medium">Custom Environment</p>
+                            <p className="text-sm text-muted-foreground">
+                              Configure AI, copy-paste, task window, and session timer in a separate dialog.
+                            </p>
                           </div>
+                        </div>
 
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleTestAiConnection}
-                            disabled={isSubmitting || isTestingAiConnection || (!aiApiKey.trim() && !hasExistingAiKey)}
-                          >
-                            {isTestingAiConnection ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Testing...
-                              </>
-                            ) : (
-                              'Test Connection'
-                            )}
-                          </Button>
-
-                          {aiConnectionResult && (
-                            <div className="flex items-start gap-2 text-xs">
-                              {aiConnectionResult.success ? (
-                                <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                              ) : (
-                                <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                              )}
-                              <p className={aiConnectionResult.success ? 'text-emerald-700' : 'text-destructive'}>
-                                {aiConnectionResult.message}
-                              </p>
-                            </div>
-                          )}
-
-                          <div className="grid gap-4 sm:grid-cols-2">
-                            <div className="grid gap-2">
-                              <FormLabel>Model</FormLabel>
-                              <Select
-                                value={aiModel}
-                                onValueChange={(value) => {
-                                  setAiModel(value);
-                                  setEnvironmentAiModel(value);
-                                }}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select model" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {aiModelOptions.map((model) => (
-                                    <SelectItem key={model} value={model}>
-                                      {model}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            <div className="grid gap-2">
-                              <FormLabel>Provider</FormLabel>
-                              <Select
-                                value={selectedAiProvider}
-                                onValueChange={(value) => {
-                                  setAiBaseUrl(value);
-                                  const nextModel = getWhitelist(value)?.[0] || '';
-                                  setAiModel(nextModel);
-                                  setEnvironmentAiModel(nextModel);
-                                  setAiConnectionResult(null);
-                                  setTestedAiModels([]);
-                                }}
-                                disabled={isSubmitting}
-                              >
-                                <SelectTrigger aria-label="AI provider">
-                                  <SelectValue placeholder="Select provider" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {AI_PROVIDER_OPTIONS.map((option) => (
-                                    <SelectItem key={option.value} value={option.value}>
-                                      {option.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
+                        <div className="grid gap-3 sm:grid-cols-3">
+                          <div className="rounded-lg border border-border/60 bg-background p-2.5">
+                            <p className="humanly-eyebrow">AI</p>
+                            <p className="mt-1 text-sm font-medium">
+                              {formatWritingAiAccess(aiAccess)}
+                            </p>
                           </div>
-
-                          <div className="grid gap-4 sm:grid-cols-2">
-                            <div className="grid gap-2">
-                              <FormLabel htmlFor="ai-shortcut-max-tokens">Shortcut Tokens</FormLabel>
-                              <Input
-                                id="ai-shortcut-max-tokens"
-                                type="number"
-                                min={AI_MAX_TOKENS_MIN}
-                                max={AI_MAX_TOKENS_MAX}
-                                value={shortcutTokensEnabled ? environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT : ''}
-                                placeholder={shortcutTokensEnabled ? undefined : 'Not available in this mode'}
-                                disabled={isSubmitting || !shortcutTokensEnabled}
-                                onChange={(event) => setAiTokenBudget({
-                                  shortcutMaxTokens: Number(event.target.value) || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
-                                })}
-                              />
-                              <FormDescription>
-                                {shortcutTokensEnabled
-                                  ? 'Shortcut actions and fallback answers.'
-                                  : 'Not available when AI access is chat only.'}
-                              </FormDescription>
-                            </div>
-
-                            <div className="grid gap-2">
-                              <FormLabel htmlFor="ai-chat-max-tokens">Chat Tokens</FormLabel>
-                              <Input
-                                id="ai-chat-max-tokens"
-                                type="number"
-                                min={AI_MAX_TOKENS_MIN}
-                                max={AI_MAX_TOKENS_MAX}
-                                value={chatTokensEnabled ? environmentConfig.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT : ''}
-                                placeholder={chatTokensEnabled ? undefined : 'Not available in this mode'}
-                                disabled={isSubmitting || !chatTokensEnabled}
-                                onChange={(event) => setAiTokenBudget({
-                                  chatMaxTokens: Number(event.target.value) || AI_CHAT_MAX_TOKENS_DEFAULT,
-                                })}
-                              />
-                              <FormDescription>
-                                {chatTokensEnabled
-                                  ? 'Chat and retrieval tool turns, per model call.'
-                                  : 'Not available when AI access is polish only.'}
-                              </FormDescription>
-                            </div>
+                          <div className="rounded-lg border border-border/60 bg-background p-2.5">
+                            <p className="humanly-eyebrow">Writing</p>
+                            <p className="mt-1 text-sm font-medium">
+                              {normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) === 'blocked'
+                                ? 'Paste blocked'
+                                : 'Paste allowed'}
+                            </p>
                           </div>
-
-                          <FormField
-                            control={form.control}
-                            name="aiUsageLimit"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>
-                                  AI Usage Limit <span className="text-destructive">*</span>
-                                </FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="number"
-                                    min={1}
-                                    placeholder="100"
-                                    {...field}
-                                    disabled={isSubmitting}
-                                  />
-                                </FormControl>
-                                <FormDescription>
-                                  Maximum AI requests allowed per enrolled user for this task.
-                                </FormDescription>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-4 rounded-md border p-4">
-                      <SectionHeading
-                        title="Writing Control"
-                        description="Set paste behavior and final submission length rules."
-                      />
-
-                      <div className="grid gap-2">
-                        <FormLabel>Copy & Paste</FormLabel>
-                        <Select
-                          value={normalizeCopyPastePolicy(environmentConfig.copyPastePolicy)}
-                          onValueChange={(value) => updateEnvironment({
-                            copyPastePolicy: normalizeCopyPastePolicy(value),
-                          })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Copy-paste policy" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="allowed">Allowed</SelectItem>
-                            <SelectItem value="blocked">Blocked</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="grid gap-2">
-                          <FormLabel htmlFor="minimum-characters">Minimum Submission Characters</FormLabel>
-                          <Input
-                            id="minimum-characters"
-                            type="number"
-                            min={1}
-                            max={SUBMISSION_MIN_CHARACTERS_MAX}
-                            value={environmentConfig.submission.minCharacters ?? ''}
-                            onChange={(event) => setSubmissionMinimumCharacters(event.target.value)}
-                            placeholder="No minimum"
-                            disabled={isSubmitting}
-                          />
-                        </div>
-
-                        <div className="grid gap-2">
-                          <FormLabel htmlFor="maximum-characters">Maximum Submission Characters</FormLabel>
-                          <Input
-                            id="maximum-characters"
-                            type="number"
-                            min={1}
-                            max={SUBMISSION_MAX_CHARACTERS_MAX}
-                            value={environmentConfig.submission.maxCharacters ?? ''}
-                            onChange={(event) => setSubmissionMaximumCharacters(event.target.value)}
-                            placeholder="No maximum"
-                            disabled={isSubmitting}
-                          />
-                        </div>
-
-                        <FormDescription className="sm:col-span-2">
-                          These limits apply to the final submitted document, not copy-paste length.
-                        </FormDescription>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4 rounded-md border p-4">
-                      <SectionHeading
-                        title="Time"
-                        description="Set the task availability window shown to enrolled users."
-                      />
-
-                      <div className="grid gap-2">
-                        <FormLabel>Time</FormLabel>
-                        <Select
-                          value={timeLimitEnabled ? 'on' : 'off'}
-                          onValueChange={(value) => setTimeLimitEnabled(value === 'on')}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Time policy" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="off">Off</SelectItem>
-                            <SelectItem value="on">On</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {timeLimitEnabled && (
-                        <div className="rounded-md border bg-muted/30 p-3">
-                          <div className="flex items-start gap-3">
-                            <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                            <div className="min-w-0 flex-1 space-y-3">
-                              <div className="grid gap-2 text-sm">
-                                <div>
-                                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                    Start
-                                  </p>
-                                  <p className="mt-0.5 font-medium">
-                                    {formatTaskWindowDate(watchedStartDate)}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                    End
-                                  </p>
-                                  <p className="mt-0.5 font-medium">
-                                    {formatTaskWindowDate(watchedEndDate)}
-                                  </p>
-                                </div>
-                              </div>
-                              <p className="text-xs text-muted-foreground">
-                                Admin local time: {localTimeZoneLabel}
-                              </p>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="w-full"
-                                onClick={() => setTimeWindowDialogOpen(true)}
-                                disabled={isSubmitting}
-                              >
-                                Edit Time Window
-                              </Button>
-                            </div>
+                          <div className="rounded-lg border border-border/60 bg-background p-2.5">
+                            <p className="humanly-eyebrow">Time</p>
+                            <p className="mt-1 text-sm font-medium">
+                              {timeLimitEnabled ? 'Task window on' : 'No task window'}
+                            </p>
                           </div>
-                          <Dialog open={timeWindowDialogOpen} onOpenChange={setTimeWindowDialogOpen}>
-                            <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl">
-                              <DialogHeader>
-                                <DialogTitle>Task Time Window</DialogTitle>
-                                <DialogDescription>
-                                  Set when enrolled users can access and submit this task.
-                                </DialogDescription>
-                              </DialogHeader>
-
-                              <div className="grid gap-5 sm:grid-cols-2">
-                                <FormField
-                                  control={form.control}
-                                  name="startDate"
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormLabel>
-                                        Task Start Date <span className="text-destructive">*</span>
-                                      </FormLabel>
-                                      <FormControl>
-                                        <Input
-                                          type="datetime-local"
-                                          {...field}
-                                          disabled={isSubmitting}
-                                          onChange={(event) => {
-                                            setTimeWindowTouched(true);
-                                            field.onChange(event);
-                                          }}
-                                          onBlur={(event) => {
-                                            field.onBlur();
-                                            validateStartDateWithinCreateWindow(event.target.value);
-                                          }}
-                                        />
-                                      </FormControl>
-                                      <FormDescription>
-                                        Shown in your local timezone: {localTimeZoneLabel}.
-                                      </FormDescription>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-
-                                <FormField
-                                  control={form.control}
-                                  name="endDate"
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormLabel>
-                                        Task End Date <span className="text-destructive">*</span>
-                                      </FormLabel>
-                                      <FormControl>
-                                        <Input
-                                          type="datetime-local"
-                                          {...field}
-                                          disabled={isSubmitting}
-                                          onChange={(event) => {
-                                            setTimeWindowTouched(true);
-                                            field.onChange(event);
-                                          }}
-                                        />
-                                      </FormControl>
-                                      <FormDescription>
-                                        Defaults to two weeks after the start time. Shown in your local timezone: {localTimeZoneLabel}.
-                                      </FormDescription>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                              </div>
-
-                              <p className="rounded-md bg-muted/40 p-3 text-xs text-muted-foreground">
-                                Students see the same absolute window converted into their own local time.
-                                Your current timezone is {localTimeZoneLabel}.
-                              </p>
-
-                              <DialogFooter>
-                                <Button
-                                  type="button"
-                                  onClick={() => setTimeWindowDialogOpen(false)}
-                                  disabled={isSubmitting}
-                                >
-                                  Done
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
                         </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-4 rounded-md border p-4">
-                      <SectionHeading
-                        title="Writing Session Timer"
-                        description="Set an optional countdown shown while enrolled users write."
-                      />
-
-                      <div className="grid gap-2">
-                        <FormLabel>Timer</FormLabel>
-                        <Select
-                          value={environmentConfig.time.timeLimitSeconds ? 'time_limited' : 'unlimited'}
-                          onValueChange={(value) => setWritingSessionTimerEnabled(value === 'time_limited')}
-                        >
-                          <SelectTrigger aria-label="Writing session timer">
-                            <SelectValue placeholder="Writing session timer" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="unlimited">No time limit</SelectItem>
-                            <SelectItem value="time_limited">Time limited</SelectItem>
-                          </SelectContent>
-                        </Select>
                       </div>
 
-                      {environmentConfig.time.timeLimitSeconds && (
-                        <div className="grid gap-2">
-                          <FormLabel htmlFor="writing-time-limit-minutes">Time Limit (minutes)</FormLabel>
-                          <Input
-                            id="writing-time-limit-minutes"
-                            type="number"
-                            min={1}
-                            value={writingTimeLimitMinutesInput}
-                            disabled={isSubmitting}
-                            onChange={(event) => setWritingSessionTimerMinutes(event.target.value)}
-                            onBlur={commitWritingSessionTimerMinutes}
-                          />
-                          <FormDescription>
-                            The editor shows a countdown and blocks submission when the timer reaches zero.
-                          </FormDescription>
-                        </div>
-                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setEnvironmentDialogOpen(true)}
+                        disabled={isSubmitting}
+                      >
+                        Edit Settings
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -1556,6 +1619,29 @@ export default function NewTaskPage() {
               </Button>
             </CardFooter>
           </form>
+
+          <Dialog open={environmentDialogOpen} onOpenChange={setEnvironmentDialogOpen}>
+            <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-5xl overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Custom Environment</DialogTitle>
+                <DialogDescription>
+                  Configure AI access, task availability, writing session timing, and submission rules before creating this task.
+                </DialogDescription>
+              </DialogHeader>
+
+              {customEnvironmentControls}
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  onClick={() => setEnvironmentDialogOpen(false)}
+                  disabled={isSubmitting}
+                >
+                  Done
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </Form>
       </Card>
     </div>
