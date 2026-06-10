@@ -55,9 +55,10 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [useRealIntervals, setUseRealIntervals] = useState(false); // Default to uniform timing
-  const [speed, setSpeed] = useState(2); // Default 2x for uniform timing
+  const [uniformSpeed, setUniformSpeed] = useState(2); // Default 2x for uniform timing
   const [flashingActionType, setFlashingActionType] = useState<string | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const playbackSpeed = useRealIntervals ? 1 : uniformSpeed;
 
   // Fetch edit history
   useEffect(() => {
@@ -109,7 +110,7 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
       const currentTime = new Date(editHistory[localIdx].timestamp).getTime();
       const nextTime = new Date(editHistory[nextIdx].timestamp).getTime();
       const realDelay = nextTime - currentTime;
-      const adjustedDelay = Math.min(Math.max(realDelay / speed, 10), 5000);
+      const adjustedDelay = Math.min(Math.max(realDelay, 10), 5000);
 
       timeoutId = setTimeout(() => {
         localIdx = nextIdx;
@@ -124,7 +125,7 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
       if (timeoutId) clearTimeout(timeoutId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlaying, speed, editHistory, useRealIntervals]);
+  }, [isPlaying, editHistory, useRealIntervals]);
 
   // Auto-play logic with uniform intervals
   useEffect(() => {
@@ -133,7 +134,7 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
     }
 
     const baseDelay = 100;
-    const delay = baseDelay / speed;
+    const delay = baseDelay / uniformSpeed;
 
     const intervalId = setInterval(() => {
       setCurrentIndex((prev) => {
@@ -146,7 +147,7 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
     }, delay);
 
     return () => clearInterval(intervalId);
-  }, [isPlaying, speed, editHistory.length, useRealIntervals]);
+  }, [isPlaying, uniformSpeed, editHistory.length, useRealIntervals]);
 
   const handlePlayPause = useCallback(() => {
     if (currentIndex >= editHistory.length - 1) {
@@ -169,11 +170,15 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
   }, []);
 
   const handleSpeedChange = useCallback(() => {
+    if (useRealIntervals) {
+      return;
+    }
+
     const speeds = [0.5, 1, 2, 4, 8];
-    const currentSpeedIndex = speeds.indexOf(speed);
+    const currentSpeedIndex = speeds.indexOf(uniformSpeed);
     const nextSpeedIndex = (currentSpeedIndex + 1) % speeds.length;
-    setSpeed(speeds[nextSpeedIndex]);
-  }, [speed]);
+    setUniformSpeed(speeds[nextSpeedIndex]);
+  }, [uniformSpeed, useRealIntervals]);
 
   useEffect(() => {
     const actionType = editHistory[currentIndex]?.metadata?.actionType;
@@ -188,12 +193,12 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
 
     setFlashingActionType(actionType);
 
-    const flashDurationMs = 1000 / speed;
+    const flashDurationMs = 1000 / playbackSpeed;
     timeoutRef.current = setTimeout(() => {
       setFlashingActionType(null);
       timeoutRef.current = null;
     }, flashDurationMs);
-  }, [currentIndex, editHistory, speed]);
+  }, [currentIndex, editHistory, playbackSpeed]);
 
   useEffect(() => {
     return () => {
@@ -436,10 +441,13 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
               e.preventDefault();
               handleSpeedChange();
             }}
+            disabled={useRealIntervals}
+            aria-label={useRealIntervals ? 'Real timing playback speed 1x' : `Uniform timing playback speed ${uniformSpeed}x`}
+            title={useRealIntervals ? 'Real timing uses recorded intervals at 1x' : 'Change uniform playback speed'}
             className="h-10 px-3 text-sm flex-shrink-0"
             style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
           >
-            {speed}x
+            {useRealIntervals ? '1x' : `${uniformSpeed}x`}
           </Button>
 
           <div className="flex-1 flex items-center gap-2 sm:gap-3 min-w-0">
@@ -480,8 +488,6 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
                 onCheckedChange={(checked) => {
                   setUseRealIntervals(checked);
                   setIsPlaying(false);
-                  // Adjust speed when switching modes
-                  setSpeed(checked ? 8 : 2);
                 }}
                 className="scale-75 sm:scale-100"
               />
