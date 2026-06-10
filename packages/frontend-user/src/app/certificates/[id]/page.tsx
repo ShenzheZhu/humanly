@@ -374,7 +374,7 @@ export default function CertificateDetailPage() {
 
         <div className="flex flex-wrap gap-2">
           <Button
-            onClick={() => router.push(`/logs/${certificate.documentId}`)}
+            onClick={() => router.push(`/logs/${certificate.documentId}?returnTo=certificate&certificateId=${certificate.id}`)}
             variant="outline"
             size="sm"
             className="min-w-0"

@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
   ArrowLeft,
   ChevronDown,
@@ -871,7 +871,13 @@ function RawEventTableRow({ event }: { event: DocumentEventTimelineRawEvent }) {
 export default function DocumentLogsPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const documentId = params.id as string;
+  const returnTo = searchParams.get('returnTo');
+  const certificateId = searchParams.get('certificateId');
+  const backHref = returnTo === 'certificate' && certificateId
+    ? `/certificates/${certificateId}`
+    : `/documents/${documentId}`;
   const { checkAuth } = useAuthStore();
   usePublicDocumentToken(documentId);
 
@@ -1060,7 +1066,7 @@ export default function DocumentLogsPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="border-b px-4 py-3 flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => router.push(`/documents/${documentId}`)}>
+        <Button variant="ghost" size="sm" onClick={() => router.push(backHref)}>
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back
         </Button>

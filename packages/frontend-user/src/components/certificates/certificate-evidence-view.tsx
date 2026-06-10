@@ -103,9 +103,6 @@ export function CertificateEvidenceView({
                 </div>
               </div>
             </div>
-            <p className="max-w-full text-sm text-muted-foreground lg:ml-6 lg:shrink-0 lg:whitespace-nowrap lg:text-right">
-              A certificate of typing activity, pasted text, replay, and AI assistance.
-            </p>
           </div>
 
           <Separator />
