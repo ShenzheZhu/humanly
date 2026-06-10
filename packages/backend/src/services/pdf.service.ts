@@ -3,6 +3,7 @@ import QRCode from 'qrcode';
 import { Certificate } from '@humanly/shared';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
+import { CertificateSealService } from './certificate-seal.service';
 
 export class PDFService {
   /**
@@ -68,6 +69,7 @@ export class PDFService {
     const tokenPreview = certificate.verificationToken.length > 24
       ? `${certificate.verificationToken.slice(0, 12)}...${certificate.verificationToken.slice(-12)}`
       : certificate.verificationToken;
+    const sealFingerprint = CertificateSealService.fingerprint(certificate.signature);
 
     const totalAuthored = certificate.typedCharacters + certificate.pastedCharacters;
     const typedPercentage = totalAuthored > 0
@@ -351,6 +353,18 @@ export class PDFService {
         height: 9,
         lineBreak: false,
       });
+    if (sealFingerprint) {
+      doc
+        .font('Helvetica')
+        .fontSize(6.5)
+        .fillColor(muted)
+        .text(`Seal ${sealFingerprint}`, verificationX + 18, panelY + 153, {
+          width: rightPanelWidth - 36,
+          align: 'center',
+          height: 8,
+          lineBreak: false,
+        });
+    }
 
     drawFooter();
 

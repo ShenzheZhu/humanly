@@ -12,6 +12,16 @@ import { DocumentReplay } from '@/components/certificates/document-replay';
 
 interface VerificationResult {
   valid: boolean;
+  seal?: {
+    version: string;
+    algorithm: string;
+    keyId: string;
+    payloadHash: string;
+    signature: string;
+    signedFields: string[];
+  };
+  sealStatus?: 'valid' | 'invalid' | 'legacy_valid' | 'missing';
+  integrityMessage?: string;
   certificate?: {
     id: string;
     title: string;
@@ -55,12 +65,11 @@ export default function VerifyPage() {
           process.env.NEXT_PUBLIC_API_URL ||
           (process.env.NODE_ENV === 'production' ? '/api/v1' : 'http://localhost:3001/api/v1');
         const response = await fetch(apiUrl + '/certificates/verify/' + token);
+        const data = await response.json();
 
         if (!response.ok) {
-          throw new Error('Failed to verify certificate');
+          throw new Error(data.data?.message || 'Failed to verify certificate');
         }
-
-        const data = await response.json();
 
         // Check if certificate is protected
         if (data.data.valid && data.data.certificate?.isProtected) {
@@ -174,6 +183,14 @@ export default function VerifyPage() {
     : false;
 
   const bgClass = verification.valid ? 'bg-background' : 'bg-background';
+  const sealStatusLabel = verification.sealStatus === 'valid'
+    ? 'Seal verified'
+    : verification.sealStatus === 'legacy_valid'
+      ? 'Legacy signature'
+      : 'Seal unavailable';
+  const sealHashPreview = verification.seal?.payloadHash
+    ? `${verification.seal.payloadHash.slice(0, 12)}...${verification.seal.payloadHash.slice(-12)}`
+    : null;
 
   return (
     <div className={'min-h-screen flex items-center justify-center p-2 sm:p-4 ' + bgClass}>
@@ -209,6 +226,12 @@ export default function VerifyPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-2">
                       <CardTitle className="text-xl sm:text-2xl break-words">{verification.certificate.title}</CardTitle>
+                      <Badge
+                        variant="outline"
+                        className="border-[#c8d4c8] bg-[#eef3ed] px-2 py-0.5 text-xs text-[#58715f]"
+                      >
+                        {sealStatusLabel}
+                      </Badge>
                       {isFullyHumanCreated && (
                         <Badge
                           variant="outline"
@@ -370,13 +393,17 @@ export default function VerifyPage() {
               </CardHeader>
               <CardContent className="space-y-2 text-xs sm:text-sm">
                 <p>
-                  This certificate has been cryptographically verified and confirms the authorship details shown above.
-                  The certificate was generated using keystroke tracking technology that recorded every typing action during
-                  the creation of this document.
+                  This certificate was checked against the Humanly server-issued integrity seal for the protected certificate
+                  record, including the writing metrics, document identity, generated timestamp, and current display options.
                 </p>
+                {sealHashPreview && (
+                  <p className="font-mono text-[11px] text-muted-foreground sm:text-xs">
+                    Payload hash: {sealHashPreview}
+                  </p>
+                )}
                 <p className="text-muted-foreground">
-                  The verification ensures that this certificate has not been tampered with and accurately represents
-                  the original authorship data at the time of generation.
+                  The authorship statistics come from write-time tracking of typing, paste, and in-platform activity. The seal
+                  verifies the certificate record shown here; it does not make claims about off-platform behavior.
                 </p>
               </CardContent>
             </Card>

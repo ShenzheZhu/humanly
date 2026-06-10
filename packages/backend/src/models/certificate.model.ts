@@ -45,19 +45,28 @@ export class CertificateModel {
   static async create(data: CertificateInsertData): Promise<Certificate> {
     const sql = `
       INSERT INTO certificates (
-        submission_id, document_id, user_id, certificate_type, status,
+        id, submission_id, document_id, user_id, certificate_type, status,
         title, document_snapshot, plain_text_snapshot,
         total_events, typing_events, paste_events,
         total_characters, typed_characters, pasted_characters,
         editing_time_seconds, signature, verification_token,
         signer_name, include_full_text, include_edit_history,
-        access_code, access_code_hash, is_protected
+        access_code, access_code_hash, is_protected, generated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+      VALUES (
+        COALESCE($1::uuid, uuid_generate_v4()), $2, $3, $4, $5, $6,
+        $7, $8, $9,
+        $10, $11, $12,
+        $13, $14, $15,
+        $16, $17, $18,
+        $19, $20, $21,
+        $22, $23, $24, COALESCE($25::timestamp, NOW())
+      )
       RETURNING ${CERTIFICATE_SELECT_FIELDS}
     `;
 
     const certificate = await queryOne<Certificate>(sql, [
+      data.id || null,
       data.submissionId || null,
       data.documentId,
       data.userId,
@@ -81,6 +90,7 @@ export class CertificateModel {
       data.accessCode || null,
       data.accessCodeHash || null,
       data.isProtected || false,
+      data.generatedAt || null,
     ]);
 
     if (!certificate) {
@@ -255,6 +265,20 @@ export class CertificateModel {
     `;
 
     await query(sql, [jsonUrl, id]);
+  }
+
+  /**
+   * Update certificate integrity signature
+   */
+  static async updateSignature(id: string, signature: string): Promise<Certificate | null> {
+    const sql = `
+      UPDATE certificates
+      SET signature = $1
+      WHERE id = $2
+      RETURNING ${CERTIFICATE_SELECT_FIELDS}
+    `;
+
+    return queryOne<Certificate>(sql, [signature, id]);
   }
 
   /**
