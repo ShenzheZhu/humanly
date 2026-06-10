@@ -256,6 +256,9 @@ export async function verifyCertificate(req: Request, res: Response): Promise<vo
         },
         verifiedAt: verification.verifiedAt,
         message: verification.message,
+        seal: verification.seal,
+        sealStatus: verification.sealStatus,
+        integrityMessage: verification.integrityMessage,
       },
     });
   } else {
@@ -265,6 +268,9 @@ export async function verifyCertificate(req: Request, res: Response): Promise<vo
         valid: verification.valid,
         verifiedAt: verification.verifiedAt,
         message: verification.message,
+        seal: verification.seal,
+        sealStatus: verification.sealStatus,
+        integrityMessage: verification.integrityMessage,
       },
     });
   }

@@ -18,6 +18,11 @@ import {
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
+import {
+  CertificateSealInput,
+  CertificateSealVerification,
+  CertificateSealService,
+} from './certificate-seal.service';
 
 export class CertificateService {
   /**
@@ -58,6 +63,8 @@ export class CertificateService {
 
       // Generate verification token
       const verificationToken = this.generateVerificationToken();
+      const certificateId = crypto.randomUUID();
+      const generatedAt = new Date();
 
       // Hash access code if provided
       let accessCodeHash: string | undefined;
@@ -69,17 +76,34 @@ export class CertificateService {
         isProtected = true;
       }
 
-      // Generate JWT signature
+      // Generate a tamper-evident seal over the stable certificate payload.
       const signature = this.generateSignature({
+        id: certificateId,
+        submissionId: submissionId || null,
         documentId,
         userId,
+        certificateType,
         title: document.title,
-        metrics,
-        contentHash: this.hashContent(document.content),
+        documentSnapshot: document.content,
+        plainTextSnapshot: document.plainText,
+        totalEvents: metrics.totalEvents,
+        typingEvents: metrics.typingEvents,
+        pasteEvents: metrics.pasteEvents,
+        totalCharacters: document.characterCount,
+        typedCharacters: metrics.typedCharacters,
+        pastedCharacters: metrics.pastedCharacters,
+        editingTimeSeconds: Math.round(metrics.editingTimeSeconds),
+        verificationToken,
+        signerName: signerName || null,
+        includeFullText,
+        includeEditHistory,
+        isProtected,
+        generatedAt,
       });
 
       // Create certificate
       const certificate = await CertificateModel.create({
+        id: certificateId,
         submissionId: submissionId || null,
         documentId,
         userId,
@@ -102,6 +126,7 @@ export class CertificateService {
         accessCode: accessCodePlaintext,
         accessCodeHash,
         isProtected,
+        generatedAt,
       });
 
       logger.info('Certificate generated successfully', {
@@ -200,9 +225,10 @@ export class CertificateService {
 
     // Get AI authorship statistics
     const aiStats = await this.getAIAuthorshipStats(certificate.documentId);
+    const integrity = this.verifyCertificateIntegrity(certificate);
 
     const jsonCertificate: JSONCertificate = {
-      version: '1.0',
+      version: '1.1',
       certificateId: certificate.id,
       submissionId: certificate.submissionId || undefined,
       documentId: certificate.documentId,
@@ -229,6 +255,8 @@ export class CertificateService {
         token: certificate.verificationToken,
         verifyUrl: `${env.frontendUserUrl}/verify/${certificate.verificationToken}`,
         signature: certificate.signature,
+        seal: integrity.seal,
+        sealStatus: integrity.sealStatus,
       },
     };
 
@@ -307,24 +335,29 @@ export class CertificateService {
         };
       }
 
-      // Verify JWT signature
-      try {
-        jwt.verify(certificate.signature, env.jwtSecret);
+      const integrity = this.verifyCertificateIntegrity(certificate);
 
+      if (integrity.valid) {
         return {
           valid: true,
           certificate,
           verifiedAt: new Date(),
-          message: 'Certificate is valid and authentic',
-        };
-      } catch (error) {
-        return {
-          valid: false,
-          certificate,
-          verifiedAt: new Date(),
-          message: 'Certificate signature is invalid or has been tampered with',
+          message: integrity.message,
+          seal: integrity.seal,
+          sealStatus: integrity.sealStatus,
+          integrityMessage: integrity.message,
         };
       }
+
+      return {
+        valid: false,
+        certificate,
+        verifiedAt: new Date(),
+        message: integrity.message,
+        seal: integrity.seal,
+        sealStatus: integrity.sealStatus,
+        integrityMessage: integrity.message,
+      };
     } catch (error) {
       logger.error('Error verifying certificate', { error, verificationToken });
       throw error;
@@ -363,29 +396,72 @@ export class CertificateService {
   }
 
   /**
-   * Generate JWT signature for certificate
+   * Generate a versioned tamper-evident seal for the certificate payload.
    */
-  private static generateSignature(data: {
-    documentId: string;
-    userId: string;
-    title: string;
-    metrics: CertificateMetrics;
-    contentHash: string;
-  }): string {
-    const payload = {
-      documentId: data.documentId,
-      userId: data.userId,
-      title: data.title,
-      contentHash: data.contentHash,
-      typedCharacters: data.metrics.typedCharacters,
-      pastedCharacters: data.metrics.pastedCharacters,
-      totalEvents: data.metrics.totalEvents,
-      editingTimeSeconds: data.metrics.editingTimeSeconds,
-      issuedAt: Date.now(),
-    };
+  private static generateSignature(data: CertificateSealInput): string {
+    return CertificateSealService.createSeal(data, env.jwtSecret).signature;
+  }
 
-    // Sign with JWT (no expiration for certificates)
-    return jwt.sign(payload, env.jwtSecret, { algorithm: 'HS256' });
+  private static buildSealInput(certificate: Certificate): CertificateSealInput {
+    return {
+      id: certificate.id,
+      submissionId: certificate.submissionId || null,
+      documentId: certificate.documentId,
+      userId: certificate.userId,
+      certificateType: certificate.certificateType,
+      title: certificate.title,
+      documentSnapshot: certificate.documentSnapshot,
+      plainTextSnapshot: certificate.plainTextSnapshot,
+      totalEvents: certificate.totalEvents,
+      typingEvents: certificate.typingEvents,
+      pasteEvents: certificate.pasteEvents,
+      totalCharacters: certificate.totalCharacters,
+      typedCharacters: certificate.typedCharacters,
+      pastedCharacters: certificate.pastedCharacters,
+      editingTimeSeconds: certificate.editingTimeSeconds,
+      verificationToken: certificate.verificationToken,
+      signerName: certificate.signerName || null,
+      includeFullText: certificate.includeFullText,
+      includeEditHistory: certificate.includeEditHistory,
+      isProtected: certificate.isProtected,
+      generatedAt: certificate.generatedAt,
+    };
+  }
+
+  private static verifyCertificateIntegrity(certificate: Certificate): CertificateSealVerification {
+    if (CertificateSealService.isSealSignature(certificate.signature)) {
+      return CertificateSealService.verifySeal(
+        this.buildSealInput(certificate),
+        env.jwtSecret,
+        certificate.signature
+      );
+    }
+
+    try {
+      jwt.verify(certificate.signature, env.jwtSecret);
+      return {
+        valid: true,
+        sealStatus: 'legacy_valid' as const,
+        message: 'Certificate legacy signature is valid',
+      };
+    } catch {
+      return {
+        valid: false,
+        sealStatus: certificate.signature ? 'invalid' as const : 'missing' as const,
+        message: 'Certificate signature is invalid or has been tampered with',
+      };
+    }
+  }
+
+  private static async resealCertificate(certificate: Certificate): Promise<Certificate> {
+    const signature = this.generateSignature(this.buildSealInput(certificate));
+    const updated = await CertificateModel.updateSignature(certificate.id, signature);
+
+    if (!updated) {
+      throw new AppError(500, 'Failed to update certificate integrity seal');
+    }
+
+    return updated;
   }
 
   /**
@@ -394,14 +470,6 @@ export class CertificateService {
   private static generateVerificationToken(): string {
     // Generate a random 32-byte token and convert to hex
     return crypto.randomBytes(32).toString('hex');
-  }
-
-  /**
-   * Hash document content for integrity verification
-   */
-  private static hashContent(content: Record<string, any>): string {
-    const contentString = JSON.stringify(content);
-    return crypto.createHash('sha256').update(contentString).digest('hex');
   }
 
   /**
@@ -425,23 +493,29 @@ export class CertificateService {
 
       // Check if certificate is protected
       if (!certificate.isProtected) {
-        // Not protected, just verify signature
-        try {
-          jwt.verify(certificate.signature, env.jwtSecret);
+        const integrity = this.verifyCertificateIntegrity(certificate);
+
+        if (integrity.valid) {
           return {
             valid: true,
             certificate,
             verifiedAt: new Date(),
-            message: 'Certificate is valid and authentic',
-          };
-        } catch (error) {
-          return {
-            valid: false,
-            certificate,
-            verifiedAt: new Date(),
-            message: 'Certificate signature is invalid or has been tampered with',
+            message: integrity.message,
+            seal: integrity.seal,
+            sealStatus: integrity.sealStatus,
+            integrityMessage: integrity.message,
           };
         }
+
+        return {
+          valid: false,
+          certificate,
+          verifiedAt: new Date(),
+          message: integrity.message,
+          seal: integrity.seal,
+          sealStatus: integrity.sealStatus,
+          integrityMessage: integrity.message,
+        };
       }
 
       // Certificate is protected, verify access code
@@ -465,23 +539,29 @@ export class CertificateService {
         };
       }
 
-      // Access code is valid, verify signature
-      try {
-        jwt.verify(certificate.signature, env.jwtSecret);
+      const integrity = this.verifyCertificateIntegrity(certificate);
+
+      if (integrity.valid) {
         return {
           valid: true,
           certificate,
           verifiedAt: new Date(),
-          message: 'Certificate is valid and authentic',
-        };
-      } catch (error) {
-        return {
-          valid: false,
-          certificate,
-          verifiedAt: new Date(),
-          message: 'Certificate signature is invalid or has been tampered with',
+          message: integrity.message,
+          seal: integrity.seal,
+          sealStatus: integrity.sealStatus,
+          integrityMessage: integrity.message,
         };
       }
+
+      return {
+        valid: false,
+        certificate,
+        verifiedAt: new Date(),
+        message: integrity.message,
+        seal: integrity.seal,
+        sealStatus: integrity.sealStatus,
+        integrityMessage: integrity.message,
+      };
     } catch (error) {
       logger.error('Error verifying certificate with access code', { error, verificationToken });
       throw error;
@@ -527,13 +607,15 @@ export class CertificateService {
         throw new AppError(500, 'Failed to update access code');
       }
 
+      const resealed = await this.resealCertificate(updated);
+
       logger.info('Certificate access code updated', {
         certificateId,
         userId,
         isProtected,
       });
 
-      return updated;
+      return resealed;
     } catch (error) {
       if (error instanceof AppError) throw error;
       logger.error('Error updating certificate access code', { error, certificateId, userId });
@@ -569,14 +651,16 @@ export class CertificateService {
         throw new AppError(500, 'Failed to update display options');
       }
 
+      const resealed = await this.resealCertificate(updated);
+
       logger.info('Certificate display options updated', {
         certificateId,
         userId,
-        includeFullText: updated.includeFullText,
-        includeEditHistory: updated.includeEditHistory,
+        includeFullText: resealed.includeFullText,
+        includeEditHistory: resealed.includeEditHistory,
       });
 
-      return updated;
+      return resealed;
     } catch (error) {
       if (error instanceof AppError) throw error;
       logger.error('Error updating certificate display options', { error, certificateId, userId });

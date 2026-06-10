@@ -207,6 +207,16 @@ export interface DocumentEventTimelineResponse {
 // Certificate types
 export type CertificateType = 'full_authorship' | 'partial_authorship';
 export type CertificateStatus = 'active' | 'superseded' | 'historical';
+export type CertificateSealStatus = 'valid' | 'invalid' | 'legacy_valid' | 'missing';
+
+export interface CertificateSeal {
+  version: string;
+  algorithm: string;
+  keyId: string;
+  payloadHash: string;
+  signature: string;
+  signedFields: string[];
+}
 
 export interface Certificate {
   id: string;
@@ -251,6 +261,7 @@ export interface Certificate {
 }
 
 export interface CertificateInsertData {
+  id?: string;
   submissionId?: string | null;
   documentId: string;
   userId: string;
@@ -274,6 +285,7 @@ export interface CertificateInsertData {
   accessCode?: string;
   accessCodeHash?: string;
   isProtected?: boolean;
+  generatedAt?: Date;
 }
 
 export interface CertificateGenerationOptions {
@@ -298,6 +310,9 @@ export interface CertificateVerification {
   certificate: Certificate | null;
   verifiedAt: Date;
   message: string;
+  seal?: CertificateSeal;
+  sealStatus?: CertificateSealStatus;
+  integrityMessage?: string;
 }
 
 export interface CertificateMetrics {
@@ -363,6 +378,8 @@ export interface JSONCertificate {
     token: string;
     verifyUrl: string;
     signature: string;
+    seal?: CertificateSeal;
+    sealStatus?: CertificateSealStatus;
   };
 }
 
