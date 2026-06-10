@@ -7,6 +7,7 @@ import { TokenManager } from '@/lib/api-client';
 
 const mockPush = jest.fn();
 const mockUseParams = jest.fn(() => ({ id: 'doc-1' }));
+let mockSearchParams = new URLSearchParams();
 const mockToast = jest.fn();
 const mockTrackEvents = jest.fn();
 const mockApiGet = jest.fn();
@@ -48,6 +49,7 @@ jest.mock('next/navigation', () => ({
     push: mockPush,
   }),
   useParams: () => mockUseParams(),
+  useSearchParams: () => mockSearchParams,
 }));
 
 jest.mock('next/dynamic', () => () => function DynamicMock() {
@@ -372,6 +374,7 @@ describe('editor and logs workflows', () => {
     mockApiGet.mockReset();
     mockApiPost.mockReset();
     mockUseParams.mockReturnValue({ id: 'doc-1' });
+    mockSearchParams = new URLSearchParams();
 
     mockApiGet.mockImplementation(async (path: string) => {
       if (path === '/tasks/my-enrollments') {
@@ -1100,6 +1103,18 @@ describe('editor and logs workflows', () => {
     expect(screen.queryByText('Raw events')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /raw audit events/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/failed to load logs/i)).not.toBeInTheDocument();
+  });
+
+  it('returns from logs to the source certificate when opened from a certificate', async () => {
+    mockSearchParams = new URLSearchParams('returnTo=certificate&certificateId=certificate-1');
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByText('Event Summary')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /back/i }));
+
+    expect(mockPush).toHaveBeenCalledWith('/certificates/certificate-1');
   });
 
   it('uses a scoped public document token while loading guest document logs', async () => {
