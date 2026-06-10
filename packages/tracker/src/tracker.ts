@@ -440,7 +440,7 @@ export class HumanlyTracker {
       if (this.eventBuffer && this.eventBuffer.size() > 0) {
         // Use sendBeacon for reliable event sending on page unload
         if (this.sessionId && navigator.sendBeacon) {
-          const events = (this.eventBuffer as any).events || [];
+          const events = this.eventBuffer.getEvents();
           const payload = JSON.stringify({
             sessionId: this.sessionId,
             taskToken: this.config.taskToken,

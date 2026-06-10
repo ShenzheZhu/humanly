@@ -101,6 +101,17 @@ export async function handleAIJoinSession(
       return;
     }
 
+    // A client-supplied sessionId must belong to the document the user just
+    // proved ownership of; otherwise another user's session could be attached.
+    if (sessionId && session.documentId !== documentId) {
+      socket.emit('ai:error', {
+        sessionId: sessionId || '',
+        message: 'Session does not belong to this document',
+        code: 'UNAUTHORIZED',
+      });
+      return;
+    }
+
     logger.info('User joined AI session', {
       socketId: socket.id,
       userId,
@@ -329,6 +340,19 @@ export async function handleAIMessage(
         clientRequestId,
         message: 'Failed to create session',
         code: 'SESSION_ERROR',
+      });
+      return;
+    }
+
+    // A client-supplied sessionId must belong to the document the user just
+    // proved ownership of; otherwise another user's session could be loaded
+    // and its prior turns leaked into this conversation.
+    if (sessionId && !data.forceNewSession && session.documentId !== documentId) {
+      socket.emit('ai:error', {
+        sessionId: sessionId || '',
+        clientRequestId,
+        message: 'Session does not belong to this document',
+        code: 'UNAUTHORIZED',
       });
       return;
     }

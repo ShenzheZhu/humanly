@@ -26,6 +26,7 @@ interface EditEvent {
 
 interface DocumentReplayProps {
   token: string;
+  accessCode?: string;
   className?: string;
 }
 
@@ -48,7 +49,7 @@ const AI_ACTION_FLASH_STYLES: Record<string, { overlay: string; border: string }
   },
 };
 
-export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
+export function DocumentReplay({ token, accessCode, className = '' }: DocumentReplayProps) {
   const [editHistory, setEditHistory] = useState<EditEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +71,11 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
         const apiUrl =
           process.env.NEXT_PUBLIC_API_URL ||
           (process.env.NODE_ENV === 'production' ? '/api/v1' : 'http://localhost:3001/api/v1');
-        const response = await fetch(`${apiUrl}/certificates/verify/${token}/history`);
+        // Protected certificates require the access code so the server can
+        // confirm the viewer already unlocked the certificate.
+        const response = await fetch(`${apiUrl}/certificates/verify/${token}/history`, {
+          headers: accessCode ? { 'X-Access-Code': accessCode } : undefined,
+        });
 
         if (!response.ok) {
           throw new Error('Failed to load edit history');
@@ -87,7 +92,7 @@ export function DocumentReplay({ token, className = '' }: DocumentReplayProps) {
     }
 
     fetchHistory();
-  }, [token]);
+  }, [token, accessCode]);
 
   // Auto-play logic with real intervals
   useEffect(() => {

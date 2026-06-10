@@ -452,6 +452,28 @@ export async function getEditHistory(req: Request, res: Response): Promise<void>
     throw new AppError(403, 'Edit history is not available for this certificate');
   }
 
+  // The edit history contains the full reconstructable document (editor
+  // states plus textBefore/textAfter). For protected certificates it must be
+  // gated behind the same access code as the rest of the protected content;
+  // otherwise the verification token alone would bypass the access code.
+  if (verification.certificate.isProtected) {
+    // Access code is keyed into the response, so it must never be served from
+    // a shared cache to a viewer who did not present it.
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Vary', 'X-Access-Code');
+
+    const accessCode =
+      (req.headers['x-access-code'] as string) ||
+      (req.body?.accessCode as string) ||
+      '';
+    const accessCheck = accessCode
+      ? await CertificateService.verifyCertificateWithAccessCode(token, accessCode)
+      : null;
+    if (!accessCheck || !accessCheck.valid) {
+      throw new AppError(403, 'Access code required to view edit history');
+    }
+  }
+
   // Get the document events with editor state
   const events = await DocumentEventModel.findByDocumentId(verification.certificate.documentId, {
     limit: 5000, // Limit to first 5000 events for performance

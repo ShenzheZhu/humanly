@@ -54,20 +54,20 @@ describe('jwt utils', () => {
       expect(result.email).toBe(payload.email);
     });
 
-    it('throws for a tampered token', () => {
+    it('throws a JsonWebTokenError for a tampered token', () => {
       const token = generateAccessToken(payload);
       const tampered = token.slice(0, -5) + 'XXXXX';
-      expect(() => verifyToken(tampered)).toThrow('Invalid or expired token');
+      expect(() => verifyToken(tampered)).toThrow(jwt.JsonWebTokenError);
     });
 
-    it('throws for a token signed with a different secret', () => {
+    it('throws a JsonWebTokenError for a token signed with a different secret', () => {
       const bad = jwt.sign(payload, 'wrong-secret', { expiresIn: '1h' });
-      expect(() => verifyToken(bad)).toThrow('Invalid or expired token');
+      expect(() => verifyToken(bad)).toThrow(jwt.JsonWebTokenError);
     });
 
-    it('throws for an expired token', () => {
+    it('throws a TokenExpiredError for an expired token', () => {
       const expired = jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: -1 });
-      expect(() => verifyToken(expired)).toThrow('Invalid or expired token');
+      expect(() => verifyToken(expired)).toThrow(jwt.TokenExpiredError);
     });
   });
 

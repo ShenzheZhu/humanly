@@ -105,6 +105,15 @@ export class EventBuffer {
   }
 
   /**
+   * Get a snapshot of the currently buffered events.
+   * Used by the unload handler to flush via navigator.sendBeacon without
+   * reaching into private state.
+   */
+  getEvents(): TrackerEvent[] {
+    return [...this.events];
+  }
+
+  /**
    * Start the periodic flush timer
    */
   private startFlushTimer(): void {

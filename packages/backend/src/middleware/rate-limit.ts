@@ -1,4 +1,5 @@
 import rateLimit, { Options } from 'express-rate-limit';
+import { RequestHandler } from 'express';
 import RedisStore from 'rate-limit-redis';
 import { createClient } from 'redis';
 import { env } from '../config/env';
@@ -32,10 +33,22 @@ initRedisClient().catch((error) => {
   logger.error('Failed to initialize Redis client', { error });
 });
 
+function redisIsReady(): boolean {
+  return Boolean(env.rateLimitEnabled && redisClient && redisClient.isReady);
+}
+
 /**
- * Create a rate limiter with custom options
+ * Create a rate limiter with custom options.
+ *
+ * The underlying express-rate-limit instance binds its store once, at
+ * construction. Because the Redis client connects asynchronously at startup,
+ * building the limiter eagerly at import time would always capture the
+ * not-yet-connected client and silently fall back to the per-process memory
+ * store for the lifetime of the process (ineffective across instances). To
+ * avoid that, construction is deferred to the first request and the limiter is
+ * rebuilt once Redis becomes ready so the shared store is actually used.
  */
-export function createRateLimiter(options: Partial<Options> = {}) {
+export function createRateLimiter(options: Partial<Options> = {}): RequestHandler {
   const defaultOptions: Partial<Options> = {
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 1000, // limit each IP to 1000 requests per windowMs
@@ -55,28 +68,40 @@ export function createRateLimiter(options: Partial<Options> = {}) {
     },
   };
 
-  // Use Redis store if available and enabled, otherwise fall back to memory store
-  const rateLimitOptions: Partial<Options> = {
+  const baseOptions: Partial<Options> = {
     ...defaultOptions,
     ...options,
   };
 
-  if (env.rateLimitEnabled && redisClient) {
-    rateLimitOptions.store = new RedisStore({
-      // @ts-expect-error - Type mismatch with redis client
-      sendCommand: (...args: string[]) => redisClient.sendCommand(args),
-      prefix: 'rl:',
-    });
-  }
+  let limiter: RequestHandler | null = null;
+  let limiterUsesRedis = false;
 
-  return rateLimit(rateLimitOptions);
+  return (req, res, next) => {
+    // Build on first use, then rebuild once Redis is ready so we stop relying
+    // on the memory store as soon as the shared store becomes available.
+    if (!limiter || (!limiterUsesRedis && redisIsReady())) {
+      const limiterOptions: Partial<Options> = { ...baseOptions };
+
+      if (redisIsReady()) {
+        limiterOptions.store = new RedisStore({
+          sendCommand: (...args: string[]) => redisClient!.sendCommand(args),
+          prefix: 'rl:',
+        });
+        limiterUsesRedis = true;
+      }
+
+      limiter = rateLimit(limiterOptions);
+    }
+
+    return limiter(req, res, next);
+  };
 }
 
 /**
  * General API rate limiter
  * 1000 requests per 15 minutes
  */
-export const generalRateLimiter = createRateLimiter({
+export const generalRateLimiter: RequestHandler = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 1000,
 });
@@ -85,7 +110,7 @@ export const generalRateLimiter = createRateLimiter({
  * Strict rate limiter for authentication endpoints
  * 100 requests per 15 minutes per IP
  */
-export const authRateLimiter = createRateLimiter({
+export const authRateLimiter: RequestHandler = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 100,
   message: 'Too many authentication attempts, please try again later',
@@ -96,7 +121,7 @@ export const authRateLimiter = createRateLimiter({
  * Registration rate limiter
  * 100 registration attempts per hour per IP
  */
-export const registerRateLimiter = createRateLimiter({
+export const registerRateLimiter: RequestHandler = createRateLimiter({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 100,
   message: 'Too many registration attempts, please try again later',
@@ -106,7 +131,7 @@ export const registerRateLimiter = createRateLimiter({
  * Login rate limiter
  * 100 login attempts per 15 minutes per IP
  */
-export const loginRateLimiter = createRateLimiter({
+export const loginRateLimiter: RequestHandler = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 100,
   message: 'Too many login attempts, please try again later',
@@ -117,7 +142,7 @@ export const loginRateLimiter = createRateLimiter({
  * Password reset rate limiter
  * 100 password reset requests per hour per IP
  */
-export const passwordResetRateLimiter = createRateLimiter({
+export const passwordResetRateLimiter: RequestHandler = createRateLimiter({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 100,
   message: 'Too many password reset attempts, please try again later',
@@ -127,7 +152,7 @@ export const passwordResetRateLimiter = createRateLimiter({
  * Email verification rate limiter
  * 100 email verification attempts per hour per IP
  */
-export const emailVerificationRateLimiter = createRateLimiter({
+export const emailVerificationRateLimiter: RequestHandler = createRateLimiter({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 100,
   message: 'Too many email verification attempts, please try again later',
@@ -137,7 +162,7 @@ export const emailVerificationRateLimiter = createRateLimiter({
  * Token refresh rate limiter
  * 100 refresh requests per 15 minutes per IP
  */
-export const refreshTokenRateLimiter = createRateLimiter({
+export const refreshTokenRateLimiter: RequestHandler = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 100,
   message: 'Too many token refresh attempts, please try again later',
