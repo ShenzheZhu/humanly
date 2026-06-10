@@ -32,7 +32,7 @@ import {
 import QRCode from 'qrcode';
 import { Input } from '@/components/ui/input';
 import { copyTextToClipboard } from '@/lib/clipboard';
-import { getApiUrl, TokenManager } from '@/lib/api-client';
+import { TokenManager } from '@/lib/api-client';
 import { useAuthStore } from '@/stores/auth-store';
 import { isGuestUserEmail } from '@/components/navigation/user-display';
 import { CertificateEvidenceView } from '@/components/certificates/certificate-evidence-view';
@@ -357,13 +357,6 @@ export default function CertificateDetailPage() {
     );
   }
 
-  const safeTitle = certificate.title
-    ?.trim()
-    .replace(/[^a-z0-9]+/gi, '-')
-    .replace(/^-+|-+$/g, '')
-    .toLowerCase() || certificateId;
-  const pdfPreviewUrl = getApiUrl(`/certificates/${certificateId}/pdf?disposition=inline&filename=certificate-${safeTitle}.pdf`);
-
   return (
     <div className="mx-auto max-w-6xl px-5 pb-6 pt-5 sm:px-8 lg:px-10">
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -379,18 +372,21 @@ export default function CertificateDetailPage() {
           </Button>
         )}
 
-        <div className="grid grid-cols-3 gap-2 sm:w-auto">
-          <Button onClick={handleShareVerificationLink} variant="outline" size="sm" className="w-full sm:w-36">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            onClick={() => router.push(`/logs/${certificate.documentId}`)}
+            variant="outline"
+            size="sm"
+            className="min-w-0"
+          >
+            <FileText className="mr-2 h-4 w-4" />
+            View Logs
+          </Button>
+          <Button onClick={handleShareVerificationLink} variant="outline" size="sm" className="min-w-0">
             <Share2 className="mr-2 h-4 w-4" />
-            Share Certificate
+            Share
           </Button>
-          <Button asChild size="sm" className="w-full sm:w-36">
-            <a href={pdfPreviewUrl} target="_blank" rel="noopener noreferrer">
-              <FileText className="mr-2 h-4 w-4" />
-              Open PDF
-            </a>
-          </Button>
-          <Button onClick={handleDownloadJSON} variant="outline" size="sm" className="w-full sm:w-36">
+          <Button onClick={handleDownloadJSON} variant="outline" size="sm" className="min-w-0">
             <FileJson className="mr-2 h-4 w-4" />
             JSON Data
           </Button>

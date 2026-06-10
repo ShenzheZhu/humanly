@@ -150,7 +150,7 @@ export default function CertificatePage() {
         />
 
         <div className="py-2 text-center text-xs text-muted-foreground sm:text-sm">
-          <p>Powered by <span className="font-semibold">Humanly.net</span></p>
+          <p>Powered by <span className="font-semibold">writehumanly.net</span></p>
         </div>
       </div>
     </div>

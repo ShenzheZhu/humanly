@@ -64,12 +64,16 @@ describe('CertificateEvidenceView', () => {
 
     expect(screen.getByRole('heading', { name: 'Research Reflection' })).toBeInTheDocument();
     expect(screen.getByText('Seal verified')).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { name: 'Authorship Statistics' })).toHaveLength(1);
+    expect(screen.getByText('Typing Events')).toBeInTheDocument();
+    expect(screen.getByText('Paste Events')).toBeInTheDocument();
+    expect(screen.getByText('Total Events')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'AI Assistance' })).toBeInTheDocument();
     expect(screen.getByText('Text Improvements')).toBeInTheDocument();
     expect(screen.getByText('AI Chat')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Replay' })).toBeInTheDocument();
     expect(screen.getByTestId('document-replay')).toHaveTextContent('certificate-token');
-    expect(screen.getByRole('heading', { name: 'Authorship Statistics' })).toBeInTheDocument();
+    expect(screen.queryByText('Detailed breakdown of document authorship.')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Certificate integrity' })).toBeInTheDocument();
   });
 });

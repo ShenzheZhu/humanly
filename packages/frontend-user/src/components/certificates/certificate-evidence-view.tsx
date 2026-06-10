@@ -1,6 +1,6 @@
 'use client';
 
-import { Award, Bot, Calendar, Clock, FileText, MessageSquare, Type, Wand2 } from 'lucide-react';
+import { Award, Bot, Calendar, Clock, MessageSquare, Wand2 } from 'lucide-react';
 import { format } from 'date-fns';
 import type { AIAuthorshipStats, CertificateSeal, CertificateSealStatus, CertificateType } from '@humanly/shared';
 import { Badge } from '@/components/ui/badge';
@@ -110,22 +110,49 @@ export function CertificateEvidenceView({
 
           <Separator />
 
-          <div className="grid gap-2 sm:grid-cols-4">
-            <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
-              <p className="text-xs text-muted-foreground">Typed</p>
-              <p className="mt-1 text-2xl font-semibold">{typedPercentage.toFixed(0)}%</p>
+          <div className="space-y-3">
+            <div>
+              <h2 className="text-lg font-semibold tracking-normal">Authorship Statistics</h2>
+              <p className="text-sm text-muted-foreground">
+                Text composition and event counts captured during writing.
+              </p>
             </div>
-            <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
-              <p className="text-xs text-muted-foreground">Pasted</p>
-              <p className="mt-1 text-2xl font-semibold">{pastedPercentage.toFixed(0)}%</p>
+
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
+                <p className="text-xs text-muted-foreground">Typed</p>
+                <p className="mt-1 text-2xl font-semibold">{typedPercentage.toFixed(0)}%</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
+                <p className="text-xs text-muted-foreground">Pasted</p>
+                <p className="mt-1 text-2xl font-semibold">{pastedPercentage.toFixed(0)}%</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
+                <p className="text-xs text-muted-foreground">Final Text</p>
+                <p className="mt-1 text-2xl font-semibold">{certificate.totalCharacters.toLocaleString()}</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
+                <p className="text-xs text-muted-foreground">Writing Time</p>
+                <p className="mt-1 text-2xl font-semibold">{editingMinutes} min</p>
+              </div>
             </div>
-            <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
-              <p className="text-xs text-muted-foreground">Final Text</p>
-              <p className="mt-1 text-2xl font-semibold">{certificate.totalCharacters.toLocaleString()}</p>
-            </div>
-            <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
-              <p className="text-xs text-muted-foreground">Writing Time</p>
-              <p className="mt-1 text-2xl font-semibold">{editingMinutes} min</p>
+
+            <div className="grid gap-2 sm:grid-cols-3">
+              <div className="rounded-lg border border-border/60 bg-muted/25 p-3">
+                <p className="text-xs text-muted-foreground">Typing Events</p>
+                <p className="mt-1 text-xl font-semibold">{certificate.typingEvents.toLocaleString()}</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-muted/25 p-3">
+                <p className="text-xs text-muted-foreground">Paste Events</p>
+                <p className="mt-1 text-xl font-semibold">{certificate.pasteEvents.toLocaleString()}</p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-muted/25 p-3">
+                <div className="flex items-center gap-1">
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">Total Events</p>
+                </div>
+                <p className="mt-1 text-xl font-semibold">{certificate.totalEvents.toLocaleString()}</p>
+              </div>
             </div>
           </div>
 
@@ -221,85 +248,6 @@ export function CertificateEvidenceView({
           </CardContent>
         </Card>
       )}
-
-      <Card>
-        <CardHeader className="pb-3 sm:pb-6">
-          <CardTitle className="text-lg sm:text-xl">Authorship Statistics</CardTitle>
-          <CardDescription className="text-xs sm:text-sm">Detailed breakdown of document authorship.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3 sm:space-y-4">
-          <div className="grid grid-cols-2 gap-3 sm:gap-6">
-            <div className="space-y-1">
-              <p className="text-xs sm:text-sm text-muted-foreground">Final Document Length</p>
-              <p className="text-2xl sm:text-3xl font-bold">{certificate.totalCharacters.toLocaleString()}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs sm:text-sm text-muted-foreground">Total Events</p>
-              <p className="text-2xl sm:text-3xl font-bold">{certificate.totalEvents.toLocaleString()}</p>
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="space-y-2 sm:space-y-3">
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              Authorship Composition (cumulative throughout editing)
-            </p>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Type className="h-3 w-3 text-muted-foreground sm:h-4 sm:w-4" />
-                  <p className="text-xs text-muted-foreground sm:text-sm">Characters Typed</p>
-                </div>
-                <p className="text-xl font-semibold sm:text-2xl">
-                  {certificate.typedCharacters.toLocaleString()}
-                  <span className="ml-2 text-xs font-normal text-muted-foreground sm:text-sm">
-                    ({typedPercentage.toFixed(1)}%)
-                  </span>
-                </p>
-                <div className="h-2 overflow-hidden rounded-full bg-secondary sm:h-3">
-                  <div className="h-full bg-primary transition-all" style={{ width: `${typedPercentage}%` }} />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-3 w-3 text-muted-foreground sm:h-4 sm:w-4" />
-                  <p className="text-xs text-muted-foreground sm:text-sm">Characters Pasted</p>
-                </div>
-                <p className="text-xl font-semibold sm:text-2xl">
-                  {certificate.pastedCharacters.toLocaleString()}
-                  <span className="ml-2 text-xs font-normal text-muted-foreground sm:text-sm">
-                    ({pastedPercentage.toFixed(1)}%)
-                  </span>
-                </p>
-                <div className="h-2 overflow-hidden rounded-full bg-secondary sm:h-3">
-                  <div className="h-full bg-orange-500 transition-all" style={{ width: `${pastedPercentage}%` }} />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground sm:text-sm">Typing Events</p>
-              <p className="text-lg font-semibold sm:text-xl">{certificate.typingEvents.toLocaleString()}</p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground sm:text-sm">Paste Events</p>
-              <p className="text-lg font-semibold sm:text-xl">{certificate.pasteEvents.toLocaleString()}</p>
-            </div>
-            <div className="col-span-2 space-y-1 sm:col-span-1">
-              <div className="flex items-center gap-1">
-                <Clock className="h-3 w-3 text-muted-foreground sm:h-4 sm:w-4" />
-                <p className="text-xs text-muted-foreground sm:text-sm">Total Events</p>
-              </div>
-              <p className="text-lg font-semibold sm:text-xl">{certificate.totalEvents.toLocaleString()}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       <Card className="bg-muted/50">
         <CardHeader className="pb-3 sm:pb-6">
