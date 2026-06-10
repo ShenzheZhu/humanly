@@ -50,12 +50,13 @@ export function authenticate(
   } catch (error) {
     if (error instanceof AppError) {
       next(error);
-    } else if (error instanceof Error) {
-      if (error.message === 'Invalid or expired token') {
-        next(new AppError(401, 'Invalid or expired authentication token'));
-      } else {
-        next(new AppError(401, 'Authentication failed'));
-      }
+    } else if (
+      error instanceof Error &&
+      (error.name === 'TokenExpiredError' ||
+        error.name === 'JsonWebTokenError' ||
+        error.name === 'NotBeforeError')
+    ) {
+      next(new AppError(401, 'Invalid or expired authentication token'));
     } else {
       next(new AppError(401, 'Authentication failed'));
     }

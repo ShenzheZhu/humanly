@@ -65,7 +65,7 @@ export function createApp(): Express {
       origin: allowedOrigins,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Task-Token', 'X-Session-Id'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Task-Token', 'X-Session-Id', 'X-Access-Code'],
     })
   );
 

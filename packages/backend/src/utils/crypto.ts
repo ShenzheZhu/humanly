@@ -38,8 +38,9 @@ export function generateTaskToken(): string {
  * Generate an email verification token (6-digit code)
  */
 export function generateVerificationToken(): string {
-  // Generate a random 6-digit code
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  // Generate a cryptographically secure random 6-digit code.
+  // randomInt is unbiased over [100000, 1000000).
+  return crypto.randomInt(100000, 1000000).toString();
 }
 
 /**

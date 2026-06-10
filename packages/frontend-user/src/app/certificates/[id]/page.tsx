@@ -399,6 +399,7 @@ export default function CertificateDetailPage() {
           aiStats={aiStats}
           isLoadingAiStats={isLoadingAiStats}
           replayToken={certificate.verificationToken}
+          replayAccessCode={certificate.accessCode || undefined}
           seal={seal}
           sealStatus={sealStatus}
           integrityMessage={integrityMessage}

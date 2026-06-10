@@ -232,7 +232,7 @@ export class EventsController {
    */
   static getSessionEvents = asyncHandler(async (req: Request, res: Response) => {
     const { sessionId } = req.params;
-    const userId = (req as any).userId; // Assumes user authentication middleware sets this
+    const userId = req.user?.userId;
 
     if (!userId) {
       res.status(401).json({
@@ -261,7 +261,7 @@ export class EventsController {
    */
   static queryEvents = asyncHandler(async (req: Request, res: Response) => {
     const { taskId } = req.params;
-    const userId = (req as any).userId; // Assumes user authentication middleware sets this
+    const userId = req.user?.userId;
 
     if (!userId) {
       res.status(401).json({
@@ -314,7 +314,7 @@ export class EventsController {
    */
   static getEventStats = asyncHandler(async (req: Request, res: Response) => {
     const { taskId } = req.params;
-    const userId = (req as any).userId; // Assumes user authentication middleware sets this
+    const userId = req.user?.userId;
 
     if (!userId) {
       res.status(401).json({

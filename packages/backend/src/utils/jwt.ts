@@ -22,11 +22,10 @@ export function generateRefreshToken(payload: TokenPayload): string {
 }
 
 export function verifyToken(token: string): TokenPayload {
-  try {
-    return jwt.verify(token, env.jwtSecret) as TokenPayload;
-  } catch (error) {
-    throw new Error('Invalid or expired token');
-  }
+  // Let jsonwebtoken's typed errors (TokenExpiredError / JsonWebTokenError /
+  // NotBeforeError) propagate so callers and the central error handler can
+  // distinguish an expired token from an invalid one.
+  return jwt.verify(token, env.jwtSecret) as TokenPayload;
 }
 
 export function decodeToken(token: string): TokenPayload | null {

@@ -31,6 +31,7 @@ export default function CertificatePage() {
   const [showAccessDialog, setShowAccessDialog] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [accessError, setAccessError] = useState<string | undefined>(undefined);
+  const [unlockedAccessCode, setUnlockedAccessCode] = useState<string | undefined>(undefined);
 
   const apiUrl =
     process.env.NEXT_PUBLIC_API_URL ||
@@ -84,6 +85,7 @@ export default function CertificatePage() {
 
       if (response.ok && data.success) {
         setCertificateResult(data.data);
+        setUnlockedAccessCode(accessCode);
         setShowAccessDialog(false);
       } else {
         setAccessError(data.data?.message || 'Invalid access code');
@@ -144,6 +146,7 @@ export default function CertificatePage() {
           certificate={certificateResult.certificate}
           aiStats={certificateResult.aiAuthorshipStats}
           replayToken={token}
+          replayAccessCode={unlockedAccessCode}
           seal={certificateResult.seal}
           sealStatus={certificateResult.sealStatus}
           integrityMessage={certificateResult.integrityMessage}

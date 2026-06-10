@@ -30,6 +30,7 @@ interface CertificateEvidenceViewProps {
   aiStats?: AIAuthorshipStats | null;
   isLoadingAiStats?: boolean;
   replayToken?: string;
+  replayAccessCode?: string;
   seal?: CertificateSeal;
   sealStatus?: CertificateSealStatus;
   integrityMessage?: string;
@@ -47,6 +48,7 @@ export function CertificateEvidenceView({
   aiStats,
   isLoadingAiStats = false,
   replayToken,
+  replayAccessCode,
   seal,
   sealStatus,
   integrityMessage,
@@ -241,7 +243,7 @@ export function CertificateEvidenceView({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <DocumentReplay token={replayToken!} />
+            <DocumentReplay token={replayToken!} accessCode={replayAccessCode} />
           </CardContent>
         </Card>
       )}

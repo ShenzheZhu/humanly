@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { EventsController } from '../controllers/events.controller';
+import { authenticate } from '../middleware/auth.middleware';
 import {
   validateTaskToken,
   validateSessionId,
@@ -57,7 +58,6 @@ router.post(
 /**
  * Authenticated endpoints for retrieving data
  * These endpoints require user authentication (not tracking authentication)
- * Note: Authentication middleware should be added when auth is implemented
  */
 
 // Get events for a specific session
@@ -65,7 +65,7 @@ router.post(
 // Requires: User authentication
 router.get(
   '/session/:sessionId/events',
-  // TODO: Add user authentication middleware when implemented
+  authenticate,
   EventsController.getSessionEvents
 );
 
@@ -75,7 +75,7 @@ router.get(
 // Requires: User authentication
 router.get(
   '/task/:taskId/events',
-  // TODO: Add user authentication middleware when implemented
+  authenticate,
   EventsController.queryEvents
 );
 
@@ -84,7 +84,7 @@ router.get(
 // Requires: User authentication
 router.get(
   '/task/:taskId/stats',
-  // TODO: Add user authentication middleware when implemented
+  authenticate,
   EventsController.getEventStats
 );
 
