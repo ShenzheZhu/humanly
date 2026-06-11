@@ -288,4 +288,43 @@ describe('CertificateEvidenceView', () => {
     expect(screen.queryByText('1,024 tokens')).not.toBeInTheDocument();
     expect(screen.queryByText('4,096 tokens')).not.toBeInTheDocument();
   });
+
+  it('labels tiny nonzero composition shares as less than one percent', () => {
+    render(
+      <CertificateEvidenceView
+        certificate={{
+          id: 'certificate-4',
+          documentId: 'document-4',
+          title: 'Tiny Paste Share',
+          certificateType: 'full_authorship',
+          generatedAt: '2026-06-10T12:00:00.000Z',
+          totalCharacters: 1000,
+          typedCharacters: 999,
+          pastedCharacters: 1,
+          totalEvents: 262,
+          typingEvents: 261,
+          pasteEvents: 1,
+          editingTimeSeconds: 120,
+          includeEditHistory: false,
+          environmentConfig,
+        }}
+        aiStats={{
+          ...aiStats,
+          selectionActions: {
+            ...aiStats.selectionActions,
+            total: 0,
+            grammarFixes: 0,
+            improveWriting: 0,
+            makeFormal: 0,
+            accepted: 0,
+            rejected: 0,
+            acceptanceRate: 0,
+          },
+        }}
+      />
+    );
+
+    expect(screen.getByText('<1%')).toBeInTheDocument();
+    expect(screen.queryByText('Pasted 0%')).not.toBeInTheDocument();
+  });
 });

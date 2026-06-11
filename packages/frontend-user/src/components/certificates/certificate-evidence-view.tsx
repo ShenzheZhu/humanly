@@ -116,7 +116,8 @@ function getSealStatusPresentation(status?: CertificateSealStatus) {
 }
 
 function formatPercentage(value: number) {
-  if (!Number.isFinite(value)) return '0%';
+  if (!Number.isFinite(value) || value <= 0) return '0%';
+  if (value < 1) return '<1%';
   return `${Math.round(value)}%`;
 }
 
