@@ -182,7 +182,7 @@ function createMockCertificate(options = {}) {
     totalCharacters: MOCK_DOC.characterCount,
     typedCharacters: MOCK_DOC.characterCount,
     pastedCharacters: 0,
-    editingTimeSeconds: 420,
+    editingTimeSeconds: 1820,
     signature: 'mock-signature',
     verificationToken: options.verificationToken || uuid(),
     signerName: options.signerName || null,

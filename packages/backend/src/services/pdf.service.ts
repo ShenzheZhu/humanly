@@ -1,6 +1,6 @@
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
-import { Certificate } from '@humanly/shared';
+import { Certificate, formatCompactDuration } from '@humanly/shared';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
 import { CertificateSealService } from './certificate-seal.service';
@@ -78,7 +78,7 @@ export class PDFService {
     const pastedPercentage = totalAuthored > 0
       ? (certificate.pastedCharacters / totalAuthored) * 100
       : 0;
-    const editingMinutes = Math.round(certificate.editingTimeSeconds / 60);
+    const editingDuration = formatCompactDuration(certificate.editingTimeSeconds);
     const displayName = certificate.signerName || 'Author';
     const certTypeLabel = certificate.certificateType === 'full_authorship'
       ? 'Verified writing process'
@@ -259,7 +259,7 @@ export class PDFService {
     drawMetric(margin, metricY, metricWidth, 'Typed', `${typedPercentage.toFixed(0)}%`, `${formatNumber(certificate.typedCharacters)} chars`);
     drawMetric(margin + (metricWidth + metricGap), metricY, metricWidth, 'Pasted', `${pastedPercentage.toFixed(0)}%`, `${formatNumber(certificate.pastedCharacters)} chars`);
     drawMetric(margin + (metricWidth + metricGap) * 2, metricY, metricWidth, 'Final Text', formatNumber(certificate.totalCharacters), 'characters');
-    drawMetric(margin + (metricWidth + metricGap) * 3, metricY, metricWidth, 'Writing Time', `${editingMinutes} min`, 'recorded');
+    drawMetric(margin + (metricWidth + metricGap) * 3, metricY, metricWidth, 'Writing Time', editingDuration, 'recorded');
 
     const barY = 382;
     doc

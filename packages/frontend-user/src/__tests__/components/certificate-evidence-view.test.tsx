@@ -81,7 +81,7 @@ describe('CertificateEvidenceView', () => {
           totalEvents: 10,
           typingEvents: 8,
           pasteEvents: 2,
-          editingTimeSeconds: 120,
+          editingTimeSeconds: 1820,
           includeEditHistory: true,
           signerName: 'Test Writer',
           environmentConfig,
@@ -109,6 +109,8 @@ describe('CertificateEvidenceView', () => {
     expect(screen.getByText('Events')).toBeInTheDocument();
     expect(screen.getByText('Final Text')).toBeInTheDocument();
     expect(screen.getByText('Writing Time')).toBeInTheDocument();
+    expect(screen.getByText('30min20s')).toBeInTheDocument();
+    expect(screen.getByText('30min')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'AI Assistance' })).not.toBeInTheDocument();
     expect(screen.queryByText('AI improvement details')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Replay' })).toBeInTheDocument();
