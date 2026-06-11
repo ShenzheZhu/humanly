@@ -1116,7 +1116,12 @@ export default function DocumentEditorPage() {
         <div className="text-center">
           <p className="text-destructive">{error || 'Document not found'}</p>
           {!isGuestUser && (
-            <Button onClick={() => router.push('/documents')} className="mt-4">
+            <Button
+              onClick={() => router.push('/documents')}
+              variant="ghost"
+              className="mt-4 px-2 text-muted-foreground hover:bg-transparent hover:text-foreground"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Documents
             </Button>
           )}
@@ -1156,8 +1161,9 @@ export default function DocumentEditorPage() {
             <div className="flex min-w-0 items-center gap-3">
               {!isPublicTaskGuestDocument && (
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="icon"
+                  className="-ml-2 text-muted-foreground hover:bg-transparent hover:text-foreground"
                   aria-label="Back to Documents"
                   onClick={() => router.push('/documents')}
                 >
