@@ -9,6 +9,7 @@ import { CertificateEvidenceView, type CertificateEvidenceRecord } from '@/compo
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TokenManager } from '@/lib/api-client';
+import { marketingHref } from '@/lib/app-origin';
 
 interface PublicCertificateResult {
   valid: boolean;
@@ -147,6 +148,7 @@ export default function CertificatePage() {
 
   const certificate = certificateResult.certificate;
   const canViewLogs = Boolean(certificate.includeEditHistory && certificate.documentId);
+  const marketingUrl = marketingHref('/', { allowRelativeInNonProduction: false });
 
   const handleViewLogs = () => {
     if (!canViewLogs || !certificate.documentId) return;
@@ -186,7 +188,17 @@ export default function CertificatePage() {
         />
 
         <div className="py-2 text-center text-xs text-muted-foreground sm:text-sm">
-          <p>Powered by <span className="font-semibold">writehumanly.net</span></p>
+          <p>
+            Powered by{' '}
+            <a
+              href={marketingUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold underline-offset-2 hover:underline"
+            >
+              writehumanly.net
+            </a>
+          </p>
         </div>
       </div>
     </div>
