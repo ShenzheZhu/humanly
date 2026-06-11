@@ -112,6 +112,28 @@ Build order matters:
 shared -> editor -> tracker/backend/frontend/frontend-user
 ```
 
+## Repository Hygiene
+
+Keep generated research data, detector outputs, screenshots, browser profiles,
+and temporary QA artifacts outside this product repository. The root `data/`
+and `tmp/` directories are ignored for this reason. If a result needs to become
+durable, put it in the paper/artifact repository or in a purpose-built
+documentation page under `docs/`.
+
+Ignored local files that are expected during development include `.env` files,
+`node_modules/`, package `dist/` directories, Next.js `.next/` caches, and
+backend storage. Do not commit those files, and do not delete `.env`,
+`node_modules/`, or runtime storage as part of routine cleanup.
+
+For a light local rebuild cleanup, use:
+
+```bash
+pnpm clean:ts-artifacts
+```
+
+`pnpm clean` is intentionally heavier because it removes `node_modules/` and
+requires reinstalling dependencies afterward.
+
 ## Development Workflow
 
 Humanly uses issue-driven development:
