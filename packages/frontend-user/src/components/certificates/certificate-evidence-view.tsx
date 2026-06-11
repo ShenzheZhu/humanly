@@ -36,6 +36,8 @@ import {
 } from '@/components/ui/collapsible';
 import { DocumentReplay } from '@/components/certificates/document-replay';
 
+const SECTION_TITLE_CLASS = 'text-lg font-semibold tracking-normal';
+
 export interface CertificateEvidenceRecord {
   id: string;
   documentId?: string;
@@ -239,6 +241,8 @@ export function CertificateEvidenceView({
 }: CertificateEvidenceViewProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [sealDetailsOpen, setSealDetailsOpen] = useState(false);
+  const [replayOpen, setReplayOpen] = useState(false);
+  const [environmentOpen, setEnvironmentOpen] = useState(false);
   const textImprovementTotal = aiStats?.selectionActions.total || 0;
   const aiChatTotal = aiStats?.aiQuestions.total || 0;
   const compositionEventTotal = certificate.typingEvents + certificate.pasteEvents + textImprovementTotal;
@@ -354,7 +358,7 @@ export function CertificateEvidenceView({
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Authorship Statistics</CardTitle>
+          <CardTitle className={SECTION_TITLE_CLASS}>Authorship Statistics</CardTitle>
           <CardDescription>
             Write-time composition, event counts, and in-platform AI activity.
           </CardDescription>
@@ -521,57 +525,96 @@ export function CertificateEvidenceView({
 
       {showReplay && (
         <Card>
-          <CardHeader className="pb-3 sm:pb-6">
-            <CardTitle className="text-xl sm:text-2xl">Replay</CardTitle>
-            <CardDescription className="text-xs sm:text-sm">
-              Watch how this certificate was created from recorded edit history.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <DocumentReplay token={replayToken!} accessCode={replayAccessCode} />
-          </CardContent>
+          <Collapsible open={replayOpen} onOpenChange={setReplayOpen}>
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <CardTitle className={SECTION_TITLE_CLASS}>Replay</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
+                    Watch how this certificate was created from recorded edit history.
+                  </CardDescription>
+                </div>
+                <CollapsibleTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="shrink-0 gap-1"
+                    aria-label={replayOpen ? 'Hide replay section' : 'Show replay section'}
+                  >
+                    {replayOpen ? 'Hide' : 'Show'}
+                    <ChevronDown className={`h-4 w-4 transition-transform ${replayOpen ? 'rotate-180' : ''}`} />
+                  </Button>
+                </CollapsibleTrigger>
+              </div>
+            </CardHeader>
+            <CollapsibleContent>
+              <CardContent>
+                <DocumentReplay token={replayToken!} accessCode={replayAccessCode} />
+              </CardContent>
+            </CollapsibleContent>
+          </Collapsible>
         </Card>
       )}
 
       <Card>
-        <CardHeader className="pb-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex items-start gap-2">
-              <Settings className="mt-0.5 h-5 w-5 text-[#58715f]" />
-              <div>
-                <CardTitle className="text-lg">Environment</CardTitle>
-                <CardDescription>The writing policy active when this certificate was created.</CardDescription>
-              </div>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="w-fit"
-              disabled={!certificate.environmentConfig}
-              onClick={() => downloadEnvironmentConfig(certificate.id, certificate.environmentConfig)}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Download Config
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {environmentRows.length > 0 ? (
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {environmentRows.map(([label, value]) => (
-                <div key={label} className="rounded-lg border border-border/60 bg-muted/25 p-3">
-                  <p className="text-xs text-muted-foreground">{label}</p>
-                  <p className="mt-1 break-words text-sm font-medium">{value}</p>
+        <Collapsible open={environmentOpen} onOpenChange={setEnvironmentOpen}>
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2">
+                <Settings className="mt-0.5 h-5 w-5 text-[#58715f]" />
+                <div>
+                  <CardTitle className={SECTION_TITLE_CLASS}>Environment</CardTitle>
+                  <CardDescription>The writing policy active when this certificate was created.</CardDescription>
                 </div>
-              ))}
+              </div>
+              <CollapsibleTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 gap-1"
+                  aria-label={environmentOpen ? 'Hide environment section' : 'Show environment section'}
+                >
+                  {environmentOpen ? 'Hide' : 'Show'}
+                  <ChevronDown className={`h-4 w-4 transition-transform ${environmentOpen ? 'rotate-180' : ''}`} />
+                </Button>
+              </CollapsibleTrigger>
             </div>
-          ) : (
-            <p className="rounded-lg border border-border/60 bg-muted/25 p-4 text-sm text-muted-foreground">
-              No environment configuration is stored for this certificate.
-            </p>
-          )}
-        </CardContent>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent className="space-y-3">
+              {certificate.environmentConfig && (
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-fit"
+                    onClick={() => downloadEnvironmentConfig(certificate.id, certificate.environmentConfig)}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Download Config
+                  </Button>
+                </div>
+              )}
+              {environmentRows.length > 0 ? (
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {environmentRows.map(([label, value]) => (
+                    <div key={label} className="rounded-lg border border-border/60 bg-muted/25 p-3">
+                      <p className="text-xs text-muted-foreground">{label}</p>
+                      <p className="mt-1 break-words text-sm font-medium">{value}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-lg border border-border/60 bg-muted/25 p-4 text-sm text-muted-foreground">
+                  No environment configuration is stored for this certificate.
+                </p>
+              )}
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
       </Card>
 
     </div>

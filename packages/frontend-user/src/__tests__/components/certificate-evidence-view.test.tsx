@@ -121,18 +121,22 @@ describe('CertificateEvidenceView', () => {
     expect(screen.getByText('Final Text')).toBeInTheDocument();
     expect(screen.getByText('Writing Time')).toBeInTheDocument();
     expect(screen.getByText('30min20s')).toBeInTheDocument();
-    expect(screen.getByText('30min')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'AI Assistance' })).not.toBeInTheDocument();
     expect(screen.queryByText('AI improvement details')).not.toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Replay' })).toBeInTheDocument();
-    expect(screen.getByTestId('document-replay')).toHaveTextContent('certificate-token');
-    expect(screen.getByRole('heading', { name: 'Environment' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Download Config' })).toBeInTheDocument();
-    expect(screen.getByText('Personal writing')).toBeInTheDocument();
-    expect(screen.getByText('Full')).toBeInTheDocument();
-    expect(screen.getByText('Allowed')).toBeInTheDocument();
-    expect(screen.getByText('Writing time limit')).toBeInTheDocument();
-    expect(screen.getByText('Maximum characters')).toBeInTheDocument();
+    const sectionTitles = [
+      screen.getByRole('heading', { name: 'Authorship Statistics' }),
+      screen.getByRole('heading', { name: 'Replay' }),
+      screen.getByRole('heading', { name: 'Environment' }),
+    ];
+    sectionTitles.forEach((title) => {
+      expect(title).toHaveClass('text-lg');
+      expect(title).toHaveClass('font-semibold');
+      expect(title).toHaveClass('tracking-normal');
+    });
+    expect(screen.queryByTestId('document-replay')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Download Config' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Personal writing')).not.toBeInTheDocument();
+    expect(screen.queryByText('Writing time limit')).not.toBeInTheDocument();
     expect(screen.queryByText('Submission mode')).not.toBeInTheDocument();
     expect(screen.queryByText('Multiple submissions')).not.toBeInTheDocument();
     expect(screen.getByText('See more')).toBeInTheDocument();
@@ -170,9 +174,25 @@ describe('CertificateEvidenceView', () => {
     ).toBeTruthy();
     expect(screen.queryByText('Character composition')).not.toBeInTheDocument();
     expect(screen.queryByText('Detailed breakdown of document authorship.')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Show replay section' }));
+
+    expect(screen.getByTestId('document-replay')).toHaveTextContent('certificate-token');
+
+    await user.click(screen.getByRole('button', { name: 'Show environment section' }));
+
+    expect(screen.getByRole('button', { name: 'Download Config' })).toBeInTheDocument();
+    expect(screen.getByText('Personal writing')).toBeInTheDocument();
+    expect(screen.getByText('Full')).toBeInTheDocument();
+    expect(screen.getByText('Allowed')).toBeInTheDocument();
+    expect(screen.getByText('Writing time limit')).toBeInTheDocument();
+    expect(screen.getByText('30min')).toBeInTheDocument();
+    expect(screen.getByText('Maximum characters')).toBeInTheDocument();
   });
 
-  it('shows assignment-only environment rows for admin-assigned certificates', () => {
+  it('shows assignment-only environment rows for admin-assigned certificates', async () => {
+    const user = userEvent.setup();
+
     render(
       <CertificateEvidenceView
         certificate={{
@@ -212,6 +232,8 @@ describe('CertificateEvidenceView', () => {
         aiStats={aiStats}
       />
     );
+
+    await user.click(screen.getByRole('button', { name: 'Show environment section' }));
 
     expect(screen.getByText('Assigned task')).toBeInTheDocument();
     expect(screen.getByText('AI limit')).toBeInTheDocument();
