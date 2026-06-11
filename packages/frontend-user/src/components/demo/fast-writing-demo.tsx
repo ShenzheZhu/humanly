@@ -43,6 +43,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import {
   WRITING_AI_ACCESS_OPTIONS,
+  formatCompactDuration,
   formatWritingAiAccess,
   isWritingAiChatEnabled,
   isWritingAiEnabled,
@@ -1153,7 +1154,7 @@ function DemoCertificatePreview({
 }) {
   const [actionStatus, setActionStatus] = useState<string | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
-  const editingMinutes = Math.max(1, Math.ceil(stats.logCount / 3));
+  const editingSeconds = Math.max(1, stats.logCount * 20);
   const latestLogs = logs.slice(0, 4);
   const generatedAt = useMemo(() => new Date().toISOString(), []);
   const shareUrl = useMemo(() => getDemoShareUrl('demo-certificate-local'), []);
@@ -1256,7 +1257,7 @@ function DemoCertificatePreview({
               <StatTile label="Typed" value={`${stats.typedPercentage}%`} />
               <StatTile label="Pasted" value={`${stats.pastedPercentage}%`} />
               <StatTile label="Final Text" value={stats.totalCharacters.toLocaleString()} />
-              <StatTile label="Time" value={`${editingMinutes} min`} />
+              <StatTile label="Time" value={formatCompactDuration(editingSeconds)} />
             </div>
 
             <div className="space-y-2">

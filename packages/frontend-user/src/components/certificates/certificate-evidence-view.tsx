@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import {
+  formatCompactDuration,
   formatWritingAiAccess,
   normalizeCopyPastePolicy,
   type AIAuthorshipStats,
@@ -75,18 +76,6 @@ function formatPercentage(value: number) {
   return `${Math.round(value)}%`;
 }
 
-function formatDuration(seconds: number) {
-  const safeSeconds = Math.max(0, Math.round(seconds || 0));
-  if (safeSeconds < 60) return `${safeSeconds}s`;
-
-  const minutes = Math.round(safeSeconds / 60);
-  if (minutes < 60) return `${minutes} min`;
-
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  return remainder > 0 ? `${hours}h ${remainder}m` : `${hours}h`;
-}
-
 function formatPreset(value?: string | null) {
   if (!value) return 'Custom';
   return value
@@ -104,7 +93,7 @@ function formatUsageLimit(config: WritingEnvironmentConfig) {
 
 function formatTimeWindow(config: WritingEnvironmentConfig) {
   const limitSeconds = config.time?.timeLimitSeconds;
-  if (limitSeconds) return formatDuration(limitSeconds);
+  if (limitSeconds) return formatCompactDuration(limitSeconds);
 
   if (config.time?.startTime || config.time?.endTime) {
     return [config.time.startTime, config.time.endTime].filter(Boolean).join(' - ');
@@ -305,7 +294,7 @@ export function CertificateEvidenceView({
                   <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                   <p className="text-xs text-muted-foreground">Writing Time</p>
                 </div>
-                <p className="mt-1 text-2xl font-semibold">{formatDuration(certificate.editingTimeSeconds)}</p>
+                <p className="mt-1 text-2xl font-semibold">{formatCompactDuration(certificate.editingTimeSeconds)}</p>
                 <p className="mt-1 text-xs text-muted-foreground">active writing window</p>
               </div>
             </div>
