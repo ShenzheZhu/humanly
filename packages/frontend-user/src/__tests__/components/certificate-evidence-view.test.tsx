@@ -120,12 +120,13 @@ describe('CertificateEvidenceView', () => {
     expect(screen.getByText('Full')).toBeInTheDocument();
     expect(screen.getByText('Allowed')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Check more' }));
+    await user.click(screen.getByRole('button', { name: 'Show more authorship details' }));
 
     expect(screen.getByText('AI improvement details')).toBeInTheDocument();
     expect(screen.getByText('Agent chat details')).toBeInTheDocument();
     expect(screen.getByText('Typed Characters')).toBeInTheDocument();
     expect(screen.getByText('Pasted Characters')).toBeInTheDocument();
+    expect(screen.queryByText('Character composition')).not.toBeInTheDocument();
     expect(screen.queryByText('Detailed breakdown of document authorship.')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Certificate integrity' })).toBeInTheDocument();
   });

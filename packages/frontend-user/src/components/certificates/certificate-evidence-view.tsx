@@ -165,13 +165,6 @@ export function CertificateEvidenceView({
   integrityMessage,
 }: CertificateEvidenceViewProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const totalCharactersFromSources = certificate.typedCharacters + certificate.pastedCharacters;
-  const typedCharacterPercentage = totalCharactersFromSources > 0
-    ? (certificate.typedCharacters / totalCharactersFromSources) * 100
-    : 0;
-  const pastedCharacterPercentage = totalCharactersFromSources > 0
-    ? (certificate.pastedCharacters / totalCharactersFromSources) * 100
-    : 0;
   const textImprovementTotal = aiStats?.selectionActions.total || 0;
   const aiChatTotal = aiStats?.aiQuestions.total || 0;
   const compositionEventTotal = certificate.typingEvents + certificate.pasteEvents + textImprovementTotal;
@@ -301,10 +294,13 @@ export function CertificateEvidenceView({
 
             <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
               <CollapsibleTrigger asChild>
-                <Button type="button" variant="outline" size="sm" className="w-full justify-between">
-                  Check more
-                  <ChevronDown className={`h-4 w-4 transition-transform ${detailsOpen ? 'rotate-180' : ''}`} />
-                </Button>
+                <button
+                  type="button"
+                  aria-label={detailsOpen ? 'Hide more authorship details' : 'Show more authorship details'}
+                  className="mx-auto flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground/55 transition hover:bg-muted/35 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <ChevronDown className={`h-5 w-5 transition-transform ${detailsOpen ? 'rotate-180' : ''}`} />
+                </button>
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-4 pt-3">
                 <div className="grid gap-2 sm:grid-cols-3">
@@ -319,19 +315,6 @@ export function CertificateEvidenceView({
                   <div className="rounded-lg border border-border/60 bg-muted/25 p-3">
                     <p className="text-xs text-muted-foreground">AI Chat</p>
                     <p className="mt-1 text-xl font-semibold">{aiChatTotal.toLocaleString()}</p>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Character composition</span>
-                    <span className="font-medium">
-                      {certificate.typedCharacters.toLocaleString()} typed · {certificate.pastedCharacters.toLocaleString()} pasted
-                    </span>
-                  </div>
-                  <div className="flex h-3 overflow-hidden rounded-full bg-secondary">
-                    <div className="bg-primary" style={{ width: `${typedCharacterPercentage}%` }} />
-                    <div className="bg-[#b9774f]" style={{ width: `${pastedCharacterPercentage}%` }} />
                   </div>
                 </div>
 
