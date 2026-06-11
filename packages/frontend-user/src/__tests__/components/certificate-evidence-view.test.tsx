@@ -184,6 +184,10 @@ describe('CertificateEvidenceView', () => {
     expect(screen.getByRole('button', { name: 'Download Config' })).toBeInTheDocument();
     expect(screen.getByText('Personal writing')).toBeInTheDocument();
     expect(screen.getByText('Full')).toBeInTheDocument();
+    expect(screen.getByText('Quick-action token limit')).toBeInTheDocument();
+    expect(screen.getByText('1,024 tokens')).toBeInTheDocument();
+    expect(screen.getByText('Agent chat token limit')).toBeInTheDocument();
+    expect(screen.getByText('4,096 tokens')).toBeInTheDocument();
     expect(screen.getByText('Allowed')).toBeInTheDocument();
     expect(screen.getByText('Writing time limit')).toBeInTheDocument();
     expect(screen.getByText('30min')).toBeInTheDocument();
@@ -244,5 +248,44 @@ describe('CertificateEvidenceView', () => {
     expect(screen.getByText('Submission mode')).toBeInTheDocument();
     expect(screen.getByText('Single submission')).toBeInTheDocument();
     expect(screen.queryByText('Maximum characters')).not.toBeInTheDocument();
+  });
+
+  it('does not show AI token budget rows when AI access is off', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <CertificateEvidenceView
+        certificate={{
+          id: 'certificate-3',
+          documentId: 'document-3',
+          title: 'No AI Draft',
+          certificateType: 'full_authorship',
+          generatedAt: '2026-06-10T12:00:00.000Z',
+          totalCharacters: 100,
+          typedCharacters: 100,
+          pastedCharacters: 0,
+          totalEvents: 10,
+          typingEvents: 10,
+          pasteEvents: 0,
+          editingTimeSeconds: 120,
+          includeEditHistory: false,
+          environmentConfig: {
+            ...environmentConfig,
+            aiAccess: 'off',
+            allowedModels: [],
+          },
+        }}
+        aiStats={aiStats}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Show environment section' }));
+
+    expect(screen.getByText('Off')).toBeInTheDocument();
+    expect(screen.queryByText('AI model')).not.toBeInTheDocument();
+    expect(screen.queryByText('Quick-action token limit')).not.toBeInTheDocument();
+    expect(screen.queryByText('Agent chat token limit')).not.toBeInTheDocument();
+    expect(screen.queryByText('1,024 tokens')).not.toBeInTheDocument();
+    expect(screen.queryByText('4,096 tokens')).not.toBeInTheDocument();
   });
 });

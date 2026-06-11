@@ -10,7 +10,6 @@ import {
   Download,
   FileText,
   MessageSquare,
-  Settings,
   ShieldAlert,
   ShieldCheck,
   Wand2,
@@ -19,6 +18,8 @@ import { format } from 'date-fns';
 import {
   formatCompactDuration,
   formatWritingAiAccess,
+  isWritingAiChatEnabled,
+  isWritingAiPolishEnabled,
   normalizeCopyPastePolicy,
   type AIAuthorshipStats,
   type CertificateSeal,
@@ -134,6 +135,11 @@ function formatUsageLimit(config: WritingEnvironmentConfig) {
   return 'Time restricted';
 }
 
+function formatTokenLimit(value?: number | null) {
+  if (!value) return 'Not configured';
+  return `${value.toLocaleString()} tokens`;
+}
+
 function formatAvailabilityWindow(config: WritingEnvironmentConfig) {
   if (config.time?.startTime || config.time?.endTime) {
     return [config.time.startTime, config.time.endTime].filter(Boolean).join(' - ');
@@ -183,6 +189,14 @@ function getEnvironmentRows(config?: WritingEnvironmentConfig | null) {
 
   if (aiEnabled && config.allowedModels?.length) {
     rows.push(['AI model', config.allowedModels.join(', ')]);
+  }
+
+  if (isWritingAiPolishEnabled(config.aiAccess)) {
+    rows.push(['Quick-action token limit', formatTokenLimit(config.aiTokenBudget?.shortcutMaxTokens)]);
+  }
+
+  if (isWritingAiChatEnabled(config.aiAccess)) {
+    rows.push(['Agent chat token limit', formatTokenLimit(config.aiTokenBudget?.chatMaxTokens)]);
   }
 
   if (isAdminAssigned) {
@@ -561,12 +575,9 @@ export function CertificateEvidenceView({
         <Collapsible open={environmentOpen} onOpenChange={setEnvironmentOpen}>
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between gap-3">
-              <div className="flex items-start gap-2">
-                <Settings className="mt-0.5 h-5 w-5 text-[#58715f]" />
-                <div>
-                  <CardTitle className={SECTION_TITLE_CLASS}>Environment</CardTitle>
-                  <CardDescription>The writing policy active when this certificate was created.</CardDescription>
-                </div>
+              <div>
+                <CardTitle className={SECTION_TITLE_CLASS}>Environment</CardTitle>
+                <CardDescription>The writing policy active when this certificate was created.</CardDescription>
               </div>
               <CollapsibleTrigger asChild>
                 <Button
