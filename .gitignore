@@ -38,6 +38,7 @@ storage/
 packages/backend/storage/
 
 # ── Exported / generated data ─────────────────────────────────────────────────
+/data/
 exports/
 backups/
 *.csv
