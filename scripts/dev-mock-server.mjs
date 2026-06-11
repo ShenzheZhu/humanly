@@ -26,6 +26,7 @@
  *     GET  /api/v1/certificates/:id/ai-stats
  *     GET  /api/v1/certificates/verify/:token
  *     GET  /api/v1/certificates/verify/:token/history
+ *     GET  /api/v1/certificates/verify/:token/logs
  *     GET  /api/v1/ai/sessions/:documentId
  *     GET  /api/v1/ai/sessions/detail/:sessionId
  *     POST /api/v1/ai/chat              (legacy silent path; non-streaming)
@@ -225,6 +226,90 @@ const MOCK_AI_AUTHORSHIP_STATS = {
   },
 };
 
+const MOCK_TIMELINE_RESPONSE = {
+  items: [
+    {
+      id: 'mock-timeline-typing-1',
+      kind: 'typing_burst',
+      label: 'Typed',
+      text: 'ok so basically I want to talk about how AI changes writing.',
+      charCount: 60,
+      wordCount: 12,
+      timestamp: new Date(Date.now() - 120000).toISOString(),
+      startTimestamp: new Date(Date.now() - 122000).toISOString(),
+      endTimestamp: new Date(Date.now() - 120000).toISOString(),
+      rawEvents: [
+        {
+          id: 'mock-raw-1',
+          eventType: 'input',
+          timestamp: new Date(Date.now() - 120000).toISOString(),
+          insertedText: 'ok so basically I want to talk about how AI changes writing.',
+          cursorPosition: 60,
+          metadata: {},
+        },
+      ],
+    },
+    {
+      id: 'mock-timeline-ai-1',
+      kind: 'ai_insert',
+      label: 'AI inserted',
+      text: 'A provenance-first approach watches the keystrokes, the pauses, and the AI interactions.',
+      charCount: 88,
+      wordCount: 12,
+      timestamp: new Date(Date.now() - 60000).toISOString(),
+      startTimestamp: new Date(Date.now() - 61000).toISOString(),
+      endTimestamp: new Date(Date.now() - 60000).toISOString(),
+      rawEvents: [
+        {
+          id: 'mock-raw-2',
+          eventType: 'ai_insert_from_chat',
+          timestamp: new Date(Date.now() - 60000).toISOString(),
+          insertedText: 'A provenance-first approach watches the keystrokes, the pauses, and the AI interactions.',
+          cursorPosition: 148,
+          metadata: { source: 'mock-ai' },
+        },
+      ],
+    },
+  ],
+  summary: {
+    rawEventTotal: 2,
+    timelineItemTotal: 2,
+    typingBursts: 1,
+    typedCharacters: 60,
+    typedWords: 12,
+    pasteCharacters: 0,
+    deletedCharacters: 0,
+  },
+};
+
+const MOCK_AI_LOGS = [
+  {
+    id: 'mock-ai-log-1',
+    documentId: MOCK_DOC_ID,
+    userId: MOCK_USER.id,
+    timestamp: new Date(Date.now() - 65000).toISOString(),
+    query: 'Improve this sentence',
+    queryType: 'rewrite',
+    contextSnapshot: {
+      selection: {
+        text: 'They are bad grammar checkers honestly.',
+      },
+    },
+    response: 'Traditional plagiarism detectors miss the writing process.',
+    suggestions: [],
+    modificationsApplied: true,
+    modifications: [
+      {
+        before: 'They are bad grammar checkers honestly.',
+        after: 'Traditional plagiarism detectors miss the writing process.',
+        timestamp: new Date(Date.now() - 65000).toISOString(),
+      },
+    ],
+    status: 'success',
+    createdAt: new Date(Date.now() - 65000).toISOString(),
+  },
+];
+
 const MOCK_SEAL = {
   version: 'hly-seal-v1',
   algorithm: 'HMAC-SHA256',
@@ -274,7 +359,7 @@ function json(res, status, body) {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': CORS_ORIGIN,
     'Access-Control-Allow-Credentials': 'true',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Access-Code',
   });
   res.end(JSON.stringify(body));
 }
@@ -325,7 +410,7 @@ const server = createServer(async (req, res) => {
       'Access-Control-Allow-Origin': CORS_ORIGIN,
       'Access-Control-Allow-Credentials': 'true',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Project-Token, X-Session-Id',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Project-Token, X-Session-Id, X-Access-Code',
     });
     return res.end();
   }
@@ -472,6 +557,20 @@ const server = createServer(async (req, res) => {
         },
       ],
     });
+  }
+  if (p.match(/^\/api\/v1\/certificates\/verify\/[^/]+\/logs$/) && method === 'GET') {
+    const token = p.split('/').at(-2);
+    const certificate = mockCertificates.find((item) => item.verificationToken === token) || null;
+    return certificate
+      ? ok(res, {
+        certificateId: certificate.id,
+        documentId: certificate.documentId,
+        title: certificate.title,
+        timeline: MOCK_TIMELINE_RESPONSE,
+        aiLogs: MOCK_AI_LOGS,
+        aiLogTotal: MOCK_AI_LOGS.length,
+      })
+      : json(res, 404, { success: false, message: 'Certificate not found' });
   }
   if (p.match(/^\/api\/v1\/certificates\/verify\/[^/]+$/) && method === 'GET') {
     const token = p.split('/').pop();

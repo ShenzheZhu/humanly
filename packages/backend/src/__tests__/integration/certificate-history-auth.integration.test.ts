@@ -1,5 +1,6 @@
 jest.mock('../../services/certificate.service');
 jest.mock('../../models/document-event.model');
+jest.mock('../../models/ai.model');
 jest.mock('../../utils/logger', () => ({
   logger: {
     error: jest.fn(),
@@ -13,9 +14,11 @@ import request from 'supertest';
 import { createApp } from '../../app';
 import { CertificateService } from '../../services/certificate.service';
 import { DocumentEventModel } from '../../models/document-event.model';
+import { AIModel } from '../../models/ai.model';
 
 const MockCertificateService = CertificateService as jest.Mocked<typeof CertificateService>;
 const MockDocumentEventModel = DocumentEventModel as jest.Mocked<typeof DocumentEventModel>;
+const MockAIModel = AIModel as jest.Mocked<typeof AIModel>;
 
 const TOKEN = 'verif-token-123';
 const ACCESS_CODE = 'secret-code';
@@ -39,6 +42,8 @@ describe('GET /api/v1/certificates/verify/:token/history access control', () => 
   beforeEach(() => {
     jest.clearAllMocks();
     MockDocumentEventModel.findByDocumentId.mockResolvedValue([] as any);
+    MockDocumentEventModel.countByDocumentId.mockResolvedValue(0);
+    MockAIModel.getLogs.mockResolvedValue({ logs: [], total: 0 });
   });
 
   it('returns edit history for an unprotected certificate without an access code', async () => {
@@ -118,5 +123,60 @@ describe('GET /api/v1/certificates/verify/:token/history access control', () => 
 
     expect(response.status).toBe(403);
     expect(MockDocumentEventModel.findByDocumentId).not.toHaveBeenCalled();
+  });
+
+  it('returns public logs for an unprotected certificate without an access code', async () => {
+    MockCertificateService.verifyCertificate.mockResolvedValue({
+      valid: true,
+      certificate: makeCertificate({ isProtected: false, title: 'Shared certificate' }),
+    } as any);
+
+    const response = await request(app).get(`/api/v1/certificates/verify/${TOKEN}/logs`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.title).toBe('Shared certificate');
+    expect(response.body.data.timeline.summary.rawEventTotal).toBe(0);
+    expect(MockDocumentEventModel.findByDocumentId).toHaveBeenCalledWith('doc-1', expect.any(Object));
+    expect(MockDocumentEventModel.countByDocumentId).toHaveBeenCalledWith('doc-1');
+    expect(MockAIModel.getLogs).toHaveBeenCalledWith({
+      documentId: 'doc-1',
+      limit: 50,
+      offset: 0,
+    });
+  });
+
+  it('refuses public logs for a protected certificate when no access code is supplied', async () => {
+    MockCertificateService.verifyCertificate.mockResolvedValue({
+      valid: true,
+      certificate: makeCertificate({ isProtected: true }),
+    } as any);
+
+    const response = await request(app).get(`/api/v1/certificates/verify/${TOKEN}/logs`);
+
+    expect(response.status).toBe(403);
+    expect(MockDocumentEventModel.findByDocumentId).not.toHaveBeenCalled();
+    expect(MockAIModel.getLogs).not.toHaveBeenCalled();
+  });
+
+  it('returns public logs for a protected certificate with the correct access code', async () => {
+    MockCertificateService.verifyCertificate.mockResolvedValue({
+      valid: true,
+      certificate: makeCertificate({ isProtected: true }),
+    } as any);
+    MockCertificateService.verifyCertificateWithAccessCode.mockResolvedValue({
+      valid: true,
+      certificate: makeCertificate({ isProtected: true }),
+    } as any);
+
+    const response = await request(app)
+      .get(`/api/v1/certificates/verify/${TOKEN}/logs`)
+      .set('X-Access-Code', ACCESS_CODE);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(MockCertificateService.verifyCertificateWithAccessCode).toHaveBeenCalledWith(TOKEN, ACCESS_CODE);
+    expect(MockDocumentEventModel.findByDocumentId).toHaveBeenCalledWith('doc-1', expect.any(Object));
+    expect(response.headers['cache-control']).toBe('no-store');
   });
 });
