@@ -102,7 +102,10 @@ describe('CertificateEvidenceView', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'Research Reflection' })).toBeInTheDocument();
+    expect(screen.getByText('Certificate seal')).toBeInTheDocument();
     expect(screen.getByText('Seal verified')).toBeInTheDocument();
+    expect(screen.getByText('Server-issued seal matches this certificate record.')).toBeInTheDocument();
+    expect(screen.getByText('1234567890ab...567890abcdef')).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { name: 'Authorship Statistics' })).toHaveLength(1);
     expect(screen.getByText('Typed / pasted / AI improvement composition')).toBeInTheDocument();
     expect(screen.getByText('AI improvements')).toBeInTheDocument();

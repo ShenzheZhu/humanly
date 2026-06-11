@@ -11,6 +11,8 @@ import {
   FileText,
   MessageSquare,
   Settings,
+  ShieldAlert,
+  ShieldCheck,
   Wand2,
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -69,6 +71,46 @@ function getSealStatusLabel(status?: CertificateSealStatus) {
   if (status === 'legacy_valid') return 'Legacy signature';
   if (status === 'invalid') return 'Seal mismatch';
   return 'Seal unavailable';
+}
+
+function getSealStatusPresentation(status?: CertificateSealStatus) {
+  if (status === 'valid') {
+    return {
+      Icon: ShieldCheck,
+      containerClass: 'border-[#c8d4c8] bg-[#f3f7f1]',
+      iconClass: 'bg-[#dfe8dc] text-[#58715f]',
+      badgeClass: 'border-[#c8d4c8] bg-[#eef3ed] text-[#58715f]',
+      message: 'Server-issued seal matches this certificate record.',
+    };
+  }
+
+  if (status === 'legacy_valid') {
+    return {
+      Icon: ShieldCheck,
+      containerClass: 'border-[#d7c8a8] bg-[#fbf6e8]',
+      iconClass: 'bg-[#f1e4c5] text-[#8a6b2f]',
+      badgeClass: 'border-[#d7c8a8] bg-[#f8eed3] text-[#8a6b2f]',
+      message: 'This certificate has a valid legacy signature.',
+    };
+  }
+
+  if (status === 'invalid') {
+    return {
+      Icon: ShieldAlert,
+      containerClass: 'border-destructive/30 bg-destructive/10',
+      iconClass: 'bg-destructive/15 text-destructive',
+      badgeClass: 'border-destructive/30 bg-destructive/10 text-destructive',
+      message: 'The seal does not match this certificate record.',
+    };
+  }
+
+  return {
+    Icon: ShieldAlert,
+    containerClass: 'border-border/70 bg-muted/25',
+    iconClass: 'bg-muted text-muted-foreground',
+    badgeClass: 'border-border/70 bg-muted/35 text-muted-foreground',
+    message: 'No server-issued seal is available for this certificate.',
+  };
 }
 
 function formatPercentage(value: number) {
@@ -181,6 +223,8 @@ export function CertificateEvidenceView({
   const sealHashPreview = seal?.payloadHash
     ? `${seal.payloadHash.slice(0, 12)}...${seal.payloadHash.slice(-12)}`
     : null;
+  const sealPresentation = getSealStatusPresentation(sealStatus);
+  const SealStatusIcon = sealPresentation.Icon;
   const showReplay = Boolean(certificate.includeEditHistory && replayToken);
   const environmentRows = getEnvironmentRows(certificate.environmentConfig);
 
@@ -195,12 +239,6 @@ export function CertificateEvidenceView({
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <h1 className="break-words text-2xl font-semibold tracking-normal">{certificate.title}</h1>
-                    <Badge
-                      variant="outline"
-                      className="border-[#c8d4c8] bg-[#eef3ed] px-2 py-0.5 text-xs text-[#58715f]"
-                    >
-                      {getSealStatusLabel(sealStatus)}
-                    </Badge>
                     {isFullyHumanCreated && (
                       <Badge
                         variant="outline"
@@ -219,6 +257,37 @@ export function CertificateEvidenceView({
                   </p>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div
+            id="certificate-seal"
+            tabIndex={-1}
+            className={`scroll-mt-24 rounded-lg border p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${sealPresentation.containerClass}`}
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${sealPresentation.iconClass}`}>
+                  <SealStatusIcon className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold">Certificate seal</p>
+                    <Badge
+                      variant="outline"
+                      className={`px-2 py-0.5 text-xs ${sealPresentation.badgeClass}`}
+                    >
+                      {getSealStatusLabel(sealStatus)}
+                    </Badge>
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">{sealPresentation.message}</p>
+                </div>
+              </div>
+              {sealHashPreview && (
+                <p className="shrink-0 rounded-md bg-background/70 px-2 py-1 font-mono text-[11px] text-muted-foreground">
+                  {sealHashPreview}
+                </p>
+              )}
             </div>
           </div>
 

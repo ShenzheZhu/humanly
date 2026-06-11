@@ -27,6 +27,7 @@ import {
   Trash2,
   ChevronDown,
   RefreshCw,
+  ShieldCheck,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import { Input } from '@/components/ui/input';
@@ -291,6 +292,12 @@ export default function CertificateDetailPage() {
     }
   };
 
+  const handleVerifyCertificateSeal = () => {
+    const sealSection = document.getElementById('certificate-seal');
+    sealSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    sealSection?.focus({ preventScroll: true });
+  };
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -339,6 +346,15 @@ export default function CertificateDetailPage() {
         )}
 
         <div className="flex flex-wrap gap-2">
+          <Button
+            onClick={handleVerifyCertificateSeal}
+            variant="outline"
+            size="sm"
+            className="min-w-0"
+          >
+            <ShieldCheck className="mr-2 h-4 w-4" />
+            Verify Seal
+          </Button>
           <Button
             onClick={() => router.push(`/logs/${certificate.documentId}?returnTo=certificate&certificateId=${certificate.id}`)}
             variant="outline"
