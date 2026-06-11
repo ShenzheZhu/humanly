@@ -18,7 +18,7 @@ import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MarkdownContent } from '@/components/markdown-content';
-import { apiClient } from '@/lib/api-client';
+import { API_URL, TokenManager, apiClient } from '@/lib/api-client';
 import { usePublicDocumentToken } from '@/hooks/use-public-document-token';
 import { useAuthStore } from '@/stores/auth-store';
 import type {
@@ -875,7 +875,12 @@ export default function DocumentLogsPage() {
   const documentId = params.id as string;
   const returnTo = searchParams.get('returnTo');
   const certificateId = searchParams.get('certificateId');
-  const backHref = returnTo === 'certificate' && certificateId
+  const certificateToken = searchParams.get('certificateToken');
+  const publicCertificateId = searchParams.get('publicCertificateId') || certificateId;
+  const isPublicCertificateLogs = Boolean(certificateToken);
+  const backHref = isPublicCertificateLogs && certificateToken
+    ? `/verify/${certificateToken}`
+    : returnTo === 'certificate' && certificateId
     ? `/certificates/${certificateId}`
     : `/documents/${documentId}`;
   const { checkAuth } = useAuthStore();
@@ -890,13 +895,47 @@ export default function DocumentLogsPage() {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    if (isPublicCertificateLogs) return;
     checkAuth();
-  }, [checkAuth]);
+  }, [checkAuth, isPublicCertificateLogs]);
 
   const fetchLogs = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
+
+      if (isPublicCertificateLogs && certificateToken) {
+        const headers: HeadersInit = {};
+        const accessCode = publicCertificateId
+          ? TokenManager.getPublicCertificateAccessToken(publicCertificateId)
+          : null;
+        if (accessCode) {
+          headers['X-Access-Code'] = accessCode;
+        }
+
+        const response = await fetch(
+          `${API_URL}/certificates/verify/${encodeURIComponent(certificateToken)}/logs?limit=10000`,
+          { headers }
+        );
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(
+            data?.message ||
+            data?.error ||
+            data?.data?.message ||
+            'Failed to load certificate logs'
+          );
+        }
+
+        const payload = data.data || {};
+        const timelineData = payload.timeline || {};
+        setDocumentTitle(payload.title || 'Certificate logs');
+        setTimelineItems(Array.isArray(timelineData.items) ? timelineData.items : []);
+        setTimelineSummary(timelineData.summary || EMPTY_SUMMARY);
+        setAiLogs(Array.isArray(payload.aiLogs) ? payload.aiLogs : []);
+        return;
+      }
 
       const [docRes, timelineRes, aiLogsRes] = await Promise.all([
         apiClient.get(`/documents/${documentId}`),
@@ -915,11 +954,11 @@ export default function DocumentLogsPage() {
       const aiLogData = aiLogsRes.data.data || [];
       setAiLogs(Array.isArray(aiLogData) ? aiLogData : []);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load logs');
+      setError(err.response?.data?.message || err.message || 'Failed to load logs');
     } finally {
       setIsLoading(false);
     }
-  }, [documentId]);
+  }, [certificateToken, documentId, isPublicCertificateLogs, publicCertificateId]);
 
   useEffect(() => {
     fetchLogs();

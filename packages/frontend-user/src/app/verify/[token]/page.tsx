@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { XCircle } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
+import { FileText, XCircle } from 'lucide-react';
 import type { AIAuthorshipStats, CertificateSeal, CertificateSealStatus } from '@humanly/shared';
 import { AccessCodeDialog } from '@/components/certificates/access-code-dialog';
 import { CertificateEvidenceView, type CertificateEvidenceRecord } from '@/components/certificates/certificate-evidence-view';
+import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { TokenManager } from '@/lib/api-client';
 
 interface PublicCertificateResult {
   valid: boolean;
@@ -24,6 +26,7 @@ interface PublicCertificateResult {
 
 export default function CertificatePage() {
   const params = useParams();
+  const router = useRouter();
   const token = params.token as string;
   const [certificateResult, setCertificateResult] = useState<PublicCertificateResult | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -86,6 +89,9 @@ export default function CertificatePage() {
       if (response.ok && data.success) {
         setCertificateResult(data.data);
         setUnlockedAccessCode(accessCode);
+        if (data.data?.certificate?.id) {
+          TokenManager.setPublicCertificateAccessToken(data.data.certificate.id, accessCode);
+        }
         setShowAccessDialog(false);
       } else {
         setAccessError(data.data?.message || 'Invalid access code');
@@ -139,11 +145,38 @@ export default function CertificatePage() {
     return null;
   }
 
+  const certificate = certificateResult.certificate;
+  const canViewLogs = Boolean(certificate.includeEditHistory && certificate.documentId);
+
+  const handleViewLogs = () => {
+    if (!canViewLogs || !certificate.documentId) return;
+
+    const query = new URLSearchParams({
+      returnTo: 'publicCertificate',
+      certificateToken: token,
+      publicCertificateId: certificate.id,
+    });
+    router.push(`/logs/${certificate.documentId}?${query.toString()}`);
+  };
+
   return (
     <div className="min-h-screen bg-background p-2 sm:p-4">
       <div className="mx-auto w-full max-w-4xl space-y-4 sm:space-y-6">
+        {canViewLogs && (
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={handleViewLogs}
+            >
+              <FileText className="h-4 w-4" />
+              View Logs
+            </Button>
+          </div>
+        )}
+
         <CertificateEvidenceView
-          certificate={certificateResult.certificate}
+          certificate={certificate}
           aiStats={certificateResult.aiAuthorshipStats}
           replayToken={token}
           replayAccessCode={unlockedAccessCode}

@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { CertificateService } from '../services/certificate.service';
 import { PDFService } from '../services/pdf.service';
 import { DocumentEventModel } from '../models/document-event.model';
+import { AIModel } from '../models/ai.model';
+import { buildDocumentEventTimeline } from '../services/document-event-timeline.service';
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 import type { Certificate, CertificateVerification } from '@humanly/shared';
@@ -115,6 +117,45 @@ async function buildPublicCertificateResponse(
     sealStatus: verification.sealStatus,
     integrityMessage: verification.integrityMessage,
   };
+}
+
+async function resolvePublicCertificateWithEditHistoryAccess(
+  req: Request,
+  res: Response,
+  token: string,
+  protectedAccessMessage: string
+): Promise<CertificateVerification> {
+  if (!token) {
+    throw new AppError(400, 'Certificate token is required');
+  }
+
+  const verification = await CertificateService.verifyCertificate(token);
+
+  if (!verification.valid || !verification.certificate) {
+    throw new AppError(404, 'Certificate not found or invalid');
+  }
+
+  if (!verification.certificate.includeEditHistory) {
+    throw new AppError(403, 'Edit history is not available for this certificate');
+  }
+
+  if (verification.certificate.isProtected) {
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Vary', 'X-Access-Code');
+
+    const accessCode =
+      (req.headers['x-access-code'] as string) ||
+      (req.body?.accessCode as string) ||
+      '';
+    const accessCheck = accessCode
+      ? await CertificateService.verifyCertificateWithAccessCode(token, accessCode)
+      : null;
+    if (!accessCheck || !accessCheck.valid) {
+      throw new AppError(403, protectedAccessMessage);
+    }
+  }
+
+  return verification;
 }
 
 /**
@@ -436,47 +477,16 @@ export async function deleteCertificate(req: Request, res: Response): Promise<vo
  */
 export async function getEditHistory(req: Request, res: Response): Promise<void> {
   const token = req.params.token;
-
-  if (!token) {
-    throw new AppError(400, 'Certificate token is required');
-  }
-
-  // Verify the certificate by token
-  const verification = await CertificateService.verifyCertificate(token);
-
-  if (!verification.valid || !verification.certificate) {
-    throw new AppError(404, 'Certificate not found or invalid');
-  }
-
-  // Check if edit history is enabled
-  if (!verification.certificate.includeEditHistory) {
-    throw new AppError(403, 'Edit history is not available for this certificate');
-  }
-
-  // The edit history contains the full reconstructable document (editor
-  // states plus textBefore/textAfter). For protected certificates it must be
-  // gated behind the same access code as the rest of the protected content;
-  // otherwise the verification token alone would bypass the access code.
-  if (verification.certificate.isProtected) {
-    // Access code is keyed into the response, so it must never be served from
-    // a shared cache to a viewer who did not present it.
-    res.setHeader('Cache-Control', 'no-store');
-    res.setHeader('Vary', 'X-Access-Code');
-
-    const accessCode =
-      (req.headers['x-access-code'] as string) ||
-      (req.body?.accessCode as string) ||
-      '';
-    const accessCheck = accessCode
-      ? await CertificateService.verifyCertificateWithAccessCode(token, accessCode)
-      : null;
-    if (!accessCheck || !accessCheck.valid) {
-      throw new AppError(403, 'Access code required to view edit history');
-    }
-  }
+  const verification = await resolvePublicCertificateWithEditHistoryAccess(
+    req,
+    res,
+    token,
+    'Access code required to view edit history'
+  );
+  const certificate = verification.certificate!;
 
   // Get the document events with editor state
-  const events = await DocumentEventModel.findByDocumentId(verification.certificate.documentId, {
+  const events = await DocumentEventModel.findByDocumentId(certificate.documentId, {
     limit: 5000, // Limit to first 5000 events for performance
     offset: 0,
   });
@@ -502,6 +512,55 @@ export async function getEditHistory(req: Request, res: Response): Promise<void>
     data: {
       editHistory,
       totalEvents: editHistory.length,
+    },
+  });
+}
+
+/**
+ * Get public certificate logs for shared certificate verification (no auth required)
+ */
+export async function getPublicCertificateLogs(req: Request, res: Response): Promise<void> {
+  const token = req.params.token;
+  const verification = await resolvePublicCertificateWithEditHistoryAccess(
+    req,
+    res,
+    token,
+    'Access code required to view logs'
+  );
+
+  const certificate = verification.certificate!;
+  const eventLimit = Math.min(parseInt(req.query.limit as string) || 10000, 10000);
+  const aiLogLimit = Math.min(parseInt(req.query.aiLimit as string) || 50, 200);
+
+  const [events, rawEventTotal, aiLogResult] = await Promise.all([
+    DocumentEventModel.findByDocumentId(certificate.documentId, {
+      limit: eventLimit,
+      offset: 0,
+    }),
+    DocumentEventModel.countByDocumentId(certificate.documentId),
+    AIModel.getLogs({
+      documentId: certificate.documentId,
+      limit: aiLogLimit,
+      offset: 0,
+    }).catch((error) => {
+      logger.warn('Failed to fetch public certificate AI logs', {
+        certificateId: certificate.id,
+        documentId: certificate.documentId,
+        error,
+      });
+      return { logs: [], total: 0 };
+    }),
+  ]);
+
+  res.json({
+    success: true,
+    data: {
+      certificateId: certificate.id,
+      documentId: certificate.documentId,
+      title: certificate.title,
+      timeline: buildDocumentEventTimeline(events, rawEventTotal),
+      aiLogs: aiLogResult.logs,
+      aiLogTotal: aiLogResult.total,
     },
   });
 }

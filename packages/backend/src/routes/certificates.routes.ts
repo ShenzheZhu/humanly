@@ -14,6 +14,7 @@ import {
   updateDisplayOptions,
   deleteCertificate,
   getEditHistory,
+  getPublicCertificateLogs,
   getAIAuthorshipStats,
 } from '../controllers/certificate.controller';
 
@@ -41,6 +42,14 @@ router.post('/verify/:token', asyncHandler(verifyCertificateWithAccessCode));
  * Returns timestamped editor states showing how document was created
  */
 router.get('/verify/:token/history', asyncHandler(getEditHistory));
+
+/**
+ * GET /api/v1/certificates/verify/:token/logs
+ * Get public activity logs for certificate verification
+ * PUBLIC ENDPOINT - No authentication required
+ * Protected certificates require X-Access-Code.
+ */
+router.get('/verify/:token/logs', asyncHandler(getPublicCertificateLogs));
 
 // All other routes require authentication
 router.use(authenticate);
