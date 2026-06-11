@@ -891,12 +891,12 @@ function DemoWritingEditor({
             <div className="flex min-w-0 items-center gap-3">
               <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 size="icon"
                 aria-label="Back to setup"
                 title="Back to setup"
                 onClick={onBackToSetup}
-                className="h-9 w-9"
+                className="-ml-2 h-9 w-9 text-muted-foreground hover:bg-transparent hover:text-foreground"
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>

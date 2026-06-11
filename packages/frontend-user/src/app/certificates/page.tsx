@@ -45,9 +45,9 @@ export default function CertificatesPage() {
     <div className="humanly-page">
       <div className="mb-8">
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
-          className="mb-5"
+          className="mb-5 -ml-2 h-auto px-2 py-1 text-muted-foreground hover:bg-transparent hover:text-foreground"
           onClick={() => router.push('/documents')}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />

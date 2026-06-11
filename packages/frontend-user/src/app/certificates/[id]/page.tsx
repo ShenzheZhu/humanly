@@ -311,8 +311,8 @@ export default function CertificateDetailPage() {
           {!isGuestCertificateView && (
             <Button
               onClick={() => router.push('/certificates')}
-              variant="outline"
-              className="mt-4"
+              variant="ghost"
+              className="mt-4 -ml-2 px-2 text-muted-foreground hover:bg-transparent hover:text-foreground"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Certificates
@@ -329,9 +329,9 @@ export default function CertificateDetailPage() {
         {!isGuestCertificateView && (
           <Button
             onClick={() => router.push('/certificates')}
-            variant="outline"
+            variant="ghost"
             size="sm"
-            className="w-fit"
+            className="-ml-2 w-fit px-2 text-muted-foreground hover:bg-transparent hover:text-foreground"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Certificates

@@ -1105,7 +1105,12 @@ export default function DocumentLogsPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="border-b px-4 py-3 flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => router.push(backHref)}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-2 px-2 text-muted-foreground hover:bg-transparent hover:text-foreground"
+          onClick={() => router.push(backHref)}
+        >
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back
         </Button>
