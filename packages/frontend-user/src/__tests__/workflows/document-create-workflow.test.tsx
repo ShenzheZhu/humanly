@@ -157,6 +157,11 @@ describe('document creation workflow', () => {
     expect(screen.getAllByText('Off').length).toBeGreaterThan(0);
     expect(screen.queryByLabelText(/minimum characters/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/maximum characters/i)).toBeInTheDocument();
+    expect(screen.getByText('Character cap')).toBeInTheDocument();
+    expect(screen.getByText('AI token budget')).toBeInTheDocument();
+    expect(screen.getByText('Traceability')).toBeInTheDocument();
+    expect(screen.getByText('Typing, Focus')).toBeInTheDocument();
+    expect(screen.queryByText('Submission')).not.toBeInTheDocument();
     expect(screen.queryByText('Choose Custom to configure AI access, copy-paste rules, or a time limit.')).not.toBeInTheDocument();
   });
 
@@ -199,6 +204,8 @@ describe('document creation workflow', () => {
     });
     expect(screen.getByText('Custom Environment')).toBeInTheDocument();
     expect(screen.getByText('Paste blocked')).toBeInTheDocument();
+    expect(screen.getByText('Max 123')).toBeInTheDocument();
+    expect(screen.getByText('Clipboard tracking off')).toBeInTheDocument();
     expect(screen.queryByText('Import JSON Configuration')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('combobox', { name: /environment/i }));
@@ -249,6 +256,8 @@ describe('document creation workflow', () => {
 
     expect(screen.getByText('Custom Environment')).toBeInTheDocument();
     expect(screen.getByText('Full')).toBeInTheDocument();
+    expect(screen.getByText('Model: qwen/qwen3.5-397b-a17b')).toBeInTheDocument();
+    expect(screen.getByText('Polish 1,024 tokens / chat 4,096 tokens')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /^edit settings$/i }));
     expect(screen.getByText('qwen/qwen3.5-397b-a17b')).toBeInTheDocument();

@@ -74,6 +74,11 @@ const USE_EXISTING_AI_KEY = '__use_existing__';
 const IMPORT_ENVIRONMENT_VALUE = 'import_environment';
 
 type EnvironmentSelection = WritingEnvironmentPreset | typeof IMPORT_ENVIRONMENT_VALUE;
+type EnvironmentSummaryItem = {
+  label: string;
+  value: string;
+  detail?: string;
+};
 
 function SectionHeading({
   title,
@@ -150,6 +155,89 @@ const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentC
     },
     copyPastePolicy,
   };
+};
+
+const formatSummaryNumber = (value: number): string => value.toLocaleString('en-US');
+
+const formatSummaryTokenValue = (value?: number): string => (
+  `${formatSummaryNumber(value || AI_SHORTCUT_MAX_TOKENS_DEFAULT)} tokens`
+);
+
+const formatPersonalCharacterCap = (config: WritingEnvironmentConfig): string => (
+  config.submission.maxCharacters
+    ? `Max ${formatSummaryNumber(config.submission.maxCharacters)}`
+    : 'No maximum'
+);
+
+const formatPersonalTimeLimit = (config: WritingEnvironmentConfig): string => (
+  config.aiUsageLimit.mode === 'time_restricted' && config.time.timeLimitSeconds
+    ? `${getTimeLimitMinutesValue(config.time.timeLimitSeconds)} min`
+    : 'No limit'
+);
+
+const formatPersonalAiTokenBudget = (config: WritingEnvironmentConfig): string => {
+  const aiAccess = normalizeWritingAiAccess(config.aiAccess);
+  const shortcutTokens = config.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT;
+  const chatTokens = config.aiTokenBudget?.chatMaxTokens || AI_CHAT_MAX_TOKENS_DEFAULT;
+
+  if (aiAccess === 'off') return 'Not used';
+  if (aiAccess === 'polish') return `Polish ${formatSummaryTokenValue(shortcutTokens)}`;
+  if (aiAccess === 'chat') return `Chat ${formatSummaryTokenValue(chatTokens)}`;
+  return `Polish ${formatSummaryTokenValue(shortcutTokens)} / chat ${formatSummaryTokenValue(chatTokens)}`;
+};
+
+const formatPersonalTraceability = (config: WritingEnvironmentConfig): string => {
+  const enabled = [
+    config.traceability.trackTyping ? 'Typing' : null,
+    config.traceability.trackCopyPaste ? 'Clipboard' : null,
+    config.traceability.trackFocusBlur ? 'Focus' : null,
+    config.traceability.trackAiUsage ? 'AI' : null,
+  ].filter(Boolean);
+
+  return enabled.length ? enabled.join(', ') : 'Minimal';
+};
+
+const buildPersonalEnvironmentSummary = (
+  config: WritingEnvironmentConfig,
+  selectedAiModel: string
+): EnvironmentSummaryItem[] => {
+  const aiAccess = normalizeWritingAiAccess(config.aiAccess);
+  const model = config.allowedModels[0] || selectedAiModel;
+
+  return [
+    {
+      label: 'AI access',
+      value: formatWritingAiAccess(aiAccess),
+      detail: aiAccess === 'off' ? 'Assistant disabled' : `Model: ${model || 'Not selected'}`,
+    },
+    {
+      label: 'Copy / paste',
+      value: normalizeCopyPastePolicy(config.copyPastePolicy) === 'blocked'
+        ? 'Paste blocked'
+        : 'Paste allowed',
+      detail: config.traceability.trackCopyPaste ? 'Clipboard events tracked' : 'Clipboard tracking off',
+    },
+    {
+      label: 'Time limit',
+      value: formatPersonalTimeLimit(config),
+      detail: 'Writing session timer',
+    },
+    {
+      label: 'Character cap',
+      value: formatPersonalCharacterCap(config),
+      detail: 'Final text length',
+    },
+    {
+      label: 'AI token budget',
+      value: formatPersonalAiTokenBudget(config),
+      detail: 'Shortcut / chat output',
+    },
+    {
+      label: 'Traceability',
+      value: formatPersonalTraceability(config),
+      detail: 'Captured evidence',
+    },
+  ];
 };
 
 export default function NewDocumentPage() {
@@ -560,6 +648,7 @@ export default function NewDocumentPage() {
 
   const isImportingEnvironment = environmentSelection === IMPORT_ENVIRONMENT_VALUE;
   const showCustomEnvironmentSummary = environmentSelection === 'custom';
+  const customEnvironmentSummaryItems = buildPersonalEnvironmentSummary(environmentConfig, selectedAiModel);
   const customEnvironmentControls = (
     <div className="grid gap-4 lg:grid-cols-2">
       <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4 lg:col-span-2">
@@ -999,40 +1088,13 @@ export default function NewDocumentPage() {
             {showCustomEnvironmentSummary && (
               <div className="rounded-lg border border-border/70 bg-muted/35 p-3">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 flex-1 space-y-4">
-                    <div className="flex items-start gap-3">
-                      <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#6f8a78]" />
-                      <div>
-                        <p className="font-medium">Custom Environment</p>
-                        <p className="text-sm text-muted-foreground">
-                          Configure AI, copy-paste, character cap, and time limit in a separate dialog.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <div className="rounded-lg border border-border/60 bg-background p-2.5">
-                        <p className="humanly-eyebrow">AI</p>
-                        <p className="mt-1 text-sm font-medium">
-                          {formatWritingAiAccess(environmentConfig.aiAccess)}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-border/60 bg-background p-2.5">
-                        <p className="humanly-eyebrow">Writing</p>
-                        <p className="mt-1 text-sm font-medium">
-                          {normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) === 'blocked'
-                            ? 'Paste blocked'
-                            : 'Paste allowed'}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-border/60 bg-background p-2.5">
-                        <p className="humanly-eyebrow">Time</p>
-                        <p className="mt-1 text-sm font-medium">
-                          {timeMode === 'time_restricted'
-                            ? `${getTimeLimitMinutesValue(environmentConfig.time.timeLimitSeconds)} min`
-                            : 'No limit'}
-                        </p>
-                      </div>
+                  <div className="flex min-w-0 items-start gap-3">
+                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#6f8a78]" />
+                    <div>
+                      <p className="font-medium">Custom Environment</p>
+                      <p className="text-sm text-muted-foreground">
+                        Configure AI, copy-paste, character cap, and time limit in a separate dialog.
+                      </p>
                     </div>
                   </div>
 
@@ -1047,6 +1109,18 @@ export default function NewDocumentPage() {
                   >
                     Edit Settings
                   </Button>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {customEnvironmentSummaryItems.map((item) => (
+                    <div key={item.label} className="rounded-lg border border-border/60 bg-background p-2.5">
+                      <p className="humanly-eyebrow">{item.label}</p>
+                      <p className="mt-1 text-sm font-medium">{item.value}</p>
+                      {item.detail && (
+                        <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

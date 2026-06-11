@@ -233,6 +233,12 @@ describe('admin new task page', () => {
     expect(screen.queryByRole('dialog', { name: /custom environment/i })).not.toBeInTheDocument();
     expect(screen.getByText('Custom Environment')).toBeInTheDocument();
     expect(screen.getByText('Off')).toBeInTheDocument();
+    expect(screen.getByText('Task window')).toBeInTheDocument();
+    expect(screen.getByText('Session timer')).toBeInTheDocument();
+    expect(screen.getByText('AI limit')).toBeInTheDocument();
+    expect(screen.getByText('Submission')).toBeInTheDocument();
+    expect(screen.getByText('Multiple submissions')).toBeInTheDocument();
+    expect(screen.getByText('Guests allowed')).toBeInTheDocument();
     expect(screen.queryByLabelText(/AI Usage Limit/i)).not.toBeInTheDocument();
 
     await act(async () => {
@@ -672,6 +678,11 @@ describe('admin new task page', () => {
     });
 
     expect(screen.getByText('Custom Environment')).toBeInTheDocument();
+    expect(screen.getByText('Full')).toBeInTheDocument();
+    expect(screen.getByText('Model: qwen/qwen3.5-397b-a17b')).toBeInTheDocument();
+    expect(screen.getByText('Max 42 requests')).toBeInTheDocument();
+    expect(screen.getByText('Paste blocked')).toBeInTheDocument();
+    expect(screen.getByText('Min 1,000')).toBeInTheDocument();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /Edit Settings/i }));
     });

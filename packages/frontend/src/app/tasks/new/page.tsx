@@ -207,6 +207,11 @@ type AiConnectionResult = {
 };
 
 type EnvironmentSelection = 'default_writing' | 'custom' | typeof IMPORT_ENVIRONMENT_VALUE;
+type EnvironmentSummaryItem = {
+  label: string;
+  value: string;
+  detail?: string;
+};
 
 const getAdminEnvironmentConfig = (preset: WritingEnvironmentPreset = 'default_writing'): WritingEnvironmentConfig => ({
   ...WRITING_ENVIRONMENT_PRESETS[preset],
@@ -284,6 +289,108 @@ const getDefaultTaskWindowValues = (startDate = new Date()) => {
 };
 
 const formatTaskWindowDate = (value?: string) => formatDateTime(value);
+
+const formatSummaryNumber = (value: number): string => value.toLocaleString('en-US');
+
+const formatAdminCharacterBounds = (config: WritingEnvironmentConfig): string => {
+  const { minCharacters, maxCharacters } = config.submission;
+  if (minCharacters && maxCharacters) {
+    return `${formatSummaryNumber(minCharacters)} - ${formatSummaryNumber(maxCharacters)} chars`;
+  }
+  if (minCharacters) return `Min ${formatSummaryNumber(minCharacters)}`;
+  if (maxCharacters) return `Max ${formatSummaryNumber(maxCharacters)}`;
+  return 'No length limit';
+};
+
+const formatAdminAiLimit = (config: WritingEnvironmentConfig): string => {
+  if (normalizeWritingAiAccess(config.aiAccess) === 'off') return 'Not used';
+
+  if (config.aiUsageLimit.mode === 'max_tokens') {
+    return config.aiUsageLimit.maxTokens
+      ? `Max ${formatSummaryNumber(config.aiUsageLimit.maxTokens)} tokens`
+      : 'Token limited';
+  }
+
+  if (config.aiUsageLimit.mode === 'time_restricted') return 'Time restricted';
+  if (config.aiUsageLimit.mode === 'unlimited') return 'Unlimited';
+  return `Max ${formatSummaryNumber(config.aiUsageLimit.maxRequests || 100)} requests`;
+};
+
+const formatAdminTraceability = (config: WritingEnvironmentConfig): string => {
+  const enabled = [
+    config.traceability.trackTyping ? 'Typing' : null,
+    config.traceability.trackCopyPaste ? 'Clipboard' : null,
+    config.traceability.trackFocusBlur ? 'Focus' : null,
+    config.traceability.trackAiUsage ? 'AI' : null,
+  ].filter(Boolean);
+
+  return enabled.length ? enabled.join(', ') : 'Minimal';
+};
+
+const buildAdminEnvironmentSummary = ({
+  config,
+  aiAccess,
+  selectedAiModel,
+  timeLimitEnabled,
+  startDate,
+  endDate,
+  allowGuestSubmissions,
+}: {
+  config: WritingEnvironmentConfig;
+  aiAccess: WritingAiAccess;
+  selectedAiModel: string;
+  timeLimitEnabled: boolean;
+  startDate?: string;
+  endDate?: string;
+  allowGuestSubmissions: boolean;
+}): EnvironmentSummaryItem[] => {
+  const normalizedAiAccess = normalizeWritingAiAccess(aiAccess);
+  const model = config.allowedModels[0] || selectedAiModel;
+
+  return [
+    {
+      label: 'AI access',
+      value: formatWritingAiAccess(normalizedAiAccess),
+      detail: normalizedAiAccess === 'off' ? 'Assistant disabled' : `Model: ${model || 'Not selected'}`,
+    },
+    {
+      label: 'Task window',
+      value: timeLimitEnabled ? 'Window on' : 'No task window',
+      detail: timeLimitEnabled
+        ? `${formatTaskWindowDate(startDate)} to ${formatTaskWindowDate(endDate)}`
+        : 'Enrollment is always available',
+    },
+    {
+      label: 'Session timer',
+      value: config.time.timeLimitSeconds
+        ? `${getTimeLimitMinutesValue(config.time.timeLimitSeconds)} min`
+        : 'No limit',
+      detail: 'In-editor countdown',
+    },
+    {
+      label: 'Writing rules',
+      value: normalizeCopyPastePolicy(config.copyPastePolicy) === 'blocked'
+        ? 'Paste blocked'
+        : 'Paste allowed',
+      detail: formatAdminCharacterBounds(config),
+    },
+    {
+      label: 'AI limit',
+      value: formatAdminAiLimit(config),
+      detail: 'Per enrolled writer',
+    },
+    {
+      label: 'Submission',
+      value: config.submission.mode === 'single' ? 'Single submission' : 'Multiple submissions',
+      detail: allowGuestSubmissions ? 'Guests allowed' : 'Sign-in required',
+    },
+    {
+      label: 'Traceability',
+      value: formatAdminTraceability(config),
+      detail: 'Captured evidence',
+    },
+  ];
+};
 
 export default function NewTaskPage() {
   const router = useRouter();
@@ -889,6 +996,15 @@ export default function NewTaskPage() {
 
   const isImportingEnvironment = environmentSelection === IMPORT_ENVIRONMENT_VALUE;
   const showCustomEnvironmentSummary = environmentSelection === 'custom';
+  const customEnvironmentSummaryItems = buildAdminEnvironmentSummary({
+    config: environmentConfig,
+    aiAccess,
+    selectedAiModel,
+    timeLimitEnabled,
+    startDate: watchedStartDate,
+    endDate: watchedEndDate,
+    allowGuestSubmissions,
+  });
   const customEnvironmentControls = (
     <div className="grid gap-4 xl:grid-cols-2">
       <div className="space-y-4 rounded-md border p-4 xl:col-span-2">
@@ -1553,38 +1669,13 @@ export default function NewTaskPage() {
                 {showCustomEnvironmentSummary && (
                   <div className="rounded-lg border border-border/70 bg-muted/35 p-3">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0 flex-1 space-y-4">
-                        <div className="flex items-start gap-3">
-                          <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#6f8a78]" />
-                          <div>
-                            <p className="font-medium">Custom Environment</p>
-                            <p className="text-sm text-muted-foreground">
-                              Configure AI, copy-paste, task window, and session timer in a separate dialog.
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="grid gap-3 sm:grid-cols-3">
-                          <div className="rounded-lg border border-border/60 bg-background p-2.5">
-                            <p className="humanly-eyebrow">AI</p>
-                            <p className="mt-1 text-sm font-medium">
-                              {formatWritingAiAccess(aiAccess)}
-                            </p>
-                          </div>
-                          <div className="rounded-lg border border-border/60 bg-background p-2.5">
-                            <p className="humanly-eyebrow">Writing</p>
-                            <p className="mt-1 text-sm font-medium">
-                              {normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) === 'blocked'
-                                ? 'Paste blocked'
-                                : 'Paste allowed'}
-                            </p>
-                          </div>
-                          <div className="rounded-lg border border-border/60 bg-background p-2.5">
-                            <p className="humanly-eyebrow">Time</p>
-                            <p className="mt-1 text-sm font-medium">
-                              {timeLimitEnabled ? 'Task window on' : 'No task window'}
-                            </p>
-                          </div>
+                      <div className="flex min-w-0 items-start gap-3">
+                        <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#6f8a78]" />
+                        <div>
+                          <p className="font-medium">Custom Environment</p>
+                          <p className="text-sm text-muted-foreground">
+                            Configure AI, copy-paste, task window, and session timer in a separate dialog.
+                          </p>
                         </div>
                       </div>
 
@@ -1596,6 +1687,18 @@ export default function NewTaskPage() {
                       >
                         Edit Settings
                       </Button>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {customEnvironmentSummaryItems.map((item) => (
+                        <div key={item.label} className="rounded-lg border border-border/60 bg-background p-2.5">
+                          <p className="humanly-eyebrow">{item.label}</p>
+                          <p className="mt-1 text-sm font-medium">{item.value}</p>
+                          {item.detail && (
+                            <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
