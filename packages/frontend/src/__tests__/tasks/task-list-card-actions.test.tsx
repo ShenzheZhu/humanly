@@ -120,10 +120,8 @@ describe('admin task list card actions', () => {
     expect(mockPush).toHaveBeenLastCalledWith('/tasks/task-123');
 
     openOptionsMenu();
-    fireEvent.click(await screen.findByRole('menuitem', { name: /edit setting/i }));
-    expect(mockPush).toHaveBeenLastCalledWith('/tasks/task-123?tab=setting');
+    expect(screen.queryByRole('menuitem', { name: /edit setting/i })).not.toBeInTheDocument();
 
-    openOptionsMenu();
     fireEvent.click(await screen.findByRole('menuitem', { name: /archive task/i }));
 
     await waitFor(() => {
@@ -134,6 +132,10 @@ describe('admin task list card actions', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: /archived/i }));
     expect(await screen.findByRole('heading', { name: 'Humanly Draft' })).toBeInTheDocument();
+
+    openOptionsMenu();
+    fireEvent.click(await screen.findByRole('menuitem', { name: /edit setting/i }));
+    expect(mockPush).toHaveBeenLastCalledWith('/tasks/task-123?tab=setting');
 
     openOptionsMenu();
     mockApiPut.mockResolvedValueOnce({

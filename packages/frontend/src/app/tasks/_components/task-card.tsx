@@ -65,6 +65,7 @@ export function TaskCard({
   const nextIsActive = activeTab === 'archived';
   const activeStateAction = getTaskActiveStateAction(nextIsActive);
   const taskWindowStatus = activeTab === 'open' ? getTaskWindowStatus(task, nowMs) : null;
+  const canEditSettings = !task.isActive;
 
   return (
     <Card className="flex min-h-[270px] flex-col transition-[border-color,transform] hover:-translate-y-1 hover:border-foreground/20">
@@ -140,10 +141,12 @@ export function TaskCard({
               <Eye className="mr-2 h-4 w-4" />
               View Details
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onEditSetting(task)}>
-              <Settings className="mr-2 h-4 w-4" />
-              Edit Setting
-            </DropdownMenuItem>
+            {canEditSettings && (
+              <DropdownMenuItem onClick={() => onEditSetting(task)}>
+                <Settings className="mr-2 h-4 w-4" />
+                Edit Setting
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               disabled={isChangingActiveState}
               onClick={() => onActiveStateChange(task, nextIsActive)}
