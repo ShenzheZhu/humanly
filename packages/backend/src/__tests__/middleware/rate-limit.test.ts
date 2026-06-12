@@ -58,6 +58,9 @@ describe('createRateLimiter store selection', () => {
     limiter({ ip: '1.1.1.1', path: '/x' }, {}, next);
     expect(mockRateLimit).toHaveBeenCalledTimes(1);
     expect(mockRateLimit.mock.calls[0][0].store).toBeUndefined();
+    expect(mockRateLimit.mock.calls[0][0].validate).toEqual(
+      expect.objectContaining({ creationStack: false })
+    );
 
     // Redis becomes ready -> the next request rebuilds with the Redis store.
     fakeRedisClient.isReady = true;
@@ -65,6 +68,9 @@ describe('createRateLimiter store selection', () => {
     expect(mockRateLimit).toHaveBeenCalledTimes(2);
     expect(mockRateLimit.mock.calls[1][0].store).toEqual(
       expect.objectContaining({ __isRedisStore: true })
+    );
+    expect(mockRateLimit.mock.calls[1][0].validate).toEqual(
+      expect.objectContaining({ creationStack: false })
     );
 
     // Once Redis-backed, the limiter is reused (no further rebuilds).
@@ -86,5 +92,8 @@ describe('createRateLimiter store selection', () => {
 
     expect(mockRateLimit).toHaveBeenCalledTimes(1);
     expect(mockRateLimit.mock.calls[0][0].store).toBeUndefined();
+    expect(mockRateLimit.mock.calls[0][0].validate).toEqual(
+      expect.objectContaining({ creationStack: false })
+    );
   });
 });
