@@ -50,7 +50,6 @@ export function TrackingPlugin(props: EditorTrackerConfig): null {
     props.flushInterval,
     props.enabled,
     props.copyPastePolicy,
-    props.captureDeterrence,
   ]);
 
   return null;

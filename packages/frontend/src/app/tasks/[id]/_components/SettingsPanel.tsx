@@ -357,7 +357,6 @@ const mergeEnvironmentConfig = (config?: WritingEnvironmentConfig | null): Writi
   ...(config || {}),
   aiAccess: normalizeWritingAiAccess(config?.aiAccess),
   resourceAccess: normalizeResourceAccessPolicy(config?.resourceAccess),
-  captureDeterrence: config?.captureDeterrence === true,
   copyPastePolicy: normalizeCopyPastePolicy(config?.copyPastePolicy),
   taskType: 'admin_assigned',
   preset: 'custom',
@@ -956,7 +955,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
         trackCopyPaste: normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) === 'allowed',
       },
       resourceAccess: normalizeResourceAccessPolicy(environmentConfig.resourceAccess),
-      captureDeterrence: environmentConfig.captureDeterrence === true,
     };
   };
 
@@ -1160,13 +1158,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
       detail: normalizeResourceAccessPolicy(environmentConfig.resourceAccess) === 'view-only'
         ? 'Short-lived in-workspace PDF access'
         : 'Standard file access',
-    },
-    {
-      label: 'Capture Deterrence',
-      value: environmentConfig.captureDeterrence ? 'On' : 'Off',
-      detail: environmentConfig.captureDeterrence
-        ? 'Notice and browser-visible shortcut logging'
-        : 'No capture notice',
     },
   ];
 
@@ -1765,22 +1756,6 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                       })}
                     />
                   </SettingRow>
-
-                  <label className="flex items-start gap-3 rounded-md border border-border/70 bg-muted/20 p-3 text-sm lg:col-span-2">
-                    <Checkbox
-                      checked={environmentConfig.captureDeterrence === true}
-                      disabled={isSubmitting}
-                      onCheckedChange={(checked) => updateEnvironment({
-                        captureDeterrence: checked === true,
-                      })}
-                    />
-                    <span>
-                      <span className="block font-medium">Capture deterrence</span>
-                      <span className="block text-xs text-muted-foreground">
-                        Show a screen-capture notice and log browser-visible screenshot shortcuts when available. OS-level screenshots may not be detectable.
-                      </span>
-                    </span>
-                  </label>
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="grid gap-2">

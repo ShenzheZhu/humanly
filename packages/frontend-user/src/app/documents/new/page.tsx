@@ -55,7 +55,6 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -233,13 +232,6 @@ const buildPersonalEnvironmentSummary = (
       detail: normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only'
         ? 'PDF opens through short-lived viewer access'
         : 'PDF keeps standard file access',
-    },
-    {
-      label: 'Capture deterrence',
-      value: config.captureDeterrence ? 'On' : 'Off',
-      detail: config.captureDeterrence
-        ? 'Notice and browser-visible shortcut logging'
-        : 'No capture notice',
     },
     {
       label: 'Time limit',
@@ -959,25 +951,6 @@ export default function NewDocumentPage() {
             View-only PDFs load through short-lived viewer access and hide file-saving affordances.
           </p>
         </div>
-
-        <label className="flex items-start gap-3 rounded-lg border border-border/70 bg-muted/20 p-3 text-sm">
-          <Checkbox
-            checked={environmentConfig.captureDeterrence === true}
-            disabled={isCreating}
-            onCheckedChange={(checked) => {
-              markCustom((current) => ({
-                ...current,
-                captureDeterrence: checked === true,
-              }));
-            }}
-          />
-          <span>
-            <span className="block font-medium">Capture deterrence</span>
-            <span className="block text-xs text-muted-foreground">
-              Show a screen-capture notice and log browser-visible screenshot shortcuts when available. OS-level screenshots may not be detectable.
-            </span>
-          </span>
-        </label>
 
         <div className="grid gap-3">
           <div className="humanly-field">
