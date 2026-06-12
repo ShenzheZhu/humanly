@@ -13,7 +13,6 @@ export interface EditorTrackerConfig {
   flushInterval?: number;
   enabled?: boolean;
   copyPastePolicy?: CopyPastePolicy;
-  captureDeterrence?: boolean;
   textRenderMode?: TextRenderMode;
   getTextRenderMode?: () => TextRenderMode;
 }
@@ -119,7 +118,6 @@ export interface LexicalEditorProps {
   editable?: boolean;
   trackingEnabled?: boolean;
   copyPastePolicy?: CopyPastePolicy;
-  captureDeterrence?: boolean;
   maxCharacters?: number | null;
   onCharacterLimitReached?: (limit: number) => void;
   autoSaveEnabled?: boolean;

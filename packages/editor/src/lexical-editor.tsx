@@ -668,7 +668,6 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
     editable = true,
     trackingEnabled = true,
     copyPastePolicy = 'allowed',
-    captureDeterrence = false,
     maxCharacters,
     onCharacterLimitReached,
     autoSaveEnabled = false,
@@ -917,7 +916,6 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
             onEventFlushReady={onEventFlushReady}
             enabled={trackingEnabled}
             copyPastePolicy={copyPastePolicy}
-            captureDeterrence={captureDeterrence}
             textRenderMode={markdownEnabled ? 'markdown' : 'plain'}
           />
         )}
