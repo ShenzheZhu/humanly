@@ -50,6 +50,7 @@ QA reports should name the bucket before filing the issue.
 | #363 | Buffered document activity events could be read too early by logs, certificate generation, or task submit when users acted immediately after typing. | `type:old-gap` | current QA batch | Frontend editor workflow tests assert View Logs, certificate generation, and task submit await activity-log flush success before continuing. |
 | #441 | User-role tokens could access admin task owner endpoints and create/delete tasks through the admin API. | `type:old-gap` | current QA batch | Backend task route integration tests assert user-role tokens receive 403 on admin task endpoints while admin-role tokens and user enrollment routes still pass. |
 | #443 | `DELETE /auth/me` could return 500 for users with task/public-writing dependent rows. | `type:regression` | current QA batch | Backend user-model deletion tests assert account deletion explicitly cleans Humanly app-owned dependent rows before deleting the user row; deployed QA retests public guest account deletion. |
+| #556 | Signed public task links could reopen a previously expired timed task document, leaving the writer read-only at `0:00` instead of entering an editable document. | `type:old-gap` | current QA batch | Backend public task start tests assert expired signed-user task documents are replaced with a fresh linked draft while non-expired signed documents and guest reuse remain unchanged. |
 
 ## How To Use
 
