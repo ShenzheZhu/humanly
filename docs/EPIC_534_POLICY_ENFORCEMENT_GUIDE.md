@@ -43,7 +43,7 @@ Implementation order is by difficulty, easiest first (rationale in the epic):
 
 | # | Issue | Size | Depends on | Notes |
 |---|---|---|---|---|
-| 1 | #540 screenshot deterrence | S | #538 (one subtask only) | Ship toggle/notice/shortcut-logging now; add the `focus_anomaly` rule after #538 lands |
+| 1 | #540 screenshot deterrence | S | — | Removed: ordinary web pages cannot reliably observe OS-level screenshots |
 | 2 | #537 view-only resources | M- | — | |
 | 3 | #536 AI-reliance score | M | — | **Builds the trusted-provider infra** (§4.1) |
 | 4 | #538 anomaly flags | M+ | — | Heavy on fixtures and edge cases |
@@ -120,24 +120,24 @@ detection — no code path or UI copy may use the word "detect" for #540.
 
 ## 5. Per-Issue Gotcha Cards
 
-**#540 deterrence (S).** Copy says "recorded and flagged", never "detected".
-Per-OS shortcut visibility differs (macOS Meta+Shift+3/4/5 visible;
-Win+Shift+S usually not) — document a coverage table. `visibilitychange` and
-`blur` are separate signals.
+**#540 deterrence (removed).** Screenshot deterrence was removed from the
+product surface because ordinary web pages cannot reliably observe OS-level
+screenshots. Do not reintroduce screenshot language unless the implementation
+uses a native app, browser extension, recording workflow, or another mechanism
+that can actually capture the relevant event stream.
 
-Coverage note for the shipped deterrence layer:
+Coverage note for why warning-only deterrence was removed:
 
 | Environment | Browser-visible signal | Product behavior |
 |---|---|---|
-| macOS screenshot shortcuts | `Meta+Shift+3/4/5` keydown is often visible | Best-effort shortcut event logging |
-| Windows PrintScreen | `PrintScreen` keydown is often visible | Best-effort shortcut event logging |
+| macOS screenshot shortcuts | `Meta+Shift+3/4/5` keydown is not reliable in a web page | No product claim |
+| Windows PrintScreen | `PrintScreen` keydown may be visible in some browsers | No product claim |
 | Windows snipping shortcut | `Win+Shift+S` is generally not visible to pages | No detection claim |
 | OS-level or hardware capture | Not available to ordinary web pages | No detection claim |
 
-When `captureDeterrence` is enabled, the workspace notice says screen captures
-are not permitted and that focus changes / browser-visible screenshot shortcuts
-are recorded and may be flagged. The `focus_anomaly` rule is gated by
-`captureDeterrence=true` and `resourceAccess=view-only`.
+The legacy `captureDeterrence` JSON field is accepted by the validator for
+backward compatibility, but it is not exposed in new environment UI and should
+not drive certificate claims or anomaly flags.
 
 **#537 view-only (M-).** Two file surfaces (document files + task instruction
 files incl. the enrollment route, `files.routes.ts:31-36`). Token binding
@@ -178,7 +178,7 @@ Per the manual's verification ladder, plus epic-specific minimums:
 
 | Issue | Automated | Manual handoff (visible feature) |
 |---|---|---|
-| #540 | toggle/notice unit tests | notice appears; rapid blur cycles flag (after #538) |
+| #540 | legacy config compatibility | no screenshot deterrence UI, certificate claim, or anomaly flag remains |
 | #537 | token expiry, direct-URL rejection, Range behavior | view-only PDF renders; copied network URL dies after TTL; downloadable mode unchanged |
 | #536 | mock determinism, malformed-output fallback, migration | AI-heavy draft scores high, hand-typed scores low; rationale references real transcript |
 | #538 | bot vs human fixtures, IME fixture, clock-skew fixture | scripted typing produces flags in owner view; normal session clean |

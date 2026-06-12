@@ -61,7 +61,6 @@ export interface WritingEnvironmentConfig {
     trackCopyPaste: boolean;
     trackFocusBlur: boolean;
   };
-  captureDeterrence?: boolean;
   resourceAccess?: ResourceAccessPolicy;
   copyPastePolicy: CopyPastePolicy;
 }
@@ -187,7 +186,6 @@ export const DEFAULT_WRITING_ENVIRONMENT_CONFIG: WritingEnvironmentConfig = {
     trackCopyPaste: false,
     trackFocusBlur: true,
   },
-  captureDeterrence: false,
   resourceAccess: 'downloadable',
   copyPastePolicy: 'allowed',
 };

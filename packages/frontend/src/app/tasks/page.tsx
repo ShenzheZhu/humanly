@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api, { ApiError } from '@/lib/api-client';
@@ -10,10 +10,26 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
+  ArrowDownAZ,
+  Check,
   Plus,
   Search,
   AlertCircle,
   Folder,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import { TaskCard } from './_components/task-card';
 import {
@@ -23,6 +39,25 @@ import {
   type TaskDashboardItem,
   type TaskDashboardTab,
 } from './_components/task-dashboard-lifecycle';
+
+type TaskViewMode = 'cards' | 'list';
+type TaskSortOption = 'createdAt' | 'name';
+
+const TASK_VIEW_MODE_STORAGE_KEY = 'humanly:admin-tasks:view-mode';
+
+const TASK_SORT_LABELS: Record<TaskSortOption, string> = {
+  createdAt: 'Created date',
+  name: 'Task name',
+};
+
+const isTaskViewMode = (value: string | null): value is TaskViewMode => (
+  value === 'cards' || value === 'list'
+);
+
+const getTaskCreatedAtMs = (task: TaskDashboardItem) => {
+  const timestamp = new Date(task.createdAt).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+};
 
 /**
  * Tasks list page component
@@ -40,8 +75,23 @@ export default function TasksPage() {
   const [changingActiveStateTaskId, setChangingActiveStateTaskId] = useState<string | null>(null);
   const [openOptionsTaskId, setOpenOptionsTaskId] = useState<string | null>(null);
   const [dashboardNowMs, setDashboardNowMs] = useState(() => Date.now());
+  const [taskViewMode, setTaskViewMode] = useState<TaskViewMode>('cards');
+  const [taskSortBy, setTaskSortBy] = useState<TaskSortOption>('createdAt');
+  const [isTaskSortMenuOpen, setIsTaskSortMenuOpen] = useState(false);
 
   const itemsPerPage = 9; // 3x3 grid
+
+  useEffect(() => {
+    const storedViewMode = window.localStorage.getItem(TASK_VIEW_MODE_STORAGE_KEY);
+    if (isTaskViewMode(storedViewMode)) {
+      setTaskViewMode(storedViewMode);
+    }
+  }, []);
+
+  const handleTaskViewModeChange = useCallback((nextViewMode: TaskViewMode) => {
+    setTaskViewMode(nextViewMode);
+    window.localStorage.setItem(TASK_VIEW_MODE_STORAGE_KEY, nextViewMode);
+  }, []);
 
   /**
    * Fetch all tasks for the current user
@@ -141,6 +191,16 @@ export default function TasksPage() {
     return filterTasksForDashboard(tasks, activeTab, searchQuery);
   }, [tasks, activeTab, searchQuery]);
 
+  const sortedTasks = useMemo(() => {
+    const tasksToSort = [...filteredTasks];
+
+    if (taskSortBy === 'name') {
+      return tasksToSort.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    return tasksToSort.sort((a, b) => getTaskCreatedAtMs(b) - getTaskCreatedAtMs(a));
+  }, [filteredTasks, taskSortBy]);
+
   const openTaskCount = useMemo(() => (
     tasks.filter(task => task.isActive).length
   ), [tasks]);
@@ -155,8 +215,8 @@ export default function TasksPage() {
   const paginatedTasks = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return filteredTasks.slice(startIndex, endIndex);
-  }, [filteredTasks, currentPage, itemsPerPage]);
+    return sortedTasks.slice(startIndex, endIndex);
+  }, [sortedTasks, currentPage, itemsPerPage]);
 
   /**
    * Calculate total pages
@@ -183,7 +243,7 @@ export default function TasksPage() {
    */
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, searchQuery]);
+  }, [activeTab, searchQuery, taskSortBy]);
 
   const hasSearchQuery = searchQuery.trim().length > 0;
   const tabCountText = getTaskDashboardTabCountText(filteredTasks.length, activeTab, hasSearchQuery);
@@ -219,8 +279,70 @@ export default function TasksPage() {
     </Tabs>
   );
 
+  const renderTaskViewAndSortControls = () => (
+    <TooltipProvider delayDuration={0}>
+      <div className="flex items-center justify-end gap-2">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 text-muted-foreground hover:text-foreground"
+              aria-label={taskViewMode === 'cards' ? 'List view' : 'Card view'}
+              onClick={() => handleTaskViewModeChange(taskViewMode === 'cards' ? 'list' : 'cards')}
+            >
+              {taskViewMode === 'cards' ? (
+                <List className="h-6 w-6" />
+              ) : (
+                <LayoutGrid className="h-6 w-6" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {taskViewMode === 'cards' ? 'List view' : 'Card view'}
+          </TooltipContent>
+        </Tooltip>
+
+        <DropdownMenu open={isTaskSortMenuOpen} onOpenChange={setIsTaskSortMenuOpen}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 text-muted-foreground hover:text-foreground"
+              aria-label={`Sort by ${TASK_SORT_LABELS[taskSortBy]}`}
+              title="Sort tasks"
+              onPointerDown={(event) => event.preventDefault()}
+              onClick={(event) => {
+                if (event.detail === 0) return;
+                setIsTaskSortMenuOpen(open => !open);
+              }}
+            >
+              <ArrowDownAZ className="h-6 w-6" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {(Object.keys(TASK_SORT_LABELS) as TaskSortOption[]).map((option) => (
+              <DropdownMenuItem
+                key={option}
+                onClick={() => {
+                  setTaskSortBy(option);
+                  setIsTaskSortMenuOpen(false);
+                }}
+              >
+                <Check className={taskSortBy === option ? 'mr-2 h-4 w-4 opacity-100' : 'mr-2 h-4 w-4 opacity-0'} />
+                {TASK_SORT_LABELS[option]}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </TooltipProvider>
+  );
+
   const renderDashboardControls = () => (
-    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mb-6 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
       <div className="relative w-full sm:max-w-sm">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -231,7 +353,10 @@ export default function TasksPage() {
           onChange={(e) => setSearchQuery(e.target.value)}
         />
       </div>
-      {renderTaskTabs()}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between xl:justify-end">
+        {renderTaskTabs()}
+        {renderTaskViewAndSortControls()}
+      </div>
     </div>
   );
 
@@ -383,25 +508,56 @@ export default function TasksPage() {
       {renderDashboardHeader(tabCountText)}
       {renderDashboardControls()}
 
-      {/* Task Grid */}
-      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-        {paginatedTasks.map((task) => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            activeTab={activeTab}
-            nowMs={dashboardNowMs}
-            isDeleting={deletingTaskId === task.id}
-            isChangingActiveState={changingActiveStateTaskId === task.id}
-            isOptionsOpen={openOptionsTaskId === task.id}
-            onOptionsOpenChange={(open) => setOpenOptionsTaskId(open ? task.id : null)}
-            onView={(selectedTask) => router.push(`/tasks/${selectedTask.id}`)}
-            onEditSetting={(selectedTask) => router.push(`/tasks/${selectedTask.id}?tab=setting`)}
-            onDelete={handleDeleteTask}
-            onActiveStateChange={handleTaskActiveStateChange}
-          />
-        ))}
-      </div>
+      {taskViewMode === 'cards' ? (
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {paginatedTasks.map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              activeTab={activeTab}
+              nowMs={dashboardNowMs}
+              isDeleting={deletingTaskId === task.id}
+              isChangingActiveState={changingActiveStateTaskId === task.id}
+              isOptionsOpen={openOptionsTaskId === task.id}
+              onOptionsOpenChange={(open) => setOpenOptionsTaskId(open ? task.id : null)}
+              onView={(selectedTask) => router.push(`/tasks/${selectedTask.id}`)}
+              onEditSetting={(selectedTask) => router.push(`/tasks/${selectedTask.id}?tab=setting`)}
+              onDelete={handleDeleteTask}
+              onActiveStateChange={handleTaskActiveStateChange}
+              variant="card"
+            />
+          ))}
+        </div>
+      ) : (
+        <div>
+          <div className="hidden grid-cols-[minmax(0,1.4fr)_8.5rem_10rem_11rem_8rem] border-b border-border/70 px-2 pb-2 text-xs font-medium uppercase tracking-normal text-muted-foreground md:grid">
+            <span>Task name</span>
+            <span>Status</span>
+            <span>Completions</span>
+            <span>Created</span>
+            <span />
+          </div>
+          <div>
+            {paginatedTasks.map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                activeTab={activeTab}
+                nowMs={dashboardNowMs}
+                isDeleting={deletingTaskId === task.id}
+                isChangingActiveState={changingActiveStateTaskId === task.id}
+                isOptionsOpen={openOptionsTaskId === task.id}
+                onOptionsOpenChange={(open) => setOpenOptionsTaskId(open ? task.id : null)}
+                onView={(selectedTask) => router.push(`/tasks/${selectedTask.id}`)}
+                onEditSetting={(selectedTask) => router.push(`/tasks/${selectedTask.id}?tab=setting`)}
+                onDelete={handleDeleteTask}
+                onActiveStateChange={handleTaskActiveStateChange}
+                variant="list"
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (
