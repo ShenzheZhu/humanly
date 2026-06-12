@@ -11,6 +11,7 @@ const DELETE_BURST_GAP_MS = 1500;
 const LINE_BREAK_GAP_MS = 1500;
 const SELECTION_DELETE_WINDOW_MS = 5000;
 const AI_INSERT_MIRROR_WINDOW_MS = 1500;
+const PAGE_VISIBILITY_FOCUS_WINDOW_MS = 1000;
 const BOUNDARY_KEYS = new Set(['Enter', 'Tab', 'Escape']);
 const TYPING_EVENT_TYPES = new Set<EventType>(['keydown', 'input']);
 const FORMAT_EVENT_TYPES = new Set<EventType>([
@@ -188,6 +189,40 @@ function filterMirroredAIInsertTypingEvents(events: DocumentEvent[]): DocumentEv
   if (aiInsertEvents.length === 0) return events;
 
   return events.filter((event) => !isMirroredAIInsertTypingEvent(event, aiInsertEvents));
+}
+
+function isPageVisibilityEvent(event: DocumentEvent): boolean {
+  return event.eventType === 'page_hidden' || event.eventType === 'page_visible';
+}
+
+function isDuplicateFocusBlurNearPageVisibility(
+  event: DocumentEvent,
+  events: DocumentEvent[]
+): boolean {
+  const matchingPageEventType =
+    event.eventType === 'blur'
+      ? 'page_hidden'
+      : event.eventType === 'focus'
+        ? 'page_visible'
+        : null;
+
+  if (!matchingPageEventType) return false;
+
+  return events.some((candidate) => {
+    if (candidate.eventType !== matchingPageEventType) return false;
+    if (!sameSession(event.sessionId, candidate.sessionId)) return false;
+
+    return (
+      Math.abs(timestampMs(event.timestamp) - timestampMs(candidate.timestamp)) <=
+      PAGE_VISIBILITY_FOCUS_WINDOW_MS
+    );
+  });
+}
+
+function filterPageVisibilityDuplicateFocusBlurEvents(events: DocumentEvent[]): DocumentEvent[] {
+  if (!events.some(isPageVisibilityEvent)) return events;
+
+  return events.filter((event) => !isDuplicateFocusBlurNearPageVisibility(event, events));
 }
 
 function getSelectedText(event: DocumentEvent | null): string {
@@ -448,6 +483,8 @@ function eventLabel(event: DocumentEvent): string {
   const labels: Partial<Record<EventType, string>> = {
     focus: 'Editor focused',
     blur: 'Editor blurred',
+    page_hidden: 'Left page',
+    page_visible: 'Returned',
     select: 'Text selected',
     copy: 'Copied text',
     cut: 'Cut text',
@@ -708,8 +745,8 @@ export function buildDocumentEventTimeline(
   events: DocumentEvent[],
   rawEventTotal = events.length
 ): DocumentEventTimelineResponse {
-  const chronologicalEvents = filterMirroredAIInsertTypingEvents(
-    [...events].sort(compareEventsAscending)
+  const chronologicalEvents = filterPageVisibilityDuplicateFocusBlurEvents(
+    filterMirroredAIInsertTypingEvents([...events].sort(compareEventsAscending))
   );
 
   const items: DocumentEventTimelineItem[] = [];
