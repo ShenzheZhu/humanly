@@ -86,7 +86,12 @@ const getRawEventColor = (eventType: string): CSSProperties => {
   if (eventType === 'copy' || eventType === 'cut' || eventType === 'select') {
     return { backgroundColor: '#F1EEE8', borderColor: '#D7CDC0', color: '#6B6255' };
   }
-  if (eventType === 'focus' || eventType === 'blur') {
+  if (
+    eventType === 'focus' ||
+    eventType === 'blur' ||
+    eventType === 'page_hidden' ||
+    eventType === 'page_visible'
+  ) {
     return TIMELINE_COLORS.line_break || DEFAULT_TIMELINE_COLOR;
   }
   if (eventType === 'delete') return TIMELINE_COLORS.delete || DEFAULT_TIMELINE_COLOR;
@@ -157,6 +162,42 @@ function getSelectionText(log: AIInteractionLog) {
 
 function getSuggestedText(log: AIInteractionLog) {
   return log.modifications?.[0]?.after || log.response || '';
+}
+
+function formatDuration(ms?: unknown) {
+  if (typeof ms !== 'number' || !Number.isFinite(ms) || ms < 0) {
+    return '';
+  }
+
+  const totalSeconds = Math.max(1, Math.round(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const parts: string[] = [];
+
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+  if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`);
+
+  return parts.join(' ');
+}
+
+function getPageVisibleDetail(metadata?: Record<string, any>) {
+  const duration = formatDuration(metadata?.hiddenDurationMs);
+  return duration ? `Returned after ${duration}` : 'Returned to the document page';
+}
+
+function isPageVisibilityEventType(eventType?: string) {
+  return eventType === 'page_hidden' || eventType === 'page_visible';
+}
+
+function getTimelinePageVisibilityEventType(item: DocumentEventTimelineItem) {
+  const eventType = item.rawEvents[0]?.eventType;
+  return isPageVisibilityEventType(eventType) ? eventType : null;
+}
+
+function isPageVisibilityTimelineItem(item: DocumentEventTimelineItem) {
+  return Boolean(getTimelinePageVisibilityEventType(item));
 }
 
 function normalizeForComparison(text?: string) {
@@ -490,6 +531,14 @@ function renderReplacePreview(item: DocumentEventTimelineItem, maxTextCharacters
 }
 
 function renderTimelineDetail(item: DocumentEventTimelineItem) {
+  const pageVisibilityEventType = getTimelinePageVisibilityEventType(item);
+  if (pageVisibilityEventType === 'page_hidden') {
+    return 'User switched away from the document page';
+  }
+  if (pageVisibilityEventType === 'page_visible') {
+    return getPageVisibleDetail(item.metadata);
+  }
+
   if (item.kind === 'typing_burst') {
     return renderTextPreview(item.text, '');
   }
@@ -520,6 +569,10 @@ function renderTimelineDetail(item: DocumentEventTimelineItem) {
 }
 
 function getTimelineActivityLabel(item: DocumentEventTimelineItem) {
+  const pageVisibilityEventType = getTimelinePageVisibilityEventType(item);
+  if (pageVisibilityEventType === 'page_hidden') return 'Left page';
+  if (pageVisibilityEventType === 'page_visible') return 'Returned';
+
   if (item.kind === 'typing_burst') return 'Typed';
   if (item.kind === 'line_break') {
     return getTimelineLineBreakCount(item) > 1 ? 'Blank line' : 'Line break';
@@ -692,6 +745,8 @@ function renderRawDetail(event: DocumentEventTimelineRawEvent) {
   if (event.eventType === 'ai_panel_open') return null;
   if (event.eventType === 'ai_panel_close') return null;
 
+  if (event.eventType === 'page_hidden') return 'User switched away from the document page';
+  if (event.eventType === 'page_visible') return getPageVisibleDetail(event.metadata);
   if (event.eventType === 'focus') return 'Editor focused';
   if (event.eventType === 'blur') return 'Editor lost focus';
   if (event.eventType === 'select') {
@@ -749,6 +804,8 @@ function renderRawDetail(event: DocumentEventTimelineRawEvent) {
 }
 
 function getRawEventDisplayType(event: DocumentEventTimelineRawEvent) {
+  if (event.eventType === 'page_hidden') return 'Left page';
+  if (event.eventType === 'page_visible') return 'Returned';
   if (event.eventType === 'ai_query_sent') return 'AI question sent';
   if (event.eventType === 'ai_response_received') return 'AI response received';
   if (event.eventType === 'ai_panel_open') return 'AI panel opened';
@@ -772,6 +829,10 @@ function getHiddenRawEventCategory(event: DocumentEventTimelineRawEvent) {
 
   if (eventType === 'focus' || eventType === 'blur') {
     return 'focus/blur';
+  }
+
+  if (isPageVisibilityEventType(eventType)) {
+    return 'page visibility';
   }
 
   if (['select', 'copy', 'cut'].includes(eventType)) {
@@ -1042,7 +1103,7 @@ export default function DocumentLogsPage() {
 
     const sourceItems: TimelineSourceItem[] = [
       ...visibleTimelineItems.map((item) => {
-        if (WRITING_TIMELINE_KINDS.has(item.kind)) {
+        if (WRITING_TIMELINE_KINDS.has(item.kind) || isPageVisibilityTimelineItem(item)) {
           return {
             kind: 'primary' as const,
             timestamp: item.timestamp,

@@ -8,6 +8,9 @@ export type EventType =
   | 'contextmenu'
   | 'focus'
   | 'blur'
+  // Browser page visibility
+  | 'page_hidden'
+  | 'page_visible'
   | 'input'
   | 'delete'
   | 'select'

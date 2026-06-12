@@ -20,6 +20,7 @@
  *     GET  /api/v1/documents/:id
  *     GET  /api/v1/tasks/my-enrollments
  *     POST /api/v1/documents/:id/events
+ *     GET  /api/v1/documents/:id/events/timeline
  *     GET  /api/v1/certificates
  *     POST /api/v1/certificates
  *     GET  /api/v1/certificates/:id
@@ -310,6 +311,8 @@ const MOCK_AI_LOGS = [
   },
 ];
 
+const mockDocumentEvents = [];
+
 const MOCK_SEAL = {
   version: 'hly-seal-v1',
   algorithm: 'HMAC-SHA256',
@@ -399,6 +402,100 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+function textDelta(event) {
+  if (typeof event.textBefore !== 'string' || typeof event.textAfter !== 'string') {
+    return { insertedText: event.keyChar || '', deletedText: '' };
+  }
+
+  const before = event.textBefore;
+  const after = event.textAfter;
+  let prefix = 0;
+  while (prefix < before.length && prefix < after.length && before[prefix] === after[prefix]) {
+    prefix += 1;
+  }
+
+  let suffix = 0;
+  while (
+    suffix < before.length - prefix &&
+    suffix < after.length - prefix &&
+    before[before.length - 1 - suffix] === after[after.length - 1 - suffix]
+  ) {
+    suffix += 1;
+  }
+
+  return {
+    insertedText: after.slice(prefix, after.length - suffix),
+    deletedText: before.slice(prefix, before.length - suffix),
+  };
+}
+
+function mockTimelineLabel(event) {
+  if (event.eventType === 'page_hidden') return 'Left page';
+  if (event.eventType === 'page_visible') return 'Returned';
+  if (event.eventType === 'focus') return 'Editor focused';
+  if (event.eventType === 'blur') return 'Editor blurred';
+  if (event.eventType === 'input' || event.eventType === 'keydown') return 'Typed text';
+  if (event.eventType === 'paste') return 'Pasted text';
+  if (event.eventType === 'delete') return 'Deleted text';
+  return String(event.eventType || 'event').replace(/_/g, ' ');
+}
+
+function toMockTimelineEvent(event) {
+  const delta = textDelta(event);
+  return {
+    id: event.id,
+    kind: event.eventType === 'paste' ? 'paste' : 'event',
+    label: mockTimelineLabel(event),
+    text: delta.insertedText || delta.deletedText || event.keyChar || event.keyCode || '',
+    charCount: delta.insertedText.length || delta.deletedText.length || undefined,
+    timestamp: event.timestamp,
+    startTimestamp: event.timestamp,
+    endTimestamp: event.timestamp,
+    sessionId: event.sessionId,
+    rawEventCount: 1,
+    rawEvents: [
+      {
+        id: event.id,
+        eventType: event.eventType,
+        timestamp: event.timestamp,
+        keyCode: event.keyCode,
+        keyChar: event.keyChar,
+        insertedText: delta.insertedText || undefined,
+        deletedText: delta.deletedText || undefined,
+        cursorPosition: event.cursorPosition,
+        selectionStart: event.selectionStart,
+        selectionEnd: event.selectionEnd,
+        metadata: event.metadata || {},
+      },
+    ],
+    metadata: event.metadata || {},
+  };
+}
+
+function buildMockDocumentTimeline() {
+  const events = [...mockDocumentEvents].sort(
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+  );
+  const items = events.map(toMockTimelineEvent);
+
+  return {
+    items,
+    summary: {
+      rawEventTotal: mockDocumentEvents.length,
+      timelineItemTotal: items.length,
+      typingBursts: 0,
+      typedCharacters: 0,
+      typedWords: 0,
+      pasteCharacters: items
+        .filter((item) => item.kind === 'paste')
+        .reduce((sum, item) => sum + (item.charCount || 0), 0),
+      deletedCharacters: mockDocumentEvents
+        .filter((event) => event.eventType === 'delete')
+        .reduce((sum, event) => sum + textDelta(event).deletedText.length, 0),
+    },
+  };
+}
+
 // ── REST routes ────────────────────────────────────────────────────────────
 
 const server = createServer(async (req, res) => {
@@ -485,6 +582,9 @@ const server = createServer(async (req, res) => {
   if (p.match(/^\/api\/v1\/documents\/[^/]+\/paper$/) && method === 'GET') {
     return ok(res, { paper: null });
   }
+  if (p.match(/^\/api\/v1\/documents\/[^/]+\/events\/timeline$/) && method === 'GET') {
+    return ok(res, buildMockDocumentTimeline());
+  }
   if (p.match(/^\/api\/v1\/documents\/[^/]+$/) && method === 'GET') {
     return ok(res, { document: MOCK_DOC });
   }
@@ -495,6 +595,25 @@ const server = createServer(async (req, res) => {
   if (p.match(/^\/api\/v1\/documents\/[^/]+\/events$/) && method === 'POST') {
     const body = await readBody(req);
     const events = Array.isArray(body?.events) ? body.events : [];
+    const now = Date.now();
+    events.forEach((event, index) => {
+      mockDocumentEvents.push({
+        id: uuid(),
+        documentId: MOCK_DOC_ID,
+        userId: MOCK_USER.id,
+        sessionId: event.sessionId || body?.sessionId || undefined,
+        eventType: event.eventType || 'unknown',
+        timestamp: event.timestamp || new Date(now + index).toISOString(),
+        keyCode: event.keyCode,
+        keyChar: event.keyChar,
+        textBefore: event.textBefore,
+        textAfter: event.textAfter,
+        cursorPosition: event.cursorPosition,
+        selectionStart: event.selectionStart,
+        selectionEnd: event.selectionEnd,
+        metadata: event.metadata || {},
+      });
+    });
     console.log(`[mock] POST /documents/.../events  +${events.length} events`,
       events.map((e) => e.eventType).join(', '));
     return ok(res, { inserted: events.length });

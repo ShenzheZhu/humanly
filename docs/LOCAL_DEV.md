@@ -41,7 +41,7 @@ What the mock backend supports:
 
 - **Auth**: `GET/PATCH /auth/me`, `/auth/login`, `/auth/refresh`, `/auth/logout`. The bypass page writes the same mock token the mock server accepts.
 - **Dev fixtures**: `POST /dev/mock-user` lets local QA flip mock user fields such as `profileCompleted`.
-- **Documents**: `GET /documents`, `GET/PUT /documents/:id`, `POST /documents/:id/events` (logs the inserted event types to stdout).
+- **Documents**: `GET /documents`, `GET/PUT /documents/:id`, `POST /documents/:id/events`, `GET /documents/:id/events/timeline` (logs inserted event types to stdout and serves a local activity timeline).
 - **Certificates**: `GET/POST /certificates`, `GET /certificates/:id`, `GET /certificates/:id/ai-stats`, `GET /certificates/verify/:token`, `GET /certificates/verify/:token/history`, and `GET /certificates/verify/:token/logs` for owner detail, public certificate, replay, and shared-log smoke paths.
 - **AI**: `GET /ai/settings` (returns `hasApiKey: true` so the selection menu activates), `GET /ai/sessions`, `POST /ai/chat`, `POST /ai/selection-action`, `GET /ai/logs`.
 - **Socket.IO `ai:message`**:

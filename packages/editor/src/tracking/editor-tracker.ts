@@ -34,6 +34,8 @@ export class EditorTracker {
   private lastSelectedText: string = '';
   private pendingTextChangeMetadata: EventMetadata | null = null;
   private suppressNextTextChange: boolean = false;
+  private lastPageHiddenAt: number | null = null;
+  private lastVisibilityState: string | null = null;
 
   private get copyPastePolicy() {
     return this.config.copyPastePolicy === 'blocked' ? 'blocked' : 'allowed';
@@ -341,6 +343,7 @@ export class EditorTracker {
         }
       }
     );
+    const removePageVisibilityListener = this.registerPageVisibilityListener();
 
     this.listeners.push(
       removeKeyDownListener,
@@ -366,6 +369,9 @@ export class EditorTracker {
       removeTrackingSuppressNextTextChangeListener,
       removeUpdateListener
     );
+    if (removePageVisibilityListener) {
+      this.listeners.push(removePageVisibilityListener);
+    }
 
     // Start flush timer
     this.scheduleFlush();
@@ -522,6 +528,69 @@ export class EditorTracker {
       selectionStart,
       selectionEnd,
       editorStateAfter: this.editor.getEditorState().toJSON(),
+    };
+
+    this.addEvent(event);
+  }
+
+  private registerPageVisibilityListener(): (() => void) | null {
+    if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') {
+      return null;
+    }
+
+    this.lastVisibilityState = document.visibilityState || null;
+    const handleVisibilityChange = () => this.handlePageVisibilityChange();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }
+
+  private handlePageVisibilityChange(): void {
+    if (!this.isTracking || typeof document === 'undefined') {
+      return;
+    }
+
+    const visibilityState = document.visibilityState || 'visible';
+    if (visibilityState === this.lastVisibilityState) {
+      return;
+    }
+
+    this.lastVisibilityState = visibilityState;
+
+    if (visibilityState === 'hidden') {
+      this.trackPageVisibility('page_hidden', visibilityState);
+      void this.flush().catch(() => undefined);
+      return;
+    }
+
+    this.trackPageVisibility('page_visible', visibilityState);
+  }
+
+  private trackPageVisibility(eventType: 'page_hidden' | 'page_visible', visibilityState: string): void {
+    const now = Date.now();
+    const currentText = this.extractPlainText(this.editor.getEditorState());
+    const { cursorPosition, selectionStart, selectionEnd } = this.getSelectionInfo(this.editor.getEditorState());
+    const metadata: EventMetadata = { visibilityState };
+
+    if (eventType === 'page_hidden') {
+      this.lastPageHiddenAt = now;
+    } else if (this.lastPageHiddenAt !== null) {
+      metadata.hiddenDurationMs = Math.max(0, now - this.lastPageHiddenAt);
+      this.lastPageHiddenAt = null;
+    }
+
+    const event: TrackedEvent = {
+      eventType,
+      timestamp: new Date(now),
+      textBefore: currentText,
+      textAfter: currentText,
+      cursorPosition,
+      selectionStart,
+      selectionEnd,
+      editorStateAfter: this.editor.getEditorState().toJSON(),
+      metadata,
     };
 
     this.addEvent(event);

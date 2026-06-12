@@ -709,4 +709,60 @@ describe('buildDocumentEventTimeline', () => {
       charCount: 2,
     });
   });
+
+  it('labels page visibility events and folds adjacent focus blur rows', () => {
+    const timeline = buildDocumentEventTimeline([
+      event({
+        id: 'type-before',
+        eventType: 'input',
+        timestamp: new Date('2026-05-20T12:00:00.000Z'),
+        keyChar: 'A',
+        textBefore: '',
+        textAfter: 'A',
+        cursorPosition: 1,
+      }),
+      event({
+        id: 'blur-before-hidden',
+        eventType: 'blur',
+        timestamp: new Date('2026-05-20T12:00:01.000Z'),
+        textBefore: 'A',
+        textAfter: 'A',
+      }),
+      event({
+        id: 'page-hidden',
+        eventType: 'page_hidden',
+        timestamp: new Date('2026-05-20T12:00:01.100Z'),
+        textBefore: 'A',
+        textAfter: 'A',
+        metadata: { visibilityState: 'hidden' },
+      }),
+      event({
+        id: 'page-visible',
+        eventType: 'page_visible',
+        timestamp: new Date('2026-05-20T12:01:56.100Z'),
+        textBefore: 'A',
+        textAfter: 'A',
+        metadata: { visibilityState: 'visible', hiddenDurationMs: 115000 },
+      }),
+      event({
+        id: 'focus-after-visible',
+        eventType: 'focus',
+        timestamp: new Date('2026-05-20T12:01:56.300Z'),
+        textBefore: 'A',
+        textAfter: 'A',
+      }),
+    ]);
+
+    expect(timeline.summary.rawEventTotal).toBe(5);
+    expect(timeline.items.map((item) => item.label)).toEqual([
+      'Returned',
+      'Left page',
+      'Typed text',
+    ]);
+    expect(timeline.items.flatMap((item) => item.rawEvents.map((raw) => raw.eventType))).toEqual([
+      'page_visible',
+      'page_hidden',
+      'input',
+    ]);
+  });
 });

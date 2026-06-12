@@ -1277,6 +1277,68 @@ describe('editor and logs workflows', () => {
     expect(screen.queryByRole('row', { name: /select —/i })).not.toBeInTheDocument();
   });
 
+  it('shows page visibility events as primary timeline rows', async () => {
+    mockTimelineSummary = {
+      rawEventTotal: 2,
+      timelineItemTotal: 2,
+      typingBursts: 0,
+      typedCharacters: 0,
+      typedWords: 0,
+      pasteCharacters: 0,
+      deletedCharacters: 0,
+    };
+    mockTimelineItems = [
+      {
+        id: 'page-visible',
+        kind: 'event',
+        label: 'Returned',
+        timestamp: '2026-05-14T12:01:57.000Z',
+        startTimestamp: '2026-05-14T12:01:57.000Z',
+        endTimestamp: '2026-05-14T12:01:57.000Z',
+        text: '',
+        metadata: { visibilityState: 'visible', hiddenDurationMs: 115000 },
+        rawEventCount: 1,
+        rawEvents: [
+          {
+            id: 'page-visible-event',
+            eventType: 'page_visible',
+            timestamp: '2026-05-14T12:01:57.000Z',
+            metadata: { visibilityState: 'visible', hiddenDurationMs: 115000 },
+          },
+        ],
+      },
+      {
+        id: 'page-hidden',
+        kind: 'event',
+        label: 'Left page',
+        timestamp: '2026-05-14T12:00:02.000Z',
+        startTimestamp: '2026-05-14T12:00:02.000Z',
+        endTimestamp: '2026-05-14T12:00:02.000Z',
+        text: '',
+        metadata: { visibilityState: 'hidden' },
+        rawEventCount: 1,
+        rawEvents: [
+          {
+            id: 'page-hidden-event',
+            eventType: 'page_hidden',
+            timestamp: '2026-05-14T12:00:02.000Z',
+            metadata: { visibilityState: 'hidden' },
+          },
+        ],
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByRole('row', {
+      name: /returned returned after 1m 55s/i,
+    })).toBeInTheDocument();
+    expect(screen.getByRole('row', {
+      name: /left page user switched away from the document page/i,
+    })).toBeInTheDocument();
+    expect(screen.queryByText('raw event')).not.toBeInTheDocument();
+  });
+
   it('summarizes long raw selection text instead of rendering it inline', async () => {
     mockTimelineSummary = {
       rawEventTotal: 1,
