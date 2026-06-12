@@ -185,22 +185,71 @@ export default function TasksPage() {
     setCurrentPage(1);
   }, [activeTab, searchQuery]);
 
+  const hasSearchQuery = searchQuery.trim().length > 0;
+  const tabCountText = getTaskDashboardTabCountText(filteredTasks.length, activeTab, hasSearchQuery);
+
+  const renderDashboardHeader = (description: string) => (
+    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="space-y-2">
+        <p className="humanly-eyebrow">Admin workspace</p>
+        <h1 className="text-2xl font-semibold tracking-normal sm:text-3xl">Admin Tasks</h1>
+        <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
+          {description}
+        </p>
+      </div>
+      <Button asChild className="w-full sm:w-auto">
+        <Link href="/tasks/new">
+          <Plus className="mr-2 h-4 w-4" />
+          Create Task
+        </Link>
+      </Button>
+    </div>
+  );
+
+  const renderTaskTabs = () => (
+    <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TaskDashboardTab)}>
+      <TabsList className="grid w-full grid-cols-2 border border-border/70 bg-muted/60 sm:w-[310px]">
+        <TabsTrigger value="open" onClick={() => setActiveTab('open')}>
+          Open ({openTaskCount})
+        </TabsTrigger>
+        <TabsTrigger value="archived" onClick={() => setActiveTab('archived')}>
+          Archived ({archivedTaskCount})
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
+  );
+
+  const renderDashboardControls = () => (
+    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="relative w-full sm:max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          type="search"
+          placeholder="Search tasks..."
+          className="pl-10"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
+      {renderTaskTabs()}
+    </div>
+  );
+
   /**
    * Loading state
    */
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-normal">Admin Tasks</h1>
-            <p className="text-muted-foreground">Loading task dashboard...</p>
-          </div>
+      <div className="space-y-7">
+        <div className="mb-8 space-y-3">
+          <div className="h-3 w-32 rounded bg-muted" />
+          <div className="h-8 w-64 rounded bg-muted" />
+          <div className="h-4 w-96 max-w-full rounded bg-muted" />
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="animate-pulse">
+            <Card key={i} className="animate-pulse shadow-none">
               <CardHeader>
                 <div className="h-6 bg-muted rounded w-3/4 mb-2" />
                 <div className="h-4 bg-muted rounded w-1/2" />
@@ -226,19 +275,8 @@ export default function TasksPage() {
    */
   if (error) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-normal">Admin Tasks</h1>
-            <p className="text-muted-foreground">Manage invite-code writing tasks</p>
-          </div>
-          <Button asChild>
-            <Link href="/tasks/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Create Task
-            </Link>
-          </Button>
-        </div>
+      <div className="space-y-7">
+        {renderDashboardHeader('Manage invite-code writing tasks, enrollments, submissions, and analytics.')}
 
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -264,15 +302,10 @@ export default function TasksPage() {
    */
   if (tasks.length === 0) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-normal">Admin Tasks</h1>
-            <p className="text-muted-foreground">Create a writing task and share its invite code with users</p>
-          </div>
-        </div>
+      <div className="space-y-7">
+        {renderDashboardHeader('Create a writing task, configure its environment, and share its invite code with users.')}
 
-        <Card className="border-dashed bg-card/70">
+        <Card className="humanly-surface border-dashed bg-card/80">
           <CardHeader className="text-center pb-4">
             <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-muted/60 flex items-center justify-center">
               <Folder className="h-6 w-6 text-muted-foreground" />
@@ -298,55 +331,15 @@ export default function TasksPage() {
   /**
    * Empty state - no search results
    */
-  const hasSearchQuery = searchQuery.trim().length > 0;
-  const tabCountText = getTaskDashboardTabCountText(filteredTasks.length, activeTab, hasSearchQuery);
-  const renderTaskTabs = () => (
-    <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TaskDashboardTab)}>
-      <TabsList className="border border-border/70 bg-muted/45">
-        <TabsTrigger value="open" onClick={() => setActiveTab('open')}>
-          Open ({openTaskCount})
-        </TabsTrigger>
-        <TabsTrigger value="archived" onClick={() => setActiveTab('archived')}>
-          Archived ({archivedTaskCount})
-        </TabsTrigger>
-      </TabsList>
-    </Tabs>
-  );
-
   if (filteredTasks.length === 0) {
     const activeTabLabel = activeTab === 'open' ? 'open' : 'archived';
 
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-normal">Admin Tasks</h1>
-            <p className="text-muted-foreground">{tabCountText}</p>
-          </div>
-          <Button asChild>
-            <Link href="/tasks/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Create Task
-            </Link>
-          </Button>
-        </div>
+      <div className="space-y-7">
+        {renderDashboardHeader(tabCountText)}
+        {renderDashboardControls()}
 
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search tasks..."
-              className="pl-10"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {renderTaskTabs()}
-
-        <Card className="border-dashed bg-card/70">
+        <Card className="humanly-surface border-dashed bg-card/80">
           <CardHeader className="text-center pb-4">
             <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-muted/60 flex items-center justify-center">
               <Search className="h-6 w-6 text-muted-foreground" />
@@ -386,39 +379,12 @@ export default function TasksPage() {
    * Main content - task grid
    */
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-normal">Admin Tasks</h1>
-          <p className="text-muted-foreground">{tabCountText}</p>
-        </div>
-        <Button asChild>
-          <Link href="/tasks/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Create Task
-          </Link>
-        </Button>
-      </div>
-
-      {/* Search */}
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search tasks..."
-            className="pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-      </div>
-
-      {renderTaskTabs()}
+    <div className="space-y-7">
+      {renderDashboardHeader(tabCountText)}
+      {renderDashboardControls()}
 
       {/* Task Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
         {paginatedTasks.map((task) => (
           <TaskCard
             key={task.id}
