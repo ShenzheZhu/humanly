@@ -188,7 +188,7 @@ describe('admin submission analytics page', () => {
     expect(screen.getByText(/user@example.com/)).toBeInTheDocument();
     expect(screen.getByText(/Latest Essay/)).toBeInTheDocument();
     expect(screen.getByText('Events before submit')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Activity Flags' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Review Signals' })).toBeInTheDocument();
     expect(screen.getByText('warning · Uniform key cadence')).toBeInTheDocument();
     expect(screen.getByText('Editing duration')).toBeInTheDocument();
     expect(screen.getByText('Typed characters')).toBeInTheDocument();
