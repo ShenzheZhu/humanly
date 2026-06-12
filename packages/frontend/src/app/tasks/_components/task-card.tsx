@@ -68,7 +68,7 @@ export function TaskCard({
   const canEditSettings = !task.isActive;
 
   return (
-    <Card className="flex min-h-[270px] flex-col transition-[border-color,transform] hover:-translate-y-1 hover:border-foreground/20">
+    <Card className="humanly-surface flex min-h-[270px] flex-col bg-card/95 transition-colors hover:border-foreground/15">
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -104,7 +104,7 @@ export function TaskCard({
         </div>
       </CardContent>
 
-      <CardFooter className="flex space-x-2 border-t border-border/70 pt-4">
+      <CardFooter className="flex space-x-2 border-t border-border/70 bg-muted/20 pt-4">
         <Button
           variant="default"
           size="sm"
