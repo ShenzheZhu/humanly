@@ -3,6 +3,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
+  AlertCircle,
   ArrowLeft,
   ChevronDown,
   ChevronRight,
@@ -72,9 +73,9 @@ const AI_LOG_BADGE_COLOR: CSSProperties = {
   color: '#655D70',
 };
 const ANOMALY_BADGE_COLOR: CSSProperties = {
-  backgroundColor: '#F2EDEE',
-  borderColor: '#D6C5C7',
-  color: '#6F5D61',
+  backgroundColor: '#F4ECEA',
+  borderColor: '#D9BDB8',
+  color: '#7A5550',
 };
 
 const TIMELINE_ICONS: Partial<Record<DocumentEventTimelineItem['kind'], JSX.Element>> = {
@@ -522,6 +523,21 @@ function getPolicyRefusalQuestion(
   );
 }
 
+function canExpandRawEvent(event: DocumentEventTimelineRawEvent, aiLogsById?: Map<string, AIInteractionLog>) {
+  if (!isPolicyRefusalEvent(event)) return false;
+  return normalizeVisibleText(getPolicyRefusalQuestion(event, aiLogsById)).length > LONG_TEXT_PREVIEW_THRESHOLD;
+}
+
+function getRawEventFullText(event: DocumentEventTimelineRawEvent, aiLogsById?: Map<string, AIInteractionLog>) {
+  if (isPolicyRefusalEvent(event)) return getPolicyRefusalQuestion(event, aiLogsById);
+  return '';
+}
+
+function getRawEventFullTextHeader(event: DocumentEventTimelineRawEvent) {
+  if (isPolicyRefusalEvent(event)) return 'Refused chat request';
+  return 'Event detail';
+}
+
 function getTimelineTextRenderMode(item: DocumentEventTimelineItem): TextRenderMode {
   if (item.kind === 'ai_insert') return 'markdown';
   return 'plain';
@@ -867,6 +883,21 @@ function getRawEventActivityLabel(event: DocumentEventTimelineRawEvent) {
   return isPolicyRefusalEvent(event) ? 'anomaly' : 'raw event';
 }
 
+function getRawEventActivityIcon(event: DocumentEventTimelineRawEvent) {
+  if (isPolicyRefusalEvent(event)) return <AlertCircle className="h-3 w-3" />;
+  return null;
+}
+
+function getRawEventActivityStyle(event: DocumentEventTimelineRawEvent): CSSProperties | undefined {
+  if (isPolicyRefusalEvent(event)) return ANOMALY_BADGE_COLOR;
+  return undefined;
+}
+
+function getRawEventCount(event: DocumentEventTimelineRawEvent) {
+  if (isPolicyRefusalEvent(event)) return '1 refusal';
+  return event.cursorPosition == null ? '—' : `Cursor ${event.cursorPosition}`;
+}
+
 function getHiddenRawEventCategory(event: DocumentEventTimelineRawEvent) {
   const eventType = event.eventType;
 
@@ -976,38 +1007,74 @@ function formatFoldTimeRange(item: FoldPointItem) {
 function RawEventTableRow({
   event,
   aiLogsById,
+  isExpanded = false,
+  onToggleExpanded,
 }: {
   event: DocumentEventTimelineRawEvent;
   aiLogsById?: Map<string, AIInteractionLog>;
+  isExpanded?: boolean;
+  onToggleExpanded?: () => void;
 }) {
   const detail = renderRawDetail(event, aiLogsById);
   const eventColor = getRawEventColor(event.eventType);
+  const canExpand = canExpandRawEvent(event, aiLogsById);
+  const fullText = getRawEventFullText(event, aiLogsById);
+  const activityStyle = getRawEventActivityStyle(event);
+  const activityIcon = getRawEventActivityIcon(event);
 
   return (
-    <tr className="bg-muted/20 text-xs text-muted-foreground hover:bg-muted/30">
-      <td className="whitespace-nowrap px-4 py-2">
-        {format(new Date(event.timestamp), 'HH:mm:ss.SSS')}
-      </td>
-      <td className="px-4 py-2">
-        <span className="inline-flex whitespace-nowrap items-center rounded border bg-background px-2 py-0.5 font-medium">
-          {getRawEventActivityLabel(event)}
-        </span>
-      </td>
-      <td className="max-w-[760px] px-4 py-2">
-        <div className="flex min-w-0 items-center gap-2">
+    <>
+      <tr className="bg-muted/20 text-xs text-muted-foreground hover:bg-muted/30">
+        <td className="whitespace-nowrap px-4 py-2">
+          {format(new Date(event.timestamp), 'HH:mm:ss.SSS')}
+        </td>
+        <td className="px-4 py-2">
           <span
-            className="inline-flex shrink-0 items-center rounded border px-2 py-0.5 font-medium"
-            style={eventColor}
+            className="inline-flex whitespace-nowrap items-center gap-1 rounded border bg-background px-2 py-0.5 font-medium"
+            style={activityStyle}
           >
-            {getRawEventDisplayType(event)}
+            {activityIcon}
+            {getRawEventActivityLabel(event)}
           </span>
-          {detail && <span className="min-w-0 truncate">{detail}</span>}
-        </div>
-      </td>
-      <td className="px-4 py-2">
-        {event.cursorPosition == null ? '—' : `Cursor ${event.cursorPosition}`}
-      </td>
-    </tr>
+        </td>
+        <td className="max-w-[760px] px-4 py-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <span
+              className="inline-flex shrink-0 items-center rounded border px-2 py-0.5 font-medium"
+              style={eventColor}
+            >
+              {getRawEventDisplayType(event)}
+            </span>
+            {detail && <span className="min-w-0 truncate">{detail}</span>}
+            {canExpand && onToggleExpanded && (
+              <button
+                type="button"
+                className="shrink-0 text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                onClick={onToggleExpanded}
+                aria-expanded={isExpanded}
+              >
+                {isExpanded ? 'Hide Full Text' : 'View Full Text'}
+              </button>
+            )}
+          </div>
+        </td>
+        <td className="whitespace-nowrap px-4 py-2">
+          {getRawEventCount(event)}
+        </td>
+      </tr>
+      {canExpand && isExpanded && (
+        <tr className="bg-muted/20">
+          <td colSpan={4} className="px-4 py-3">
+            <div className="rounded-md border bg-background p-3">
+              <p className="mb-2 text-xs font-medium text-muted-foreground">
+                {getRawEventFullTextHeader(event)}
+              </p>
+              <RenderableFullText text={fullText} renderMode="plain" />
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
@@ -1354,6 +1421,8 @@ export default function DocumentLogsPage() {
                               key={event.id}
                               event={event}
                               aiLogsById={aiLogsById}
+                              isExpanded={expandedIds.has(event.id)}
+                              onToggleExpanded={() => toggleExpanded(event.id)}
                             />
                           ))}
                       </Fragment>
@@ -1366,6 +1435,8 @@ export default function DocumentLogsPage() {
                         key={historyItem.id}
                         event={historyItem.event}
                         aiLogsById={aiLogsById}
+                        isExpanded={expandedIds.has(historyItem.id)}
+                        onToggleExpanded={() => toggleExpanded(historyItem.id)}
                       />
                     );
                   }
