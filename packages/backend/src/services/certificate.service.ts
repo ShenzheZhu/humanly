@@ -334,14 +334,19 @@ export class CertificateService {
         generation: 0,
         other: 0,
       },
+      policyRefusals: {
+        total: 0,
+      },
     };
 
     try {
-      // Get AI selection action stats
-      const selectionStats = await AISelectionActionModel.getStatsByDocumentId(documentId);
-
-      // Get AI question stats
-      const questionStats = await AIModel.getQuestionStatsByDocument(documentId);
+      const [selectionStats, questionStats, policyRefusalCount] = await Promise.all([
+        AISelectionActionModel.getStatsByDocumentId(documentId),
+        AIModel.getQuestionStatsByDocument(documentId),
+        DocumentEventModel.countByDocumentIdWithFilters(documentId, {
+          eventType: 'ai_policy_refusal',
+        }),
+      ]);
 
       return {
         selectionActions: {
@@ -359,6 +364,9 @@ export class CertificateService {
           understanding: questionStats.understandingQuestions,
           generation: questionStats.generationQuestions,
           other: questionStats.otherQuestions,
+        },
+        policyRefusals: {
+          total: policyRefusalCount,
         },
       };
     } catch (error) {

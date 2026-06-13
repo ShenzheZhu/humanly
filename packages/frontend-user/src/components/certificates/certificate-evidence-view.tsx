@@ -327,6 +327,24 @@ export function CertificateEvidenceView({
   const showReplay = Boolean(certificate.includeEditHistory && replayToken);
   const environmentRows = getEnvironmentRows(certificate.environmentConfig);
   const anomalyFlags = certificate.anomalyFlags || [];
+  const policyRefusalCount = aiStats?.policyRefusals?.total || 0;
+  const hasPolicyRefusalFlag = anomalyFlags.some((flag) => flag.code === 'ai_policy_refusal');
+  const reviewSignals: WritingAnomalyFlag[] = policyRefusalCount > 0 && !hasPolicyRefusalFlag
+    ? [
+        ...anomalyFlags,
+        {
+          code: 'ai_policy_refusal',
+          severity: 'warning',
+          label: policyRefusalCount === 1 ? 'AI policy refusal' : 'AI policy refusals',
+          description:
+            'The in-platform assistant refused a request because it conflicted with the active writing policy.',
+          evidence: {
+            refusalCount: policyRefusalCount,
+            source: 'document_events',
+          },
+        },
+      ]
+    : anomalyFlags;
 
   return (
     <div className="space-y-4">
@@ -652,13 +670,13 @@ export function CertificateEvidenceView({
           </CardHeader>
           <CollapsibleContent>
             <CardContent>
-              {anomalyFlags.length === 0 ? (
+              {reviewSignals.length === 0 ? (
                 <div className="rounded-lg border border-border/60 bg-muted/25 p-4 text-sm text-muted-foreground">
                   No abnormal behavior signals were detected for this certificate.
                 </div>
               ) : (
                 <div className="grid gap-3 md:grid-cols-2">
-                  {anomalyFlags.map((flag) => (
+                  {reviewSignals.map((flag) => (
                     <div key={flag.code} className="rounded-lg border border-border/70 bg-muted/20 p-4">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge
