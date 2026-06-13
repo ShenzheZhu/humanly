@@ -58,6 +58,10 @@ import { AdminEnvironmentSectionHeading as SectionHeading } from '@/components/a
 import { api } from '@/lib/api-client';
 import { MODEL_WHITELIST, getWhitelist } from '@/lib/ai-models';
 import {
+  ENVIRONMENT_CONFIG_ACCEPT,
+  parseEnvironmentConfigFile,
+} from '@/lib/environment-config-file';
+import {
   formatDateTime,
   getLocalTimeZoneLabel,
   localDateTimeInputToISOString,
@@ -621,18 +625,8 @@ export default function NewTaskPage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!file.name.toLowerCase().endsWith('.json')) {
-      toast({
-        title: 'Invalid environment file',
-        description: 'Import Environment currently supports JSON files only.',
-        variant: 'destructive',
-      });
-      event.target.value = '';
-      return;
-    }
-
     try {
-      const parsed = JSON.parse(await file.text());
+      const parsed = await parseEnvironmentConfigFile(file);
       const config = normalizeImportedEnvironmentConfig(parsed);
       if (config.aiProvider?.baseUrl) {
         setAiBaseUrl(config.aiProvider.baseUrl);
@@ -648,12 +642,12 @@ export default function NewTaskPage() {
       setEnvironmentDialogOpen(false);
       toast({
         title: 'Environment imported',
-        description: 'The JSON configuration was applied to this task.',
+        description: 'The environment configuration was applied to this task.',
       });
     } catch (err: any) {
       toast({
         title: 'Invalid environment file',
-        description: err.message || 'Unable to import the environment JSON file.',
+        description: err.message || 'Unable to import the environment configuration file.',
         variant: 'destructive',
       });
     } finally {
@@ -1710,7 +1704,7 @@ export default function NewTaskPage() {
               <div className="space-y-5 rounded-md border p-4">
                 <SectionHeading
                   title="Environment"
-                  description="Choose a default, customize task controls, or import a JSON environment."
+                  description="Choose a default, customize task controls, or import a JSON or YAML environment."
                 />
 
                 <div className="grid gap-2">
@@ -1731,14 +1725,14 @@ export default function NewTaskPage() {
                   <div className="rounded-md border border-dashed p-4">
                     <div className="flex items-center gap-2 text-sm font-medium">
                       <Upload className="h-4 w-4 text-muted-foreground" />
-                      Import JSON Configuration
+                      Import Environment Configuration
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Upload a JSON file that matches the writing environment configuration shape.
+                      Upload a JSON or YAML file that matches the writing environment configuration shape.
                     </p>
                     <Input
                       type="file"
-                      accept="application/json,.json"
+                      accept={ENVIRONMENT_CONFIG_ACCEPT}
                       className="mt-3"
                       onChange={handleEnvironmentImport}
                       disabled={isSubmitting}

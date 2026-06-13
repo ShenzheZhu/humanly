@@ -1,7 +1,12 @@
+/**
+ * @jest-environment-options {"customExportConditions":["node"]}
+ */
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { stringify as stringifyYaml } from 'yaml';
 
 import NewTaskPage from '@/app/tasks/new/page';
+import { ENVIRONMENT_CONFIG_ACCEPT } from '@/lib/environment-config-file';
 import { toLocalDateTimeInputValue } from '@/lib/utils';
 
 const mockPush = jest.fn();
@@ -111,6 +116,10 @@ const closeCustomEnvironmentDialog = async () => {
     expect(screen.queryByRole('dialog', { name: /custom environment/i })).not.toBeInTheDocument();
   });
 };
+
+const getEnvironmentConfigInput = () => (
+  document.querySelector(`input[accept="${ENVIRONMENT_CONFIG_ACCEPT}"]`) as HTMLInputElement
+);
 
 describe('admin new task page', () => {
   beforeEach(() => {
@@ -751,7 +760,7 @@ describe('admin new task page', () => {
       fireEvent.click(importOption);
     });
 
-    const jsonInput = document.querySelector('input[accept="application/json,.json"]') as HTMLInputElement;
+    const jsonInput = getEnvironmentConfigInput();
     expect(jsonInput).not.toBeNull();
 
     const environmentJson = JSON.stringify(createAdminEnvironmentJson({
@@ -783,7 +792,7 @@ describe('admin new task page', () => {
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
         title: 'Environment imported',
-        description: 'The JSON configuration was applied to this task.',
+        description: 'The environment configuration was applied to this task.',
       }));
     });
 
@@ -846,6 +855,88 @@ describe('admin new task page', () => {
 
   });
 
+  it('imports environment YAML through the same normalized task payload path', async () => {
+    render(<NewTaskPage />);
+
+    const importOption = await screen.findByRole('option', { name: 'Import Environment' });
+    await act(async () => {
+      fireEvent.click(importOption);
+    });
+
+    const yamlInput = getEnvironmentConfigInput();
+    expect(yamlInput).not.toBeNull();
+
+    const environmentYaml = stringifyYaml(createAdminEnvironmentJson({
+      aiAccess: 'off',
+      aiUsageLimit: { mode: 'max_requests', maxRequests: 17 },
+      submission: { mode: 'multiple', minCharacters: 250, maxCharacters: 750 },
+      copyPastePolicy: 'blocked',
+      traceability: {
+        trackAiUsage: false,
+        trackTyping: true,
+        trackCopyPaste: false,
+        trackFocusBlur: true,
+      },
+    }));
+    const environmentFile = new File([environmentYaml], 'environment.yaml', { type: 'application/yaml' });
+    Object.defineProperty(environmentFile, 'text', {
+      value: async () => environmentYaml,
+    });
+
+    await act(async () => {
+      fireEvent.change(yamlInput, { target: { files: [environmentFile] } });
+    });
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'Environment imported',
+        description: 'The environment configuration was applied to this task.',
+      }));
+    });
+
+    expect(screen.getByText('Custom Environment')).toBeInTheDocument();
+    expect(screen.getByText('Off')).toBeInTheDocument();
+    expect(screen.getByText('Paste blocked')).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Task Name/i), {
+        target: { value: 'YAML Imported Environment Task' },
+      });
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Create Task$/i }));
+    });
+
+    await waitFor(() => {
+      expect(mockApiPost).toHaveBeenCalledWith(
+        '/api/v1/tasks',
+        expect.objectContaining({
+          environmentConfig: expect.objectContaining({
+            taskType: 'admin_assigned',
+            aiAccess: 'off',
+            allowedModels: [],
+            customModels: [],
+            copyPastePolicy: 'blocked',
+            aiProvider: undefined,
+            aiUsageLimit: {
+              mode: 'max_requests',
+              maxRequests: 17,
+            },
+            submission: expect.objectContaining({
+              mode: 'multiple',
+              minCharacters: 250,
+              maxCharacters: 750,
+            }),
+            traceability: expect.objectContaining({
+              trackAiUsage: false,
+              trackCopyPaste: false,
+            }),
+          }),
+        })
+      );
+    });
+  });
+
   it('normalizes legacy readonly environment JSON to agent-chat-only mode', async () => {
     mockApiGet.mockResolvedValue({
       data: {
@@ -863,7 +954,7 @@ describe('admin new task page', () => {
       fireEvent.click(importOption);
     });
 
-    const jsonInput = document.querySelector('input[accept="application/json,.json"]') as HTMLInputElement;
+    const jsonInput = getEnvironmentConfigInput();
     expect(jsonInput).not.toBeNull();
 
     const environmentJson = JSON.stringify(createAdminEnvironmentJson({
@@ -906,7 +997,7 @@ describe('admin new task page', () => {
       fireEvent.click(importOption);
     });
 
-    const jsonInput = document.querySelector('input[accept="application/json,.json"]') as HTMLInputElement;
+    const jsonInput = getEnvironmentConfigInput();
     expect(jsonInput).not.toBeNull();
 
     const environmentJson = JSON.stringify(createAdminEnvironmentJson({
@@ -939,6 +1030,37 @@ describe('admin new task page', () => {
     expect(mockApiPost).not.toHaveBeenCalledWith('/api/v1/tasks', expect.anything());
   });
 
+  it('rejects invalid environment YAML without changing the import selection', async () => {
+    render(<NewTaskPage />);
+
+    const importOption = await screen.findByRole('option', { name: 'Import Environment' });
+    await act(async () => {
+      fireEvent.click(importOption);
+    });
+
+    const yamlInput = getEnvironmentConfigInput();
+    expect(yamlInput).not.toBeNull();
+
+    const invalidYaml = 'taskType: [admin_assigned';
+    const environmentFile = new File([invalidYaml], 'broken-environment.yml', { type: 'application/yaml' });
+    Object.defineProperty(environmentFile, 'text', {
+      value: async () => invalidYaml,
+    });
+
+    await act(async () => {
+      fireEvent.change(yamlInput, { target: { files: [environmentFile] } });
+    });
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'Invalid environment file',
+        variant: 'destructive',
+      }));
+    });
+    expect(screen.getByRole('option', { name: 'Import Environment' })).toHaveAttribute('aria-selected', 'true');
+    expect(mockApiPost).not.toHaveBeenCalledWith('/api/v1/tasks', expect.anything());
+  });
+
   it('rejects environment JSON missing required template entries', async () => {
     render(<NewTaskPage />);
 
@@ -947,7 +1069,7 @@ describe('admin new task page', () => {
       fireEvent.click(importOption);
     });
 
-    const jsonInput = document.querySelector('input[accept="application/json,.json"]') as HTMLInputElement;
+    const jsonInput = getEnvironmentConfigInput();
     expect(jsonInput).not.toBeNull();
 
     const environment = createAdminEnvironmentJson();
