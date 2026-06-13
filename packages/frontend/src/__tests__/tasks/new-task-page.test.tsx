@@ -305,6 +305,53 @@ describe('admin new task page', () => {
     expect(screen.queryByText('instructions-1.pdf')).not.toBeInTheDocument();
   });
 
+  it('rejects non-PDF instruction files in the admin form', async () => {
+    render(<NewTaskPage />);
+
+    expect(await screen.findByRole('heading', { name: 'New Task' })).toBeInTheDocument();
+
+    const pdfInput = document.querySelector('input[accept="application/pdf"]') as HTMLInputElement;
+    const invalidFile = new File(['plain text'], 'notes.txt', {
+      type: 'text/plain',
+    });
+
+    await act(async () => {
+      fireEvent.change(pdfInput, { target: { files: [invalidFile] } });
+    });
+
+    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Invalid file',
+      description: 'Task files must be uploaded as PDF.',
+      variant: 'destructive',
+    }));
+    expect(screen.queryByText('notes.txt')).not.toBeInTheDocument();
+  });
+
+  it('rejects oversized instruction PDFs in the admin form', async () => {
+    render(<NewTaskPage />);
+
+    expect(await screen.findByRole('heading', { name: 'New Task' })).toBeInTheDocument();
+
+    const pdfInput = document.querySelector('input[accept="application/pdf"]') as HTMLInputElement;
+    const oversizedFile = new File(['%PDF-1.4\ninstruction'], 'huge.pdf', {
+      type: 'application/pdf',
+    });
+    Object.defineProperty(oversizedFile, 'size', {
+      value: 50 * 1024 * 1024 + 1,
+    });
+
+    await act(async () => {
+      fireEvent.change(pdfInput, { target: { files: [oversizedFile] } });
+    });
+
+    expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'File too large',
+      description: 'Task PDFs must be smaller than 50MB.',
+      variant: 'destructive',
+    }));
+    expect(screen.queryByText('huge.pdf')).not.toBeInTheDocument();
+  });
+
   it('can require sign-in for public share links when creating a task', async () => {
     render(<NewTaskPage />);
 

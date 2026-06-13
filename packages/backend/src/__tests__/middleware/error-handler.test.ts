@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import multer from 'multer';
 import { ZodError, z } from 'zod';
 import { AppError, errorHandler, asyncHandler } from '../../middleware/error-handler';
 
@@ -101,6 +102,15 @@ describe('errorHandler', () => {
     expect(res.status).toHaveBeenCalledWith(400);
     const body = (res.json as jest.Mock).mock.calls[0][0];
     expect(body.error).toBe('Invalid JSON');
+  });
+
+  it('responds 400 with task PDF copy for oversized multer uploads', () => {
+    const err = new multer.MulterError('LIMIT_FILE_SIZE');
+    const res = mockRes();
+    errorHandler(err, mockReq({ method: 'POST', path: '/api/v1/tasks' }), res, next);
+    expect(res.status).toHaveBeenCalledWith(400);
+    const body = (res.json as jest.Mock).mock.calls[0][0];
+    expect(body.message).toBe('Task PDFs must be smaller than 50MB.');
   });
 
   it('responds 400 for invalid PostgreSQL UUID input', () => {
