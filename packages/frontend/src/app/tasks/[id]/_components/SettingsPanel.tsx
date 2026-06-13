@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
   Check,
+  ChevronDown,
   Download,
   FileText,
   Loader2,
@@ -39,6 +40,11 @@ import {
 import { api } from '@/lib/api-client';
 import { MODEL_WHITELIST, getWhitelist } from '@/lib/ai-models';
 import { downloadBlob } from '@/lib/download';
+import {
+  buildEnvironmentConfigFilename,
+  serializeEnvironmentConfig,
+  type EnvironmentConfigFileFormat,
+} from '@/lib/environment-config-file';
 import {
   cn,
   getLocalTimeZoneLabel,
@@ -75,6 +81,12 @@ import { Input } from '@/components/ui/input';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/use-toast';
 import {
   AdminEnvironmentDialogSection,
@@ -212,15 +224,6 @@ const parseOptionalMaxCharacters = (value: string): number | undefined => {
   if (!Number.isFinite(parsed) || parsed < 1) return undefined;
 
   return Math.min(Math.floor(parsed), SUBMISSION_MAX_CHARACTERS_MAX);
-};
-
-const buildConfigFilename = (name?: string | null) => {
-  const normalized = (name || 'task')
-    .trim()
-    .replace(/[^a-z0-9_-]+/gi, '_')
-    .replace(/^_+|_+$/g, '');
-
-  return `${normalized || 'task'}-environment-config.json`;
 };
 
 const formatDateTimeSummary = (value?: string) => {
@@ -735,14 +738,12 @@ export function SettingsPanel({ taskId }: SettingsPanelProps) {
     };
   };
 
-  const handleExportConfig = () => {
+  const handleExportConfig = (format: EnvironmentConfigFileFormat) => {
     const config = buildCurrentEnvironmentConfig(form.getValues());
-    const blob = new Blob(
-      [JSON.stringify(config, null, 2)],
-      { type: 'application/json' }
-    );
+    const { content, contentType } = serializeEnvironmentConfig(config, format);
+    const blob = new Blob([content], { type: contentType });
 
-    downloadBlob(blob, buildConfigFilename(form.getValues('name') || task?.name));
+    downloadBlob(blob, buildEnvironmentConfigFilename(form.getValues('name') || task?.name, format));
   };
 
   if (isLoading) {
@@ -808,10 +809,23 @@ export function SettingsPanel({ taskId }: SettingsPanelProps) {
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">Task Settings</h2>
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={handleExportConfig}>
-          <Download className="mr-2 h-4 w-4" />
-          Export Config
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="outline" size="sm">
+              <Download className="mr-2 h-4 w-4" />
+              Export Config
+              <ChevronDown className="ml-2 h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => handleExportConfig('json')}>
+              Export as JSON
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => handleExportConfig('yaml')}>
+              Export as YAML
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <Form {...form}>

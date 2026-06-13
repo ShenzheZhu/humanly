@@ -1,4 +1,9 @@
+/**
+ * @jest-environment-options {"customExportConditions":["node"]}
+ */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { parse as parseYaml } from 'yaml';
 
 import TaskDetailPage from '@/app/tasks/[id]/page';
 import { getAnalyticsDateRange } from '@/app/tasks/[id]/_components/AnalyticsPanel';
@@ -687,6 +692,7 @@ describe('admin task overview invite code copy button', () => {
 
   it('exports the read-only task environment config JSON', async () => {
     mockSearchParams = new URLSearchParams('tab=setting');
+    const user = userEvent.setup();
 
     render(<TaskDetailPage />);
 
@@ -699,7 +705,8 @@ describe('admin task overview invite code copy button', () => {
     expect(screen.queryByRole('button', { name: /edit environment/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /save settings/i })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /export config/i }));
+    await user.click(screen.getByRole('button', { name: /export config/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /export as json/i }));
 
     await waitFor(() => {
       expect(mockDownloadBlob).toHaveBeenCalledTimes(1);
@@ -709,6 +716,55 @@ describe('admin task overview invite code copy button', () => {
     const exportedConfig = JSON.parse(await readBlobAsText(blob));
 
     expect(filename).toBe('Clipboard_Task-environment-config.json');
+    expect(exportedConfig).toEqual(expect.objectContaining({
+      taskType: 'admin_assigned',
+      aiAccess: 'full',
+      allowedModels: ['moonshotai/Kimi-K2.6'],
+      customModels: [],
+      copyPastePolicy: 'allowed',
+      aiUsageLimit: {
+        mode: 'max_requests',
+        maxRequests: 100,
+      },
+    }));
+    expect(exportedConfig.time).toEqual(expect.objectContaining({
+      startTime: taskFixture.environmentConfig.time.startTime,
+      endTime: taskFixture.environmentConfig.time.endTime,
+      timeLimitSeconds: 30 * 60,
+      lateSubmission: 'not_allowed',
+    }));
+    expect(exportedConfig.traceability).toEqual(expect.objectContaining({
+      trackAiUsage: true,
+      trackCopyPaste: true,
+    }));
+
+    const serializedConfig = JSON.stringify(exportedConfig);
+    expect(serializedConfig).not.toContain('taskToken');
+    expect(serializedConfig).not.toContain('9b0f63d3');
+    expect(serializedConfig).not.toContain('apiKey');
+    expect(serializedConfig).not.toContain('sk-');
+    expect(serializedConfig).not.toContain('task_instruction_pdf');
+  });
+
+  it('exports the read-only task environment config YAML', async () => {
+    mockSearchParams = new URLSearchParams('tab=setting');
+    const user = userEvent.setup();
+
+    render(<TaskDetailPage />);
+
+    await screen.findByRole('heading', { name: 'Clipboard Task' });
+
+    await user.click(screen.getByRole('button', { name: /export config/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /export as yaml/i }));
+
+    await waitFor(() => {
+      expect(mockDownloadBlob).toHaveBeenCalledTimes(1);
+    });
+
+    const [blob, filename] = mockDownloadBlob.mock.calls[0] as [Blob, string];
+    const exportedConfig = parseYaml(await readBlobAsText(blob));
+
+    expect(filename).toBe('Clipboard_Task-environment-config.yaml');
     expect(exportedConfig).toEqual(expect.objectContaining({
       taskType: 'admin_assigned',
       aiAccess: 'full',
