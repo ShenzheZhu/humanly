@@ -46,6 +46,13 @@ const submissionFixture = {
       description: 'Key intervals were unusually uniform.',
       evidence: { intervalCount: 42 },
     },
+    {
+      code: 'sustained_high_typing_speed',
+      severity: 'warning',
+      label: 'Sustained high typing speed',
+      description: 'Typing speed stayed above the configured review threshold.',
+      evidence: { peakCharactersPerMinute: 2400 },
+    },
   ],
   status: 'active' as const,
 };
@@ -189,7 +196,8 @@ describe('admin submission analytics page', () => {
     expect(screen.getByText(/Latest Essay/)).toBeInTheDocument();
     expect(screen.getByText('Events before submit')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Review Signals' })).toBeInTheDocument();
-    expect(screen.getByText('warning · Uniform key cadence')).toBeInTheDocument();
+    expect(screen.getByText('warning · Rapid text accumulation')).toBeInTheDocument();
+    expect(screen.queryByText('warning · Uniform key cadence')).not.toBeInTheDocument();
     expect(screen.getByText('Editing duration')).toBeInTheDocument();
     expect(screen.getByText('Typed characters')).toBeInTheDocument();
     expect(screen.getByText('Paste share')).toBeInTheDocument();

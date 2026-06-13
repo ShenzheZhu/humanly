@@ -788,8 +788,8 @@ export function SettingsPanel({ taskId }: SettingsPanelProps) {
     {
       label: 'Writing Rules',
       value: normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) === 'blocked'
-        ? 'Paste blocked'
-        : 'Paste allowed',
+        ? 'Copy-paste blocked'
+        : 'Copy-paste allowed',
       detail: formatCharacterBounds(environmentConfig.submission),
     },
     {
@@ -1257,11 +1257,11 @@ export function SettingsPanel({ taskId }: SettingsPanelProps) {
                 )}
               </AdminEnvironmentDialogSection>
 
-              <AdminEnvironmentDialogSection
-                className="lg:col-span-2"
-                title="Writing Rules"
-                description="Review paste behavior and final submission length rules."
-              >
+                <AdminEnvironmentDialogSection
+                  className="lg:col-span-2"
+                  title="Writing Rules"
+                  description="Review copy-paste behavior and final submission length rules."
+                >
                 <div className="grid gap-5 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]">
                   <SettingRow label="Copy-Paste Policy">
                     <SegmentedControl
@@ -1269,8 +1269,8 @@ export function SettingsPanel({ taskId }: SettingsPanelProps) {
                       value={normalizeCopyPastePolicy(environmentConfig.copyPastePolicy)}
                       disabled={controlsDisabled}
                       options={[
-                        { value: 'allowed', label: 'Allowed' },
-                        { value: 'blocked', label: 'Blocked' },
+                        { value: 'allowed', label: 'Copy-paste allowed' },
+                        { value: 'blocked', label: 'Copy-paste blocked' },
                       ]}
                       onValueChange={(value) => updateEnvironment({
                         copyPastePolicy: normalizeCopyPastePolicy(value),

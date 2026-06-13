@@ -37,6 +37,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ANALYTICS_CHART_COLORS } from '@/lib/analytics-palette';
 import { formatDateTime } from '@/lib/utils';
+import { getReviewSignals } from '@/lib/review-signals';
 import type {
   AIInteractionLog,
   DocumentEventTimelineItem,
@@ -106,6 +107,11 @@ const AI_LOG_BADGE_COLOR: CSSProperties = {
   borderColor: '#D0C8D7',
   color: '#655D70',
 };
+const ANOMALY_BADGE_COLOR: CSSProperties = {
+  backgroundColor: '#F4ECEA',
+  borderColor: '#D9BDB8',
+  color: '#7A5550',
+};
 
 const FLAG_BADGE_STYLES: Record<WritingAnomalyFlag['severity'], string> = {
   info: 'border-[#c8d1dc] bg-[#eef1f4] text-[#576777]',
@@ -123,6 +129,9 @@ const TIMELINE_ICONS: Partial<Record<DocumentEventTimelineItem['kind'], JSX.Elem
 };
 
 const getRawEventColor = (eventType: string): CSSProperties => {
+  if (eventType === 'ai_policy_refusal' || eventType === 'blocked_copy_paste_attempt') {
+    return ANOMALY_BADGE_COLOR;
+  }
   if (eventType === 'paste') return TIMELINE_COLORS.paste || DEFAULT_TIMELINE_COLOR;
   if (eventType === 'copy' || eventType === 'cut' || eventType === 'select') {
     return { backgroundColor: '#F1EEE8', borderColor: '#D7CDC0', color: '#6B6255' };
@@ -436,6 +445,46 @@ function getReplacedText(item: DocumentEventTimelineItem) {
   return typeof replacedText === 'string' ? replacedText : '';
 }
 
+function getRawEventMetadataText(event: DocumentEventTimelineRawEvent, key: string) {
+  const value = event.metadata?.[key];
+  return typeof value === 'string' ? value : '';
+}
+
+function isPolicyRefusalEvent(event: DocumentEventTimelineRawEvent) {
+  return event.eventType === 'ai_policy_refusal';
+}
+
+function isBlockedCopyPasteAttempt(event: DocumentEventTimelineRawEvent) {
+  return event.eventType === 'blocked_copy_paste_attempt';
+}
+
+function isAnomalyRawEvent(event: DocumentEventTimelineRawEvent) {
+  return isPolicyRefusalEvent(event) || isBlockedCopyPasteAttempt(event);
+}
+
+function getBlockedCopyPasteAction(event: DocumentEventTimelineRawEvent) {
+  const action = event.metadata?.action;
+  return action === 'copy' || action === 'cut' || action === 'paste' ? action : 'copy-paste';
+}
+
+function getPolicyRefusalLogId(event: DocumentEventTimelineRawEvent) {
+  const logId = event.metadata?.logId;
+  return typeof logId === 'string' ? logId : '';
+}
+
+function getPolicyRefusalQuestion(
+  event: DocumentEventTimelineRawEvent,
+  aiLogsById?: Map<string, AIInteractionLog>
+) {
+  return (
+    getRawEventMetadataText(event, 'userMessage') ||
+    getRawEventMetadataText(event, 'query') ||
+    getRawEventMetadataText(event, 'message') ||
+    aiLogsById?.get(getPolicyRefusalLogId(event))?.query ||
+    ''
+  );
+}
+
 function isMultilineText(text?: string) {
   return Boolean(text && /[\r\n]/.test(text));
 }
@@ -600,7 +649,22 @@ function getFullTextMeta(item: DocumentEventTimelineItem) {
   return parts.join(' · ');
 }
 
-function renderRawDetail(event: DocumentEventTimelineRawEvent) {
+function renderRawDetail(
+  event: DocumentEventTimelineRawEvent,
+  aiLogsById?: Map<string, AIInteractionLog>
+) {
+  if (isPolicyRefusalEvent(event)) {
+    const question = getPolicyRefusalQuestion(event, aiLogsById);
+    return question
+      ? renderTextPreview(question, 'Policy-conflicting chat request')
+      : 'Chat request refused by policy';
+  }
+
+  if (isBlockedCopyPasteAttempt(event)) {
+    const action = getBlockedCopyPasteAction(event);
+    return `Blocked ${action} by copy-paste policy`;
+  }
+
   if (event.eventType === 'delete' && event.insertedText) {
     return <>Replaced with {renderTextPreview(event.insertedText, '')}</>;
   }
@@ -616,8 +680,38 @@ function renderRawDetail(event: DocumentEventTimelineRawEvent) {
   return '-';
 }
 
+function getRawEventDisplayType(event: DocumentEventTimelineRawEvent) {
+  if (isPolicyRefusalEvent(event)) return 'chat_refusal';
+  if (isBlockedCopyPasteAttempt(event)) return 'blocked_copy_paste_attempt';
+  return event.eventType;
+}
+
+function getRawEventActivityLabel(event: DocumentEventTimelineRawEvent) {
+  return isAnomalyRawEvent(event) ? 'anomaly' : 'raw event';
+}
+
+function getRawEventActivityIcon(event: DocumentEventTimelineRawEvent) {
+  if (isAnomalyRawEvent(event)) return <AlertCircle className="h-3 w-3" />;
+  return null;
+}
+
+function getRawEventActivityStyle(event: DocumentEventTimelineRawEvent): CSSProperties | undefined {
+  if (isAnomalyRawEvent(event)) return ANOMALY_BADGE_COLOR;
+  return undefined;
+}
+
+function getRawEventCount(event: DocumentEventTimelineRawEvent) {
+  if (isPolicyRefusalEvent(event)) return '1 refusal';
+  if (isBlockedCopyPasteAttempt(event)) return '1 attempt';
+  return event.cursorPosition == null ? '-' : `Cursor ${event.cursorPosition}`;
+}
+
 function getHiddenEventCategory(item: DocumentEventTimelineItem) {
   const eventTypes = item.rawEvents.map((event) => event.eventType);
+
+  if (item.rawEvents.some(isAnomalyRawEvent)) {
+    return 'anomaly';
+  }
 
   if (eventTypes.some((eventType) => eventType === 'focus' || eventType === 'blur')) {
     return 'focus/blur';
@@ -683,8 +777,15 @@ function formatFoldTimeRange(item: FoldPointItem) {
   return startText === endText ? startText : `${startText} - ${endText}`;
 }
 
-function RawEventTableRow({ event }: { event: DocumentEventTimelineRawEvent }) {
+function RawEventTableRow({
+  event,
+  aiLogsById,
+}: {
+  event: DocumentEventTimelineRawEvent;
+  aiLogsById?: Map<string, AIInteractionLog>;
+}) {
   const eventColor = getRawEventColor(event.eventType);
+  const activityStyle = getRawEventActivityStyle(event);
 
   return (
     <tr className="bg-muted/20 text-xs text-muted-foreground hover:bg-muted/30">
@@ -692,8 +793,12 @@ function RawEventTableRow({ event }: { event: DocumentEventTimelineRawEvent }) {
         {formatRawEventTime(event.timestamp)}
       </td>
       <td className="px-4 py-2">
-        <span className="inline-flex whitespace-nowrap items-center rounded border bg-background px-2 py-0.5 font-medium">
-          raw event
+        <span
+          className="inline-flex whitespace-nowrap items-center gap-1 rounded border bg-background px-2 py-0.5 font-medium"
+          style={activityStyle}
+        >
+          {getRawEventActivityIcon(event)}
+          {getRawEventActivityLabel(event)}
         </span>
       </td>
       <td className="max-w-[760px] px-4 py-2">
@@ -702,13 +807,13 @@ function RawEventTableRow({ event }: { event: DocumentEventTimelineRawEvent }) {
             className="inline-flex shrink-0 items-center rounded border px-2 py-0.5 font-medium"
             style={eventColor}
           >
-            {event.eventType}
+            {getRawEventDisplayType(event)}
           </span>
-          <span className="min-w-0 truncate">{renderRawDetail(event)}</span>
+          <span className="min-w-0 truncate">{renderRawDetail(event, aiLogsById)}</span>
         </div>
       </td>
       <td className="px-4 py-2">
-        {event.cursorPosition == null ? '-' : `Cursor ${event.cursorPosition}`}
+        {getRawEventCount(event)}
       </td>
     </tr>
   );
@@ -793,6 +898,10 @@ export default function TaskSubmissionAnalyticsPage() {
     : 0;
   const pasteActivity = pasteShare >= 25 ? 'Paste activity high' : pasteShare >= 10 ? 'Paste activity moderate' : 'Paste activity low';
   const insightText = `${pasteActivity} · Activity captured before submit · ${submission?.status === 'active' ? 'Latest submission' : 'Historical submission'}`;
+  const reviewSignals = useMemo(
+    () => getReviewSignals(submission?.anomalyFlags),
+    [submission?.anomalyFlags]
+  );
 
   const visibleAILogs = useMemo(() => {
     return aiLogs.filter((log) => {
@@ -817,6 +926,9 @@ export default function TaskSubmissionAnalyticsPage() {
       return true;
     });
   }, [aiLogs]);
+  const aiLogsById = useMemo(() => {
+    return new Map(visibleAILogs.map((log) => [log.id, log]));
+  }, [visibleAILogs]);
 
   const timelineDisplayItems = useMemo<TimelineDisplayItem[]>(() => {
     type TimelineSourceItem =
@@ -982,15 +1094,15 @@ export default function TaskSubmissionAnalyticsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {(submission.anomalyFlags || []).length === 0 && !(submission.aiPolicyRefusalCount || 0) ? (
+            {reviewSignals.length === 0 && !(submission.aiPolicyRefusalCount || 0) ? (
               <p className="text-sm text-muted-foreground">
                 No advisory review signals were detected for this submission certificate.
               </p>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {(submission.anomalyFlags || []).map((flag) => (
+                {reviewSignals.map((flag, index) => (
                   <Badge
-                    key={flag.code}
+                    key={`${flag.code}-${index}`}
                     variant="outline"
                     className={`capitalize ${FLAG_BADGE_STYLES[flag.severity]}`}
                     title={flag.description}
@@ -998,15 +1110,16 @@ export default function TaskSubmissionAnalyticsPage() {
                     {flag.severity} · {flag.label}
                   </Badge>
                 ))}
-                {(submission.aiPolicyRefusalCount || 0) > 0 && (
-                  <Badge
-                    variant="outline"
-                    className="border-[#B56F5C]/35 bg-[#B56F5C]/10 text-[#6E3F35]"
-                    title="In-platform AI refused a request because it conflicted with the writing policy."
-                  >
-                    AI policy refusals · {submission.aiPolicyRefusalCount}
-                  </Badge>
-                )}
+                {(submission.aiPolicyRefusalCount || 0) > 0 &&
+                  !reviewSignals.some((flag) => flag.code === 'chat_refusal') && (
+                    <Badge
+                      variant="outline"
+                      className="border-[#B56F5C]/35 bg-[#B56F5C]/10 text-[#6E3F35]"
+                      title="In-platform AI refused a request because it conflicted with the writing policy."
+                    >
+                      Chat refusals · {submission.aiPolicyRefusalCount}
+                    </Badge>
+                  )}
               </div>
             )}
           </CardContent>
@@ -1234,7 +1347,7 @@ export default function TaskSubmissionAnalyticsPage() {
                           </tr>
                           {isExpanded &&
                             historyItem.rawEvents.map((event) => (
-                              <RawEventTableRow key={event.id} event={event} />
+                              <RawEventTableRow key={event.id} event={event} aiLogsById={aiLogsById} />
                             ))}
                         </Fragment>
                       );
@@ -1242,7 +1355,7 @@ export default function TaskSubmissionAnalyticsPage() {
 
                     if (historyItem.kind === 'raw') {
                       return (
-                        <RawEventTableRow key={historyItem.id} event={historyItem.event} />
+                        <RawEventTableRow key={historyItem.id} event={historyItem.event} aiLogsById={aiLogsById} />
                       );
                     }
 

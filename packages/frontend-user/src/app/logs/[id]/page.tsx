@@ -88,7 +88,9 @@ const TIMELINE_ICONS: Partial<Record<DocumentEventTimelineItem['kind'], JSX.Elem
 };
 
 const getRawEventColor = (eventType: string): CSSProperties => {
-  if (eventType === 'ai_policy_refusal') return ANOMALY_BADGE_COLOR;
+  if (eventType === 'ai_policy_refusal' || eventType === 'blocked_copy_paste_attempt') {
+    return ANOMALY_BADGE_COLOR;
+  }
   if (eventType === 'paste') return TIMELINE_COLORS.paste || DEFAULT_TIMELINE_COLOR;
   if (eventType === 'copy' || eventType === 'cut' || eventType === 'select') {
     return { backgroundColor: '#F1EEE8', borderColor: '#D7CDC0', color: '#6B6255' };
@@ -505,6 +507,19 @@ function isPolicyRefusalEvent(event: DocumentEventTimelineRawEvent) {
   return event.eventType === 'ai_policy_refusal';
 }
 
+function isBlockedCopyPasteAttempt(event: DocumentEventTimelineRawEvent) {
+  return event.eventType === 'blocked_copy_paste_attempt';
+}
+
+function isAnomalyRawEvent(event: DocumentEventTimelineRawEvent) {
+  return isPolicyRefusalEvent(event) || isBlockedCopyPasteAttempt(event);
+}
+
+function getBlockedCopyPasteAction(event: DocumentEventTimelineRawEvent) {
+  const action = event.metadata?.action;
+  return action === 'copy' || action === 'cut' || action === 'paste' ? action : 'copy-paste';
+}
+
 function getPolicyRefusalLogId(event: DocumentEventTimelineRawEvent) {
   const logId = event.metadata?.logId;
   return typeof logId === 'string' ? logId : '';
@@ -791,6 +806,11 @@ function renderRawDetail(
       : 'Chat request refused by policy';
   }
 
+  if (isBlockedCopyPasteAttempt(event)) {
+    const action = getBlockedCopyPasteAction(event);
+    return `Blocked ${action} by copy-paste policy`;
+  }
+
   if (event.eventType === 'ai_query_sent') {
     const query = getRawEventMetadataText(event, 'query');
     return query ? renderTextPreview(query, 'AI question') : null;
@@ -859,6 +879,7 @@ function renderRawDetail(
 
 function getRawEventDisplayType(event: DocumentEventTimelineRawEvent) {
   if (isPolicyRefusalEvent(event)) return 'chat_refusal';
+  if (isBlockedCopyPasteAttempt(event)) return 'blocked_copy_paste_attempt';
   if (event.eventType === 'page_hidden') return 'Left page';
   if (event.eventType === 'page_visible') return 'Returned';
   if (event.eventType === 'ai_query_sent') return 'AI question sent';
@@ -880,21 +901,22 @@ function isDuplicateAIQueryRawEvent(
 }
 
 function getRawEventActivityLabel(event: DocumentEventTimelineRawEvent) {
-  return isPolicyRefusalEvent(event) ? 'anomaly' : 'raw event';
+  return isAnomalyRawEvent(event) ? 'anomaly' : 'raw event';
 }
 
 function getRawEventActivityIcon(event: DocumentEventTimelineRawEvent) {
-  if (isPolicyRefusalEvent(event)) return <AlertCircle className="h-3 w-3" />;
+  if (isAnomalyRawEvent(event)) return <AlertCircle className="h-3 w-3" />;
   return null;
 }
 
 function getRawEventActivityStyle(event: DocumentEventTimelineRawEvent): CSSProperties | undefined {
-  if (isPolicyRefusalEvent(event)) return ANOMALY_BADGE_COLOR;
+  if (isAnomalyRawEvent(event)) return ANOMALY_BADGE_COLOR;
   return undefined;
 }
 
 function getRawEventCount(event: DocumentEventTimelineRawEvent) {
   if (isPolicyRefusalEvent(event)) return '1 refusal';
+  if (isBlockedCopyPasteAttempt(event)) return '1 attempt';
   return event.cursorPosition == null ? '—' : `Cursor ${event.cursorPosition}`;
 }
 

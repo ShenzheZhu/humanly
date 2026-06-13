@@ -488,6 +488,7 @@ function eventLabel(event: DocumentEvent): string {
     select: 'Text selected',
     copy: 'Copied text',
     cut: 'Cut text',
+    blocked_copy_paste_attempt: 'Blocked copy-paste attempt',
     contextmenu: 'Context menu attempt',
     paste: 'Pasted text',
     delete: 'Deleted text',

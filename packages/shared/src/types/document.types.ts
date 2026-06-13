@@ -220,7 +220,12 @@ export type WritingAnomalyFlagCode =
   | 'paste_policy_violation'
   | 'away_from_workspace'
   | 'clock_skew_anomaly'
-  | 'ai_policy_refusal';
+  | 'ai_policy_refusal'
+  | 'chat_refusal'
+  | 'blocked_copy_paste_attempt'
+  | 'large_paste_volume'
+  | 'rapid_text_accumulation'
+  | 'long_or_repeated_away_from_workspace';
 
 export type WritingAnomalyFlagSeverity = 'info' | 'warning' | 'critical';
 
@@ -252,6 +257,9 @@ export interface WritingAnomalyThresholds {
   clockSkewMinimumEvents: number;
   clockSkewMinimumClientSpanSeconds: number;
   clockSkewMaximumServerSpanSeconds: number;
+  largePasteMinimumCharacters: number;
+  largePasteMinimumPercentage: number;
+  largePasteAbsoluteCharacters: number;
 }
 
 export interface AwayFromWorkspaceStats {

@@ -205,7 +205,7 @@ describe('CertificateEvidenceView', () => {
     expect(screen.getByText('1,024 tokens')).toBeInTheDocument();
     expect(screen.getByText('Agent chat token limit')).toBeInTheDocument();
     expect(screen.getByText('4,096 tokens')).toBeInTheDocument();
-    expect(screen.getByText('Allowed')).toBeInTheDocument();
+    expect(screen.getByText('Copy-paste allowed')).toBeInTheDocument();
     expect(screen.getByText('Writing time limit')).toBeInTheDocument();
     expect(screen.getByText('30min')).toBeInTheDocument();
     expect(screen.getByText('Maximum characters')).toBeInTheDocument();
@@ -345,7 +345,7 @@ describe('CertificateEvidenceView', () => {
     expect(screen.queryByText('Pasted 0%')).not.toBeInTheDocument();
   });
 
-  it('renders abnormal behavior review signals with evidence after expansion', async () => {
+  it('filters default-hidden legacy cadence signals from abnormal behavior review', async () => {
     const user = userEvent.setup();
 
     render(
@@ -388,12 +388,8 @@ describe('CertificateEvidenceView', () => {
 
     await user.click(screen.getByRole('button', { name: 'Show abnormal behavior review section' }));
 
-    expect(screen.getByText('Uniform key cadence')).toBeInTheDocument();
-    expect(screen.getByText('warning')).toBeInTheDocument();
-    expect(screen.getByText('Interval Count')).toBeInTheDocument();
-    expect(screen.getByText('139')).toBeInTheDocument();
-    expect(screen.getByText('Stddev Interval Ms')).toBeInTheDocument();
-    expect(screen.getByText('4.5')).toBeInTheDocument();
+    expect(screen.getByText('No abnormal behavior signals were detected for this certificate.')).toBeInTheDocument();
+    expect(screen.queryByText('Uniform key cadence')).not.toBeInTheDocument();
   });
 
   it('renders away-from-workspace anomaly evidence after expansion', async () => {
@@ -422,10 +418,10 @@ describe('CertificateEvidenceView', () => {
               label: 'Away from workspace',
               description: 'The writer left the Humanly writing workspace and later returned during the session.',
               evidence: {
-                leftCount: 2,
-                returnedCount: 2,
-                totalAwayTime: '3min20s',
-                longestAwayTime: '2min',
+                leftCount: 3,
+                returnedCount: 3,
+                totalAwayTime: '10min20s',
+                longestAwayTime: '5min',
               },
             },
           ],
@@ -437,16 +433,16 @@ describe('CertificateEvidenceView', () => {
 
     await user.click(screen.getByRole('button', { name: 'Show abnormal behavior review section' }));
 
-    expect(screen.getByText('Away from workspace')).toBeInTheDocument();
+    expect(screen.getByText('Long or repeated away-from-workspace time')).toBeInTheDocument();
     expect(
-      screen.getByText('The writer left the Humanly writing workspace and later returned during the session.')
+      screen.getByText('The writer left the Humanly writing workspace for a long time or repeatedly during the session.')
     ).toBeInTheDocument();
     expect(screen.getByText('Left Count')).toBeInTheDocument();
     expect(screen.getByText('Returned Count')).toBeInTheDocument();
     expect(screen.getByText('Total Away Time')).toBeInTheDocument();
-    expect(screen.getByText('3min20s')).toBeInTheDocument();
+    expect(screen.getByText('10min20s')).toBeInTheDocument();
     expect(screen.getByText('Longest Away Time')).toBeInTheDocument();
-    expect(screen.getByText('2min')).toBeInTheDocument();
+    expect(screen.getByText('5min')).toBeInTheDocument();
   });
 
   it('renders sealed AI policy refusal anomaly flags as abnormal behavior review signals', async () => {
@@ -492,12 +488,12 @@ describe('CertificateEvidenceView', () => {
       />
     );
 
-    expect(screen.queryByText('AI policy refusals')).not.toBeInTheDocument();
+    expect(screen.queryByText('Chat refusals')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Show abnormal behavior review section' }));
 
     expect(screen.queryByText('No abnormal behavior signals were detected for this certificate.')).not.toBeInTheDocument();
-    expect(screen.getByText('AI policy refusals')).toBeInTheDocument();
+    expect(screen.getByText('Chat refusals')).toBeInTheDocument();
     expect(
       screen.getByText(
         'The in-platform assistant refused a request because it conflicted with the active writing policy.'
@@ -543,6 +539,6 @@ describe('CertificateEvidenceView', () => {
     await user.click(screen.getByRole('button', { name: 'Show abnormal behavior review section' }));
 
     expect(screen.getByText('No abnormal behavior signals were detected for this certificate.')).toBeInTheDocument();
-    expect(screen.queryByText('AI policy refusals')).not.toBeInTheDocument();
+    expect(screen.queryByText('Chat refusals')).not.toBeInTheDocument();
   });
 });

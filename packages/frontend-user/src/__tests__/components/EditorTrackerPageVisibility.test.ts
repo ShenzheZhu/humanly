@@ -49,6 +49,14 @@ function makeEditor() {
   };
 }
 
+function getRegisteredCommandHandler(editor: ReturnType<typeof makeEditor>, commandName: string) {
+  const call = editor.registerCommand.mock.calls.find(([command]) => command?.name === commandName);
+  if (!call) {
+    throw new Error(`Command ${commandName} was not registered`);
+  }
+  return call[1] as (event: any) => boolean;
+}
+
 describe('EditorTracker page visibility tracking', () => {
   afterEach(() => {
     jest.useRealTimers();
@@ -104,6 +112,55 @@ describe('EditorTracker page visibility tracking', () => {
     expect(batches[1][0]).toMatchObject({
       eventType: 'page_visible',
       metadata: { visibilityState: 'visible', hiddenDurationMs: 115000 },
+    });
+
+    tracker.stop();
+  });
+
+  it('records blocked copy-paste attempts when copy-paste is disabled', async () => {
+    const batches: TrackedEvent[][] = [];
+    const editor = makeEditor();
+    const tracker = new EditorTracker(editor as any, {
+      documentId: 'doc-1',
+      enabled: true,
+      copyPastePolicy: 'blocked',
+      onEventsBuffer: async (events) => {
+        batches.push(events);
+      },
+    });
+
+    tracker.start();
+
+    const pasteEvent = {
+      preventDefault: jest.fn(),
+      clipboardData: {
+        getData: jest.fn(() => 'blocked pasted text'),
+      },
+    };
+
+    expect(getRegisteredCommandHandler(editor, 'PASTE_COMMAND')(pasteEvent)).toBe(true);
+    expect(pasteEvent.preventDefault).toHaveBeenCalled();
+
+    const copyEvent = { preventDefault: jest.fn() };
+    expect(getRegisteredCommandHandler(editor, 'COPY_COMMAND')(copyEvent)).toBe(true);
+    expect(copyEvent.preventDefault).toHaveBeenCalled();
+
+    const cutEvent = { preventDefault: jest.fn() };
+    expect(getRegisteredCommandHandler(editor, 'CUT_COMMAND')(cutEvent)).toBe(true);
+    expect(cutEvent.preventDefault).toHaveBeenCalled();
+
+    await tracker.flushPendingEvents();
+
+    expect(batches).toHaveLength(1);
+    expect(batches[0].map((event) => event.eventType)).toEqual([
+      'blocked_copy_paste_attempt',
+      'blocked_copy_paste_attempt',
+      'blocked_copy_paste_attempt',
+    ]);
+    expect(batches[0].map((event) => event.metadata?.action)).toEqual(['paste', 'copy', 'cut']);
+    expect(batches[0][0].metadata).toMatchObject({
+      policy: 'blocked',
+      attemptedTextLength: 'blocked pasted text'.length,
     });
 
     tracker.stop();

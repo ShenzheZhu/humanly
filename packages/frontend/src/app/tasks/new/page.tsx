@@ -381,8 +381,8 @@ const buildAdminEnvironmentSummary = ({
     {
       label: 'Writing rules',
       value: normalizeCopyPastePolicy(config.copyPastePolicy) === 'blocked'
-        ? 'Paste blocked'
-        : 'Paste allowed',
+        ? 'Copy-paste blocked'
+        : 'Copy-paste allowed',
       detail: formatAdminCharacterBounds(config),
     },
     {
@@ -1293,7 +1293,7 @@ export default function NewTaskPage() {
       <div className="space-y-4 rounded-md border p-4">
         <SectionHeading
           title="Writing Control"
-          description="Set paste behavior and final submission length rules."
+          description="Set copy-paste behavior and final submission length rules."
         />
 
         <div className="grid gap-2">
@@ -1308,8 +1308,8 @@ export default function NewTaskPage() {
               <SelectValue placeholder="Copy-paste policy" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="allowed">Allowed</SelectItem>
-              <SelectItem value="blocked">Blocked</SelectItem>
+              <SelectItem value="allowed">Copy-paste allowed</SelectItem>
+              <SelectItem value="blocked">Copy-paste blocked</SelectItem>
             </SelectContent>
           </Select>
         </div>
