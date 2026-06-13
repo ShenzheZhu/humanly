@@ -1,14 +1,28 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCertificates } from '@/hooks/use-certificates';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Award, ChevronDown, FileText, Folder } from 'lucide-react';
+import { ArrowLeft, Award, ChevronDown, FileText, Folder, Trash2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { groupCertificatesByDocument } from '@/lib/certificate-groups';
+import {
+  groupCertificatesByDocument,
+  type CertificateTaskGroup,
+} from '@/lib/certificate-groups';
+import { useToast } from '@/components/ui/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import type { Certificate } from '@humanly/shared';
 
 function formatDate(date: Date | string) {
@@ -33,18 +47,78 @@ function getActivityLabel(certificate: Certificate) {
   return null;
 }
 
+type DeleteTarget =
+  | {
+      type: 'certificate';
+      certificate: Certificate;
+    }
+  | {
+      type: 'folder';
+      group: CertificateTaskGroup;
+    };
+
 export default function CertificatesPage() {
   const router = useRouter();
-  const { certificates, isLoading, error } = useCertificates({
+  const { toast } = useToast();
+  const { certificates, isLoading, error, deleteCertificate } = useCertificates({
     limit: 50,
     offset: 0,
     sortBy: 'generatedAt',
     sortOrder: 'desc',
   });
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const certificateGroups = useMemo(
     () => groupCertificatesByDocument(certificates),
     [certificates]
   );
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+
+    try {
+      setIsDeleting(true);
+
+      if (deleteTarget.type === 'certificate') {
+        await deleteCertificate(deleteTarget.certificate.id);
+        toast({
+          title: 'Certificate deleted',
+          description: 'The certificate was removed from your records.',
+        });
+      } else {
+        await Promise.all(
+          deleteTarget.group.certificates.map((certificate) => deleteCertificate(certificate.id))
+        );
+        toast({
+          title: 'Certificate folder deleted',
+          description: `${deleteTarget.group.certificates.length} certificate${
+            deleteTarget.group.certificates.length === 1 ? '' : 's'
+          } removed from ${deleteTarget.group.title}.`,
+        });
+      }
+
+      setDeleteTarget(null);
+    } catch (err: any) {
+      toast({
+        title: 'Delete failed',
+        description: err?.message || 'Unable to delete certificate records.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const deleteDialogTitle = deleteTarget?.type === 'folder'
+    ? 'Delete certificate folder?'
+    : 'Delete certificate?';
+  const deleteDialogDescription = deleteTarget?.type === 'folder'
+    ? `This will delete all ${deleteTarget.group.certificates.length} certificate${
+        deleteTarget.group.certificates.length === 1 ? '' : 's'
+      } currently in "${deleteTarget.group.title}". If you generate another certificate for this task later, the folder will be created again.`
+    : deleteTarget
+    ? `This will delete the certificate issued ${formatDate(deleteTarget.certificate.generatedAt)}.`
+    : '';
 
   if (isLoading) {
     return (
@@ -125,8 +199,22 @@ export default function CertificatesPage() {
                         {group.certificates.length} {group.certificates.length === 1 ? 'certificate' : 'certificates'}
                       </p>
                     </div>
-                    <div className="shrink-0 text-sm text-muted-foreground">
-                      Latest {formatDate(group.latestCertificate.generatedAt)}
+                    <div className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
+                      <span>Latest {formatDate(group.latestCertificate.generatedAt)}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                        aria-label={`Delete ${group.title} certificate folder`}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          setDeleteTarget({ type: 'folder', group });
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -138,39 +226,54 @@ export default function CertificatesPage() {
                   const activityLabel = getActivityLabel(certificate);
 
                   return (
-                    <button
+                    <div
                       key={certificate.id}
-                      type="button"
-                      className="flex w-full flex-col gap-3 border-b px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between sm:px-5"
-                      onClick={() => router.push(`/certificates/${certificate.id}`)}
+                      className="flex w-full items-center gap-2 border-b transition-colors last:border-b-0 hover:bg-muted/40"
                     >
-                      <div className="flex min-w-0 items-start gap-3">
-                        <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-sm font-medium text-foreground">
-                              Issued {formatDate(certificate.generatedAt)}
-                            </span>
-                            {certificate.certificateType && (
-                              <Badge
-                                variant={certificate.certificateType === 'full_authorship' ? 'default' : 'secondary'}
-                                className="shrink-0 rounded-md"
-                              >
-                                {certificate.certificateType === 'full_authorship' ? 'Certificate' : 'Partial'}
-                              </Badge>
+                      <button
+                        type="button"
+                        aria-label={`Open certificate issued ${formatDate(certificate.generatedAt)}`}
+                        className="flex min-w-0 flex-1 flex-col gap-3 px-4 py-3 text-left sm:flex-row sm:items-center sm:px-5"
+                        onClick={() => router.push(`/certificates/${certificate.id}`)}
+                      >
+                        <div className="flex min-w-0 items-start gap-3">
+                          <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-sm font-medium text-foreground">
+                                Issued {formatDate(certificate.generatedAt)}
+                              </span>
+                              {certificate.certificateType && (
+                                <Badge
+                                  variant={certificate.certificateType === 'full_authorship' ? 'default' : 'secondary'}
+                                  className="shrink-0 rounded-md"
+                                >
+                                  {certificate.certificateType === 'full_authorship' ? 'Certificate' : 'Partial'}
+                                </Badge>
+                              )}
+                            </div>
+                            {activityLabel && (
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                {activityLabel}
+                              </p>
                             )}
                           </div>
-                          {activityLabel && (
-                            <p className="mt-1 text-sm text-muted-foreground">
-                              {activityLabel}
-                            </p>
-                          )}
                         </div>
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        Open
-                      </span>
-                    </button>
+                      </button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="mr-3 h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive sm:mr-4"
+                        aria-label={`Delete certificate issued ${formatDate(certificate.generatedAt)}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setDeleteTarget({ type: 'certificate', certificate });
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   );
                 })}
               </div>
@@ -178,6 +281,34 @@ export default function CertificatesPage() {
           ))}
         </div>
       )}
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open && !isDeleting) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{deleteDialogTitle}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteDialogDescription} This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleDelete();
+              }}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
