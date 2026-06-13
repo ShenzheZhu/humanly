@@ -244,4 +244,29 @@ describe('AnomalyFlagsService.analyzeDocument', () => {
       { eventType: 'ai_policy_refusal' }
     );
   });
+
+  it('preserves AI policy refusal flags when broad anomaly feature analysis fails', async () => {
+    MockDocumentEventModel.getAnomalyAnalysisFeatures.mockRejectedValue(new Error('feature query failed'));
+    MockDocumentEventModel.countByDocumentIdWithFilters.mockResolvedValue(2);
+
+    const flags = await AnomalyFlagsService.analyzeDocument('document-2');
+
+    expect(flags).toEqual([
+      {
+        code: 'ai_policy_refusal',
+        severity: 'warning',
+        label: 'AI policy refusals',
+        description:
+          'The in-platform assistant refused a request because it conflicted with the active writing policy.',
+        evidence: {
+          refusalCount: 2,
+          eventType: 'ai_policy_refusal',
+        },
+      },
+    ]);
+    expect(MockDocumentEventModel.countByDocumentIdWithFilters).toHaveBeenCalledWith(
+      'document-2',
+      { eventType: 'ai_policy_refusal' }
+    );
+  });
 });

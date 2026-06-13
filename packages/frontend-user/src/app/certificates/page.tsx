@@ -112,7 +112,6 @@ export default function CertificatesPage() {
             <details
               key={group.documentId}
               className="group rounded-lg border bg-card text-card-foreground shadow-sm"
-              open
             >
               <summary className="flex cursor-pointer list-none items-start gap-3 px-4 py-4 marker:content-none sm:px-5">
                 <Folder className="mt-1 h-5 w-5 shrink-0 text-accent" />
