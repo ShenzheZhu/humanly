@@ -201,20 +201,28 @@ export class AnomalyFlagsService {
     environmentConfig?: WritingEnvironmentConfig | null,
     thresholds: WritingAnomalyThresholds = DEFAULT_ANOMALY_THRESHOLDS
   ): Promise<WritingAnomalyFlag[]> {
+    const flags: WritingAnomalyFlag[] = [];
+
     try {
-      const [features, policyRefusalCount] = await Promise.all([
-        DocumentEventModel.getAnomalyAnalysisFeatures(documentId, thresholds),
-        DocumentEventModel.countByDocumentIdWithFilters(documentId, {
-          eventType: 'ai_policy_refusal',
-        }),
-      ]);
-      const flags = computeWritingAnomalyFlags(features, environmentConfig, thresholds);
+      const features = await DocumentEventModel.getAnomalyAnalysisFeatures(documentId, thresholds);
+      flags.push(...computeWritingAnomalyFlags(features, environmentConfig, thresholds));
+    } catch (error) {
+      logger.warn('Unable to compute writing anomaly feature flags', { error, documentId });
+    }
+
+    try {
+      const policyRefusalCount = await DocumentEventModel.countByDocumentIdWithFilters(documentId, {
+        eventType: 'ai_policy_refusal',
+      });
       const policyRefusalFlag = buildAiPolicyRefusalFlag(policyRefusalCount);
 
-      return policyRefusalFlag ? [...flags, policyRefusalFlag] : flags;
+      if (policyRefusalFlag) {
+        flags.push(policyRefusalFlag);
+      }
     } catch (error) {
-      logger.warn('Unable to compute writing anomaly flags', { error, documentId });
-      return [];
+      logger.warn('Unable to compute AI policy refusal anomaly flag', { error, documentId });
     }
+
+    return flags;
   }
 }
