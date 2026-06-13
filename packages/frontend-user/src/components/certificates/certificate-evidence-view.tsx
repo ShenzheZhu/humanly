@@ -326,25 +326,7 @@ export function CertificateEvidenceView({
   const SealStatusIcon = sealPresentation.Icon;
   const showReplay = Boolean(certificate.includeEditHistory && replayToken);
   const environmentRows = getEnvironmentRows(certificate.environmentConfig);
-  const anomalyFlags = certificate.anomalyFlags || [];
-  const policyRefusalCount = aiStats?.policyRefusals?.total || 0;
-  const hasPolicyRefusalFlag = anomalyFlags.some((flag) => flag.code === 'ai_policy_refusal');
-  const reviewSignals: WritingAnomalyFlag[] = policyRefusalCount > 0 && !hasPolicyRefusalFlag
-    ? [
-        ...anomalyFlags,
-        {
-          code: 'ai_policy_refusal',
-          severity: 'warning',
-          label: policyRefusalCount === 1 ? 'AI policy refusal' : 'AI policy refusals',
-          description:
-            'The in-platform assistant refused a request because it conflicted with the active writing policy.',
-          evidence: {
-            refusalCount: policyRefusalCount,
-            source: 'document_events',
-          },
-        },
-      ]
-    : anomalyFlags;
+  const reviewSignals: WritingAnomalyFlag[] = certificate.anomalyFlags || [];
 
   return (
     <div className="space-y-4">

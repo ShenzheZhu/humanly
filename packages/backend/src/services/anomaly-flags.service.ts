@@ -38,6 +38,22 @@ function formatDurationMs(valueMs: number) {
   return seconds === 0 ? `${minutes}min` : `${minutes}min${seconds}s`;
 }
 
+export function buildAiPolicyRefusalFlag(refusalCount: number): WritingAnomalyFlag | null {
+  if (refusalCount <= 0) return null;
+
+  return {
+    code: 'ai_policy_refusal',
+    severity: 'warning',
+    label: refusalCount === 1 ? 'AI policy refusal' : 'AI policy refusals',
+    description:
+      'The in-platform assistant refused a request because it conflicted with the active writing policy.',
+    evidence: {
+      refusalCount,
+      eventType: 'ai_policy_refusal',
+    },
+  };
+}
+
 export function computeWritingAnomalyFlags(
   features: DocumentAnomalyAnalysisFeatures,
   environmentConfig?: WritingEnvironmentConfig | null,
@@ -186,8 +202,16 @@ export class AnomalyFlagsService {
     thresholds: WritingAnomalyThresholds = DEFAULT_ANOMALY_THRESHOLDS
   ): Promise<WritingAnomalyFlag[]> {
     try {
-      const features = await DocumentEventModel.getAnomalyAnalysisFeatures(documentId, thresholds);
-      return computeWritingAnomalyFlags(features, environmentConfig, thresholds);
+      const [features, policyRefusalCount] = await Promise.all([
+        DocumentEventModel.getAnomalyAnalysisFeatures(documentId, thresholds),
+        DocumentEventModel.countByDocumentIdWithFilters(documentId, {
+          eventType: 'ai_policy_refusal',
+        }),
+      ]);
+      const flags = computeWritingAnomalyFlags(features, environmentConfig, thresholds);
+      const policyRefusalFlag = buildAiPolicyRefusalFlag(policyRefusalCount);
+
+      return policyRefusalFlag ? [...flags, policyRefusalFlag] : flags;
     } catch (error) {
       logger.warn('Unable to compute writing anomaly flags', { error, documentId });
       return [];

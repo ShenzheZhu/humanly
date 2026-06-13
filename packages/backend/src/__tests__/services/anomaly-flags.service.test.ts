@@ -1,9 +1,23 @@
 import {
+  AnomalyFlagsService,
+  buildAiPolicyRefusalFlag,
   computeWritingAnomalyFlags,
   DEFAULT_ANOMALY_THRESHOLDS,
 } from '../../services/anomaly-flags.service';
-import type { DocumentAnomalyAnalysisFeatures } from '../../models/document-event.model';
+import {
+  DocumentEventModel,
+  type DocumentAnomalyAnalysisFeatures,
+} from '../../models/document-event.model';
 import type { WritingEnvironmentConfig } from '@humanly/shared';
+
+jest.mock('../../models/document-event.model', () => ({
+  DocumentEventModel: {
+    getAnomalyAnalysisFeatures: jest.fn(),
+    countByDocumentIdWithFilters: jest.fn(),
+  },
+}));
+
+const MockDocumentEventModel = DocumentEventModel as jest.Mocked<typeof DocumentEventModel>;
 
 function makeFeatures(
   overrides: Partial<DocumentAnomalyAnalysisFeatures> = {}
@@ -55,6 +69,10 @@ const pasteBlockedEnvironment = {
 } as WritingEnvironmentConfig;
 
 describe('computeWritingAnomalyFlags', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('returns zero flags for a human-like fixture', () => {
     const flags = computeWritingAnomalyFlags(makeFeatures());
 
@@ -175,4 +193,55 @@ describe('computeWritingAnomalyFlags', () => {
     expect(flags.every((flag) => flag.description.toLowerCase().includes('verdict'))).toBe(false);
   });
 
+});
+
+describe('buildAiPolicyRefusalFlag', () => {
+  it('returns no flag when no refusals were recorded', () => {
+    expect(buildAiPolicyRefusalFlag(0)).toBeNull();
+  });
+
+  it('builds a sealed anomaly flag payload for policy refusals', () => {
+    expect(buildAiPolicyRefusalFlag(2)).toEqual({
+      code: 'ai_policy_refusal',
+      severity: 'warning',
+      label: 'AI policy refusals',
+      description:
+        'The in-platform assistant refused a request because it conflicted with the active writing policy.',
+      evidence: {
+        refusalCount: 2,
+        eventType: 'ai_policy_refusal',
+      },
+    });
+  });
+});
+
+describe('AnomalyFlagsService.analyzeDocument', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('freezes AI policy refusals into anomaly flags for certificate generation', async () => {
+    MockDocumentEventModel.getAnomalyAnalysisFeatures.mockResolvedValue(makeFeatures());
+    MockDocumentEventModel.countByDocumentIdWithFilters.mockResolvedValue(1);
+
+    const flags = await AnomalyFlagsService.analyzeDocument('document-1');
+
+    expect(flags).toEqual([
+      {
+        code: 'ai_policy_refusal',
+        severity: 'warning',
+        label: 'AI policy refusal',
+        description:
+          'The in-platform assistant refused a request because it conflicted with the active writing policy.',
+        evidence: {
+          refusalCount: 1,
+          eventType: 'ai_policy_refusal',
+        },
+      },
+    ]);
+    expect(MockDocumentEventModel.countByDocumentIdWithFilters).toHaveBeenCalledWith(
+      'document-1',
+      { eventType: 'ai_policy_refusal' }
+    );
+  });
 });
