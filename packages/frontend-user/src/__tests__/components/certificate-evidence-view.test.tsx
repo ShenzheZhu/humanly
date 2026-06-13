@@ -449,7 +449,7 @@ describe('CertificateEvidenceView', () => {
     expect(screen.getByText('2min')).toBeInTheDocument();
   });
 
-  it('renders AI policy refusals as abnormal behavior review signals', async () => {
+  it('renders sealed AI policy refusal anomaly flags as abnormal behavior review signals', async () => {
     const user = userEvent.setup();
 
     render(
@@ -468,7 +468,19 @@ describe('CertificateEvidenceView', () => {
           pasteEvents: 0,
           editingTimeSeconds: 45,
           includeEditHistory: false,
-          anomalyFlags: [],
+          anomalyFlags: [
+            {
+              code: 'ai_policy_refusal',
+              severity: 'warning',
+              label: 'AI policy refusals',
+              description:
+                'The in-platform assistant refused a request because it conflicted with the active writing policy.',
+              evidence: {
+                refusalCount: 2,
+                eventType: 'ai_policy_refusal',
+              },
+            },
+          ],
           environmentConfig,
         }}
         aiStats={{
@@ -493,7 +505,44 @@ describe('CertificateEvidenceView', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Refusal Count')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
-    expect(screen.getByText('Source')).toBeInTheDocument();
-    expect(screen.getByText('document_events')).toBeInTheDocument();
+    expect(screen.getByText('Event Type')).toBeInTheDocument();
+    expect(screen.getByText('ai_policy_refusal')).toBeInTheDocument();
+  });
+
+  it('does not synthesize abnormal behavior review signals from dynamic AI stats', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <CertificateEvidenceView
+        certificate={{
+          id: 'certificate-7',
+          documentId: 'document-7',
+          title: 'Legacy Policy Guard Draft',
+          certificateType: 'full_authorship',
+          generatedAt: '2026-06-10T12:00:00.000Z',
+          totalCharacters: 1000,
+          typedCharacters: 1000,
+          pastedCharacters: 0,
+          totalEvents: 140,
+          typingEvents: 140,
+          pasteEvents: 0,
+          editingTimeSeconds: 45,
+          includeEditHistory: false,
+          anomalyFlags: [],
+          environmentConfig,
+        }}
+        aiStats={{
+          ...aiStats,
+          policyRefusals: {
+            total: 2,
+          },
+        }}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Show abnormal behavior review section' }));
+
+    expect(screen.getByText('No abnormal behavior signals were detected for this certificate.')).toBeInTheDocument();
+    expect(screen.queryByText('AI policy refusals')).not.toBeInTheDocument();
   });
 });
