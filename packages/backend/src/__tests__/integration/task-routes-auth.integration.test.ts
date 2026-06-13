@@ -192,6 +192,24 @@ describe('task route authenticated owner boundaries', () => {
     expect(MockTaskService.createTask).not.toHaveBeenCalled();
   });
 
+  it('rejects non-PDF task creation uploads before the service layer', async () => {
+    const response = await request(app)
+      .post('/api/v1/tasks')
+      .set('Authorization', `Bearer ${tokenFor()}`)
+      .field('payload', JSON.stringify({
+        ...validTaskPayload(),
+        name: 'Invalid PDF Upload',
+      }))
+      .attach('pdf', Buffer.from('not a pdf'), {
+        filename: 'notes.txt',
+        contentType: 'text/plain',
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe('Only PDF files are allowed');
+    expect(MockTaskService.createTask).not.toHaveBeenCalled();
+  });
+
   it('keeps user enrollment endpoints available to authenticated accounts', async () => {
     MockTaskService.joinTaskByInviteCode.mockResolvedValue({
       id: 'task-1',
