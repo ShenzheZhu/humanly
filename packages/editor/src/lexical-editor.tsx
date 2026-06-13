@@ -360,7 +360,8 @@ function CharacterLimitPlugin({
       PASTE_COMMAND,
       (event: ClipboardEvent | null) => {
         if (copyPastePolicy === 'blocked') {
-          return false;
+          event?.preventDefault();
+          return true;
         }
 
         const incomingText = event?.clipboardData?.getData('text/plain') || '';
@@ -444,7 +445,8 @@ function MarkdownPastePromptPlugin({
       PASTE_COMMAND,
       (event: ClipboardEvent | null) => {
         if (copyPastePolicy === 'blocked') {
-          return false;
+          event?.preventDefault();
+          return true;
         }
 
         const incomingText = event?.clipboardData?.getData('text/plain') || '';

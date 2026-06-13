@@ -22,6 +22,9 @@ export const DEFAULT_ANOMALY_THRESHOLDS: WritingAnomalyThresholds = {
   clockSkewMinimumEvents: 80,
   clockSkewMinimumClientSpanSeconds: 120,
   clockSkewMaximumServerSpanSeconds: 5,
+  largePasteMinimumCharacters: 500,
+  largePasteMinimumPercentage: 30,
+  largePasteAbsoluteCharacters: 1500,
 };
 
 function round(value: number, digits = 1) {
@@ -42,9 +45,9 @@ export function buildAiPolicyRefusalFlag(refusalCount: number): WritingAnomalyFl
   if (refusalCount <= 0) return null;
 
   return {
-    code: 'ai_policy_refusal',
+    code: 'chat_refusal',
     severity: 'warning',
-    label: refusalCount === 1 ? 'AI policy refusal' : 'AI policy refusals',
+    label: refusalCount === 1 ? 'Chat refusal' : 'Chat refusals',
     description:
       'The in-platform assistant refused a request because it conflicted with the active writing policy.',
     evidence: {
@@ -60,92 +63,66 @@ export function computeWritingAnomalyFlags(
   thresholds: WritingAnomalyThresholds = DEFAULT_ANOMALY_THRESHOLDS
 ): WritingAnomalyFlag[] {
   const flags: WritingAnomalyFlag[] = [];
+  const rapidTextSources: string[] = [];
+  const rapidTextEvidence: Record<string, string | number | null | string[]> = {};
 
   if (
     features.speed.maxCharsInWindow >= thresholds.highSpeedMinimumCharacters
     && features.speed.charsPerMinute >= thresholds.highSpeedCharsPerMinute
   ) {
-    flags.push({
-      code: 'sustained_high_typing_speed',
-      severity: features.speed.charsPerMinute >= thresholds.highSpeedCharsPerMinute * 1.5
-        ? 'critical'
-        : 'warning',
-      label: 'Sustained high typing speed',
-      description: 'A short writing window contained more typed characters than expected from ordinary human typing.',
-      evidence: {
-        windowSeconds: features.speed.windowSeconds,
-        maxCharactersInWindow: features.speed.maxCharsInWindow,
-        charactersPerMinute: features.speed.charsPerMinute,
-        thresholdCharactersPerMinute: thresholds.highSpeedCharsPerMinute,
-      },
-    });
-  }
-
-  if (
-    features.cadence.intervalCount >= thresholds.uniformCadenceMinimumEvents
-    && features.cadence.stddevIntervalMs !== null
-    && features.cadence.meanIntervalMs !== null
-    && features.cadence.stddevIntervalMs <= thresholds.uniformCadenceMaximumStddevMs
-    && features.cadence.meanIntervalMs <= thresholds.uniformCadenceMaximumMeanMs
-  ) {
-    flags.push({
-      code: 'uniform_key_cadence',
-      severity: 'warning',
-      label: 'Uniform key cadence',
-      description: 'Key intervals were unusually uniform, which can indicate scripted or agent-driven input.',
-      evidence: {
-        intervalCount: features.cadence.intervalCount,
-        meanIntervalMs: round(features.cadence.meanIntervalMs),
-        stddevIntervalMs: round(features.cadence.stddevIntervalMs),
-        thresholdStddevMs: thresholds.uniformCadenceMaximumStddevMs,
-      },
-    });
+    rapidTextSources.push('typing_speed');
+    rapidTextEvidence.windowSeconds = features.speed.windowSeconds;
+    rapidTextEvidence.maxCharactersInWindow = features.speed.maxCharsInWindow;
+    rapidTextEvidence.charactersPerMinute = features.speed.charsPerMinute;
+    rapidTextEvidence.thresholdCharactersPerMinute = thresholds.highSpeedCharsPerMinute;
   }
 
   if (features.textInflux.addedCharacters >= thresholds.textInfluxMinimumCharacters) {
-    flags.push({
-      code: 'text_influx_without_input',
-      severity: features.textInflux.addedCharacters >= thresholds.textInfluxMinimumCharacters * 4
-        ? 'critical'
-        : 'warning',
-      label: 'Text appeared without matching input',
-      description: 'A large text increase was recorded on an event type that is not typed input, paste, or in-platform AI insertion.',
-      evidence: {
-        eventType: features.textInflux.eventType,
-        timestamp: features.textInflux.timestamp?.toISOString() || null,
-        addedCharacters: features.textInflux.addedCharacters,
-        thresholdCharacters: thresholds.textInfluxMinimumCharacters,
-      },
-    });
+    rapidTextSources.push('untracked_input');
+    rapidTextEvidence.untrackedEventType = features.textInflux.eventType;
+    rapidTextEvidence.untrackedTimestamp = features.textInflux.timestamp?.toISOString() || null;
+    rapidTextEvidence.untrackedAddedCharacters = features.textInflux.addedCharacters;
   }
 
   if (features.focusInflux.addedCharacters >= thresholds.textInfluxMinimumCharacters) {
+    rapidTextSources.push('after_refocus');
+    rapidTextEvidence.blurTimestamp = features.focusInflux.blurTimestamp?.toISOString() || null;
+    rapidTextEvidence.focusTimestamp = features.focusInflux.focusTimestamp?.toISOString() || null;
+    rapidTextEvidence.refocusWindowSeconds = thresholds.focusInfluxWindowSeconds;
+    rapidTextEvidence.refocusAddedCharacters = features.focusInflux.addedCharacters;
+  }
+
+  if (rapidTextSources.length > 0) {
+    const largestBurst = Math.max(
+      features.speed.maxCharsInWindow,
+      features.textInflux.addedCharacters,
+      features.focusInflux.addedCharacters
+    );
+
     flags.push({
-      code: 'focus_text_influx',
-      severity: 'warning',
-      label: 'Text influx after refocus',
-      description: 'A large amount of text appeared shortly after the editor regained focus.',
+      code: 'rapid_text_accumulation',
+      severity: largestBurst >= thresholds.textInfluxMinimumCharacters * 4 ? 'critical' : 'warning',
+      label: 'Rapid text accumulation',
+      description: 'A large amount of text appeared within a short time window.',
       evidence: {
-        blurTimestamp: features.focusInflux.blurTimestamp?.toISOString() || null,
-        focusTimestamp: features.focusInflux.focusTimestamp?.toISOString() || null,
-        windowSeconds: thresholds.focusInfluxWindowSeconds,
-        addedCharacters: features.focusInflux.addedCharacters,
+        sources: rapidTextSources,
         thresholdCharacters: thresholds.textInfluxMinimumCharacters,
+        ...rapidTextEvidence,
       },
     });
   }
 
-  if (features.awayFromWorkspace.leftCount > 0) {
-    const isRepeatedOrLong =
-      features.awayFromWorkspace.leftCount >= 3 ||
-      features.awayFromWorkspace.longestAwayMs >= 5 * 60 * 1000 ||
-      features.awayFromWorkspace.totalAwayMs >= 10 * 60 * 1000;
+  const isLongOrRepeatedAway =
+    features.awayFromWorkspace.leftCount >= 3 ||
+    features.awayFromWorkspace.longestAwayMs >= 5 * 60 * 1000 ||
+    features.awayFromWorkspace.totalAwayMs >= 10 * 60 * 1000;
 
+  if (isLongOrRepeatedAway) {
     flags.push({
-      code: 'away_from_workspace',
-      severity: isRepeatedOrLong ? 'warning' : 'info',
-      label: 'Away from workspace',
-      description: 'The writer left the Humanly writing workspace and later returned during the session.',
+      code: 'long_or_repeated_away_from_workspace',
+      severity: 'warning',
+      label: 'Long or repeated away-from-workspace time',
+      description: 'The writer left the Humanly writing workspace for a long time or repeatedly during the session.',
       evidence: {
         leftCount: features.awayFromWorkspace.leftCount,
         returnedCount: features.awayFromWorkspace.returnedCount,
@@ -157,39 +134,52 @@ export function computeWritingAnomalyFlags(
 
   if (
     normalizeCopyPastePolicy(environmentConfig?.copyPastePolicy) === 'blocked'
-    && features.pasteEvents > 0
+    && (features.copyPaste.blockedAttempts > 0 || features.copyPaste.pasteEvents > 0 || features.copyPaste.copyEvents > 0 || features.copyPaste.cutEvents > 0)
   ) {
     flags.push({
-      code: 'paste_policy_violation',
+      code: 'blocked_copy_paste_attempt',
       severity: 'critical',
-      label: 'Paste occurred while paste was blocked',
-      description: 'The active writing environment disallowed paste, but paste events were recorded.',
+      label: 'Blocked copy-paste attempt',
+      description: 'Copy, cut, or paste was attempted while copy-paste was disabled in the writing environment.',
       evidence: {
-        pasteEvents: features.pasteEvents,
+        blockedAttempts: features.copyPaste.blockedAttempts,
+        pasteEvents: features.copyPaste.pasteEvents,
+        copyEvents: features.copyPaste.copyEvents,
+        cutEvents: features.copyPaste.cutEvents,
         policy: 'blocked',
       },
     });
   }
 
   if (
-    features.clockSkew.eventCount >= thresholds.clockSkewMinimumEvents
-    && features.clockSkew.clientSpanSeconds >= thresholds.clockSkewMinimumClientSpanSeconds
-    && features.clockSkew.serverSpanSeconds <= thresholds.clockSkewMaximumServerSpanSeconds
+    normalizeCopyPastePolicy(environmentConfig?.copyPastePolicy) === 'allowed'
+    && features.copyPaste.pastedCharacters > 0
   ) {
-    flags.push({
-      code: 'clock_skew_anomaly',
-      severity: 'warning',
-      label: 'Client/server timing mismatch',
-      description: 'Client timestamps span much longer than the server-side arrival window for the same session.',
-      evidence: {
-        sessionId: features.clockSkew.sessionId,
-        eventCount: features.clockSkew.eventCount,
-        clientSpanSeconds: round(features.clockSkew.clientSpanSeconds),
-        serverSpanSeconds: round(features.clockSkew.serverSpanSeconds),
-        thresholdClientSpanSeconds: thresholds.clockSkewMinimumClientSpanSeconds,
-        thresholdServerSpanSeconds: thresholds.clockSkewMaximumServerSpanSeconds,
-      },
-    });
+    const pastedPercentage = features.copyPaste.totalCharacters > 0
+      ? (features.copyPaste.pastedCharacters / features.copyPaste.totalCharacters) * 100
+      : 0;
+    const meetsRelativeThreshold =
+      features.copyPaste.pastedCharacters >= thresholds.largePasteMinimumCharacters
+      && pastedPercentage >= thresholds.largePasteMinimumPercentage;
+    const meetsAbsoluteThreshold =
+      features.copyPaste.pastedCharacters >= thresholds.largePasteAbsoluteCharacters;
+
+    if (meetsRelativeThreshold || meetsAbsoluteThreshold) {
+      flags.push({
+        code: 'large_paste_volume',
+        severity: 'warning',
+        label: 'Large paste volume',
+        description: 'A substantial portion of the final text came from pasted content.',
+        evidence: {
+          pasteEvents: features.copyPaste.pasteEvents,
+          pastedCharacters: features.copyPaste.pastedCharacters,
+          pastedPercentage: round(pastedPercentage),
+          thresholdCharacters: thresholds.largePasteMinimumCharacters,
+          thresholdPercentage: thresholds.largePasteMinimumPercentage,
+          absoluteThresholdCharacters: thresholds.largePasteAbsoluteCharacters,
+        },
+      });
+    }
   }
 
   return flags;

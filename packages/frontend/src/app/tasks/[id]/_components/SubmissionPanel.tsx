@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/table';
 import { cn, formatDateTime } from '@/lib/utils';
 import { buildCertificateVerifyUrl } from '@/lib/certificate-url';
+import { getReviewSignals } from '@/lib/review-signals';
 
 import type { AdminSubmission, TaskEnrollment } from './types';
 
@@ -114,8 +115,9 @@ export function SubmissionPanel({
   };
 
   const renderSignalsCell = (submission: AdminSubmission) => {
-    const flags = submission.anomalyFlags || [];
+    const flags = getReviewSignals(submission.anomalyFlags);
     const refusalCount = submission.aiPolicyRefusalCount || 0;
+    const hasRefusalFlag = flags.some((flag) => flag.code === 'chat_refusal');
 
     if (flags.length === 0 && refusalCount === 0) {
       return <span className="text-sm text-muted-foreground">None</span>;
@@ -135,10 +137,10 @@ export function SubmissionPanel({
             {highestSeverity} · {flags.length}
           </Badge>
         )}
-        {refusalCount > 0 && (
+        {refusalCount > 0 && !hasRefusalFlag && (
           <Badge variant="outline" className="gap-1 border-[#B56F5C]/35 bg-[#B56F5C]/10 text-[#6E3F35]">
             <ShieldAlert className="h-3 w-3" />
-            AI refusals · {refusalCount}
+            Chat refusals · {refusalCount}
           </Badge>
         )}
       </div>

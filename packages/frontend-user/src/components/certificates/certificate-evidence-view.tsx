@@ -219,7 +219,9 @@ function getEnvironmentRows(config?: WritingEnvironmentConfig | null) {
 
   rows.push([
     'Copy / paste',
-    normalizeCopyPastePolicy(config.copyPastePolicy) === 'blocked' ? 'Blocked' : 'Allowed',
+    normalizeCopyPastePolicy(config.copyPastePolicy) === 'blocked'
+      ? 'Copy-paste blocked'
+      : 'Copy-paste allowed',
   ]);
   rows.push([
     'PDF resource access',
@@ -257,6 +259,81 @@ function getFlagSeverityClass(severity: WritingAnomalyFlag['severity']) {
   }
 
   return 'border-[#c8d1dc] bg-[#eef1f4] text-[#576777]';
+}
+
+function normalizeReviewSignal(flag: WritingAnomalyFlag): WritingAnomalyFlag | null {
+  if (flag.code === 'clock_skew_anomaly' || flag.code === 'uniform_key_cadence') {
+    return null;
+  }
+
+  if (
+    flag.code === 'text_influx_without_input' ||
+    flag.code === 'focus_text_influx' ||
+    flag.code === 'sustained_high_typing_speed'
+  ) {
+    return {
+      ...flag,
+      code: 'rapid_text_accumulation',
+      label: 'Rapid text accumulation',
+      description: 'A large amount of text appeared within a short time window.',
+      evidence: {
+        legacyCode: flag.code,
+        ...(flag.evidence || {}),
+      },
+    };
+  }
+
+  if (flag.code === 'away_from_workspace') {
+    const leftCount = Number(flag.evidence?.leftCount || 0);
+    const totalAwayTime = String(flag.evidence?.totalAwayTime || '');
+    const longestAwayTime = String(flag.evidence?.longestAwayTime || '');
+    const isClearlyLongOrRepeated =
+      leftCount >= 3 ||
+      /[5-9]min|[1-9][0-9]+min/.test(longestAwayTime) ||
+      /1[0-9]min|[2-9][0-9]+min/.test(totalAwayTime);
+
+    if (!isClearlyLongOrRepeated) return null;
+
+    return {
+      ...flag,
+      code: 'long_or_repeated_away_from_workspace',
+      label: 'Long or repeated away-from-workspace time',
+      description: 'The writer left the Humanly writing workspace for a long time or repeatedly during the session.',
+      evidence: {
+        legacyCode: flag.code,
+        ...(flag.evidence || {}),
+      },
+    };
+  }
+
+  if (flag.code === 'paste_policy_violation') {
+    return {
+      ...flag,
+      code: 'blocked_copy_paste_attempt',
+      label: 'Blocked copy-paste attempt',
+      description: 'Copy, cut, or paste was attempted while copy-paste was disabled in the writing environment.',
+      evidence: {
+        legacyCode: flag.code,
+        ...(flag.evidence || {}),
+      },
+    };
+  }
+
+  if (flag.code === 'ai_policy_refusal') {
+    return {
+      ...flag,
+      code: 'chat_refusal',
+      label: flag.evidence?.refusalCount === 1 ? 'Chat refusal' : 'Chat refusals',
+    };
+  }
+
+  return flag;
+}
+
+function getReviewSignals(flags?: WritingAnomalyFlag[] | null): WritingAnomalyFlag[] {
+  return (flags || [])
+    .map(normalizeReviewSignal)
+    .filter((flag): flag is WritingAnomalyFlag => Boolean(flag));
 }
 
 function formatEvidenceValue(value: unknown) {
@@ -326,7 +403,7 @@ export function CertificateEvidenceView({
   const SealStatusIcon = sealPresentation.Icon;
   const showReplay = Boolean(certificate.includeEditHistory && replayToken);
   const environmentRows = getEnvironmentRows(certificate.environmentConfig);
-  const reviewSignals: WritingAnomalyFlag[] = certificate.anomalyFlags || [];
+  const reviewSignals: WritingAnomalyFlag[] = getReviewSignals(certificate.anomalyFlags);
 
   return (
     <div className="space-y-4">

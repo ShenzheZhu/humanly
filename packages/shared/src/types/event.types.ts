@@ -5,6 +5,7 @@ export type EventType =
   | 'paste'
   | 'copy'
   | 'cut'
+  | 'blocked_copy_paste_attempt'
   | 'contextmenu'
   | 'focus'
   | 'blur'

@@ -13,6 +13,7 @@ export interface EventMetrics {
   pasteEvents: number;
   copyEvents: number;
   cutEvents: number;
+  blockedCopyPasteAttempts: number;
   firstEvent: Date | null;
   lastEvent: Date | null;
   editingDurationSeconds: number;
@@ -61,6 +62,14 @@ export interface DocumentAnomalyAnalysisFeatures {
   focusInflux: AnomalyFocusInfluxFeature;
   awayFromWorkspace: AwayFromWorkspaceStats;
   clockSkew: AnomalyClockSkewFeature;
+  copyPaste: {
+    pasteEvents: number;
+    copyEvents: number;
+    cutEvents: number;
+    blockedAttempts: number;
+    pastedCharacters: number;
+    totalCharacters: number;
+  };
 }
 
 export class DocumentEventModel {
@@ -315,6 +324,7 @@ export class DocumentEventModel {
         COUNT(CASE WHEN event_type = 'paste' THEN 1 END) as paste_events,
         COUNT(CASE WHEN event_type = 'copy' THEN 1 END) as copy_events,
         COUNT(CASE WHEN event_type = 'cut' THEN 1 END) as cut_events,
+        COUNT(CASE WHEN event_type = 'blocked_copy_paste_attempt' THEN 1 END) as blocked_copy_paste_attempts,
         MIN(timestamp) as first_event,
         MAX(timestamp) as last_event,
         COALESCE(EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))), 0) as editing_duration_seconds
@@ -331,6 +341,7 @@ export class DocumentEventModel {
         pasteEvents: 0,
         copyEvents: 0,
         cutEvents: 0,
+        blockedCopyPasteAttempts: 0,
         firstEvent: null,
         lastEvent: null,
         editingDurationSeconds: 0,
@@ -343,6 +354,7 @@ export class DocumentEventModel {
       pasteEvents: parseInt(result.paste_events || '0', 10),
       copyEvents: parseInt(result.copy_events || '0', 10),
       cutEvents: parseInt(result.cut_events || '0', 10),
+      blockedCopyPasteAttempts: parseInt(result.blocked_copy_paste_attempts || '0', 10),
       firstEvent: result.first_event,
       lastEvent: result.last_event,
       editingDurationSeconds: parseFloat(result.editing_duration_seconds || '0'),
@@ -387,7 +399,7 @@ export class DocumentEventModel {
     documentId: string,
     thresholds: WritingAnomalyThresholds
   ): Promise<DocumentAnomalyAnalysisFeatures> {
-    const [metrics, speed, cadence, textInflux, focusInflux, awayFromWorkspace, clockSkew] = await Promise.all([
+    const [metrics, speed, cadence, textInflux, focusInflux, awayFromWorkspace, clockSkew, typingMetrics] = await Promise.all([
       this.getEventMetrics(documentId),
       this.getTypingSpeedFeature(documentId, thresholds.highSpeedWindowSeconds),
       this.getCadenceFeature(documentId),
@@ -395,6 +407,7 @@ export class DocumentEventModel {
       this.getFocusInfluxFeature(documentId, thresholds.focusInfluxWindowSeconds),
       this.getAwayFromWorkspaceStats(documentId),
       this.getClockSkewFeature(documentId, thresholds.clockSkewMinimumEvents),
+      this.calculateTypingMetrics(documentId),
     ]);
 
     return {
@@ -407,6 +420,14 @@ export class DocumentEventModel {
       focusInflux,
       awayFromWorkspace,
       clockSkew,
+      copyPaste: {
+        pasteEvents: metrics.pasteEvents,
+        copyEvents: metrics.copyEvents,
+        cutEvents: metrics.cutEvents,
+        blockedAttempts: metrics.blockedCopyPasteAttempts,
+        pastedCharacters: typingMetrics.pastedCharacters,
+        totalCharacters: typingMetrics.typedCharacters + typingMetrics.pastedCharacters,
+      },
     };
   }
 

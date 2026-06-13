@@ -60,6 +60,14 @@ function makeFeatures(
       clientSpanSeconds: 180,
       serverSpanSeconds: 180,
     },
+    copyPaste: {
+      pasteEvents: 0,
+      copyEvents: 0,
+      cutEvents: 0,
+      blockedAttempts: 0,
+      pastedCharacters: 0,
+      totalCharacters: 1000,
+    },
     ...overrides,
   };
 }
@@ -79,7 +87,7 @@ describe('computeWritingAnomalyFlags', () => {
     expect(flags).toEqual([]);
   });
 
-  it('flags a uniform high-speed scripted typing fixture deterministically', () => {
+  it('merges high-speed typing into rapid text accumulation without surfacing cadence by default', () => {
     const flags = computeWritingAnomalyFlags(makeFeatures({
       speed: {
         maxCharsInWindow: 520,
@@ -95,32 +103,43 @@ describe('computeWritingAnomalyFlags', () => {
       },
     }));
 
-    expect(flags.map((flag) => flag.code)).toEqual([
-      'sustained_high_typing_speed',
-      'uniform_key_cadence',
-    ]);
+    expect(flags.map((flag) => flag.code)).toEqual(['rapid_text_accumulation']);
     expect(flags[0].evidence.charactersPerMinute).toBe(1040);
-    expect(flags[1].evidence.stddevIntervalMs).toBe(4.5);
+    expect(flags[0].evidence.sources).toEqual(['typing_speed']);
+    expect(flags[0].evidence.stddevIntervalMs).toBeUndefined();
   });
 
-  it('flags paste events when the writing environment blocks paste', () => {
+  it('flags copy-paste attempts when the writing environment blocks copy-paste', () => {
     const flags = computeWritingAnomalyFlags(
-      makeFeatures({ pasteEvents: 2 }),
+      makeFeatures({
+        pasteEvents: 2,
+        copyPaste: {
+          pasteEvents: 2,
+          copyEvents: 1,
+          cutEvents: 1,
+          blockedAttempts: 3,
+          pastedCharacters: 0,
+          totalCharacters: 1000,
+        },
+      }),
       pasteBlockedEnvironment
     );
 
     expect(flags).toHaveLength(1);
     expect(flags[0]).toMatchObject({
-      code: 'paste_policy_violation',
+      code: 'blocked_copy_paste_attempt',
       severity: 'critical',
       evidence: {
+        blockedAttempts: 3,
         pasteEvents: 2,
+        copyEvents: 1,
+        cutEvents: 1,
         policy: 'blocked',
       },
     });
   });
 
-  it('summarizes brief away-from-workspace visibility as an informational review signal', () => {
+  it('does not summarize brief away-from-workspace visibility as an abnormal behavior signal', () => {
     const flags = computeWritingAnomalyFlags(makeFeatures({
       awayFromWorkspace: {
         leftCount: 1,
@@ -130,18 +149,7 @@ describe('computeWritingAnomalyFlags', () => {
       },
     }));
 
-    expect(flags).toHaveLength(1);
-    expect(flags[0]).toMatchObject({
-      code: 'away_from_workspace',
-      severity: 'info',
-      label: 'Away from workspace',
-      evidence: {
-        leftCount: 1,
-        returnedCount: 1,
-        totalAwayTime: '42s',
-        longestAwayTime: '42s',
-      },
-    });
+    expect(flags).toEqual([]);
   });
 
   it('marks repeated or long away-from-workspace visibility as a warning review signal', () => {
@@ -156,7 +164,7 @@ describe('computeWritingAnomalyFlags', () => {
 
     expect(flags).toHaveLength(1);
     expect(flags[0]).toMatchObject({
-      code: 'away_from_workspace',
+      code: 'long_or_repeated_away_from_workspace',
       severity: 'warning',
       evidence: {
         totalAwayTime: '10min50s',
@@ -165,7 +173,7 @@ describe('computeWritingAnomalyFlags', () => {
     });
   });
 
-  it('flags text influx and client/server timing mismatch without producing a verdict', () => {
+  it('merges text influx sources and ignores client/server timing mismatch by default', () => {
     const flags = computeWritingAnomalyFlags(makeFeatures({
       textInflux: {
         eventType: 'focus',
@@ -185,14 +193,40 @@ describe('computeWritingAnomalyFlags', () => {
       },
     }));
 
-    expect(flags.map((flag) => flag.code)).toEqual([
-      'text_influx_without_input',
-      'focus_text_influx',
-      'clock_skew_anomaly',
-    ]);
-    expect(flags.every((flag) => flag.description.toLowerCase().includes('verdict'))).toBe(false);
+    expect(flags.map((flag) => flag.code)).toEqual(['rapid_text_accumulation']);
+    expect(flags[0]).toMatchObject({
+      code: 'rapid_text_accumulation',
+      evidence: {
+        sources: ['untracked_input', 'after_refocus'],
+        untrackedAddedCharacters: 800,
+        refocusAddedCharacters: 360,
+      },
+    });
   });
 
+  it('flags large paste volume as a review signal when copy-paste is allowed', () => {
+    const flags = computeWritingAnomalyFlags(makeFeatures({
+      copyPaste: {
+        pasteEvents: 4,
+        copyEvents: 0,
+        cutEvents: 0,
+        blockedAttempts: 0,
+        pastedCharacters: 800,
+        totalCharacters: 2000,
+      },
+    }));
+
+    expect(flags).toHaveLength(1);
+    expect(flags[0]).toMatchObject({
+      code: 'large_paste_volume',
+      severity: 'warning',
+      evidence: {
+        pasteEvents: 4,
+        pastedCharacters: 800,
+        pastedPercentage: 40,
+      },
+    });
+  });
 });
 
 describe('buildAiPolicyRefusalFlag', () => {
@@ -202,9 +236,9 @@ describe('buildAiPolicyRefusalFlag', () => {
 
   it('builds a sealed anomaly flag payload for policy refusals', () => {
     expect(buildAiPolicyRefusalFlag(2)).toEqual({
-      code: 'ai_policy_refusal',
+      code: 'chat_refusal',
       severity: 'warning',
-      label: 'AI policy refusals',
+      label: 'Chat refusals',
       description:
         'The in-platform assistant refused a request because it conflicted with the active writing policy.',
       evidence: {
@@ -228,9 +262,9 @@ describe('AnomalyFlagsService.analyzeDocument', () => {
 
     expect(flags).toEqual([
       {
-        code: 'ai_policy_refusal',
+        code: 'chat_refusal',
         severity: 'warning',
-        label: 'AI policy refusal',
+        label: 'Chat refusal',
         description:
           'The in-platform assistant refused a request because it conflicted with the active writing policy.',
         evidence: {
@@ -253,9 +287,9 @@ describe('AnomalyFlagsService.analyzeDocument', () => {
 
     expect(flags).toEqual([
       {
-        code: 'ai_policy_refusal',
+        code: 'chat_refusal',
         severity: 'warning',
-        label: 'AI policy refusals',
+        label: 'Chat refusals',
         description:
           'The in-platform assistant refused a request because it conflicted with the active writing policy.',
         evidence: {

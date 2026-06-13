@@ -203,7 +203,7 @@ describe('document creation workflow', () => {
       }));
     });
     expect(screen.getByText('Custom Environment')).toBeInTheDocument();
-    expect(screen.getByText('Paste blocked')).toBeInTheDocument();
+    expect(screen.getByText('Copy-paste blocked')).toBeInTheDocument();
     expect(screen.getByText('Max 123')).toBeInTheDocument();
     expect(screen.getByText('Clipboard tracking off')).toBeInTheDocument();
     expect(screen.queryByText('Import JSON Configuration')).not.toBeInTheDocument();

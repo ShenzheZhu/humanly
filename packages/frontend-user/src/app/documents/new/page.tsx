@@ -220,8 +220,8 @@ const buildPersonalEnvironmentSummary = (
     {
       label: 'Copy / paste',
       value: normalizeCopyPastePolicy(config.copyPastePolicy) === 'blocked'
-        ? 'Paste blocked'
-        : 'Paste allowed',
+        ? 'Copy-paste blocked'
+        : 'Copy-paste allowed',
       detail: config.traceability.trackCopyPaste ? 'Clipboard events tracked' : 'Clipboard tracking off',
     },
     {
@@ -922,8 +922,8 @@ export default function NewDocumentPage() {
               <SelectValue placeholder="Copy-paste policy" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="allowed">Allowed</SelectItem>
-              <SelectItem value="blocked">Blocked</SelectItem>
+              <SelectItem value="allowed">Copy-paste allowed</SelectItem>
+              <SelectItem value="blocked">Copy-paste blocked</SelectItem>
             </SelectContent>
           </Select>
         </div>

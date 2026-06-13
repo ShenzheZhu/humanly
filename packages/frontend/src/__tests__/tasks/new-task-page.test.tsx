@@ -278,7 +278,7 @@ describe('admin new task page', () => {
 
     const dialog = await openCustomEnvironmentDialog();
     expect(within(dialog).getByText('Control whether enrolled users can use assistant support.')).toBeInTheDocument();
-    expect(within(dialog).getByText('Set paste behavior and final submission length rules.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Set copy-paste behavior and final submission length rules.')).toBeInTheDocument();
     expect(screen.getByText('Configure AI, copy-paste, task window, and session timer in a separate dialog.')).toBeInTheDocument();
 
     await closeCustomEnvironmentDialog();
@@ -800,7 +800,7 @@ describe('admin new task page', () => {
     expect(screen.getByText('Full')).toBeInTheDocument();
     expect(screen.getByText('Model: qwen/qwen3.5-397b-a17b')).toBeInTheDocument();
     expect(screen.getByText('Max 42 requests')).toBeInTheDocument();
-    expect(screen.getByText('Paste blocked')).toBeInTheDocument();
+    expect(screen.getByText('Copy-paste blocked')).toBeInTheDocument();
     expect(screen.getByText('Min 1,000')).toBeInTheDocument();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /Edit Settings/i }));
@@ -896,7 +896,7 @@ describe('admin new task page', () => {
 
     expect(screen.getByText('Custom Environment')).toBeInTheDocument();
     expect(screen.getByText('Off')).toBeInTheDocument();
-    expect(screen.getByText('Paste blocked')).toBeInTheDocument();
+    expect(screen.getByText('Copy-paste blocked')).toBeInTheDocument();
 
     await act(async () => {
       fireEvent.change(screen.getByLabelText(/Task Name/i), {

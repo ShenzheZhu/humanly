@@ -413,8 +413,8 @@ export default function EnvironmentConfigFields({
             disabled={disabled}
             onChange={(event) => onChange(setNested(config, { copyPastePolicy: normalizeCopyPastePolicy(event.target.value) }))}
           >
-            <option value="allowed">Allowed</option>
-            <option value="blocked">Blocked</option>
+            <option value="allowed">Copy-paste allowed</option>
+            <option value="blocked">Copy-paste blocked</option>
           </select>
         </div>
 

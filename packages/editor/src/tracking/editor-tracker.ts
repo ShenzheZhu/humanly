@@ -115,6 +115,7 @@ export class EditorTracker {
       PASTE_COMMAND,
       (event: ClipboardEvent | null) => {
         if (this.shouldBlockClipboard()) {
+          this.trackBlockedCopyPasteAttempt('paste', event?.clipboardData?.getData('text/plain')?.length || 0);
           event?.preventDefault();
           return true;
         }
@@ -133,6 +134,7 @@ export class EditorTracker {
       COPY_COMMAND,
       (event: ClipboardEvent | null) => {
         if (this.shouldBlockClipboard()) {
+          this.trackBlockedCopyPasteAttempt('copy');
           event?.preventDefault();
           return true;
         }
@@ -151,6 +153,7 @@ export class EditorTracker {
       CUT_COMMAND,
       (event: ClipboardEvent | null) => {
         if (this.shouldBlockClipboard()) {
+          this.trackBlockedCopyPasteAttempt('cut');
           event?.preventDefault();
           return true;
         }
@@ -506,6 +509,36 @@ export class EditorTracker {
         selectionStart,
         selectionEnd,
         editorStateAfter: this.editor.getEditorState().toJSON(),
+      };
+
+      this.addEvent(event);
+    });
+  }
+
+  /**
+   * Track copy/cut/paste attempts blocked by the active writing policy.
+   */
+  private trackBlockedCopyPasteAttempt(action: 'copy' | 'cut' | 'paste', attemptedTextLength = 0): void {
+    this.editor.getEditorState().read(() => {
+      const currentText = this.extractPlainText(this.editor.getEditorState());
+      const { cursorPosition, selectionStart, selectionEnd } = this.getSelectionInfo(this.editor.getEditorState());
+      const selectedText = this.getSelectedText(this.editor.getEditorState());
+
+      const event: TrackedEvent = {
+        eventType: 'blocked_copy_paste_attempt',
+        timestamp: new Date(),
+        textBefore: currentText,
+        textAfter: currentText,
+        cursorPosition,
+        selectionStart,
+        selectionEnd,
+        editorStateAfter: this.editor.getEditorState().toJSON(),
+        metadata: {
+          action,
+          policy: 'blocked',
+          selectedCharacterCount: selectedText.length,
+          attemptedTextLength: action === 'paste' ? attemptedTextLength : undefined,
+        },
       };
 
       this.addEvent(event);
