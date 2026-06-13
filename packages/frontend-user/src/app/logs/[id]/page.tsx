@@ -71,6 +71,11 @@ const AI_LOG_BADGE_COLOR: CSSProperties = {
   borderColor: '#D0C8D7',
   color: '#655D70',
 };
+const ANOMALY_BADGE_COLOR: CSSProperties = {
+  backgroundColor: '#F2EDEE',
+  borderColor: '#D6C5C7',
+  color: '#6F5D61',
+};
 
 const TIMELINE_ICONS: Partial<Record<DocumentEventTimelineItem['kind'], JSX.Element>> = {
   typing_burst: <Type className="h-3 w-3" />,
@@ -82,6 +87,7 @@ const TIMELINE_ICONS: Partial<Record<DocumentEventTimelineItem['kind'], JSX.Elem
 };
 
 const getRawEventColor = (eventType: string): CSSProperties => {
+  if (eventType === 'ai_policy_refusal') return ANOMALY_BADGE_COLOR;
   if (eventType === 'paste') return TIMELINE_COLORS.paste || DEFAULT_TIMELINE_COLOR;
   if (eventType === 'copy' || eventType === 'cut' || eventType === 'select') {
     return { backgroundColor: '#F1EEE8', borderColor: '#D7CDC0', color: '#6B6255' };
@@ -494,6 +500,28 @@ function getRawEventMetadataText(event: DocumentEventTimelineRawEvent, key: stri
   return typeof value === 'string' ? value : '';
 }
 
+function isPolicyRefusalEvent(event: DocumentEventTimelineRawEvent) {
+  return event.eventType === 'ai_policy_refusal';
+}
+
+function getPolicyRefusalLogId(event: DocumentEventTimelineRawEvent) {
+  const logId = event.metadata?.logId;
+  return typeof logId === 'string' ? logId : '';
+}
+
+function getPolicyRefusalQuestion(
+  event: DocumentEventTimelineRawEvent,
+  aiLogsById?: Map<string, AIInteractionLog>
+) {
+  return (
+    getRawEventMetadataText(event, 'userMessage') ||
+    getRawEventMetadataText(event, 'query') ||
+    getRawEventMetadataText(event, 'message') ||
+    aiLogsById?.get(getPolicyRefusalLogId(event))?.query ||
+    ''
+  );
+}
+
 function getTimelineTextRenderMode(item: DocumentEventTimelineItem): TextRenderMode {
   if (item.kind === 'ai_insert') return 'markdown';
   return 'plain';
@@ -736,7 +764,17 @@ function RenderableFullText({
   );
 }
 
-function renderRawDetail(event: DocumentEventTimelineRawEvent) {
+function renderRawDetail(
+  event: DocumentEventTimelineRawEvent,
+  aiLogsById?: Map<string, AIInteractionLog>
+) {
+  if (isPolicyRefusalEvent(event)) {
+    const question = getPolicyRefusalQuestion(event, aiLogsById);
+    return question
+      ? renderTextPreview(question, 'Policy-conflicting chat request')
+      : 'Chat request refused by policy';
+  }
+
   if (event.eventType === 'ai_query_sent') {
     const query = getRawEventMetadataText(event, 'query');
     return query ? renderTextPreview(query, 'AI question') : null;
@@ -804,6 +842,7 @@ function renderRawDetail(event: DocumentEventTimelineRawEvent) {
 }
 
 function getRawEventDisplayType(event: DocumentEventTimelineRawEvent) {
+  if (isPolicyRefusalEvent(event)) return 'chat_refusal';
   if (event.eventType === 'page_hidden') return 'Left page';
   if (event.eventType === 'page_visible') return 'Returned';
   if (event.eventType === 'ai_query_sent') return 'AI question sent';
@@ -822,6 +861,10 @@ function isDuplicateAIQueryRawEvent(
   if (event.eventType !== 'ai_query_sent') return false;
   const logId = event.metadata?.logId;
   return typeof logId === 'string' && visibleAILogIds.has(logId);
+}
+
+function getRawEventActivityLabel(event: DocumentEventTimelineRawEvent) {
+  return isPolicyRefusalEvent(event) ? 'anomaly' : 'raw event';
 }
 
 function getHiddenRawEventCategory(event: DocumentEventTimelineRawEvent) {
@@ -930,8 +973,14 @@ function formatFoldTimeRange(item: FoldPointItem) {
   return startText === endText ? startText : `${startText} - ${endText}`;
 }
 
-function RawEventTableRow({ event }: { event: DocumentEventTimelineRawEvent }) {
-  const detail = renderRawDetail(event);
+function RawEventTableRow({
+  event,
+  aiLogsById,
+}: {
+  event: DocumentEventTimelineRawEvent;
+  aiLogsById?: Map<string, AIInteractionLog>;
+}) {
+  const detail = renderRawDetail(event, aiLogsById);
   const eventColor = getRawEventColor(event.eventType);
 
   return (
@@ -941,7 +990,7 @@ function RawEventTableRow({ event }: { event: DocumentEventTimelineRawEvent }) {
       </td>
       <td className="px-4 py-2">
         <span className="inline-flex whitespace-nowrap items-center rounded border bg-background px-2 py-0.5 font-medium">
-          raw event
+          {getRawEventActivityLabel(event)}
         </span>
       </td>
       <td className="max-w-[760px] px-4 py-2">
@@ -1080,6 +1129,10 @@ export default function DocumentLogsPage() {
 
       return true;
     });
+  }, [aiLogs]);
+
+  const aiLogsById = useMemo(() => {
+    return new Map(aiLogs.map((log) => [log.id, log]));
   }, [aiLogs]);
 
   const timelineDisplayItems = useMemo<TimelineDisplayItem[]>(() => {
@@ -1297,7 +1350,11 @@ export default function DocumentLogsPage() {
                         </tr>
                         {isExpanded &&
                           historyItem.rawEvents.map((event) => (
-                            <RawEventTableRow key={event.id} event={event} />
+                            <RawEventTableRow
+                              key={event.id}
+                              event={event}
+                              aiLogsById={aiLogsById}
+                            />
                           ))}
                       </Fragment>
                     );
@@ -1305,7 +1362,11 @@ export default function DocumentLogsPage() {
 
                   if (historyItem.kind === 'raw') {
                     return (
-                      <RawEventTableRow key={historyItem.id} event={historyItem.event} />
+                      <RawEventTableRow
+                        key={historyItem.id}
+                        event={historyItem.event}
+                        aiLogsById={aiLogsById}
+                      />
                     );
                   }
 

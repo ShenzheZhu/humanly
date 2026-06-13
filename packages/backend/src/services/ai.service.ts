@@ -2200,6 +2200,7 @@ export class AIService {
     responseContent: string;
     documentId: string;
     userId: string;
+    userMessage: string;
     aiChatSessionId: string;
     logId: string;
     modelVersion: string;
@@ -2221,6 +2222,7 @@ export class AIService {
         logId: options.logId,
         modelVersion: options.modelVersion,
         policyHash: options.policyHash,
+        userMessage: options.userMessage,
         refusalPrefix: AI_POLICY_REFUSAL_PREFIX,
       },
     }]);
@@ -2921,6 +2923,7 @@ export class AIService {
           responseContent: noReferenceAnswer,
           documentId: request.documentId,
           userId,
+          userMessage: request.message,
           aiChatSessionId: session.id,
           logId: log.id,
           modelVersion,
@@ -3020,6 +3023,7 @@ export class AIService {
         responseContent: response.content,
         documentId: request.documentId,
         userId,
+        userMessage: request.message,
         aiChatSessionId: session.id,
         logId: log.id,
         modelVersion,
@@ -3191,6 +3195,7 @@ export class AIService {
           responseContent: noReferenceAnswer,
           documentId: request.documentId,
           userId,
+          userMessage: request.message,
           aiChatSessionId: session.id,
           logId: log.id,
           modelVersion,
@@ -3308,6 +3313,7 @@ export class AIService {
         responseContent: response.content,
         documentId: request.documentId,
         userId,
+        userMessage: request.message,
         aiChatSessionId: session.id,
         logId: log.id,
         modelVersion,

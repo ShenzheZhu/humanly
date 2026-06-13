@@ -1147,6 +1147,7 @@ describe('AIService.chat', () => {
           logId: 'log-1',
           modelVersion: 'Qwen/Qwen3.5-397B-A17B',
           policyHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+          userMessage: 'Write evaluative claims.',
         }),
       }),
     ]);
@@ -1197,6 +1198,7 @@ describe('AIService.chat', () => {
           logId: 'log-1',
           modelVersion: 'Qwen/Qwen3.5-397B-A17B',
           policyHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+          userMessage: 'Write evaluative claims.',
         }),
       }),
     ]);
