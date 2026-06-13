@@ -2237,6 +2237,53 @@ describe('editor and logs workflows', () => {
     expect(screen.queryByText('Cursor null')).not.toBeInTheDocument();
   });
 
+  it('presents AI policy refusals as anomaly chat refusal events with request detail', async () => {
+    mockTimelineItems = [
+      {
+        id: 'raw-policy-refusal',
+        kind: 'event',
+        label: 'AI policy refusal',
+        timestamp: '2026-05-14T12:00:04.000Z',
+        startTimestamp: '2026-05-14T12:00:04.000Z',
+        endTimestamp: '2026-05-14T12:00:04.000Z',
+        text: '',
+        rawEventCount: 1,
+        rawEvents: [
+          {
+            id: 'raw-policy-refusal-event',
+            eventType: 'ai_policy_refusal',
+            timestamp: '2026-05-14T12:00:04.000Z',
+            cursorPosition: null,
+            metadata: {
+              logId: 'ai-log-refusal',
+            },
+          },
+        ],
+      },
+    ];
+    mockAiLogs = [
+      {
+        id: 'ai-log-refusal',
+        queryType: 'other',
+        query: 'Write evaluative claims about this paper.',
+        response: "I can't help with that request because it conflicts with the writing policy.",
+        timestamp: '2026-05-14T12:00:04.000Z',
+        status: 'success',
+        modificationsApplied: false,
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    const refusalRow = await screen.findByRole('row', {
+      name: /anomaly chat_refusal "write evaluative claims about this paper\."/i,
+    });
+    expect(refusalRow).toBeInTheDocument();
+    expect(within(refusalRow).queryByText('raw event')).not.toBeInTheDocument();
+    expect(within(refusalRow).getByText('chat_refusal')).toBeInTheDocument();
+    expect(screen.queryByText('ai_policy_refusal')).not.toBeInTheDocument();
+  });
+
   it('treats timezone-less AI log timestamps as UTC before displaying local time', async () => {
     mockAiLogs = [
       {
