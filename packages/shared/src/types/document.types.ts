@@ -218,7 +218,8 @@ export type WritingAnomalyFlagCode =
   | 'text_influx_without_input'
   | 'focus_text_influx'
   | 'paste_policy_violation'
-  | 'clock_skew_anomaly';
+  | 'clock_skew_anomaly'
+  | 'ai_policy_refusal';
 
 export type WritingAnomalyFlagSeverity = 'info' | 'warning' | 'critical';
 
@@ -395,6 +396,10 @@ export interface AIAuthorshipStats {
     understanding: number; // Questions about understanding content
     generation: number; // Requests to create/modify content
     other: number;
+  };
+  // AI policy refusals emitted by the in-platform assistant guard.
+  policyRefusals?: {
+    total: number;
   };
 }
 

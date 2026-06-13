@@ -26,6 +26,9 @@ const aiStats: AIAuthorshipStats = {
     generation: 1,
     other: 0,
   },
+  policyRefusals: {
+    total: 0,
+  },
 };
 
 const environmentConfig: WritingEnvironmentConfig = {
@@ -391,5 +394,53 @@ describe('CertificateEvidenceView', () => {
     expect(screen.getByText('139')).toBeInTheDocument();
     expect(screen.getByText('Stddev Interval Ms')).toBeInTheDocument();
     expect(screen.getByText('4.5')).toBeInTheDocument();
+  });
+
+  it('renders AI policy refusals as abnormal behavior review signals', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <CertificateEvidenceView
+        certificate={{
+          id: 'certificate-6',
+          documentId: 'document-6',
+          title: 'Policy Guard Draft',
+          certificateType: 'full_authorship',
+          generatedAt: '2026-06-10T12:00:00.000Z',
+          totalCharacters: 1000,
+          typedCharacters: 1000,
+          pastedCharacters: 0,
+          totalEvents: 140,
+          typingEvents: 140,
+          pasteEvents: 0,
+          editingTimeSeconds: 45,
+          includeEditHistory: false,
+          anomalyFlags: [],
+          environmentConfig,
+        }}
+        aiStats={{
+          ...aiStats,
+          policyRefusals: {
+            total: 2,
+          },
+        }}
+      />
+    );
+
+    expect(screen.queryByText('AI policy refusals')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Show abnormal behavior review section' }));
+
+    expect(screen.queryByText('No abnormal behavior signals were detected for this certificate.')).not.toBeInTheDocument();
+    expect(screen.getByText('AI policy refusals')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'The in-platform assistant refused a request because it conflicted with the active writing policy.'
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText('Refusal Count')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.getByText('Source')).toBeInTheDocument();
+    expect(screen.getByText('document_events')).toBeInTheDocument();
   });
 });
