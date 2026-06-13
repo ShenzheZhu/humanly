@@ -29,6 +29,10 @@ jest.mock('lexical', () => ({
 import { EditorTracker } from '../../../../editor/src/tracking/editor-tracker';
 import type { TrackedEvent } from '../../../../editor/src/types';
 
+type MockCommand = { name?: string };
+type MockCommandHandler = (event: any) => boolean;
+type RegisterCommand = (command: MockCommand, handler: MockCommandHandler, priority: number) => () => void;
+
 function setVisibilityState(visibilityState: DocumentVisibilityState) {
   Object.defineProperty(document, 'visibilityState', {
     configurable: true,
@@ -43,7 +47,7 @@ function makeEditor() {
   };
 
   return {
-    registerCommand: jest.fn(() => jest.fn()),
+    registerCommand: jest.fn<ReturnType<RegisterCommand>, Parameters<RegisterCommand>>(() => jest.fn()),
     registerUpdateListener: jest.fn(() => jest.fn()),
     getEditorState: jest.fn(() => editorState),
   };
