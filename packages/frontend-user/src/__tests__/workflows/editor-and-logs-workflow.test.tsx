@@ -1554,7 +1554,7 @@ describe('editor and logs workflows', () => {
       {
         id: 'page-hidden',
         kind: 'event',
-        label: 'Left page',
+        label: 'Left workspace',
         timestamp: '2026-05-14T12:00:02.000Z',
         startTimestamp: '2026-05-14T12:00:02.000Z',
         endTimestamp: '2026-05-14T12:00:02.000Z',
@@ -1578,7 +1578,7 @@ describe('editor and logs workflows', () => {
       name: /returned returned after 1m 55s/i,
     })).toBeInTheDocument();
     expect(screen.getByRole('row', {
-      name: /left page user switched away from the document page/i,
+      name: /left workspace the writing workspace was no longer visible/i,
     })).toBeInTheDocument();
     expect(screen.queryByText('raw event')).not.toBeInTheDocument();
   });

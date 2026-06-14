@@ -756,7 +756,7 @@ describe('buildDocumentEventTimeline', () => {
     expect(timeline.summary.rawEventTotal).toBe(5);
     expect(timeline.items.map((item) => item.label)).toEqual([
       'Returned',
-      'Left page',
+      'Left workspace',
       'Typed text',
     ]);
     expect(timeline.items.flatMap((item) => item.rawEvents.map((raw) => raw.eventType))).toEqual([

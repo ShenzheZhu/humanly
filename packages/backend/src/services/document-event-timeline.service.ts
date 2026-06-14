@@ -483,7 +483,7 @@ function eventLabel(event: DocumentEvent): string {
   const labels: Partial<Record<EventType, string>> = {
     focus: 'Editor focused',
     blur: 'Editor blurred',
-    page_hidden: 'Left page',
+    page_hidden: 'Left workspace',
     page_visible: 'Returned',
     select: 'Text selected',
     copy: 'Copied text',
