@@ -397,6 +397,7 @@ describe('editor and logs workflows', () => {
     mockSearchParams = new URLSearchParams();
     window.localStorage.clear();
     window.localStorage.setItem('humanly:task-rules-dismissed:enroll-1:doc-1', 'dismissed');
+    window.localStorage.setItem('humanly:writing-rules-dismissed:personal:doc-1', 'dismissed');
 
     mockApiGet.mockImplementation(async (path: string) => {
       if (path === '/tasks/my-enrollments') {
@@ -564,12 +565,56 @@ describe('editor and logs workflows', () => {
     expect(screen.getByRole('button', { name: /submit/i })).toBeInTheDocument();
   });
 
-  it('does not show task rules controls for personal writing documents', async () => {
+  it('keeps writing rules available for personal writing documents', async () => {
     render(<DocumentEditorPage />);
 
     expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /rules/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('dialog', { name: /writing task rules/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /rules/i })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /writing rules/i })).not.toBeInTheDocument();
+  });
+
+  it('shows writing rules on first entry to a personal writing document', async () => {
+    const user = userEvent.setup();
+    mockDocumentEnvironmentConfig = {
+      aiAccess: 'polish',
+      copyPastePolicy: 'allowed',
+      resourceAccess: 'downloadable',
+      submission: {
+        maxCharacters: 750,
+      },
+      time: {
+        timeLimitSeconds: 120,
+      },
+      traceability: {
+        trackTyping: true,
+        trackCopyPaste: true,
+        trackFocusBlur: true,
+        trackAiUsage: true,
+      },
+    };
+    window.localStorage.removeItem('humanly:writing-rules-dismissed:personal:doc-1');
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    const dialog = await screen.findByRole('dialog', { name: /writing rules/i });
+    expect(within(dialog).getByText('Personal writing uses these writing rules.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Internal AI is limited to polish actions on selected text.')).toBeInTheDocument();
+    expect(within(dialog).getByText('External AI tool use is strictly prohibited.').tagName).toBe('STRONG');
+    expect(within(dialog).queryByText(/owner policy guard/i)).not.toBeInTheDocument();
+    expect(within(dialog).getByText('Copy-paste is allowed, and paste events are still recorded in the activity log.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Final text must be at most 750 characters before submission.')).toBeInTheDocument();
+    expect(within(dialog).getByText('The writing timer is 2min once you start this session.')).toBeInTheDocument();
+    expect(within(dialog).queryByText(/^Task window:/)).not.toBeInTheDocument();
+    expect(within(dialog).getByText('PDF resources can be downloaded when attached to this workspace.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Humanly records typing, copy-paste, workspace focus, AI assistance to build the activity log, replay, and certificate evidence.')).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('button', { name: /cancel/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /writing rules/i })).not.toBeInTheDocument();
+    });
+
+    expect(window.localStorage.getItem('humanly:writing-rules-dismissed:personal:doc-1')).toBe('dismissed');
   });
 
   it('shows task rules on first entry to an enrolled task and keeps them available from the header', async () => {
@@ -613,7 +658,7 @@ describe('editor and logs workflows', () => {
     render(<DocumentEditorPage />);
 
     expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
-    const dialog = await screen.findByRole('dialog', { name: /writing task rules/i });
+    const dialog = await screen.findByRole('dialog', { name: /writing rules/i });
     expect(within(dialog).getByText('Policy Task uses these writing rules.')).toBeInTheDocument();
     expect(within(dialog).getByText('Internal AI is limited to agent chat.')).toBeInTheDocument();
     const externalAiPolicy = within(dialog).getByText('External AI tool use is strictly prohibited.');
@@ -629,12 +674,12 @@ describe('editor and logs workflows', () => {
 
     await user.click(within(dialog).getByRole('button', { name: /cancel/i }));
     await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: /writing task rules/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: /writing rules/i })).not.toBeInTheDocument();
     });
 
     expect(window.localStorage.getItem('humanly:task-rules-dismissed:enroll-1:doc-1')).toBe('dismissed');
     await user.click(screen.getByRole('button', { name: /rules/i }));
-    expect(await screen.findByRole('dialog', { name: /writing task rules/i })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: /writing rules/i })).toBeInTheDocument();
   });
 
   it('does not reopen enrolled task rules automatically after dismissal', async () => {
@@ -655,17 +700,17 @@ describe('editor and logs workflows', () => {
     const { unmount } = render(<DocumentEditorPage />);
 
     expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
-    const dialog = await screen.findByRole('dialog', { name: /writing task rules/i });
+    const dialog = await screen.findByRole('dialog', { name: /writing rules/i });
     await user.click(within(dialog).getByRole('button', { name: /cancel/i }));
     await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: /writing task rules/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: /writing rules/i })).not.toBeInTheDocument();
     });
 
     unmount();
     render(<DocumentEditorPage />);
 
     expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
-    expect(screen.queryByRole('dialog', { name: /writing task rules/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /writing rules/i })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /rules/i })).toBeInTheDocument();
   });
 
@@ -991,7 +1036,7 @@ describe('editor and logs workflows', () => {
     render(<DocumentEditorPage />);
 
     expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
-    const dialog = await screen.findByRole('dialog', { name: /writing task rules/i });
+    const dialog = await screen.findByRole('dialog', { name: /writing rules/i });
     expect(within(dialog).getByText('Shared Link Task uses these writing rules.')).toBeInTheDocument();
     expect(within(dialog).getByText('Internal AI is off for this task.')).toBeInTheDocument();
     expect(within(dialog).getByText('External AI tool use is strictly prohibited.').tagName).toBe('STRONG');
@@ -1002,7 +1047,7 @@ describe('editor and logs workflows', () => {
     expect(within(dialog).queryByText(/owner policy guard/i)).not.toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: /cancel/i }));
     await waitFor(() => {
-      expect(screen.queryByRole('dialog', { name: /writing task rules/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('dialog', { name: /writing rules/i })).not.toBeInTheDocument();
     });
     expect(screen.getByRole('button', { name: /rules/i })).toBeInTheDocument();
   });

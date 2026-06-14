@@ -149,6 +149,10 @@ function getTaskRulesDismissalKey(enrollmentId: string, documentId: string) {
   return `humanly:task-rules-dismissed:${enrollmentId}:${documentId}`;
 }
 
+function getPersonalWritingRulesDismissalKey(documentId: string) {
+  return `humanly:writing-rules-dismissed:personal:${documentId}`;
+}
+
 const getTimestampMs = (value?: string | Date | null): number | null => {
   if (!value) return null;
   const timestamp = new Date(value).getTime();
@@ -316,7 +320,7 @@ export default function DocumentEditorPage() {
   const flushEditorEventsRef = useRef<(() => Promise<void>) | null>(null);
   const pendingEventWriteRef = useRef<Promise<void>>(Promise.resolve());
   const failedEventBatchesRef = useRef<PendingActivityEventBatch[]>([]);
-  const checkedTaskRulesDismissalKeyRef = useRef<string | null>(null);
+  const checkedWritingRulesDismissalKeyRef = useRef<string | null>(null);
 
   // AI Assistant
   const {
@@ -335,9 +339,6 @@ export default function DocumentEditorPage() {
   const isGuestDocumentContext = isGuestUser || hasPublicDocumentAccessToken;
   const isPublicTaskGuestDocument = isTaskDocument && isGuestDocumentContext;
   const taskEnvironmentConfig = taskEnrollment?.environmentConfig || null;
-  const taskRulesDismissalKey = taskEnrollment
-    ? getTaskRulesDismissalKey(taskEnrollment.id, documentId)
-    : null;
 
   const currentEnvironmentConfig = useMemo(() => {
     const sourceConfig: Partial<WritingEnvironmentConfig> = isTaskDocument
@@ -393,6 +394,12 @@ export default function DocumentEditorPage() {
       ? Math.max(1, Math.floor(currentEnvironmentConfig.time.timeLimitSeconds))
       : null;
   const hasLoadedDocument = Boolean(document?.id);
+  const writingRulesAvailable = hasLoadedDocument && !isTaskEnrollmentLoading;
+  const writingRulesDismissalKey = taskEnrollment
+    ? getTaskRulesDismissalKey(taskEnrollment.id, documentId)
+    : writingRulesAvailable
+      ? getPersonalWritingRulesDismissalKey(documentId)
+      : null;
   const documentWritingStartedAt = document?.writingStartedAt || null;
 
   const timeLimitRemainingSeconds = activeTimeLimitSeconds === null
@@ -472,14 +479,14 @@ export default function DocumentEditorPage() {
   }, [document]);
 
   useEffect(() => {
-    if (!hasLoadedDocument || isTaskEnrollmentLoading || !taskRulesDismissalKey) return;
-    if (checkedTaskRulesDismissalKeyRef.current === taskRulesDismissalKey) return;
+    if (!hasLoadedDocument || isTaskEnrollmentLoading || !writingRulesDismissalKey) return;
+    if (checkedWritingRulesDismissalKeyRef.current === writingRulesDismissalKey) return;
 
-    checkedTaskRulesDismissalKeyRef.current = taskRulesDismissalKey;
+    checkedWritingRulesDismissalKeyRef.current = writingRulesDismissalKey;
 
     let dismissed = false;
     try {
-      dismissed = window.localStorage.getItem(taskRulesDismissalKey) === TASK_RULES_DISMISSED_VALUE;
+      dismissed = window.localStorage.getItem(writingRulesDismissalKey) === TASK_RULES_DISMISSED_VALUE;
     } catch {
       dismissed = false;
     }
@@ -487,19 +494,19 @@ export default function DocumentEditorPage() {
     if (!dismissed) {
       setTaskRulesDialogOpen(true);
     }
-  }, [hasLoadedDocument, isTaskEnrollmentLoading, taskRulesDismissalKey]);
+  }, [hasLoadedDocument, isTaskEnrollmentLoading, writingRulesDismissalKey]);
 
   const handleTaskRulesDialogOpenChange = useCallback((open: boolean) => {
     setTaskRulesDialogOpen(open);
 
-    if (!open && taskRulesDismissalKey) {
+    if (!open && writingRulesDismissalKey) {
       try {
-        window.localStorage.setItem(taskRulesDismissalKey, TASK_RULES_DISMISSED_VALUE);
+        window.localStorage.setItem(writingRulesDismissalKey, TASK_RULES_DISMISSED_VALUE);
       } catch {
         // Ignore storage failures; the rules remain available from the toolbar.
       }
     }
-  }, [taskRulesDismissalKey]);
+  }, [writingRulesDismissalKey]);
 
   useEffect(() => {
     setTimerNowMs(Date.now());
@@ -1339,13 +1346,13 @@ export default function DocumentEditorPage() {
                 </Badge>
               )}
 
-              {taskEnrollment && (
+              {writingRulesAvailable && (
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   onClick={() => setTaskRulesDialogOpen(true)}
-                  title="View writing task rules"
+                  title="View writing rules"
                   className="gap-1 px-2 text-muted-foreground hover:text-foreground"
                 >
                   <HelpCircle className="h-4 w-4" />
@@ -1593,14 +1600,14 @@ export default function DocumentEditorPage() {
         onGenerate={handleGenerateCertificate}
         isGenerating={isGeneratingCertificate}
       />
-      {taskEnrollment ? (
+      {writingRulesAvailable ? (
         <TaskRulesDialog
           open={taskRulesDialogOpen}
           onOpenChange={handleTaskRulesDialogOpenChange}
           config={currentEnvironmentConfig}
-          taskName={taskEnrollment.name}
-          taskStartDate={taskEnrollment.startDate}
-          taskEndDate={taskEnrollment.endDate}
+          taskName={taskEnrollment?.name ?? 'Personal writing'}
+          taskStartDate={taskEnrollment?.startDate}
+          taskEndDate={taskEnrollment?.endDate}
         />
       ) : null}
     </div>
