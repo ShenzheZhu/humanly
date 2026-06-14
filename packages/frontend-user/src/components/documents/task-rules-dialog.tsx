@@ -53,26 +53,26 @@ function formatWritingTime(config: WritingEnvironmentConfig) {
 function formatLengthRule(config: WritingEnvironmentConfig) {
   const requirement = formatCharacterRequirement(config);
   return requirement === 'No length requirement'
-    ? 'No length requirement.'
-    : `Final text must be ${requirement}.`;
+    ? 'There is no character requirement for submission.'
+    : `Final text must be ${requirement} before submission.`;
 }
 
 function formatWritingTimeRule(config: WritingEnvironmentConfig) {
   const writingTime = formatWritingTime(config);
   return writingTime === 'No session time limit'
-    ? 'No session time limit.'
-    : `Writing time limit is ${writingTime}.`;
+    ? 'There is no session time limit once the task is open.'
+    : `The writing timer is ${writingTime} once you start this session.`;
 }
 
 function formatAiAccessRule(config: WritingEnvironmentConfig, guardText: string | null) {
   const access = formatWritingAiAccess(config.aiAccess);
   const base = access === 'Off'
-    ? 'AI is off.'
+    ? 'AI is off, so chat and polish actions are unavailable for this task.'
     : access === 'Only polish'
-      ? 'AI is limited to polish actions.'
+      ? 'AI is limited to polish actions. You can revise selected text, but agent chat is unavailable.'
       : access === 'Only agent chat'
-        ? 'AI is limited to agent chat.'
-        : 'Full AI assistance is allowed.';
+        ? 'AI is limited to agent chat. You can ask questions in the assistant, but polish shortcuts are unavailable.'
+        : 'Full AI assistance is allowed, including agent chat and polish actions.';
 
   return guardText ? `${base} ${guardText}` : base;
 }
@@ -88,7 +88,7 @@ function formatTaskWindow(
   if (start && end) return `${formatDateTime(start)} - ${formatDateTime(end)}`;
   if (start) return `Opens ${formatDateTime(start)}`;
   if (end) return `Due ${formatDateTime(end)}`;
-  return 'No scheduled task window';
+  return 'No scheduled task window; you can write whenever you have access to the task';
 }
 
 function formatTraceability(config: WritingEnvironmentConfig) {
@@ -112,15 +112,15 @@ function buildRuleItems(
   const isChatEnabled = isWritingAiChatEnabled(config.aiAccess);
   const aiGuardText = isChatEnabled
     ? (aiPolicy === 'Guard'
-        ? 'Agent chat follows the owner policy guard.'
-        : 'Agent chat is not policy-guarded.')
+        ? 'The owner policy guard may refuse requests that conflict with the task rules.'
+        : 'Chat is not restricted by an additional owner policy guard.')
     : null;
   const copyPaste = normalizeCopyPastePolicy(config.copyPastePolicy) === 'blocked'
-    ? 'Copy-paste is blocked.'
-    : 'Copy-paste is allowed.';
+    ? 'Copy-paste is blocked, so pasted content is prevented in the editor.'
+    : 'Copy-paste is allowed, and paste events are still recorded in the activity log.';
   const resourceAccess = normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only'
-    ? 'PDF resources are view-only.'
-    : 'PDF resources can be downloaded.';
+    ? 'PDF resources are view-only; they can be read in the workspace but not downloaded.'
+    : 'PDF resources can be downloaded when attached to this task.';
   const traceability = formatTraceability(config);
 
   return [
@@ -142,7 +142,7 @@ function buildRuleItems(
     },
     {
       id: 'task-window',
-      text: `Task window: ${formatTaskWindow(config, taskStartDate, taskEndDate)}.`,
+      text: `Task window: ${formatTaskWindow(config, taskStartDate, taskEndDate)}. Submissions follow this availability window.`,
     },
     {
       id: 'resource-access',
@@ -150,7 +150,7 @@ function buildRuleItems(
     },
     {
       id: 'recorded-activity',
-      text: `Humanly records ${traceability} for logs, replay, and certificate evidence.`,
+      text: `Humanly records ${traceability} to build the activity log, replay, and certificate evidence.`,
     },
   ];
 }
