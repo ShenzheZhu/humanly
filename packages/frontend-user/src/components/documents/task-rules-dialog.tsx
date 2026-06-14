@@ -42,8 +42,8 @@ function formatCharacterRequirement(config: WritingEnvironmentConfig): string | 
   const max = config.submission?.maxCharacters;
 
   if (min && max) return `${min.toLocaleString()}-${max.toLocaleString()} characters`;
-  if (min) return `At least ${min.toLocaleString()} characters`;
-  if (max) return `At most ${max.toLocaleString()} characters`;
+  if (min) return `at least ${min.toLocaleString()} characters`;
+  if (max) return `at most ${max.toLocaleString()} characters`;
   return null;
 }
 
@@ -122,7 +122,7 @@ function buildRuleItems(
     : 'Copy-paste is allowed, and paste events are still recorded in the activity log.';
   const resourceAccess = normalizeResourceAccessPolicy(config.resourceAccess) === 'view-only'
     ? 'PDF resources are view-only; they can be read in the workspace but not downloaded.'
-    : 'PDF resources can be downloaded when attached to this task.';
+    : 'PDF resources can be downloaded when attached to this workspace.';
   const traceability = formatTraceability(config);
 
   const items: RuleItem[] = [
@@ -196,9 +196,9 @@ export function TaskRulesDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Writing task rules</DialogTitle>
+          <DialogTitle>Writing rules</DialogTitle>
           <DialogDescription>
-            {taskName ? `${taskName} uses these writing rules.` : 'This task uses these writing rules.'}
+            {taskName ? `${taskName} uses these writing rules.` : 'This writing workspace uses these rules.'}
           </DialogDescription>
         </DialogHeader>
 
