@@ -10,7 +10,6 @@ import {
   Clock,
   CornerDownLeft,
   Copy,
-  RefreshCw,
   Sparkles,
   Trash2,
   Type,
@@ -78,12 +77,16 @@ const ANOMALY_BADGE_COLOR: CSSProperties = {
   borderColor: '#D9BDB8',
   color: '#7A5550',
 };
+const SELECTION_BADGE_COLOR: CSSProperties = {
+  backgroundColor: '#F1EEE8',
+  borderColor: '#D7CDC0',
+  color: '#6B6255',
+};
 
 const TIMELINE_ICONS: Partial<Record<DocumentEventTimelineItem['kind'], JSX.Element>> = {
   typing_burst: <Type className="h-3 w-3" />,
   line_break: <CornerDownLeft className="h-3 w-3" />,
   ai_insert: <Sparkles className="h-3 w-3" />,
-  replace: <RefreshCw className="h-3 w-3" />,
   paste: <Copy className="h-3 w-3" />,
   delete: <Trash2 className="h-3 w-3" />,
 };
@@ -846,6 +849,262 @@ function getFullTextMeta(item: DocumentEventTimelineItem) {
   return parts.join(' · ');
 }
 
+type ReplacementActionKind = 'typed' | 'pasted' | 'ai_inserted';
+
+function getReplacementActionKind(item: DocumentEventTimelineItem): ReplacementActionKind {
+  if (item.rawEvents.some((event) => event.eventType === 'paste')) return 'pasted';
+  if (
+    item.rawEvents.some((event) =>
+      event.eventType === 'ai_insert_from_chat' ||
+      event.eventType === 'ai_modification_applied' ||
+      event.eventType === 'ai_selection_action'
+    )
+  ) {
+    return 'ai_inserted';
+  }
+
+  return 'typed';
+}
+
+function getReplacementActionLabel(actionKind: ReplacementActionKind) {
+  if (actionKind === 'pasted') return 'Pasted';
+  if (actionKind === 'ai_inserted') return 'AI inserted';
+  return 'Typed';
+}
+
+function getReplacementActionIcon(actionKind: ReplacementActionKind) {
+  if (actionKind === 'pasted') return <Copy className="h-3 w-3" />;
+  if (actionKind === 'ai_inserted') return <Sparkles className="h-3 w-3" />;
+  return <Type className="h-3 w-3" />;
+}
+
+function getReplacementActionColor(actionKind: ReplacementActionKind) {
+  if (actionKind === 'pasted') return TIMELINE_COLORS.paste || DEFAULT_TIMELINE_COLOR;
+  if (actionKind === 'ai_inserted') return TIMELINE_COLORS.ai_insert || DEFAULT_TIMELINE_COLOR;
+  return TIMELINE_COLORS.typing_burst || DEFAULT_TIMELINE_COLOR;
+}
+
+function getReplacementActionVerb(actionKind: ReplacementActionKind) {
+  if (actionKind === 'pasted') return 'Pasted over selection with';
+  if (actionKind === 'ai_inserted') return 'AI inserted over selection with';
+  return 'Typed over selection with';
+}
+
+function getReplacementInsertedTextTitle(actionKind: ReplacementActionKind) {
+  if (actionKind === 'pasted') return 'Pasted text';
+  if (actionKind === 'ai_inserted') return 'AI inserted text';
+  return 'Typed text';
+}
+
+function getReplacementCharacterCount(item: DocumentEventTimelineItem) {
+  const previousLength = getReplacementBeforeText(item).length;
+  const insertedLength = getReplacementAfterText(item).length;
+  return `${previousLength} → ${insertedLength} chars`;
+}
+
+function getSelectedTextCount(item: DocumentEventTimelineItem) {
+  const selectedLength = getReplacementBeforeText(item).length;
+  return `${selectedLength} char${selectedLength === 1 ? '' : 's'}`;
+}
+
+function lineLabel(count: number) {
+  return `${count} line${count === 1 ? '' : 's'}`;
+}
+
+function canExpandReplacementSelection(item: DocumentEventTimelineItem) {
+  const selectedText = getReplacementBeforeText(item);
+  return isMultilineText(selectedText) || normalizeVisibleText(selectedText).length > LONG_TEXT_PREVIEW_THRESHOLD;
+}
+
+function canExpandReplacementAction(item: DocumentEventTimelineItem) {
+  const selectedText = getReplacementBeforeText(item);
+  const insertedText = getReplacementAfterText(item);
+
+  return (
+    isMultilineText(selectedText) ||
+    isMultilineText(insertedText) ||
+    normalizeVisibleText(selectedText).length > LONG_TEXT_PREVIEW_THRESHOLD ||
+    normalizeVisibleText(insertedText).length > LONG_TEXT_PREVIEW_THRESHOLD
+  );
+}
+
+function renderSelectionDetail(item: DocumentEventTimelineItem, maxTextCharacters = LONG_TEXT_PREVIEW_THRESHOLD) {
+  const selectedText = getReplacementBeforeText(item);
+  if (isMultilineText(selectedText)) {
+    return `${lineLabel(countTextLines(selectedText))} selected`;
+  }
+
+  return (
+    <>
+      Selected {renderTextPreview(selectedText, 'text', maxTextCharacters)}
+    </>
+  );
+}
+
+function renderReplacementActionDetail(
+  item: DocumentEventTimelineItem,
+  actionKind: ReplacementActionKind,
+  maxTextCharacters = LONG_TEXT_PREVIEW_THRESHOLD
+) {
+  const insertedText = getReplacementAfterText(item);
+  if (isMultilineText(insertedText)) {
+    return `${getReplacementActionLabel(actionKind)} ${lineLabel(countTextLines(insertedText))} over selection`;
+  }
+
+  return (
+    <>
+      {getReplacementActionVerb(actionKind)}{' '}
+      {renderTextPreview(insertedText, 'new text', maxTextCharacters)}
+    </>
+  );
+}
+
+function ReplacementTimelineRows({
+  item,
+  isSelectionExpanded,
+  isActionExpanded,
+  onToggleSelection,
+  onToggleAction,
+}: {
+  item: DocumentEventTimelineItem;
+  isSelectionExpanded: boolean;
+  isActionExpanded: boolean;
+  onToggleSelection: () => void;
+  onToggleAction: () => void;
+}) {
+  const actionKind = getReplacementActionKind(item);
+  const canExpandSelection = canExpandReplacementSelection(item);
+  const canExpandAction = canExpandReplacementAction(item);
+
+  return (
+    <>
+      <tr className="hover:bg-muted/30">
+        <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
+          {formatTimeRange(item)}
+        </td>
+        <td className="px-4 py-3">
+          <span
+            className="inline-flex whitespace-nowrap items-center gap-1 rounded border px-2 py-0.5 text-xs font-medium"
+            style={SELECTION_BADGE_COLOR}
+          >
+            <Type className="h-3 w-3" />
+            Selected
+          </span>
+        </td>
+        <td className="max-w-[760px] px-4 py-3 text-sm text-foreground">
+          {canExpandSelection ? (
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="min-w-0 flex-1 truncate">
+                {renderSelectionDetail(item)}
+              </span>
+              <button
+                type="button"
+                className="shrink-0 text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                onClick={onToggleSelection}
+                aria-expanded={isSelectionExpanded}
+              >
+                {isSelectionExpanded ? 'Hide full text' : 'View full text'}
+              </button>
+            </div>
+          ) : (
+            <span className="block truncate">{renderSelectionDetail(item)}</span>
+          )}
+        </td>
+        <td className="px-4 py-3 text-xs text-muted-foreground">
+          {getSelectedTextCount(item)}
+        </td>
+      </tr>
+      {canExpandSelection && isSelectionExpanded && (
+        <tr className="bg-muted/20">
+          <td colSpan={4} className="px-4 py-3">
+            <div className="rounded-md border bg-background p-3">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Selected text
+                </p>
+                <span className="text-xs text-muted-foreground">
+                  {getSelectedTextCount(item)}
+                </span>
+              </div>
+              <RenderableFullText
+                text={getReplacementBeforeText(item)}
+                renderMode={getTimelineTextRenderMode(item)}
+              />
+            </div>
+          </td>
+        </tr>
+      )}
+
+      <tr className="hover:bg-muted/30">
+        <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
+          {formatTimeRange(item)}
+        </td>
+        <td className="px-4 py-3">
+          <span
+            className="inline-flex whitespace-nowrap items-center gap-1 rounded border px-2 py-0.5 text-xs font-medium"
+            style={getReplacementActionColor(actionKind)}
+          >
+            {getReplacementActionIcon(actionKind)}
+            {getReplacementActionLabel(actionKind)}
+          </span>
+        </td>
+        <td className="max-w-[760px] px-4 py-3 text-sm text-foreground">
+          {canExpandAction ? (
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="min-w-0 flex-1 truncate">
+                {renderReplacementActionDetail(item, actionKind)}
+              </span>
+              <button
+                type="button"
+                className="shrink-0 text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                onClick={onToggleAction}
+                aria-expanded={isActionExpanded}
+              >
+                {isActionExpanded ? 'Hide full text' : 'View full text'}
+              </button>
+            </div>
+          ) : (
+            <span className="block truncate">
+              {renderReplacementActionDetail(item, actionKind)}
+            </span>
+          )}
+        </td>
+        <td className="px-4 py-3 text-xs text-muted-foreground">
+          {getReplacementCharacterCount(item)}
+        </td>
+      </tr>
+      {canExpandAction && isActionExpanded && (
+        <tr className="bg-muted/20">
+          <td colSpan={4} className="px-4 py-3">
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <p className="mb-1 text-xs font-medium text-muted-foreground">
+                  Previous selection
+                </p>
+                <RenderableFullText
+                  text={getReplacementBeforeText(item)}
+                  renderMode={getTimelineTextRenderMode(item)}
+                  className="rounded border bg-muted/20 p-3"
+                />
+              </div>
+              <div>
+                <p className="mb-1 text-xs font-medium text-muted-foreground">
+                  {getReplacementInsertedTextTitle(actionKind)}
+                </p>
+                <RenderableFullText
+                  text={getReplacementAfterText(item)}
+                  renderMode={getTimelineTextRenderMode(item)}
+                  className="rounded border bg-muted/20 p-3"
+                />
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
 function RenderableFullText({
   text,
   renderMode,
@@ -1558,6 +1817,23 @@ export default function DocumentLogsPage() {
 
                   if (historyItem.kind === 'timeline') {
                     const item = historyItem.item;
+
+                    if (item.kind === 'replace') {
+                      const selectionExpansionId = `${item.id}:selection`;
+                      const actionExpansionId = `${item.id}:action`;
+
+                      return (
+                        <ReplacementTimelineRows
+                          key={item.id}
+                          item={item}
+                          isSelectionExpanded={expandedIds.has(selectionExpansionId)}
+                          isActionExpanded={expandedIds.has(actionExpansionId)}
+                          onToggleSelection={() => toggleExpanded(selectionExpansionId)}
+                          onToggleAction={() => toggleExpanded(actionExpansionId)}
+                        />
+                      );
+                    }
+
                     const colorStyle = TIMELINE_COLORS[item.kind] || DEFAULT_TIMELINE_COLOR;
                     const icon = TIMELINE_ICONS[item.kind] || null;
                     const canExpandText = canExpandTimelineText(item);
@@ -1619,35 +1895,10 @@ export default function DocumentLogsPage() {
                                     </span>
                                   )}
                                 </div>
-                                {item.kind === 'replace' ? (
-                                  <div className="grid gap-3 md:grid-cols-2">
-                                    <div>
-                                      <p className="mb-1 text-xs font-medium text-muted-foreground">
-                                        Before
-                                      </p>
-                                      <RenderableFullText
-                                        text={getReplacementBeforeText(item)}
-                                        renderMode={getTimelineTextRenderMode(item)}
-                                        className="rounded border bg-muted/20 p-3"
-                                      />
-                                    </div>
-                                    <div>
-                                      <p className="mb-1 text-xs font-medium text-muted-foreground">
-                                        After
-                                      </p>
-                                      <RenderableFullText
-                                        text={getReplacementAfterText(item)}
-                                        renderMode={getTimelineTextRenderMode(item)}
-                                        className="rounded border bg-muted/20 p-3"
-                                      />
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <RenderableFullText
-                                    text={getTimelineSourceText(item)}
-                                    renderMode={getTimelineTextRenderMode(item)}
-                                  />
-                                )}
+                                <RenderableFullText
+                                  text={getTimelineSourceText(item)}
+                                  renderMode={getTimelineTextRenderMode(item)}
+                                />
                               </div>
                             </td>
                           </tr>

@@ -1854,7 +1854,7 @@ describe('editor and logs workflows', () => {
     expect(screen.getByRole('button', { name: /hide all text/i })).toBeInTheDocument();
   });
 
-  it('shows replacement edits as before and after text', async () => {
+  it('shows replacement edits as selection and write actions', async () => {
     const replacedText =
       'Original selected paragraph with enough detail to require the lightweight full text viewer. It includes a second sentence so the preview remains compact.';
     const newText =
@@ -1881,15 +1881,59 @@ describe('editor and logs workflows', () => {
 
     render(<DocumentLogsPage />);
 
-    expect(await screen.findByText('Replaced')).toBeInTheDocument();
+    expect(await screen.findByText('Selected')).toBeInTheDocument();
+    expect(screen.getByText('Typed')).toBeInTheDocument();
+    expect(screen.queryByText('Replaced')).not.toBeInTheDocument();
+    expect(screen.getByText(`${replacedText.length} chars`)).toBeInTheDocument();
     expect(screen.getByText(`${replacedText.length} → ${newText.length} chars`)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /view full text/i }));
+    const viewButtons = screen.getAllByRole('button', { name: /view full text/i });
+    expect(viewButtons).toHaveLength(2);
+    fireEvent.click(viewButtons[1]);
 
-    expect(await screen.findByText('Before')).toBeInTheDocument();
-    expect(screen.getByText('After')).toBeInTheDocument();
+    expect(await screen.findByText('Previous selection')).toBeInTheDocument();
+    expect(screen.getByText('Typed text')).toBeInTheDocument();
     expect(screen.getByText(replacedText)).toBeInTheDocument();
     expect(screen.getByText(newText)).toBeInTheDocument();
+  });
+
+  it('labels paste-backed replacements as selection and paste actions', async () => {
+    const replacedText = 'Selected text that was overwritten.';
+    const newText = 'Pasted replacement text.';
+
+    mockTimelineItems = [
+      {
+        id: 'replace-with-paste',
+        kind: 'replace',
+        label: 'Replaced text',
+        timestamp: '2026-05-14T12:00:02.000Z',
+        startTimestamp: '2026-05-14T12:00:02.000Z',
+        endTimestamp: '2026-05-14T12:00:02.000Z',
+        text: newText,
+        charCount: newText.length,
+        wordCount: 3,
+        rawEventCount: 1,
+        rawEvents: [
+          {
+            id: 'paste-raw',
+            eventType: 'paste',
+            timestamp: '2026-05-14T12:00:02.000Z',
+            insertedText: newText,
+          },
+        ],
+        metadata: {
+          replacedText,
+        },
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByText('Selected')).toBeInTheDocument();
+    expect(screen.getByText('Pasted')).toBeInTheDocument();
+    expect(screen.queryByText('Replaced')).not.toBeInTheDocument();
+    expect(screen.getByText('Selected "Selected text that was overwritten."')).toBeInTheDocument();
+    expect(screen.getByText('Pasted over selection with "Pasted replacement text."')).toBeInTheDocument();
   });
 
   it('summarizes multiline replacements instead of showing line break tokens inline', async () => {
@@ -1917,15 +1961,19 @@ describe('editor and logs workflows', () => {
 
     render(<DocumentLogsPage />);
 
-    expect(await screen.findByText('Replaced')).toBeInTheDocument();
-    expect(screen.getByText('5 lines → 3 lines')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /view full text/i })).toBeInTheDocument();
+    expect(await screen.findByText('Selected')).toBeInTheDocument();
+    expect(screen.getByText('Typed')).toBeInTheDocument();
+    expect(screen.queryByText('Replaced')).not.toBeInTheDocument();
+    expect(screen.getByText('5 lines selected')).toBeInTheDocument();
+    expect(screen.getByText('Typed 3 lines over selection')).toBeInTheDocument();
+    const viewButtons = screen.getAllByRole('button', { name: /view full text/i });
+    expect(viewButtons).toHaveLength(2);
     expect(screen.queryByText(/Line break/)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /view full text/i }));
+    fireEvent.click(viewButtons[1]);
 
-    expect(await screen.findByText('Before')).toBeInTheDocument();
-    expect(screen.getByText('After')).toBeInTheDocument();
+    expect(await screen.findByText('Previous selection')).toBeInTheDocument();
+    expect(screen.getByText('Typed text')).toBeInTheDocument();
     expect(screen.getAllByText(/I am good and I like this sentence/)).toHaveLength(2);
   });
 
@@ -2264,7 +2312,7 @@ describe('editor and logs workflows', () => {
     expect(within(deletedPanel as HTMLElement).queryByRole('table')).not.toBeInTheDocument();
   });
 
-  it('keeps markdown-mode replacements raw before and after text', async () => {
+  it('keeps markdown-mode replacement action text raw', async () => {
     const beforeMarkdown = [
       '## Before Markdown',
       '',
@@ -2311,10 +2359,14 @@ describe('editor and logs workflows', () => {
 
     render(<DocumentLogsPage />);
 
-    expect(await screen.findByText('Replaced')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /view full text/i }));
+    expect(await screen.findByText('Selected')).toBeInTheDocument();
+    expect(screen.getByText('Typed')).toBeInTheDocument();
+    expect(screen.queryByText('Replaced')).not.toBeInTheDocument();
+    const viewButtons = screen.getAllByRole('button', { name: /view full text/i });
+    expect(viewButtons).toHaveLength(2);
+    fireEvent.click(viewButtons[1]);
 
-    const replacementPanel = screen.getByText('Replacement').closest('div.rounded-md');
+    const replacementPanel = screen.getByText('Typed text').closest('td');
     expect(replacementPanel).not.toBeNull();
     expect(replacementPanel).toHaveTextContent('## Before Markdown');
     expect(replacementPanel).toHaveTextContent('## After Markdown');
