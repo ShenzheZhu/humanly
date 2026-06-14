@@ -615,13 +615,13 @@ describe('editor and logs workflows', () => {
     expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
     const dialog = await screen.findByRole('dialog', { name: /writing task rules/i });
     expect(within(dialog).getByText('Policy Task uses these writing rules.')).toBeInTheDocument();
-    expect(within(dialog).getByText('AI is limited to agent chat. Agent chat follows the owner policy guard.')).toBeInTheDocument();
-    expect(within(dialog).getByText('Copy-paste is blocked.')).toBeInTheDocument();
-    expect(within(dialog).getByText('Final text must be 100-500 characters.')).toBeInTheDocument();
-    expect(within(dialog).getByText('Writing time limit is 1min30s.')).toBeInTheDocument();
+    expect(within(dialog).getByText('AI is limited to agent chat. You can ask questions in the assistant, but polish shortcuts are unavailable. The owner policy guard may refuse requests that conflict with the task rules.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Copy-paste is blocked, so pasted content is prevented in the editor.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Final text must be 100-500 characters before submission.')).toBeInTheDocument();
+    expect(within(dialog).getByText('The writing timer is 1min30s once you start this session.')).toBeInTheDocument();
     expect(within(dialog).getByText(/^Task window:/)).toBeInTheDocument();
-    expect(within(dialog).getByText('PDF resources are view-only.')).toBeInTheDocument();
-    expect(within(dialog).getByText('Humanly records typing, copy-paste, workspace focus, AI assistance for logs, replay, and certificate evidence.')).toBeInTheDocument();
+    expect(within(dialog).getByText('PDF resources are view-only; they can be read in the workspace but not downloaded.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Humanly records typing, copy-paste, workspace focus, AI assistance to build the activity log, replay, and certificate evidence.')).toBeInTheDocument();
 
     await user.click(within(dialog).getByRole('button', { name: /cancel/i }));
     await waitFor(() => {
@@ -989,8 +989,8 @@ describe('editor and logs workflows', () => {
     expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
     const dialog = await screen.findByRole('dialog', { name: /writing task rules/i });
     expect(within(dialog).getByText('Shared Link Task uses these writing rules.')).toBeInTheDocument();
-    expect(within(dialog).getByText('AI is off.')).toBeInTheDocument();
-    expect(within(dialog).getByText('Copy-paste is blocked.')).toBeInTheDocument();
+    expect(within(dialog).getByText('AI is off, so chat and polish actions are unavailable for this task.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Copy-paste is blocked, so pasted content is prevented in the editor.')).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: /cancel/i }));
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: /writing task rules/i })).not.toBeInTheDocument();
