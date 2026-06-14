@@ -1,5 +1,5 @@
 import { LexicalEditor, EditorState, $getRoot, $getSelection, $isRangeSelection, COMMAND_PRIORITY_LOW, COMMAND_PRIORITY_HIGH, KEY_DOWN_COMMAND, PASTE_COMMAND, COPY_COMMAND, CUT_COMMAND, SELECTION_CHANGE_COMMAND, FOCUS_COMMAND, BLUR_COMMAND, INDENT_CONTENT_COMMAND, OUTDENT_CONTENT_COMMAND, FORMAT_TEXT_COMMAND, TextFormatType } from 'lexical';
-import { EventType, TextRenderMode } from '@humanly/shared';
+import { buildCopiedTextEventMetadata, EventType, TextRenderMode } from '@humanly/shared';
 import { EditorTrackerConfig, EventMetadata, TrackedEvent } from '../types';
 import {
   HEADING_CHANGE_COMMAND,
@@ -499,6 +499,10 @@ export class EditorTracker {
     this.editor.getEditorState().read(() => {
       const currentText = this.extractPlainText(this.editor.getEditorState());
       const { cursorPosition, selectionStart, selectionEnd } = this.getSelectionInfo(this.editor.getEditorState());
+      const selectedText = this.getSelectedText(this.editor.getEditorState());
+      const copyMetadata = eventType === 'copy'
+        ? buildCopiedTextEventMetadata(selectedText)
+        : undefined;
 
       const event: TrackedEvent = {
         eventType,
@@ -509,6 +513,7 @@ export class EditorTracker {
         selectionStart,
         selectionEnd,
         editorStateAfter: this.editor.getEditorState().toJSON(),
+        metadata: copyMetadata,
       };
 
       this.addEvent(event);

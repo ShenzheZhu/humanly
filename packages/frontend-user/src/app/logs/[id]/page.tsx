@@ -22,6 +22,7 @@ import { MarkdownContent } from '@/components/markdown-content';
 import { API_URL, TokenManager, apiClient } from '@/lib/api-client';
 import { usePublicDocumentToken } from '@/hooks/use-public-document-token';
 import { useAuthStore } from '@/stores/auth-store';
+import { getCopiedTextFromEventMetadata } from '@humanly/shared';
 import type {
   AIInteractionLog,
   DocumentEventTimelineItem,
@@ -549,7 +550,29 @@ function getPolicyRefusalQuestion(
   );
 }
 
+function getCopiedText(event: DocumentEventTimelineRawEvent) {
+  return event.eventType === 'copy'
+    ? getCopiedTextFromEventMetadata(event.metadata)
+    : '';
+}
+
+function canExpandCopiedText(copiedText: string) {
+  return isMultilineText(copiedText) || normalizeVisibleText(copiedText).length > LONG_TEXT_PREVIEW_THRESHOLD;
+}
+
+function renderCopiedTextDetail(copiedText: string) {
+  if (!copiedText) return 'Copied text';
+  if (isMultilineText(copiedText)) {
+    return getMultilineContentSummary(copiedText, 'copied');
+  }
+
+  return <>{renderTextPreview(copiedText, '', LONG_TEXT_PREVIEW_THRESHOLD)} copied</>;
+}
+
 function canExpandRawEvent(event: DocumentEventTimelineRawEvent, aiLogsById?: Map<string, AIInteractionLog>) {
+  if (event.eventType === 'copy') {
+    return canExpandCopiedText(getCopiedText(event));
+  }
   if (!isPolicyRefusalEvent(event)) return false;
   return normalizeVisibleText(getPolicyRefusalQuestion(event, aiLogsById)).length > LONG_TEXT_PREVIEW_THRESHOLD;
 }
@@ -619,11 +642,13 @@ function annotateRawEventForAnomaly(
 }
 
 function getRawEventFullText(event: DocumentEventTimelineRawEvent, aiLogsById?: Map<string, AIInteractionLog>) {
+  if (event.eventType === 'copy') return getCopiedText(event);
   if (isPolicyRefusalEvent(event)) return getPolicyRefusalQuestion(event, aiLogsById);
   return '';
 }
 
 function getRawEventFullTextHeader(event: DocumentEventTimelineRawEvent) {
+  if (event.eventType === 'copy') return 'Copied text';
   if (isPolicyRefusalEvent(event)) return 'Refused chat request';
   return 'Event detail';
 }
@@ -816,7 +841,7 @@ function getMultilineReplaceSummary(item: DocumentEventTimelineItem) {
 
 function getMultilineContentSummary(
   text: string | undefined,
-  action: 'pasted' | 'inserted',
+  action: 'pasted' | 'inserted' | 'copied',
   maxTextCharacters = LONG_TEXT_PREVIEW_THRESHOLD
 ) {
   const lineCount = countTextLines(text);
@@ -928,6 +953,9 @@ function renderRawDetail(
 
     return <>{renderTextPreview(selectedText, '')} selected</>;
   }
+  if (event.eventType === 'copy') {
+    return renderCopiedTextDetail(getCopiedText(event));
+  }
 
   if (event.eventType === 'delete' && event.insertedText) {
     return (
@@ -1002,6 +1030,12 @@ function getRawEventCount(event: DocumentEventTimelineRawEvent) {
   }
   if (isPolicyRefusalEvent(event)) return '1 refusal';
   if (isBlockedCopyPasteAttempt(event)) return '1 attempt';
+  if (event.eventType === 'copy') {
+    const copiedText = getCopiedText(event);
+    if (copiedText) {
+      return `${copiedText.length.toLocaleString()} char${copiedText.length === 1 ? '' : 's'}`;
+    }
+  }
   return event.cursorPosition == null ? '—' : `Cursor ${event.cursorPosition}`;
 }
 

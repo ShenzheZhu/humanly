@@ -39,6 +39,7 @@ import { ANALYTICS_CHART_COLORS } from '@/lib/analytics-palette';
 import { buildCertificateVerifyUrl } from '@/lib/certificate-url';
 import { formatDateTime } from '@/lib/utils';
 import { getReviewSignals } from '@/lib/review-signals';
+import { getCopiedTextFromEventMetadata } from '@humanly/shared';
 import type {
   AIInteractionLog,
   DocumentEventTimelineItem,
@@ -486,6 +487,49 @@ function getPolicyRefusalQuestion(
   );
 }
 
+function getCopiedText(event: DocumentEventTimelineRawEvent) {
+  return event.eventType === 'copy'
+    ? getCopiedTextFromEventMetadata(event.metadata)
+    : '';
+}
+
+function canExpandCopiedText(copiedText: string) {
+  return isMultilineText(copiedText) || normalizeVisibleText(copiedText).length > LONG_TEXT_PREVIEW_THRESHOLD;
+}
+
+function getMultilineCopiedTextSummary(text: string) {
+  const lineCount = countTextLines(text);
+  const lineLabel = `${lineCount} line${lineCount === 1 ? '' : 's'} copied`;
+  const snippet = formatSnippet(text, '', LONG_TEXT_PREVIEW_THRESHOLD);
+
+  return snippet ? `${lineLabel} · "${snippet}"` : lineLabel;
+}
+
+function renderCopiedTextDetail(copiedText: string) {
+  if (!copiedText) return 'Copied text';
+  if (isMultilineText(copiedText)) return getMultilineCopiedTextSummary(copiedText);
+
+  return <>{renderTextPreview(copiedText, '', LONG_TEXT_PREVIEW_THRESHOLD)} copied</>;
+}
+
+function canExpandRawEvent(event: DocumentEventTimelineRawEvent) {
+  if (event.eventType === 'copy') {
+    return canExpandCopiedText(getCopiedText(event));
+  }
+
+  return false;
+}
+
+function getRawEventFullText(event: DocumentEventTimelineRawEvent) {
+  if (event.eventType === 'copy') return getCopiedText(event);
+  return '';
+}
+
+function getRawEventFullTextHeader(event: DocumentEventTimelineRawEvent) {
+  if (event.eventType === 'copy') return 'Copied text';
+  return 'Event detail';
+}
+
 function isMultilineText(text?: string) {
   return Boolean(text && /[\r\n]/.test(text));
 }
@@ -666,6 +710,10 @@ function renderRawDetail(
     return `Blocked ${action} by copy-paste policy`;
   }
 
+  if (event.eventType === 'copy') {
+    return renderCopiedTextDetail(getCopiedText(event));
+  }
+
   if (event.eventType === 'delete' && event.insertedText) {
     return <>Replaced with {renderTextPreview(event.insertedText, '')}</>;
   }
@@ -704,6 +752,12 @@ function getRawEventActivityStyle(event: DocumentEventTimelineRawEvent): CSSProp
 function getRawEventCount(event: DocumentEventTimelineRawEvent) {
   if (isPolicyRefusalEvent(event)) return '1 refusal';
   if (isBlockedCopyPasteAttempt(event)) return '1 attempt';
+  if (event.eventType === 'copy') {
+    const copiedText = getCopiedText(event);
+    if (copiedText) {
+      return `${copiedText.length.toLocaleString()} char${copiedText.length === 1 ? '' : 's'}`;
+    }
+  }
   return event.cursorPosition == null ? '-' : `Cursor ${event.cursorPosition}`;
 }
 
@@ -781,42 +835,74 @@ function formatFoldTimeRange(item: FoldPointItem) {
 function RawEventTableRow({
   event,
   aiLogsById,
+  isExpanded = false,
+  onToggleExpanded,
 }: {
   event: DocumentEventTimelineRawEvent;
   aiLogsById?: Map<string, AIInteractionLog>;
+  isExpanded?: boolean;
+  onToggleExpanded?: () => void;
 }) {
   const eventColor = getRawEventColor(event.eventType);
   const activityStyle = getRawEventActivityStyle(event);
+  const canExpand = canExpandRawEvent(event);
+  const fullText = getRawEventFullText(event);
 
   return (
-    <tr className="bg-muted/20 text-xs text-muted-foreground hover:bg-muted/30">
-      <td className="whitespace-nowrap px-4 py-2">
-        {formatRawEventTime(event.timestamp)}
-      </td>
-      <td className="px-4 py-2">
-        <span
-          className="inline-flex whitespace-nowrap items-center gap-1 rounded border bg-background px-2 py-0.5 font-medium"
-          style={activityStyle}
-        >
-          {getRawEventActivityIcon(event)}
-          {getRawEventActivityLabel(event)}
-        </span>
-      </td>
-      <td className="max-w-[760px] px-4 py-2">
-        <div className="flex min-w-0 items-center gap-2">
+    <>
+      <tr className="bg-muted/20 text-xs text-muted-foreground hover:bg-muted/30">
+        <td className="whitespace-nowrap px-4 py-2">
+          {formatRawEventTime(event.timestamp)}
+        </td>
+        <td className="px-4 py-2">
           <span
-            className="inline-flex shrink-0 items-center rounded border px-2 py-0.5 font-medium"
-            style={eventColor}
+            className="inline-flex whitespace-nowrap items-center gap-1 rounded border bg-background px-2 py-0.5 font-medium"
+            style={activityStyle}
           >
-            {getRawEventDisplayType(event)}
+            {getRawEventActivityIcon(event)}
+            {getRawEventActivityLabel(event)}
           </span>
-          <span className="min-w-0 truncate">{renderRawDetail(event, aiLogsById)}</span>
-        </div>
-      </td>
-      <td className="px-4 py-2">
-        {getRawEventCount(event)}
-      </td>
-    </tr>
+        </td>
+        <td className="max-w-[760px] px-4 py-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <span
+              className="inline-flex shrink-0 items-center rounded border px-2 py-0.5 font-medium"
+              style={eventColor}
+            >
+              {getRawEventDisplayType(event)}
+            </span>
+            <span className="min-w-0 truncate">{renderRawDetail(event, aiLogsById)}</span>
+            {canExpand && onToggleExpanded && (
+              <button
+                type="button"
+                className="shrink-0 text-xs font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                onClick={onToggleExpanded}
+                aria-expanded={isExpanded}
+              >
+                {isExpanded ? 'Hide full text' : 'View full text'}
+              </button>
+            )}
+          </div>
+        </td>
+        <td className="px-4 py-2">
+          {getRawEventCount(event)}
+        </td>
+      </tr>
+      {canExpand && isExpanded && (
+        <tr className="bg-muted/20">
+          <td colSpan={4} className="px-4 py-3">
+            <div className="rounded-md border bg-background p-3">
+              <p className="mb-2 text-xs font-medium text-muted-foreground">
+                {getRawEventFullTextHeader(event)}
+              </p>
+              <div className="max-h-80 overflow-auto whitespace-pre-wrap break-words text-sm">
+                {fullText || '-'}
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
@@ -1348,7 +1434,13 @@ export default function TaskSubmissionAnalyticsPage() {
                           </tr>
                           {isExpanded &&
                             historyItem.rawEvents.map((event) => (
-                              <RawEventTableRow key={event.id} event={event} aiLogsById={aiLogsById} />
+                              <RawEventTableRow
+                                key={event.id}
+                                event={event}
+                                aiLogsById={aiLogsById}
+                                isExpanded={expandedIds.has(event.id)}
+                                onToggleExpanded={() => toggleExpanded(event.id)}
+                              />
                             ))}
                         </Fragment>
                       );
@@ -1356,7 +1448,13 @@ export default function TaskSubmissionAnalyticsPage() {
 
                     if (historyItem.kind === 'raw') {
                       return (
-                        <RawEventTableRow key={historyItem.id} event={historyItem.event} aiLogsById={aiLogsById} />
+                        <RawEventTableRow
+                          key={historyItem.id}
+                          event={historyItem.event}
+                          aiLogsById={aiLogsById}
+                          isExpanded={expandedIds.has(historyItem.id)}
+                          onToggleExpanded={() => toggleExpanded(historyItem.id)}
+                        />
                       );
                     }
 

@@ -48,6 +48,10 @@ export interface EventMetadata {
   textRenderMode?: TextRenderMode;
   sourceText?: string;
   replacedSourceText?: string;
+  // Clipboard evidence
+  copiedText?: string;
+  copiedCharacterCount?: number;
+  copiedLineCount?: number;
   // Extensible for other metadata
   [key: string]: any;
 }
