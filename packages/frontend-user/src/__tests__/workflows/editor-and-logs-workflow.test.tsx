@@ -1521,6 +1521,85 @@ describe('editor and logs workflows', () => {
     expect(screen.queryByRole('row', { name: /select —/i })).not.toBeInTheDocument();
   });
 
+  it('shows copied text in raw event rows and expands long copied text', async () => {
+    const longCopiedText = [
+      'This copied paragraph is long enough that reviewers should see a compact preview first.',
+      'The hidden copy evidence phrase should only appear after expanding the row.',
+      'The full copied text preserves line breaks for audit review.',
+    ].join('\n');
+
+    mockTimelineSummary = {
+      rawEventTotal: 2,
+      timelineItemTotal: 2,
+      typingBursts: 0,
+      typedCharacters: 0,
+      typedWords: 0,
+      pasteCharacters: 0,
+      deletedCharacters: 0,
+    };
+    mockTimelineItems = [
+      {
+        id: 'raw-copy-long',
+        kind: 'event',
+        label: 'Copied text',
+        timestamp: '2026-05-14T12:00:04.000Z',
+        startTimestamp: '2026-05-14T12:00:04.000Z',
+        endTimestamp: '2026-05-14T12:00:04.000Z',
+        text: '',
+        rawEventCount: 1,
+        rawEvents: [
+          {
+            id: 'raw-copy-long-event',
+            eventType: 'copy',
+            timestamp: '2026-05-14T12:00:04.000Z',
+            cursorPosition: 24,
+            metadata: {
+              copiedText: longCopiedText,
+              copiedCharacterCount: longCopiedText.length,
+              copiedLineCount: 3,
+            },
+          },
+        ],
+      },
+      {
+        id: 'raw-copy-short',
+        kind: 'event',
+        label: 'Copied text',
+        timestamp: '2026-05-14T12:00:03.000Z',
+        startTimestamp: '2026-05-14T12:00:03.000Z',
+        endTimestamp: '2026-05-14T12:00:03.000Z',
+        text: '',
+        rawEventCount: 1,
+        rawEvents: [
+          {
+            id: 'raw-copy-short-event',
+            eventType: 'copy',
+            timestamp: '2026-05-14T12:00:03.000Z',
+            cursorPosition: 12,
+            metadata: {
+              copiedText: 'short copied phrase',
+              copiedCharacterCount: 'short copied phrase'.length,
+              copiedLineCount: 1,
+            },
+          },
+        ],
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    expect(await screen.findByRole('row', {
+      name: /copy "short copied phrase" copied 19 chars/i,
+    })).toBeInTheDocument();
+    expect(screen.getByText(/3 lines copied/)).toBeInTheDocument();
+    expect(screen.queryByText(/hidden copy evidence phrase should only appear/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /view full text/i }));
+
+    expect(await screen.findByText('Copied text')).toBeInTheDocument();
+    expect(screen.getByText(/hidden copy evidence phrase should only appear/)).toBeInTheDocument();
+  });
+
   it('shows page visibility events as primary timeline rows', async () => {
     mockTimelineSummary = {
       rawEventTotal: 2,

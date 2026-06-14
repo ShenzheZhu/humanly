@@ -121,6 +121,49 @@ describe('EditorTracker page visibility tracking', () => {
     tracker.stop();
   });
 
+  it('records copied selected text metadata when copy-paste is allowed', async () => {
+    mockText = 'Draft text copied for review';
+    mockSelection = {
+      anchor: { offset: 0 },
+      focus: { offset: 17 },
+      getTextContent: () => 'Draft text copied',
+    };
+    const batches: TrackedEvent[][] = [];
+    const editor = makeEditor();
+    const tracker = new EditorTracker(editor as any, {
+      documentId: 'doc-1',
+      enabled: true,
+      copyPastePolicy: 'allowed',
+      onEventsBuffer: async (events) => {
+        batches.push(events);
+      },
+    });
+
+    tracker.start();
+
+    const copyEvent = { preventDefault: jest.fn() };
+    expect(getRegisteredCommandHandler(editor, 'COPY_COMMAND')(copyEvent)).toBe(false);
+    expect(copyEvent.preventDefault).not.toHaveBeenCalled();
+
+    await tracker.flushPendingEvents();
+
+    expect(batches).toHaveLength(1);
+    expect(batches[0][0]).toMatchObject({
+      eventType: 'copy',
+      textBefore: 'Draft text copied for review',
+      textAfter: 'Draft text copied for review',
+      selectionStart: 0,
+      selectionEnd: 17,
+      metadata: {
+        copiedText: 'Draft text copied',
+        copiedCharacterCount: 17,
+        copiedLineCount: 1,
+      },
+    });
+
+    tracker.stop();
+  });
+
   it('records blocked copy-paste attempts when copy-paste is disabled', async () => {
     const batches: TrackedEvent[][] = [];
     const editor = makeEditor();

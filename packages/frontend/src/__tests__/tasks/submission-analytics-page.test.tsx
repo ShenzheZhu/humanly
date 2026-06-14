@@ -278,4 +278,59 @@ describe('admin submission analytics page', () => {
     });
     expect(mockApiGet).toHaveBeenCalledWith('/api/v1/tasks/task-123/submissions/submission-latest/events');
   });
+
+  it('shows copied text in raw event rows and expands long copied text', async () => {
+    const longCopiedText = [
+      'This copied submission paragraph is long enough to need a compact preview first.',
+      'The admin hidden copy evidence phrase should only appear after expansion.',
+      'The copied text keeps line breaks for review.',
+    ].join('\n');
+
+    mockApiGet.mockResolvedValueOnce({
+      success: true,
+      data: {
+        submission: submissionFixture,
+        events: [],
+        totalEvents: 0,
+        timeline: {
+          items: [
+            {
+              id: 'raw-copy-long',
+              kind: 'event',
+              label: 'Copied text',
+              timestamp: '2026-05-15T01:53:00.000Z',
+              startTimestamp: '2026-05-15T01:53:00.000Z',
+              endTimestamp: '2026-05-15T01:53:00.000Z',
+              text: '',
+              rawEventCount: 1,
+              rawEvents: [
+                {
+                  id: 'raw-copy-long-event',
+                  eventType: 'copy',
+                  timestamp: '2026-05-15T01:53:00.000Z',
+                  cursorPosition: 24,
+                  metadata: {
+                    copiedText: longCopiedText,
+                    copiedCharacterCount: longCopiedText.length,
+                    copiedLineCount: 3,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        aiLogs: [],
+      },
+    });
+
+    render(<TaskSubmissionAnalyticsPage />);
+
+    expect(await screen.findByText(/3 lines copied/)).toBeInTheDocument();
+    expect(screen.queryByText(/admin hidden copy evidence phrase/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /view full text/i }));
+
+    expect(await screen.findByText('Copied text')).toBeInTheDocument();
+    expect(screen.getByText(/admin hidden copy evidence phrase/)).toBeInTheDocument();
+  });
 });
