@@ -204,7 +204,7 @@ function formatDuration(ms?: unknown) {
 
 function getPageVisibleDetail(metadata?: Record<string, any>) {
   const duration = formatDuration(metadata?.hiddenDurationMs);
-  return duration ? `Returned after ${duration}` : 'Returned to the document page';
+  return duration ? `Returned after ${duration}` : 'Returned to the workspace';
 }
 
 function isPageVisibilityEventType(eventType?: string) {
@@ -667,7 +667,7 @@ function renderReplacePreview(item: DocumentEventTimelineItem, maxTextCharacters
 function renderTimelineDetail(item: DocumentEventTimelineItem) {
   const pageVisibilityEventType = getTimelinePageVisibilityEventType(item);
   if (pageVisibilityEventType === 'page_hidden') {
-    return 'User switched away from the document page';
+    return 'The writing workspace was no longer visible';
   }
   if (pageVisibilityEventType === 'page_visible') {
     return getPageVisibleDetail(item.metadata);
@@ -704,7 +704,7 @@ function renderTimelineDetail(item: DocumentEventTimelineItem) {
 
 function getTimelineActivityLabel(item: DocumentEventTimelineItem) {
   const pageVisibilityEventType = getTimelinePageVisibilityEventType(item);
-  if (pageVisibilityEventType === 'page_hidden') return 'Left page';
+  if (pageVisibilityEventType === 'page_hidden') return 'Left workspace';
   if (pageVisibilityEventType === 'page_visible') return 'Returned';
 
   if (item.kind === 'typing_burst') return 'Typed';
@@ -898,7 +898,7 @@ function renderRawDetail(
   if (event.eventType === 'ai_panel_open') return null;
   if (event.eventType === 'ai_panel_close') return null;
 
-  if (event.eventType === 'page_hidden') return 'User switched away from the document page';
+  if (event.eventType === 'page_hidden') return 'The writing workspace was no longer visible';
   if (event.eventType === 'page_visible') return getPageVisibleDetail(event.metadata);
   if (event.eventType === 'focus') return 'Editor focused';
   if (event.eventType === 'blur') return 'Editor lost focus';
@@ -962,7 +962,7 @@ function getRawEventDisplayType(event: DocumentEventTimelineRawEvent) {
   }
   if (isPolicyRefusalEvent(event)) return 'chat_refusal';
   if (isBlockedCopyPasteAttempt(event)) return 'blocked_copy_paste_attempt';
-  if (event.eventType === 'page_hidden') return 'Left page';
+  if (event.eventType === 'page_hidden') return 'Left workspace';
   if (event.eventType === 'page_visible') return 'Returned';
   if (event.eventType === 'ai_query_sent') return 'AI question sent';
   if (event.eventType === 'ai_response_received') return 'AI response received';
