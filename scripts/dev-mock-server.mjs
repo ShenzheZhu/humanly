@@ -191,6 +191,7 @@ function createMockCertificate(options = {}) {
     includeFullText: options.includeFullText ?? true,
     includeEditHistory: options.includeEditHistory ?? true,
     environmentConfig: MOCK_DOC.environmentConfig,
+    anomalyFlags: options.anomalyFlags || [],
     isProtected: Boolean(options.accessCode),
     accessCode: options.accessCode || null,
     accessCodeHash: options.accessCode ? 'mock-access-code-hash' : null,
@@ -206,6 +207,22 @@ mockCertificates.push(createMockCertificate({
   id: 'cert-1',
   verificationToken: 'token-1',
   signerName: 'Local Dev',
+  anomalyFlags: [
+    {
+      code: 'rapid_tab_switching',
+      severity: 'warning',
+      label: 'Rapid tab switching',
+      description: 'The writer repeatedly left and returned to the Humanly workspace in a short window.',
+      evidence: {
+        switchCount: 6,
+        windowDuration: '1min28s',
+        windowSeconds: 90,
+        thresholdSwitches: 6,
+        windowStart: new Date(Date.now() - 120000).toISOString(),
+        windowEnd: new Date(Date.now() - 32000).toISOString(),
+      },
+    },
+  ],
 }));
 
 const MOCK_AI_AUTHORSHIP_STATS = {
@@ -688,6 +705,7 @@ const server = createServer(async (req, res) => {
         timeline: MOCK_TIMELINE_RESPONSE,
         aiLogs: MOCK_AI_LOGS,
         aiLogTotal: MOCK_AI_LOGS.length,
+        anomalyFlags: certificate.anomalyFlags || [],
       })
       : json(res, 404, { success: false, message: 'Certificate not found' });
   }

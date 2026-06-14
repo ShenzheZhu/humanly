@@ -25,6 +25,8 @@ export const DEFAULT_ANOMALY_THRESHOLDS: WritingAnomalyThresholds = {
   largePasteMinimumCharacters: 500,
   largePasteMinimumPercentage: 30,
   largePasteAbsoluteCharacters: 1500,
+  rapidTabSwitchWindowSeconds: 90,
+  rapidTabSwitchMinimumSwitches: 6,
 };
 
 function round(value: number, digits = 1) {
@@ -112,22 +114,19 @@ export function computeWritingAnomalyFlags(
     });
   }
 
-  const isLongOrRepeatedAway =
-    features.awayFromWorkspace.leftCount >= 3 ||
-    features.awayFromWorkspace.longestAwayMs >= 5 * 60 * 1000 ||
-    features.awayFromWorkspace.totalAwayMs >= 10 * 60 * 1000;
-
-  if (isLongOrRepeatedAway) {
+  if (features.awayFromWorkspace.rapidSwitchCount >= thresholds.rapidTabSwitchMinimumSwitches) {
     flags.push({
-      code: 'long_or_repeated_away_from_workspace',
+      code: 'rapid_tab_switching',
       severity: 'warning',
-      label: 'Long or repeated away-from-workspace time',
-      description: 'The writer left the Humanly writing workspace for a long time or repeatedly during the session.',
+      label: 'Rapid tab switching',
+      description: 'The writer repeatedly left and returned to the Humanly workspace in a short window.',
       evidence: {
-        leftCount: features.awayFromWorkspace.leftCount,
-        returnedCount: features.awayFromWorkspace.returnedCount,
-        totalAwayTime: formatDurationMs(features.awayFromWorkspace.totalAwayMs),
-        longestAwayTime: formatDurationMs(features.awayFromWorkspace.longestAwayMs),
+        switchCount: features.awayFromWorkspace.rapidSwitchCount,
+        windowDuration: formatDurationMs(features.awayFromWorkspace.rapidSwitchWindowMs),
+        windowSeconds: thresholds.rapidTabSwitchWindowSeconds,
+        thresholdSwitches: thresholds.rapidTabSwitchMinimumSwitches,
+        windowStart: features.awayFromWorkspace.rapidSwitchWindowStart,
+        windowEnd: features.awayFromWorkspace.rapidSwitchWindowEnd,
       },
     });
   }

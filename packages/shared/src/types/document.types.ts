@@ -225,6 +225,7 @@ export type WritingAnomalyFlagCode =
   | 'blocked_copy_paste_attempt'
   | 'large_paste_volume'
   | 'rapid_text_accumulation'
+  | 'rapid_tab_switching'
   | 'long_or_repeated_away_from_workspace';
 
 export type WritingAnomalyFlagSeverity = 'info' | 'warning' | 'critical';
@@ -260,6 +261,8 @@ export interface WritingAnomalyThresholds {
   largePasteMinimumCharacters: number;
   largePasteMinimumPercentage: number;
   largePasteAbsoluteCharacters: number;
+  rapidTabSwitchWindowSeconds: number;
+  rapidTabSwitchMinimumSwitches: number;
 }
 
 export interface AwayFromWorkspaceStats {
@@ -267,6 +270,10 @@ export interface AwayFromWorkspaceStats {
   returnedCount: number;
   totalAwayMs: number;
   longestAwayMs: number;
+  rapidSwitchCount: number;
+  rapidSwitchWindowMs: number;
+  rapidSwitchWindowStart: string | null;
+  rapidSwitchWindowEnd: string | null;
 }
 
 export interface CertificateSeal {

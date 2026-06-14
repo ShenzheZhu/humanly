@@ -503,6 +503,11 @@ export class EditorTracker {
       const copyMetadata = eventType === 'copy'
         ? buildCopiedTextEventMetadata(selectedText)
         : undefined;
+      const metadata = {
+        ...(copyMetadata || {}),
+        selectedText: selectedText || undefined,
+        selectedCharacterCount: selectedText.length,
+      };
 
       const event: TrackedEvent = {
         eventType,
@@ -513,7 +518,7 @@ export class EditorTracker {
         selectionStart,
         selectionEnd,
         editorStateAfter: this.editor.getEditorState().toJSON(),
-        metadata: copyMetadata,
+        metadata,
       };
 
       this.addEvent(event);

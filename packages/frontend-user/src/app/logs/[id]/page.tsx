@@ -10,6 +10,8 @@ import {
   Clock,
   CornerDownLeft,
   Copy,
+  EyeOff,
+  MousePointer2,
   RefreshCw,
   Sparkles,
   Trash2,
@@ -51,10 +53,10 @@ const WRITING_TIMELINE_KINDS = new Set<DocumentEventTimelineItem['kind']>([
   'delete',
 ]);
 
-const FOLD_POINT_MIN_RAW_EVENT_COUNT = 4;
 const LONG_TEXT_PREVIEW_THRESHOLD = 110;
 const LINE_BREAK_COLLAPSE_THRESHOLD = 4;
 const AI_MIRROR_REPLACE_TIME_WINDOW_MS = 10 * 60 * 1000;
+const MINOR_ACTIVITY_FOLD_MIN_RAW_EVENT_COUNT = 1;
 
 const TIMELINE_COLORS: Partial<Record<DocumentEventTimelineItem['kind'], CSSProperties>> = {
   typing_burst: { backgroundColor: '#EEF1F4', borderColor: '#C8D1DC', color: '#576777' },
@@ -79,6 +81,63 @@ const ANOMALY_BADGE_COLOR: CSSProperties = {
   borderColor: '#D9BDB8',
   color: '#7A5550',
 };
+const SELECTION_BADGE_COLOR: CSSProperties = {
+  backgroundColor: '#F1EEE8',
+  borderColor: '#D7CDC0',
+  color: '#6B6255',
+};
+
+const FORMAT_EVENT_TYPES = new Set<string>([
+  'font-family-change',
+  'font-size-change',
+  'text-color-change',
+  'highlight-color-change',
+  'bold',
+  'italic',
+  'underline',
+  'strikethrough',
+  'code',
+  'subscript',
+  'superscript',
+  'heading-change',
+  'list-create',
+  'list-delete',
+  'list-indent',
+  'list-outdent',
+  'list-item-check',
+  'alignment-change',
+  'line-spacing-change',
+  'indent-change',
+  'clear-formatting',
+]);
+
+const MINOR_RAW_EVENT_TYPES = new Set<string>([
+  'select',
+  'selection',
+  'focus',
+  'blur',
+  'ai_panel_open',
+  'ai_panel_close',
+  'ai_response_received',
+  'ai_suggestion_shown',
+  'ai_suggestion_accepted',
+  'ai_suggestion_rejected',
+  'ai_logs_viewed',
+  'ai_logs_exported',
+  'keyup',
+  'find-open',
+  'find-search',
+  'find-next',
+  'find-previous',
+  'replace',
+  'replace-all',
+  'find-close',
+  'contextmenu',
+]);
+
+const SYNTHETIC_LOG_ANOMALY_CODES = new Set<string>([
+  'rapid_tab_switching',
+]);
 
 const TIMELINE_ICONS: Partial<Record<DocumentEventTimelineItem['kind'], JSX.Element>> = {
   typing_burst: <Type className="h-3 w-3" />,
@@ -94,8 +153,8 @@ const getRawEventColor = (eventType: string): CSSProperties => {
     return ANOMALY_BADGE_COLOR;
   }
   if (eventType === 'paste') return TIMELINE_COLORS.paste || DEFAULT_TIMELINE_COLOR;
-  if (eventType === 'copy' || eventType === 'cut' || eventType === 'select') {
-    return { backgroundColor: '#F1EEE8', borderColor: '#D7CDC0', color: '#6B6255' };
+  if (eventType === 'copy' || eventType === 'cut' || eventType === 'select' || eventType === 'selection') {
+    return SELECTION_BADGE_COLOR;
   }
   if (
     eventType === 'focus' ||
@@ -115,6 +174,10 @@ const getRawEventColor = (eventType: string): CSSProperties => {
 };
 
 const AI_ACTION_LABELS: Record<string, string> = {
+  grammar: 'Fix grammar',
+  improve: 'Improve writing',
+  simplify: 'Simplify',
+  formal: 'Make formal',
   grammar_check: 'Fix grammar',
   spelling_check: 'Fix spelling',
   rewrite: 'Rewrite',
@@ -165,7 +228,14 @@ type RawEventDisplayItem = {
   event: DisplayRawEvent;
 };
 
-type TimelineDisplayItem = HistoryItem | FoldPointItem | RawEventDisplayItem;
+type AnomalyDisplayItem = {
+  kind: 'anomaly';
+  id: string;
+  timestamp: string | Date;
+  flag: WritingAnomalyFlag;
+};
+
+type TimelineDisplayItem = HistoryItem | FoldPointItem | RawEventDisplayItem | AnomalyDisplayItem;
 
 type RawEventDisplayOverride = {
   code: 'rapid_text_accumulation';
@@ -338,6 +408,10 @@ function getAILogLabel(log: AIInteractionLog) {
   return AI_ACTION_LABELS[log.queryType] || log.queryType;
 }
 
+function getAIActionLabel(actionType: string) {
+  return AI_ACTION_LABELS[actionType] || humanizeCode(actionType);
+}
+
 function isChatAILog(log: AIInteractionLog) {
   return CHAT_QUERY_TYPES.has(log.queryType);
 }
@@ -476,7 +550,7 @@ function LineBreakToken({ count }: { count: number }) {
 function renderTextPreview(text?: string, fallback = 'No text detail', maxTextCharacters = 160): ReactNode {
   if (!text) return fallback;
   if (!/[\r\n]/.test(text)) {
-    return `"${formatSnippet(text, fallback, maxTextCharacters)}"`;
+    return <span className="italic">&quot;{formatSnippet(text, fallback, maxTextCharacters)}&quot;</span>;
   }
 
   const { parts } = getTextPreviewParts(text, maxTextCharacters);
@@ -492,7 +566,7 @@ function renderTextPreview(text?: string, fallback = 'No text detail', maxTextCh
           {part.kind === 'lineBreak' ? (
             <LineBreakToken count={part.count} />
           ) : (
-            <span className="min-w-0 truncate">&quot;{part.text}&quot;</span>
+            <span className="min-w-0 truncate italic">&quot;{part.text}&quot;</span>
           )}
         </Fragment>
       ))}
@@ -525,6 +599,103 @@ function isBlockedCopyPasteAttempt(event: DocumentEventTimelineRawEvent) {
 
 function isAnomalyRawEvent(event: DocumentEventTimelineRawEvent) {
   return Boolean((event as DisplayRawEvent).displayAnomaly) || isPolicyRefusalEvent(event) || isBlockedCopyPasteAttempt(event);
+}
+
+function isFormattingRawEvent(event: DocumentEventTimelineRawEvent) {
+  return FORMAT_EVENT_TYPES.has(event.eventType) || event.eventType.startsWith('format_');
+}
+
+function isMinorRawEvent(event: DocumentEventTimelineRawEvent) {
+  if (isAnomalyRawEvent(event)) return false;
+  return MINOR_RAW_EVENT_TYPES.has(event.eventType) || isFormattingRawEvent(event);
+}
+
+function isSelectionRawEvent(event: DocumentEventTimelineRawEvent) {
+  const eventType = event.eventType as string;
+  return eventType === 'select' || eventType === 'selection';
+}
+
+function getSelectedRawEventText(event: DocumentEventTimelineRawEvent) {
+  const selectedText = event.metadata?.selectedText;
+  if (typeof selectedText === 'string') return selectedText;
+
+  const selectionText = event.metadata?.selection?.text;
+  return typeof selectionText === 'string' ? selectionText : '';
+}
+
+function humanizeCode(value: string) {
+  return value.replace(/[_-]+/g, ' ');
+}
+
+function getAnomalyTagLabel(code: string) {
+  if (code === 'chat_refusal' || code === 'ai_policy_refusal') return 'chat refusal';
+  if (code === 'blocked_copy_paste_attempt' || code === 'paste_policy_violation') return 'blocked copy-paste';
+  if (code === 'rapid_text_accumulation') return 'rapid text accumulation';
+  if (code === 'large_paste_volume') return 'large paste volume';
+  if (code === 'rapid_tab_switching') return 'rapid tab switching';
+  if (code === 'long_or_repeated_away_from_workspace' || code === 'away_from_workspace') {
+    return 'away from workspace';
+  }
+  return humanizeCode(code);
+}
+
+function getFormattingTagLabel(eventType: string) {
+  const normalizedEventType = eventType.replace(/^format_/, '');
+  if (
+    [
+      'bold',
+      'italic',
+      'underline',
+      'strikethrough',
+      'code',
+      'subscript',
+      'superscript',
+    ].includes(normalizedEventType)
+  ) {
+    return 'text style';
+  }
+
+  if (
+    [
+      'font-family-change',
+      'font-size-change',
+      'text-color-change',
+      'highlight-color-change',
+    ].includes(normalizedEventType)
+  ) {
+    return 'appearance';
+  }
+
+  return 'structure';
+}
+
+function getFormattingDetail(eventType: string) {
+  const normalizedEventType = eventType.replace(/^format_/, '');
+  const details: Record<string, string> = {
+    bold: 'Bold formatting applied',
+    italic: 'Italic formatting applied',
+    underline: 'Underline formatting applied',
+    strikethrough: 'Strikethrough formatting applied',
+    code: 'Inline code formatting applied',
+    subscript: 'Subscript formatting applied',
+    superscript: 'Superscript formatting applied',
+    'heading-change': 'Heading style changed',
+    'font-family-change': 'Font family changed',
+    'font-size-change': 'Font size changed',
+    'text-color-change': 'Text color changed',
+    'highlight-color-change': 'Highlight color changed',
+    'list-create': 'List created',
+    'list-delete': 'List removed',
+    'list-indent': 'List indented',
+    'list-outdent': 'List outdented',
+    'list-item-check': 'Checklist item changed',
+    'alignment-change': 'Alignment changed',
+    'line-spacing-change': 'Line spacing changed',
+    'indent-change': 'Indent changed',
+    'clear-formatting': 'Formatting cleared',
+  };
+
+  return details[normalizedEventType] || `${humanizeCode(normalizedEventType)} changed`;
 }
 
 function getBlockedCopyPasteAction(event: DocumentEventTimelineRawEvent) {
@@ -573,8 +744,16 @@ function canExpandRawEvent(event: DocumentEventTimelineRawEvent, aiLogsById?: Ma
   if (event.eventType === 'copy') {
     return canExpandCopiedText(getCopiedText(event));
   }
-  if (!isPolicyRefusalEvent(event)) return false;
-  return normalizeVisibleText(getPolicyRefusalQuestion(event, aiLogsById)).length > LONG_TEXT_PREVIEW_THRESHOLD;
+
+  if (isPolicyRefusalEvent(event)) {
+    return normalizeVisibleText(getPolicyRefusalQuestion(event, aiLogsById)).length > LONG_TEXT_PREVIEW_THRESHOLD;
+  }
+
+  if (event.eventType === 'cut' || isSelectionRawEvent(event)) {
+    return normalizeVisibleText(getSelectedRawEventText(event)).length > LONG_TEXT_PREVIEW_THRESHOLD;
+  }
+
+  return false;
 }
 
 function getFlagEvidenceString(flag: WritingAnomalyFlag, key: string) {
@@ -585,6 +764,35 @@ function getFlagEvidenceString(flag: WritingAnomalyFlag, key: string) {
 function getFlagEvidenceNumber(flag: WritingAnomalyFlag, key: string) {
   const value = flag.evidence?.[key];
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function shouldRenderSyntheticAnomalyFlag(flag: WritingAnomalyFlag) {
+  return SYNTHETIC_LOG_ANOMALY_CODES.has(flag.code);
+}
+
+function getSyntheticAnomalyTimestamp(flag: WritingAnomalyFlag) {
+  return (
+    getFlagEvidenceString(flag, 'windowEnd') ||
+    getFlagEvidenceString(flag, 'windowStart') ||
+    getFlagEvidenceString(flag, 'untrackedTimestamp') ||
+    getFlagEvidenceString(flag, 'focusTimestamp') ||
+    new Date().toISOString()
+  );
+}
+
+function getSyntheticAnomalyCount(flag: WritingAnomalyFlag) {
+  if (flag.code === 'rapid_tab_switching') {
+    const switchCount = getFlagEvidenceNumber(flag, 'switchCount');
+    const duration = getFlagEvidenceString(flag, 'windowDuration');
+    if (switchCount != null && duration) return `${switchCount} switches · ${duration}`;
+    if (switchCount != null) return `${switchCount} switches`;
+  }
+
+  return '—';
+}
+
+function getSyntheticAnomalyDetail(flag: WritingAnomalyFlag) {
+  return flag.description || flag.label || getAnomalyTagLabel(flag.code);
 }
 
 function getRapidTextCount(flag: WritingAnomalyFlag) {
@@ -644,12 +852,17 @@ function annotateRawEventForAnomaly(
 function getRawEventFullText(event: DocumentEventTimelineRawEvent, aiLogsById?: Map<string, AIInteractionLog>) {
   if (event.eventType === 'copy') return getCopiedText(event);
   if (isPolicyRefusalEvent(event)) return getPolicyRefusalQuestion(event, aiLogsById);
+  if (event.eventType === 'cut' || isSelectionRawEvent(event)) {
+    return getSelectedRawEventText(event);
+  }
   return '';
 }
 
 function getRawEventFullTextHeader(event: DocumentEventTimelineRawEvent) {
   if (event.eventType === 'copy') return 'Copied text';
   if (isPolicyRefusalEvent(event)) return 'Refused chat request';
+  if (event.eventType === 'cut') return 'Cut text';
+  if (isSelectionRawEvent(event)) return 'Selected text';
   return 'Event detail';
 }
 
@@ -721,7 +934,7 @@ function renderTimelineDetail(item: DocumentEventTimelineItem) {
 
   if (item.kind === 'delete') {
     if (item.metadata?.deleteScope === 'all_text') return 'Deleted all text';
-    return item.text ? renderTextPreview(item.text, '') : 'Text deleted';
+    return item.text ? <>Deleted {renderTextPreview(item.text, '')}</> : 'Text deleted';
   }
 
   return formatSnippet(item.text, item.label);
@@ -740,9 +953,7 @@ function getTimelineActivityLabel(item: DocumentEventTimelineItem) {
   if (item.kind === 'replace') return 'Replaced';
   if (item.kind === 'paste') return 'Pasted';
   if (item.kind === 'delete') {
-    if (item.metadata?.deleteScope === 'all_text') return 'Deleted all';
-    if (item.metadata?.deleteScope === 'selection') return 'Deleted selection';
-    return 'Deleted';
+    return 'Delete';
   }
   return item.label;
 }
@@ -915,9 +1126,18 @@ function renderRawDetail(
     return `Blocked ${action} by copy-paste policy`;
   }
 
+  if (event.eventType === 'copy') {
+    return renderCopiedTextDetail(getCopiedText(event));
+  }
+
+  if (event.eventType === 'cut') {
+    const selectedText = getSelectedRawEventText(event);
+    return selectedText ? <>Cut {renderTextPreview(selectedText, '')}</> : 'Cut selected text';
+  }
+
   if (event.eventType === 'ai_query_sent') {
     const query = getRawEventMetadataText(event, 'query');
-    return query ? renderTextPreview(query, 'AI question') : null;
+    return query ? <>Asked {renderTextPreview(query, 'AI question')}</> : 'Asked AI';
   }
   if (event.eventType === 'ai_response_received') return null;
   if (event.eventType === 'ai_panel_open') return null;
@@ -927,13 +1147,8 @@ function renderRawDetail(
   if (event.eventType === 'page_visible') return getPageVisibleDetail(event.metadata);
   if (event.eventType === 'focus') return 'Editor focused';
   if (event.eventType === 'blur') return 'Editor lost focus';
-  if (event.eventType === 'select') {
-    const selectedText =
-      typeof event.metadata?.selectedText === 'string'
-        ? event.metadata.selectedText
-        : typeof event.metadata?.selection?.text === 'string'
-          ? event.metadata.selection.text
-          : '';
+  if (isSelectionRawEvent(event)) {
+    const selectedText = getSelectedRawEventText(event);
     const selectedLineCount = countTextLines(selectedText);
     const selectedCharCount = selectedText.length;
     const shouldSummarizeSelection =
@@ -951,11 +1166,19 @@ function renderRawDetail(
       return `${summaryParts.join(' · ')} selected`;
     }
 
-    return <>{renderTextPreview(selectedText, '')} selected</>;
+    return <>Selected {renderTextPreview(selectedText, '')}</>;
   }
-  if (event.eventType === 'copy') {
-    return renderCopiedTextDetail(getCopiedText(event));
+  if (isFormattingRawEvent(event)) return getFormattingDetail(event.eventType);
+
+  if (event.eventType === 'ai_selection_action') {
+    const actionType = getRawEventMetadataText(event, 'actionType');
+    const originalText = getRawEventMetadataText(event, 'originalText');
+    return originalText
+      ? renderTextPreview(originalText, `${getRawEventDisplayType(event)} applied to selected text`)
+      : `${actionType ? getAIActionLabel(actionType) : 'AI quick action'} applied`;
   }
+
+  if (event.eventType === 'ai_insert_from_chat') return 'Inserted chat response at cursor';
 
   if (event.eventType === 'delete' && event.insertedText) {
     return (
@@ -986,19 +1209,30 @@ function renderRawDetail(
 
 function getRawEventDisplayType(event: DocumentEventTimelineRawEvent) {
   if ((event as DisplayRawEvent).displayAnomaly) {
-    return (event as DisplayRawEvent).displayAnomaly?.code || event.eventType;
+    return getAnomalyTagLabel((event as DisplayRawEvent).displayAnomaly?.code || event.eventType);
   }
-  if (isPolicyRefusalEvent(event)) return 'chat_refusal';
-  if (isBlockedCopyPasteAttempt(event)) return 'blocked_copy_paste_attempt';
+  if (isPolicyRefusalEvent(event)) return 'chat refusal';
+  if (isBlockedCopyPasteAttempt(event)) return 'blocked copy-paste';
+  if (isFormattingRawEvent(event)) return 'Formatted';
   if (event.eventType === 'page_hidden') return 'Left workspace';
   if (event.eventType === 'page_visible') return 'Returned';
-  if (event.eventType === 'ai_query_sent') return 'AI question sent';
-  if (event.eventType === 'ai_response_received') return 'AI response received';
+  if (event.eventType === 'ai_query_sent') return 'Chat';
+  if (event.eventType === 'ai_response_received') return 'AI response';
   if (event.eventType === 'ai_panel_open') return 'AI panel opened';
   if (event.eventType === 'ai_panel_close') return 'AI panel closed';
-  if (event.eventType === 'ai_selection_action') return 'AI quick action';
-  if (event.eventType === 'ai_insert_from_chat') return 'AI inserted text';
-  return event.eventType;
+  if (event.eventType === 'ai_selection_action') {
+    const actionType = getRawEventMetadataText(event, 'actionType');
+    return actionType ? getAIActionLabel(actionType) : 'AI quick action';
+  }
+  if (event.eventType === 'ai_insert_from_chat') return 'AI inserted';
+  if (event.eventType === 'copy') return 'Copied';
+  if (event.eventType === 'cut') return 'Cut';
+  if (isSelectionRawEvent(event)) return 'Selected';
+  if (event.eventType === 'focus') return 'Focused';
+  if (event.eventType === 'blur') return 'Unfocused';
+  if (event.eventType === 'input' || event.eventType === 'keydown') return 'Typed';
+  if (event.eventType === 'delete') return 'Delete';
+  return humanizeCode(event.eventType);
 }
 
 function isDuplicateAIQueryRawEvent(
@@ -1011,16 +1245,28 @@ function isDuplicateAIQueryRawEvent(
 }
 
 function getRawEventActivityLabel(event: DocumentEventTimelineRawEvent) {
-  return isAnomalyRawEvent(event) ? 'anomaly' : 'raw event';
+  return isAnomalyRawEvent(event) ? 'Anomaly' : getRawEventDisplayType(event);
 }
 
 function getRawEventActivityIcon(event: DocumentEventTimelineRawEvent) {
   if (isAnomalyRawEvent(event)) return <AlertCircle className="h-3 w-3" />;
+  if (event.eventType === 'copy' || event.eventType === 'cut') return <Copy className="h-3 w-3" />;
+  if (isSelectionRawEvent(event)) return <MousePointer2 className="h-3 w-3" />;
+  if (event.eventType === 'blur' || event.eventType === 'page_hidden') return <EyeOff className="h-3 w-3" />;
+  if (event.eventType === 'focus') return <Type className="h-3 w-3" />;
+  if (event.eventType.startsWith('ai_')) return <Sparkles className="h-3 w-3" />;
+  if (event.eventType === 'delete') return <Trash2 className="h-3 w-3" />;
   return null;
 }
 
 function getRawEventActivityStyle(event: DocumentEventTimelineRawEvent): CSSProperties | undefined {
   if (isAnomalyRawEvent(event)) return ANOMALY_BADGE_COLOR;
+  if (event.eventType === 'copy' || event.eventType === 'cut' || isSelectionRawEvent(event)) {
+    return SELECTION_BADGE_COLOR;
+  }
+  if (event.eventType.startsWith('ai_')) return AI_LOG_BADGE_COLOR;
+  if (isFormattingRawEvent(event)) return DEFAULT_TIMELINE_COLOR;
+  if (event.eventType === 'focus' || event.eventType === 'blur') return TIMELINE_COLORS.line_break;
   return undefined;
 }
 
@@ -1032,26 +1278,39 @@ function getRawEventCount(event: DocumentEventTimelineRawEvent) {
   if (isBlockedCopyPasteAttempt(event)) return '1 attempt';
   if (event.eventType === 'copy') {
     const copiedText = getCopiedText(event);
-    if (copiedText) {
-      return `${copiedText.length.toLocaleString()} char${copiedText.length === 1 ? '' : 's'}`;
-    }
+    return copiedText ? `${copiedText.length.toLocaleString()} char${copiedText.length === 1 ? '' : 's'}` : '—';
+  }
+  if (event.eventType === 'cut' || isSelectionRawEvent(event)) {
+    const selectedLength = getSelectedRawEventText(event).length;
+    return selectedLength > 0 ? `${selectedLength} char${selectedLength === 1 ? '' : 's'}` : '—';
   }
   return event.cursorPosition == null ? '—' : `Cursor ${event.cursorPosition}`;
 }
 
+function getRawEventDetailTag(event: DocumentEventTimelineRawEvent) {
+  if ((event as DisplayRawEvent).displayAnomaly) {
+    return getAnomalyTagLabel((event as DisplayRawEvent).displayAnomaly?.code || event.eventType);
+  }
+
+  if (isPolicyRefusalEvent(event)) return 'chat refusal';
+  if (isBlockedCopyPasteAttempt(event)) return 'blocked copy-paste';
+  if (isFormattingRawEvent(event)) return getFormattingTagLabel(event.eventType);
+  return null;
+}
+
 function getHiddenRawEventCategory(event: DocumentEventTimelineRawEvent) {
-  const eventType = event.eventType;
+  const eventType = event.eventType as string;
 
   if (eventType === 'focus' || eventType === 'blur') {
-    return 'focus/blur';
+    return 'focus';
   }
 
   if (isPageVisibilityEventType(eventType)) {
-    return 'page visibility';
+    return 'workspace';
   }
 
-  if (['select', 'copy', 'cut'].includes(eventType)) {
-    return 'selection/copy/cut';
+  if (eventType === 'select' || eventType === 'selection') {
+    return 'selection';
   }
 
   if (eventType.startsWith('ai_')) {
@@ -1062,31 +1321,7 @@ function getHiddenRawEventCategory(event: DocumentEventTimelineRawEvent) {
     return 'line break';
   }
 
-  if (
-    [
-      'bold',
-      'italic',
-      'underline',
-      'strikethrough',
-      'code',
-      'subscript',
-      'superscript',
-      'heading-change',
-      'font-family-change',
-      'font-size-change',
-      'text-color-change',
-      'highlight-color-change',
-      'list-create',
-      'list-delete',
-      'list-indent',
-      'list-outdent',
-      'list-item-check',
-      'alignment-change',
-      'line-spacing-change',
-      'indent-change',
-      'clear-formatting',
-    ].includes(eventType)
-  ) {
+  if (isFormattingRawEvent(event)) {
     return 'formatting';
   }
 
@@ -1106,34 +1341,22 @@ function summarizeFoldPoint(rawEvents: DocumentEventTimelineRawEvent[]) {
     .join(' · ');
 }
 
-function makeFoldPoint(
-  items: DocumentEventTimelineItem[],
-  rawEventsOverride?: DocumentEventTimelineRawEvent[]
-): FoldPointItem {
-  const sortedItems = [...items].sort(
+function makeRawEventsFoldPoint(rawEvents: DocumentEventTimelineRawEvent[]): FoldPointItem {
+  const sortedRawEvents = [...rawEvents].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
-  const rawEvents =
-    rawEventsOverride ||
-    sortedItems
-      .flatMap((item) => item.rawEvents)
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  const startTimestamp =
-    sortedItems[sortedItems.length - 1]?.startTimestamp || sortedItems[0]?.timestamp;
-  const endTimestamp = sortedItems[0]?.endTimestamp || sortedItems[0]?.timestamp;
-  const rawEventCount = rawEvents.length;
+  const oldest = sortedRawEvents[sortedRawEvents.length - 1];
+  const newest = sortedRawEvents[0];
 
   return {
     kind: 'fold',
-    id: `fold-${sortedItems[0]?.id || 'empty'}-${
-      sortedItems[sortedItems.length - 1]?.id || 'empty'
-    }`,
-    timestamp: sortedItems[0]?.timestamp || new Date().toISOString(),
-    startTimestamp,
-    endTimestamp,
-    items: sortedItems,
-    rawEvents,
-    rawEventCount,
+    id: `fold-minor-${newest?.id || 'empty'}-${oldest?.id || 'empty'}`,
+    timestamp: newest?.timestamp || new Date().toISOString(),
+    startTimestamp: oldest?.timestamp || newest?.timestamp || new Date().toISOString(),
+    endTimestamp: newest?.timestamp || oldest?.timestamp || new Date().toISOString(),
+    items: [],
+    rawEvents: sortedRawEvents,
+    rawEventCount: sortedRawEvents.length,
   };
 }
 
@@ -1157,19 +1380,19 @@ function RawEventTableRow({
   onToggleExpanded?: () => void;
 }) {
   const detail = renderRawDetail(event, aiLogsById);
-  const eventColor = getRawEventColor(event.eventType);
   const canExpand = canExpandRawEvent(event, aiLogsById);
   const fullText = getRawEventFullText(event, aiLogsById);
   const activityStyle = getRawEventActivityStyle(event);
   const activityIcon = getRawEventActivityIcon(event);
+  const detailTag = getRawEventDetailTag(event);
 
   return (
     <>
       <tr className="bg-muted/20 text-xs text-muted-foreground hover:bg-muted/30">
-        <td className="whitespace-nowrap px-4 py-2">
+        <td className="whitespace-nowrap px-4 py-2.5">
           {format(new Date(event.timestamp), 'HH:mm:ss.SSS')}
         </td>
-        <td className="px-4 py-2">
+        <td className="px-4 py-2.5">
           <span
             className="inline-flex whitespace-nowrap items-center gap-1 rounded border bg-background px-2 py-0.5 font-medium"
             style={activityStyle}
@@ -1178,14 +1401,16 @@ function RawEventTableRow({
             {getRawEventActivityLabel(event)}
           </span>
         </td>
-        <td className="max-w-[760px] px-4 py-2">
+        <td className="max-w-[760px] px-4 py-2.5">
           <div className="flex min-w-0 items-center gap-2">
-            <span
-              className="inline-flex shrink-0 items-center rounded border px-2 py-0.5 font-medium"
-              style={eventColor}
-            >
-              {getRawEventDisplayType(event)}
-            </span>
+            {detailTag && (
+              <span
+                className="inline-flex shrink-0 items-center rounded border px-2 py-0.5 font-medium"
+                style={isAnomalyRawEvent(event) ? ANOMALY_BADGE_COLOR : getRawEventColor(event.eventType)}
+              >
+                {detailTag}
+              </span>
+            )}
             {detail && <span className="min-w-0 truncate">{detail}</span>}
             {canExpand && onToggleExpanded && (
               <button
@@ -1199,7 +1424,7 @@ function RawEventTableRow({
             )}
           </div>
         </td>
-        <td className="whitespace-nowrap px-4 py-2">
+        <td className="whitespace-nowrap px-4 py-2.5">
           {getRawEventCount(event)}
         </td>
       </tr>
@@ -1360,9 +1585,19 @@ export default function DocumentLogsPage() {
           item: HistoryItem;
         }
       | {
-          kind: 'hidden';
+          kind: 'raw';
           timestamp: string | Date;
-          item: DocumentEventTimelineItem;
+          event: DisplayRawEvent;
+        }
+      | {
+          kind: 'minor';
+          timestamp: string | Date;
+          events: DisplayRawEvent[];
+        }
+      | {
+          kind: 'anomaly';
+          timestamp: string | Date;
+          flag: WritingAnomalyFlag;
         };
 
     const visibleTimelineItems = timelineItems.filter(
@@ -1370,9 +1605,9 @@ export default function DocumentLogsPage() {
     );
 
     const sourceItems: TimelineSourceItem[] = [
-      ...visibleTimelineItems.map((item) => {
+      ...visibleTimelineItems.flatMap((item): TimelineSourceItem[] => {
         if (WRITING_TIMELINE_KINDS.has(item.kind) || isPageVisibilityTimelineItem(item)) {
-          return {
+          return [{
             kind: 'primary' as const,
             timestamp: item.timestamp,
             item: {
@@ -1381,14 +1616,30 @@ export default function DocumentLogsPage() {
               timestamp: item.timestamp,
               item,
             },
-          };
+          }];
         }
 
-        return {
-          kind: 'hidden' as const,
-          timestamp: item.timestamp,
-          item,
-        };
+        const rawEvents = item.rawEvents
+          .filter((event) => !isDuplicateAIQueryRawEvent(event, visibleAILogIds))
+          .map((event) => annotateRawEventForAnomaly(event, certificateAnomalyFlags))
+          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        const promotedRawEvents = rawEvents.filter((event) => !isMinorRawEvent(event));
+        const minorRawEvents = rawEvents.filter(isMinorRawEvent);
+
+        return [
+          ...promotedRawEvents.map((event) => ({
+            kind: 'raw' as const,
+            timestamp: event.timestamp,
+            event,
+          })),
+          ...(minorRawEvents.length > 0
+            ? [{
+                kind: 'minor' as const,
+                timestamp: minorRawEvents[0].timestamp,
+                events: minorRawEvents,
+              }]
+            : []),
+        ];
       }),
       ...visibleAILogs.map((log) => {
         const timestamp = parseAILogTimestamp(log.timestamp);
@@ -1404,29 +1655,26 @@ export default function DocumentLogsPage() {
           },
         };
       }),
+      ...certificateAnomalyFlags
+        .filter(shouldRenderSyntheticAnomalyFlag)
+        .map((flag) => ({
+          kind: 'anomaly' as const,
+          timestamp: getSyntheticAnomalyTimestamp(flag),
+          flag,
+        })),
     ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
     const displayItems: TimelineDisplayItem[] = [];
-    let hiddenBuffer: DocumentEventTimelineItem[] = [];
+    let hiddenBuffer: DisplayRawEvent[] = [];
 
     const flushHiddenBuffer = () => {
       if (hiddenBuffer.length === 0) return;
-      const rawEvents = hiddenBuffer
-        .flatMap((item) => item.rawEvents)
-        .filter((event) => !isDuplicateAIQueryRawEvent(event, visibleAILogIds))
-        .map((event) => annotateRawEventForAnomaly(event, certificateAnomalyFlags))
-        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-      if (rawEvents.length === 0) {
-        hiddenBuffer = [];
-        return;
-      }
-
-      if (rawEvents.length >= FOLD_POINT_MIN_RAW_EVENT_COUNT) {
-        displayItems.push(makeFoldPoint(hiddenBuffer, rawEvents));
+      if (hiddenBuffer.length >= MINOR_ACTIVITY_FOLD_MIN_RAW_EVENT_COUNT) {
+        displayItems.push(makeRawEventsFoldPoint(hiddenBuffer));
       } else {
         displayItems.push(
-          ...rawEvents.map((event) => ({
+          ...hiddenBuffer.map((event) => ({
             kind: 'raw' as const,
             id: `raw-${event.id}`,
             timestamp: event.timestamp,
@@ -1439,12 +1687,32 @@ export default function DocumentLogsPage() {
     };
 
     sourceItems.forEach((sourceItem) => {
-      if (sourceItem.kind === 'hidden') {
-        hiddenBuffer.push(sourceItem.item);
+      if (sourceItem.kind === 'minor') {
+        hiddenBuffer.push(...sourceItem.events);
         return;
       }
 
       flushHiddenBuffer();
+      if (sourceItem.kind === 'raw') {
+        displayItems.push({
+          kind: 'raw',
+          id: `raw-${sourceItem.event.id}`,
+          timestamp: sourceItem.event.timestamp,
+          event: sourceItem.event,
+        });
+        return;
+      }
+
+      if (sourceItem.kind === 'anomaly') {
+        displayItems.push({
+          kind: 'anomaly',
+          id: `anomaly-${sourceItem.flag.code}-${new Date(sourceItem.timestamp).getTime()}`,
+          timestamp: sourceItem.timestamp,
+          flag: sourceItem.flag,
+        });
+        return;
+      }
+
       displayItems.push(sourceItem.item);
     });
 
@@ -1534,7 +1802,15 @@ export default function DocumentLogsPage() {
                           <td className="whitespace-nowrap px-4 py-2.5 text-xs text-muted-foreground">
                             {formatFoldTimeRange(historyItem)}
                           </td>
-                          <td className="px-4 py-2.5" />
+                          <td className="px-4 py-2.5">
+                            <span
+                              className="inline-flex whitespace-nowrap items-center gap-1 rounded border px-2 py-0.5 text-xs font-medium"
+                              style={DEFAULT_TIMELINE_COLOR}
+                            >
+                              <Clock className="h-3 w-3" />
+                              Minor activity
+                            </span>
+                          </td>
                           <td className="min-w-0 px-4 py-2.5">
                             <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
                               <button
@@ -1548,13 +1824,12 @@ export default function DocumentLogsPage() {
                                 ) : (
                                   <ChevronRight className="h-3.5 w-3.5" />
                                 )}
-                                {isExpanded ? 'Hide' : 'Show'}{' '}
-                                {historyItem.rawEventCount.toLocaleString()} other event
-                                {historyItem.rawEventCount === 1 ? '' : 's'}
+                                {isExpanded ? 'Hide details' : 'Show details'}
                               </button>
                               {summary && (
                                 <span className="min-w-0 truncate">
-                                  · {summary}
+                                  {historyItem.rawEventCount.toLocaleString()} grouped event
+                                  {historyItem.rawEventCount === 1 ? '' : 's'} · {summary}
                                 </span>
                               )}
                             </div>
@@ -1587,6 +1862,43 @@ export default function DocumentLogsPage() {
                         isExpanded={expandedIds.has(historyItem.id)}
                         onToggleExpanded={() => toggleExpanded(historyItem.id)}
                       />
+                    );
+                  }
+
+                  if (historyItem.kind === 'anomaly') {
+                    const tag = getAnomalyTagLabel(historyItem.flag.code);
+
+                    return (
+                      <tr key={historyItem.id} className="hover:bg-muted/30">
+                        <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
+                          {format(new Date(historyItem.timestamp), 'HH:mm:ss.SSS')}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className="inline-flex whitespace-nowrap items-center gap-1 rounded border px-2 py-0.5 text-xs font-medium"
+                            style={ANOMALY_BADGE_COLOR}
+                          >
+                            <AlertCircle className="h-3 w-3" />
+                            Anomaly
+                          </span>
+                        </td>
+                        <td className="max-w-[760px] px-4 py-3 text-sm text-foreground">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span
+                              className="inline-flex shrink-0 items-center rounded border px-2 py-0.5 text-xs font-medium"
+                              style={ANOMALY_BADGE_COLOR}
+                            >
+                              {tag}
+                            </span>
+                            <span className="min-w-0 truncate">
+                              {getSyntheticAnomalyDetail(historyItem.flag)}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
+                          {getSyntheticAnomalyCount(historyItem.flag)}
+                        </td>
+                      </tr>
                     );
                   }
 
