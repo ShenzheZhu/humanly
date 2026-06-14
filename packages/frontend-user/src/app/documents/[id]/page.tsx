@@ -10,6 +10,7 @@ import {
   Clock,
   Download,
   FileText,
+  HelpCircle,
   Loader2,
   PanelLeft,
   PanelLeftClose,
@@ -30,6 +31,7 @@ import {
   CertificateGenerationDialog,
   type CertificateGenerationOptions,
 } from '@/components/certificates/certificate-generation-dialog';
+import { TaskRulesDialog } from '@/components/documents/task-rules-dialog';
 import { AIAssistantButton, AIAssistantPanel, AISelectionMenu, type ActionType } from '@/components/ai';
 import { useAI } from '@/hooks/use-ai';
 import { useAIStore } from '@/stores/ai-store';
@@ -107,6 +109,7 @@ const API_URL =
   (process.env.NODE_ENV === 'production' ? '/api/v1' : 'http://localhost:3001/api/v1');
 const SUBMISSION_SESSION_START_DELAY_MS = 250;
 const EDITOR_AUTO_SAVE_INTERVAL_MS = 750;
+const TASK_RULES_DISMISSED_VALUE = 'dismissed';
 type SaveStatus = 'saved' | 'saving' | 'error';
 type PendingActivityEvent = Record<string, unknown>;
 
@@ -140,6 +143,10 @@ function formatCountdownDuration(totalSeconds: number): string {
   }
 
   return formatTimerDuration(safeSeconds);
+}
+
+function getTaskRulesDismissalKey(enrollmentId: string, documentId: string) {
+  return `humanly:task-rules-dismissed:${enrollmentId}:${documentId}`;
 }
 
 const getTimestampMs = (value?: string | Date | null): number | null => {
@@ -288,6 +295,7 @@ export default function DocumentEditorPage() {
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
   const [isSyncingActivityLogs, setIsSyncingActivityLogs] = useState(false);
   const [showCertificateDialog, setShowCertificateDialog] = useState(false);
+  const [taskRulesDialogOpen, setTaskRulesDialogOpen] = useState(false);
   const [isUploadingPdf, setIsUploadingPdf] = useState(false);
   const [taskInstructionFile, setTaskInstructionFile] = useState<TaskInstructionFile | null>(null);
   const [taskInstructionFiles, setTaskInstructionFiles] = useState<TaskInstructionFile[]>([]);
@@ -308,6 +316,7 @@ export default function DocumentEditorPage() {
   const flushEditorEventsRef = useRef<(() => Promise<void>) | null>(null);
   const pendingEventWriteRef = useRef<Promise<void>>(Promise.resolve());
   const failedEventBatchesRef = useRef<PendingActivityEventBatch[]>([]);
+  const checkedTaskRulesDismissalKeyRef = useRef<string | null>(null);
 
   // AI Assistant
   const {
@@ -326,6 +335,9 @@ export default function DocumentEditorPage() {
   const isGuestDocumentContext = isGuestUser || hasPublicDocumentAccessToken;
   const isPublicTaskGuestDocument = isTaskDocument && isGuestDocumentContext;
   const taskEnvironmentConfig = taskEnrollment?.environmentConfig || null;
+  const taskRulesDismissalKey = taskEnrollment
+    ? getTaskRulesDismissalKey(taskEnrollment.id, documentId)
+    : null;
 
   const currentEnvironmentConfig = useMemo(() => {
     const sourceConfig: Partial<WritingEnvironmentConfig> = isTaskDocument
@@ -458,6 +470,36 @@ export default function DocumentEditorPage() {
       };
     }
   }, [document]);
+
+  useEffect(() => {
+    if (!hasLoadedDocument || isTaskEnrollmentLoading || !taskRulesDismissalKey) return;
+    if (checkedTaskRulesDismissalKeyRef.current === taskRulesDismissalKey) return;
+
+    checkedTaskRulesDismissalKeyRef.current = taskRulesDismissalKey;
+
+    let dismissed = false;
+    try {
+      dismissed = window.localStorage.getItem(taskRulesDismissalKey) === TASK_RULES_DISMISSED_VALUE;
+    } catch {
+      dismissed = false;
+    }
+
+    if (!dismissed) {
+      setTaskRulesDialogOpen(true);
+    }
+  }, [hasLoadedDocument, isTaskEnrollmentLoading, taskRulesDismissalKey]);
+
+  const handleTaskRulesDialogOpenChange = useCallback((open: boolean) => {
+    setTaskRulesDialogOpen(open);
+
+    if (!open && taskRulesDismissalKey) {
+      try {
+        window.localStorage.setItem(taskRulesDismissalKey, TASK_RULES_DISMISSED_VALUE);
+      } catch {
+        // Ignore storage failures; the rules remain available from the toolbar.
+      }
+    }
+  }, [taskRulesDismissalKey]);
 
   useEffect(() => {
     setTimerNowMs(Date.now());
@@ -1297,6 +1339,20 @@ export default function DocumentEditorPage() {
                 </Badge>
               )}
 
+              {taskEnrollment && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setTaskRulesDialogOpen(true)}
+                  title="View writing task rules"
+                  className="gap-1 px-2 text-muted-foreground hover:text-foreground"
+                >
+                  <HelpCircle className="h-4 w-4" />
+                  <span className="hidden sm:inline">Rules</span>
+                </Button>
+              )}
+
               {aiChatEnabled && (
                 <AIAssistantButton isOpen={isAIPanelOpen} onClick={toggleAIPanel} />
               )}
@@ -1537,6 +1593,16 @@ export default function DocumentEditorPage() {
         onGenerate={handleGenerateCertificate}
         isGenerating={isGeneratingCertificate}
       />
+      {taskEnrollment ? (
+        <TaskRulesDialog
+          open={taskRulesDialogOpen}
+          onOpenChange={handleTaskRulesDialogOpenChange}
+          config={currentEnvironmentConfig}
+          taskName={taskEnrollment.name}
+          taskStartDate={taskEnrollment.startDate}
+          taskEndDate={taskEnrollment.endDate}
+        />
+      ) : null}
     </div>
   );
 }

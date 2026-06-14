@@ -395,6 +395,8 @@ describe('editor and logs workflows', () => {
     mockApiPost.mockReset();
     mockUseParams.mockReturnValue({ id: 'doc-1' });
     mockSearchParams = new URLSearchParams();
+    window.localStorage.clear();
+    window.localStorage.setItem('humanly:task-rules-dismissed:enroll-1:doc-1', 'dismissed');
 
     mockApiGet.mockImplementation(async (path: string) => {
       if (path === '/tasks/my-enrollments') {
@@ -560,6 +562,107 @@ describe('editor and logs workflows', () => {
     expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /export config/i })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /submit/i })).toBeInTheDocument();
+  });
+
+  it('does not show task rules controls for personal writing documents', async () => {
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /rules/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /writing task rules/i })).not.toBeInTheDocument();
+  });
+
+  it('shows task rules on first entry to an enrolled task and keeps them available from the header', async () => {
+    const user = userEvent.setup();
+    mockTaskEnrollments = [{
+      id: 'enroll-1',
+      documentId: 'doc-1',
+      name: 'Policy Task',
+      inviteCode: 'ABC123',
+      joinedAt: '2026-05-19T12:00:00.000Z',
+      startDate: '2026-05-19T12:00:00.000Z',
+      endDate: '2026-05-20T12:00:00.000Z',
+      environmentConfig: {
+        taskType: 'admin_assigned',
+        aiAccess: 'chat',
+        aiPolicy: {
+          mode: 'guard',
+          rejectionRule: 'Only answer source-grounded questions.',
+        },
+        copyPastePolicy: 'blocked',
+        resourceAccess: 'view-only',
+        time: {
+          lateSubmission: 'not_allowed',
+          timeLimitSeconds: 90,
+        },
+        submission: {
+          mode: 'single',
+          minCharacters: 100,
+          maxCharacters: 500,
+        },
+        traceability: {
+          trackTyping: true,
+          trackCopyPaste: true,
+          trackFocusBlur: true,
+          trackAiUsage: true,
+        },
+      },
+    }];
+    window.localStorage.removeItem('humanly:task-rules-dismissed:enroll-1:doc-1');
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    const dialog = await screen.findByRole('dialog', { name: /writing task rules/i });
+    expect(within(dialog).getByText('Policy Task uses these writing rules.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Only agent chat')).toBeInTheDocument();
+    expect(within(dialog).getByText('Agent chat follows the owner policy guard.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Blocked')).toBeInTheDocument();
+    expect(within(dialog).getByText('100-500 characters')).toBeInTheDocument();
+    expect(within(dialog).getByText('1min30s')).toBeInTheDocument();
+    expect(within(dialog).getByText('View-only PDF resources')).toBeInTheDocument();
+    expect(within(dialog).getByText('typing, copy-paste, workspace focus, AI assistance')).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('button', { name: /cancel/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /writing task rules/i })).not.toBeInTheDocument();
+    });
+
+    expect(window.localStorage.getItem('humanly:task-rules-dismissed:enroll-1:doc-1')).toBe('dismissed');
+    await user.click(screen.getByRole('button', { name: /rules/i }));
+    expect(await screen.findByRole('dialog', { name: /writing task rules/i })).toBeInTheDocument();
+  });
+
+  it('does not reopen enrolled task rules automatically after dismissal', async () => {
+    const user = userEvent.setup();
+    mockTaskEnrollments = [{
+      id: 'enroll-1',
+      documentId: 'doc-1',
+      name: 'Dismissed Rules Task',
+      inviteCode: 'ABC123',
+      joinedAt: '2026-05-19T12:00:00.000Z',
+      environmentConfig: {
+        aiAccess: 'off',
+        copyPastePolicy: 'allowed',
+      },
+    }];
+    window.localStorage.removeItem('humanly:task-rules-dismissed:enroll-1:doc-1');
+
+    const { unmount } = render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    const dialog = await screen.findByRole('dialog', { name: /writing task rules/i });
+    await user.click(within(dialog).getByRole('button', { name: /cancel/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /writing task rules/i })).not.toBeInTheDocument();
+    });
+
+    unmount();
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /writing task rules/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /rules/i })).toBeInTheDocument();
   });
 
   it('does not navigate to logs until a delayed activity log flush finishes', async () => {
@@ -862,6 +965,36 @@ describe('editor and logs workflows', () => {
     expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
     expect(screen.getByText('Task deadline in')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /back to documents/i })).not.toBeInTheDocument();
+  });
+
+  it('shows task rules for public shared-link task writers', async () => {
+    const user = userEvent.setup();
+    mockAuthUserEmail = 'public-task-guest@guest.humanly.local';
+    mockTokenManager.getPublicDocumentAccessToken.mockReturnValue('guest-document-token');
+    mockTaskEnrollments = [{
+      id: 'enroll-1',
+      documentId: 'doc-1',
+      name: 'Shared Link Task',
+      inviteCode: 'ABC123',
+      joinedAt: '2026-05-19T12:00:00.000Z',
+      environmentConfig: {
+        aiAccess: 'off',
+        copyPastePolicy: 'blocked',
+      },
+    }];
+    window.localStorage.removeItem('humanly:task-rules-dismissed:enroll-1:doc-1');
+
+    render(<DocumentEditorPage />);
+
+    expect(await screen.findByText('Workflow Document')).toBeInTheDocument();
+    const dialog = await screen.findByRole('dialog', { name: /writing task rules/i });
+    expect(within(dialog).getByText('Shared Link Task uses these writing rules.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Blocked')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: /cancel/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /writing task rules/i })).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /rules/i })).toBeInTheDocument();
   });
 
   it('hides the documents back action for guest document load errors', async () => {
