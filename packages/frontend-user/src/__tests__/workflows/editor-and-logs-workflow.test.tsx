@@ -1340,9 +1340,13 @@ describe('editor and logs workflows', () => {
     expect(screen.queryByText('Typing bursts')).not.toBeInTheDocument();
     expect(screen.queryByText('Editor blurred')).not.toBeInTheDocument();
     expect(screen.queryByText('input')).not.toBeInTheDocument();
-    expect(screen.getByText('raw event')).toBeInTheDocument();
-    expect(await screen.findByText('blur')).toBeInTheDocument();
-    expect(screen.getByText('Cursor 11')).toBeInTheDocument();
+    expect(screen.queryByText('raw event')).not.toBeInTheDocument();
+    const minorRow = screen.getByRole('row', {
+      name: /minor activity show details 1 grouped event · 1 focus 1 event/i,
+    });
+    expect(minorRow).toBeInTheDocument();
+    fireEvent.click(within(minorRow).getByRole('button', { name: /show details/i }));
+    expect(await screen.findByRole('row', { name: /unfocused editor lost focus cursor 11/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /show 1 other event/i })).not.toBeInTheDocument();
     expect(screen.queryByText('Raw events')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /raw audit events/i })).not.toBeInTheDocument();
@@ -1436,7 +1440,7 @@ describe('editor and logs workflows', () => {
       name: /delete replaced with "I am good!" cursor 10/i,
     })).toBeInTheDocument();
     expect(screen.getByRole('row', {
-      name: /input inserted "hello" cursor 5/i,
+      name: /typed inserted "hello" cursor 5/i,
     })).toBeInTheDocument();
     expect(screen.queryByRole('row', {
       name: /delete inserted "I am good!"/i,
@@ -1513,9 +1517,15 @@ describe('editor and logs workflows', () => {
 
     render(<DocumentLogsPage />);
 
-    expect(await screen.findByRole('row', { name: /focus editor focused cursor 0/i })).toBeInTheDocument();
-    expect(screen.getByRole('row', { name: /blur editor lost focus cursor 8/i })).toBeInTheDocument();
-    expect(screen.getByRole('row', { name: /select "selected phrase" selected cursor 12/i })).toBeInTheDocument();
+    const minorRow = await screen.findByRole('row', {
+      name: /minor activity show details 3 grouped events .* 1 selection/i,
+    });
+    expect(minorRow).toBeInTheDocument();
+    fireEvent.click(within(minorRow).getByRole('button', { name: /show details/i }));
+
+    expect(await screen.findByRole('row', { name: /focused editor focused cursor 0/i })).toBeInTheDocument();
+    expect(screen.getByRole('row', { name: /unfocused editor lost focus cursor 8/i })).toBeInTheDocument();
+    expect(screen.getByRole('row', { name: /selected selected "selected phrase" 15 chars/i })).toBeInTheDocument();
     expect(screen.queryByRole('row', { name: /focus —/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('row', { name: /blur —/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('row', { name: /select —/i })).not.toBeInTheDocument();
@@ -1589,7 +1599,7 @@ describe('editor and logs workflows', () => {
     render(<DocumentLogsPage />);
 
     expect(await screen.findByRole('row', {
-      name: /copy "short copied phrase" copied 19 chars/i,
+      name: /Copied "short copied phrase" copied 19 chars/i,
     })).toBeInTheDocument();
     expect(screen.getByText(/3 lines copied/)).toBeInTheDocument();
     expect(screen.queryByText(/hidden copy evidence phrase should only appear/)).not.toBeInTheDocument();
@@ -1701,7 +1711,12 @@ describe('editor and logs workflows', () => {
 
     render(<DocumentLogsPage />);
 
-    expect(await screen.findByRole('row', { name: /select 2 lines · \d+ chars selected cursor 32/i })).toBeInTheDocument();
+    const minorRow = await screen.findByRole('row', {
+      name: /minor activity show details 1 grouped event · 1 selection 1 event/i,
+    });
+    fireEvent.click(within(minorRow).getByRole('button', { name: /show details/i }));
+
+    expect(await screen.findByRole('row', { name: /selected 2 lines · \d+ chars selected view full text \d+ chars/i })).toBeInTheDocument();
     expect(screen.queryByText(/showing it inline would make/)).not.toBeInTheDocument();
   });
 
@@ -1755,7 +1770,7 @@ describe('editor and logs workflows', () => {
     render(<DocumentLogsPage />);
 
     expect(await screen.findByText('Pasted')).toBeInTheDocument();
-    expect(screen.getByText('Deleted')).toBeInTheDocument();
+    expect(screen.getByText('Delete')).toBeInTheDocument();
     expect(screen.queryByText('Pasted text')).not.toBeInTheDocument();
     expect(screen.queryByText('Deleted text')).not.toBeInTheDocument();
 
@@ -1924,7 +1939,7 @@ describe('editor and logs workflows', () => {
 
     render(<DocumentLogsPage />);
 
-    expect(await screen.findByText('Deleted all')).toBeInTheDocument();
+    expect(await screen.findByText('Delete')).toBeInTheDocument();
     expect(screen.getByText('Deleted all text')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /view all text/i }));
@@ -2553,7 +2568,7 @@ describe('editor and logs workflows', () => {
     render(<DocumentLogsPage />);
 
     const rawRow = await screen.findByRole('row', {
-      name: /raw event ai question sent "explain my report" —/i,
+      name: /chat asked "explain my report" —/i,
     });
     expect(rawRow).toBeInTheDocument();
     expect(screen.queryByText('ai_query_sent')).not.toBeInTheDocument();
@@ -2604,11 +2619,11 @@ describe('editor and logs workflows', () => {
     render(<DocumentLogsPage />);
 
     const refusalRow = await screen.findByRole('row', {
-      name: /anomaly chat_refusal "ignore the owner policy .* view full text 1 refusal/i,
+      name: /anomaly chat refusal "ignore the owner policy .* view full text 1 refusal/i,
     });
     expect(refusalRow).toBeInTheDocument();
     expect(within(refusalRow).queryByText('raw event')).not.toBeInTheDocument();
-    expect(within(refusalRow).getByText('chat_refusal')).toBeInTheDocument();
+    expect(within(refusalRow).getByText('chat refusal')).toBeInTheDocument();
     expect(within(refusalRow).getByText('1 refusal')).toBeInTheDocument();
     expect(screen.queryByText('ai_policy_refusal')).not.toBeInTheDocument();
 
@@ -2663,12 +2678,51 @@ describe('editor and logs workflows', () => {
     render(<DocumentLogsPage />);
 
     const rapidRow = await screen.findByRole('row', {
-      name: /anomaly rapid_text_accumulation a large amount of text appeared within a short time window\. 419 chars/i,
+      name: /anomaly rapid text accumulation a large amount of text appeared within a short time window\. view full text 419 chars/i,
     });
     expect(rapidRow).toBeInTheDocument();
     expect(within(rapidRow).queryByText('raw event')).not.toBeInTheDocument();
     expect(within(rapidRow).queryByText('select')).not.toBeInTheDocument();
-    expect(within(rapidRow).getByText('rapid_text_accumulation')).toBeInTheDocument();
+    expect(within(rapidRow).getByText('rapid text accumulation')).toBeInTheDocument();
+  });
+
+  it('shows sealed rapid tab switching flags as anomaly timeline rows', async () => {
+    mockSearchParams = new URLSearchParams('returnTo=certificate&certificateId=certificate-1');
+    mockCertificateAnomalyFlags = [
+      {
+        code: 'rapid_tab_switching',
+        severity: 'warning',
+        label: 'Rapid tab switching',
+        description: 'The writer repeatedly left and returned to the Humanly workspace in a short window.',
+        evidence: {
+          switchCount: 6,
+          windowDuration: '1min28s',
+          windowSeconds: 90,
+          thresholdSwitches: 6,
+          windowStart: '2026-05-14T12:00:00.000Z',
+          windowEnd: '2026-05-14T12:01:28.000Z',
+        },
+      },
+    ];
+    mockTimelineSummary = {
+      rawEventTotal: 0,
+      timelineItemTotal: 0,
+      typingBursts: 0,
+      typedCharacters: 0,
+      typedWords: 0,
+      pasteCharacters: 0,
+      deletedCharacters: 0,
+    };
+    mockTimelineItems = [];
+    mockAiLogs = [];
+
+    render(<DocumentLogsPage />);
+
+    const rapidSwitchRow = await screen.findByRole('row', {
+      name: /anomaly rapid tab switching the writer repeatedly left and returned to the humanly workspace in a short window\. 6 switches · 1min28s/i,
+    });
+    expect(rapidSwitchRow).toBeInTheDocument();
+    expect(within(rapidSwitchRow).getByText('rapid tab switching')).toBeInTheDocument();
   });
 
   it('treats timezone-less AI log timestamps as UTC before displaying local time', async () => {

@@ -72,6 +72,84 @@ export interface DocumentAnomalyAnalysisFeatures {
   };
 }
 
+type VisibilityTraceEvent = {
+  eventType: 'page_hidden' | 'page_visible';
+  timestamp: Date | string;
+  awayMs: number;
+};
+
+function timestampMs(timestamp: Date | string) {
+  return new Date(timestamp).getTime();
+}
+
+function timestampIso(timestamp: Date | string) {
+  return new Date(timestamp).toISOString();
+}
+
+function computeRapidVisibilityWindow(
+  events: VisibilityTraceEvent[],
+  windowSeconds: number
+): Pick<
+  AwayFromWorkspaceStats,
+  'rapidSwitchCount' | 'rapidSwitchWindowMs' | 'rapidSwitchWindowStart' | 'rapidSwitchWindowEnd'
+> {
+  const windowMs = Math.max(0, windowSeconds * 1000);
+  if (events.length === 0 || windowMs <= 0) {
+    return {
+      rapidSwitchCount: 0,
+      rapidSwitchWindowMs: 0,
+      rapidSwitchWindowStart: null,
+      rapidSwitchWindowEnd: null,
+    };
+  }
+
+  let startIndex = 0;
+  let bestStartIndex = 0;
+  let bestEndIndex = 0;
+  let bestCount = 0;
+
+  for (let endIndex = 0; endIndex < events.length; endIndex += 1) {
+    const endTime = timestampMs(events[endIndex].timestamp);
+
+    while (
+      startIndex < endIndex &&
+      endTime - timestampMs(events[startIndex].timestamp) > windowMs
+    ) {
+      startIndex += 1;
+    }
+
+    const windowEvents = events.slice(startIndex, endIndex + 1);
+    const hasLeft = windowEvents.some((event) => event.eventType === 'page_hidden');
+    const hasReturned = windowEvents.some((event) => event.eventType === 'page_visible');
+    const switchCount = windowEvents.length;
+
+    if (hasLeft && hasReturned && switchCount > bestCount) {
+      bestCount = switchCount;
+      bestStartIndex = startIndex;
+      bestEndIndex = endIndex;
+    }
+  }
+
+  if (bestCount === 0) {
+    return {
+      rapidSwitchCount: 0,
+      rapidSwitchWindowMs: 0,
+      rapidSwitchWindowStart: null,
+      rapidSwitchWindowEnd: null,
+    };
+  }
+
+  const start = events[bestStartIndex].timestamp;
+  const end = events[bestEndIndex].timestamp;
+
+  return {
+    rapidSwitchCount: bestCount,
+    rapidSwitchWindowMs: Math.max(0, timestampMs(end) - timestampMs(start)),
+    rapidSwitchWindowStart: timestampIso(start),
+    rapidSwitchWindowEnd: timestampIso(end),
+  };
+}
+
 export class DocumentEventModel {
   /**
    * Batch insert document events efficiently using multi-value INSERT
@@ -361,37 +439,41 @@ export class DocumentEventModel {
     };
   }
 
-  static async getAwayFromWorkspaceStats(documentId: string): Promise<AwayFromWorkspaceStats> {
+  static async getAwayFromWorkspaceStats(
+    documentId: string,
+    rapidSwitchWindowSeconds: number
+  ): Promise<AwayFromWorkspaceStats> {
     const sql = `
-      WITH visibility_events AS (
-        SELECT
-          event_type,
-          CASE
-            WHEN event_type = 'page_visible'
-              AND metadata ? 'hiddenDurationMs'
-              AND (metadata->>'hiddenDurationMs') ~ '^[0-9]+(\\.[0-9]+)?$'
-            THEN GREATEST((metadata->>'hiddenDurationMs')::numeric, 0)
-            ELSE 0
-          END as away_ms
-        FROM document_events
-        WHERE document_id = $1
-          AND event_type IN ('page_hidden', 'page_visible')
-      )
       SELECT
-        COUNT(*) FILTER (WHERE event_type = 'page_hidden')::int as left_count,
-        COUNT(*) FILTER (WHERE event_type = 'page_visible')::int as returned_count,
-        COALESCE(SUM(away_ms), 0)::float as total_away_ms,
-        COALESCE(MAX(away_ms), 0)::float as longest_away_ms
-      FROM visibility_events
+        event_type as "eventType",
+        timestamp,
+        CASE
+          WHEN event_type = 'page_visible'
+            AND metadata ? 'hiddenDurationMs'
+            AND (metadata->>'hiddenDurationMs') ~ '^[0-9]+(\\.[0-9]+)?$'
+          THEN GREATEST((metadata->>'hiddenDurationMs')::numeric, 0)
+          ELSE 0
+        END as "awayMs"
+      FROM document_events
+      WHERE document_id = $1
+        AND event_type IN ('page_hidden', 'page_visible')
+      ORDER BY timestamp ASC, created_at ASC, id ASC
     `;
 
-    const result = await queryOne<any>(sql, [documentId]);
+    const events = await query<VisibilityTraceEvent>(sql, [documentId]);
+    const totalAwayMs = events.reduce((total, event) => total + Number(event.awayMs || 0), 0);
+    const longestAwayMs = events.reduce(
+      (longest, event) => Math.max(longest, Number(event.awayMs || 0)),
+      0
+    );
+    const rapidWindow = computeRapidVisibilityWindow(events, rapidSwitchWindowSeconds);
 
     return {
-      leftCount: parseInt(result?.left_count || '0', 10),
-      returnedCount: parseInt(result?.returned_count || '0', 10),
-      totalAwayMs: Math.round(parseFloat(result?.total_away_ms || '0')),
-      longestAwayMs: Math.round(parseFloat(result?.longest_away_ms || '0')),
+      leftCount: events.filter((event) => event.eventType === 'page_hidden').length,
+      returnedCount: events.filter((event) => event.eventType === 'page_visible').length,
+      totalAwayMs: Math.round(totalAwayMs),
+      longestAwayMs: Math.round(longestAwayMs),
+      ...rapidWindow,
     };
   }
 
@@ -405,7 +487,7 @@ export class DocumentEventModel {
       this.getCadenceFeature(documentId),
       this.getTextInfluxFeature(documentId, thresholds.textInfluxMinimumCharacters),
       this.getFocusInfluxFeature(documentId, thresholds.focusInfluxWindowSeconds),
-      this.getAwayFromWorkspaceStats(documentId),
+      this.getAwayFromWorkspaceStats(documentId, thresholds.rapidTabSwitchWindowSeconds),
       this.getClockSkewFeature(documentId, thresholds.clockSkewMinimumEvents),
       this.calculateTypingMetrics(documentId),
     ]);

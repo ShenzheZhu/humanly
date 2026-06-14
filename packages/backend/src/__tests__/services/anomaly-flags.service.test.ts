@@ -53,6 +53,10 @@ function makeFeatures(
       returnedCount: 0,
       totalAwayMs: 0,
       longestAwayMs: 0,
+      rapidSwitchCount: 0,
+      rapidSwitchWindowMs: 0,
+      rapidSwitchWindowStart: null,
+      rapidSwitchWindowEnd: null,
     },
     clockSkew: {
       sessionId: 'session-1',
@@ -146,29 +150,58 @@ describe('computeWritingAnomalyFlags', () => {
         returnedCount: 1,
         totalAwayMs: 42_000,
         longestAwayMs: 42_000,
+        rapidSwitchCount: 2,
+        rapidSwitchWindowMs: 42_000,
+        rapidSwitchWindowStart: '2026-06-12T12:00:00.000Z',
+        rapidSwitchWindowEnd: '2026-06-12T12:00:42.000Z',
       },
     }));
 
     expect(flags).toEqual([]);
   });
 
-  it('marks repeated or long away-from-workspace visibility as a warning review signal', () => {
+  it('does not mark a single long away-from-workspace absence as rapid tab switching', () => {
+    const flags = computeWritingAnomalyFlags(makeFeatures({
+      awayFromWorkspace: {
+        leftCount: 1,
+        returnedCount: 1,
+        totalAwayMs: 650_000,
+        longestAwayMs: 650_000,
+        rapidSwitchCount: 2,
+        rapidSwitchWindowMs: 90_000,
+        rapidSwitchWindowStart: '2026-06-12T12:00:00.000Z',
+        rapidSwitchWindowEnd: '2026-06-12T12:01:30.000Z',
+      },
+    }));
+
+    expect(flags).toEqual([]);
+  });
+
+  it('marks repeated workspace leave-return transitions in a short window as a warning review signal', () => {
     const flags = computeWritingAnomalyFlags(makeFeatures({
       awayFromWorkspace: {
         leftCount: 3,
         returnedCount: 3,
-        totalAwayMs: 650_000,
-        longestAwayMs: 305_000,
+        totalAwayMs: 12_000,
+        longestAwayMs: 3_000,
+        rapidSwitchCount: 6,
+        rapidSwitchWindowMs: 88_000,
+        rapidSwitchWindowStart: '2026-06-12T12:00:00.000Z',
+        rapidSwitchWindowEnd: '2026-06-12T12:01:28.000Z',
       },
     }));
 
     expect(flags).toHaveLength(1);
     expect(flags[0]).toMatchObject({
-      code: 'long_or_repeated_away_from_workspace',
+      code: 'rapid_tab_switching',
       severity: 'warning',
       evidence: {
-        totalAwayTime: '10min50s',
-        longestAwayTime: '5min5s',
+        switchCount: 6,
+        windowDuration: '1min28s',
+        windowSeconds: 90,
+        thresholdSwitches: 6,
+        windowStart: '2026-06-12T12:00:00.000Z',
+        windowEnd: '2026-06-12T12:01:28.000Z',
       },
     });
   });

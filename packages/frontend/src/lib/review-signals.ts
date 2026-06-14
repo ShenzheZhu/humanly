@@ -56,6 +56,14 @@ export function normalizeReviewSignal(flag: WritingAnomalyFlag): WritingAnomalyF
     };
   }
 
+  if (flag.code === 'rapid_tab_switching') {
+    return {
+      ...flag,
+      label: 'Rapid tab switching',
+      description: 'The writer repeatedly left and returned to the Humanly workspace in a short window.',
+    };
+  }
+
   if (flag.code === 'paste_policy_violation') {
     return {
       ...flag,
