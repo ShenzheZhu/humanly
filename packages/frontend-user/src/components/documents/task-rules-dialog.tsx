@@ -212,7 +212,7 @@ export function TaskRulesDialog({
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            Confirm
           </Button>
         </DialogFooter>
       </DialogContent>
