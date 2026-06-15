@@ -15,6 +15,7 @@ export interface WorkspaceSetupPreviewPayload {
   hasPdf?: boolean;
   mode: 'personal' | 'admin';
   pdfLabel?: string;
+  pdfPreviewUrl?: string;
   selectedAiModel?: string;
   taskWindow?: WorkspaceSetupPreviewTaskWindow;
   title?: string;

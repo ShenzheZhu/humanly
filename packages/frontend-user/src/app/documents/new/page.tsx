@@ -283,6 +283,7 @@ export default function NewDocumentPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | undefined>(undefined);
   const [isCreating, setIsCreating] = useState(false);
   const [environmentSelection, setEnvironmentSelection] = useState<EnvironmentSelection>('default_writing');
   const [environmentConfig, setEnvironmentConfig] = useState<WritingEnvironmentConfig>(getPresetConfig('default_writing'));
@@ -337,6 +338,19 @@ export default function NewDocumentPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!pdfFile || typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') {
+      setPdfPreviewUrl(undefined);
+      return undefined;
+    }
+
+    const objectUrl = URL.createObjectURL(pdfFile);
+    setPdfPreviewUrl(objectUrl);
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [pdfFile]);
 
   const aiModelOptions = useMemo(() => {
     const whitelist = getWhitelist(aiBaseUrl);
@@ -745,6 +759,7 @@ export default function NewDocumentPage() {
     hasPdf: !!pdfFile || !!environmentConfig.instructions.hasInstructionPdf,
     mode: 'personal',
     pdfLabel: pdfFile?.name || 'Linked PDF',
+    pdfPreviewUrl,
     selectedAiModel,
     title,
   });
@@ -1100,10 +1115,26 @@ export default function NewDocumentPage() {
 
       <Card className="overflow-hidden">
         <CardHeader className="p-4 sm:p-5">
-          <CardTitle>Document setup</CardTitle>
-          <CardDescription>
-            Set up the document details, AI access, and writing controls before you start.
-          </CardDescription>
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <CardTitle>Document setup</CardTitle>
+              <CardDescription>
+                Set up the document details, AI access, and writing controls before you start.
+              </CardDescription>
+            </div>
+            <Button asChild variant="outline" className="shrink-0 gap-2">
+              <a
+                href={workspacePreviewHref}
+                target="_blank"
+                rel="noreferrer"
+                aria-disabled={isCreating}
+                className={isCreating ? 'pointer-events-none opacity-50' : undefined}
+              >
+                <Eye className="h-4 w-4" />
+                Preview
+              </a>
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="grid gap-4 px-4 pb-4 pt-0 sm:px-5 sm:pb-5 sm:pt-0 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.2fr)] xl:items-stretch">
           <section className="h-full space-y-3 rounded-lg border border-border/70 bg-background p-3">
@@ -1179,24 +1210,10 @@ export default function NewDocumentPage() {
           </section>
 
           <div className="h-full space-y-4 rounded-lg border border-border/70 bg-background p-3">
-            <div className="flex items-start justify-between gap-4">
-              <SectionHeading
-                title="Environment"
-                description="Choose a default, customize the modules below, or import a JSON or YAML configuration."
-              />
-              <Button asChild variant="outline" className="shrink-0 gap-2">
-                <a
-                  href={workspacePreviewHref}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-disabled={isCreating}
-                  className={isCreating ? 'pointer-events-none opacity-50' : undefined}
-                >
-                  <Eye className="h-4 w-4" />
-                  Preview
-                </a>
-              </Button>
-            </div>
+            <SectionHeading
+              title="Environment"
+              description="Choose a default, customize the modules below, or import a JSON or YAML configuration."
+            />
 
             <div className="humanly-field">
               <Label>Environment</Label>
