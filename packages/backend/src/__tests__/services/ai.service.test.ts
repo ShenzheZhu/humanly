@@ -1017,6 +1017,18 @@ describe('AIService.chat', () => {
     expect(result.logId).toBe('log-1');
   });
 
+  it('marks normal chat logs with chat interaction origin', async () => {
+    await AIService.chat('user-1', request as any);
+
+    expect(MockAIModel.createLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contextSnapshot: expect.objectContaining({
+          interactionOrigin: 'chat',
+        }),
+      }),
+    );
+  });
+
   it('rejects personal-document chat in polish-only mode before creating a session', async () => {
     MockDocumentModel.findByIdAndUserId.mockResolvedValue({
       id: 'doc-1',
@@ -1203,6 +1215,28 @@ describe('AIService.chat', () => {
       }),
     ]);
     expect(MockDocumentEventModel.batchInsert.mock.calls[0][0][0].sessionId).toBeUndefined();
+  });
+
+  it('marks streaming chat logs with chat interaction origin', async () => {
+    mockFetch.mockResolvedValueOnce(mockChatCompletionResponse('Streaming answer.'));
+
+    await new Promise<void>((resolve, reject) => {
+      AIService.streamChat(
+        'user-1',
+        request as any,
+        () => {},
+        () => resolve(),
+        error => reject(error),
+      );
+    });
+
+    expect(MockAIModel.createLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contextSnapshot: expect.objectContaining({
+          interactionOrigin: 'chat',
+        }),
+      }),
+    );
   });
 
   it('answers no-reference context questions without dispatching to the provider', async () => {

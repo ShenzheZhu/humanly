@@ -13,6 +13,8 @@ export type AIQueryType =
   | 'reference'
   | 'other';
 
+export type AIInteractionOrigin = 'chat';
+
 /**
  * AI Chat Message Role
  */
@@ -193,6 +195,7 @@ export interface AIInteractionLog {
     };
     selectedText?: string;
     cursorPosition?: number;
+    interactionOrigin?: AIInteractionOrigin;
     conversationDeleted?: boolean;
     deletedSessionId?: string;
     conversationDeletedAt?: string;

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import TaskSubmissionAnalyticsPage from '@/app/tasks/[id]/submissions/[submissionId]/page';
 
@@ -234,6 +234,45 @@ describe('admin submission analytics page', () => {
       'https://app.writehumanly.net/verify/cert-token-123'
     );
     expect(screen.queryByText(/session/i)).not.toBeInTheDocument();
+  });
+
+  it('shows chat-origin AI logs as Chat even when queryType is format', async () => {
+    mockApiGet.mockResolvedValue({
+      success: true,
+      data: {
+        submission: submissionFixture,
+        events: eventFixtures,
+        totalEvents: eventFixtures.length,
+        timeline: {
+          items: timelineFixtures,
+        },
+        aiLogs: [
+          {
+            id: 'ai-log-chat-format',
+            documentId: 'document-latest',
+            userId: 'user-123',
+            timestamp: '2026-05-15T01:51:30.000Z',
+            query: 'Explain current assignment handout and list the goal',
+            queryType: 'format',
+            contextSnapshot: {
+              interactionOrigin: 'chat',
+            },
+            response: 'The goal is to explain the assignment.',
+            modificationsApplied: false,
+            status: 'success',
+            createdAt: '2026-05-15T01:51:30.000Z',
+          },
+        ],
+      },
+    });
+
+    render(<TaskSubmissionAnalyticsPage />);
+
+    const chatDetail = await screen.findByText(/Explain current assignment handout and list the goal/);
+    const chatRow = chatDetail.closest('tr');
+    expect(chatRow).not.toBeNull();
+    expect(within(chatRow as HTMLElement).getByText('Chat')).toBeInTheDocument();
+    expect(within(chatRow as HTMLElement).queryByText('Format')).not.toBeInTheDocument();
   });
 
   it('returns to the task analytics tab when opened from analytics', async () => {

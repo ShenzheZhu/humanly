@@ -24,7 +24,12 @@ import { MarkdownContent } from '@/components/markdown-content';
 import { API_URL, TokenManager, apiClient } from '@/lib/api-client';
 import { usePublicDocumentToken } from '@/hooks/use-public-document-token';
 import { useAuthStore } from '@/stores/auth-store';
-import { getCopiedTextFromEventMetadata } from '@humanly/shared';
+import {
+  getAIActionLabel,
+  getAIInteractionLogLabel,
+  getCopiedTextFromEventMetadata,
+  isChatAIInteractionLog,
+} from '@humanly/shared';
 import type {
   AIInteractionLog,
   DocumentEventTimelineItem,
@@ -185,29 +190,6 @@ const getRawEventColor = (eventType: string): CSSProperties => {
 
   return DEFAULT_TIMELINE_COLOR;
 };
-
-const AI_ACTION_LABELS: Record<string, string> = {
-  grammar: 'Fix grammar',
-  improve: 'Improve writing',
-  simplify: 'Simplify',
-  formal: 'Make formal',
-  grammar_check: 'Fix grammar',
-  spelling_check: 'Fix spelling',
-  rewrite: 'Rewrite',
-  summarize: 'Summarize',
-  expand: 'Expand',
-  translate: 'Translate',
-  format: 'Format',
-  question: 'Chat',
-  reference: 'Chat',
-  other: 'Chat',
-};
-
-const CHAT_QUERY_TYPES = new Set<AIInteractionLog['queryType']>([
-  'question',
-  'reference',
-  'other',
-]);
 
 type HistoryItem =
   | {
@@ -410,23 +392,6 @@ function isAIAppliedMirrorReplace(
       aiMirrorReplacementMatches(getSelectionText(log), getSuggestedText(log), replacedText, newText)
     );
   });
-}
-
-function getAILogLabel(log: AIInteractionLog) {
-  if (isChatAILog(log)) return 'Chat';
-  if (log.queryType === 'grammar_check') return 'Fix grammar';
-  if (log.query.toLowerCase().includes('simplify')) return 'Simplify';
-  if (log.query.toLowerCase().includes('formal')) return 'Make formal';
-  if (log.query.toLowerCase().includes('improve')) return 'Improve writing';
-  return AI_ACTION_LABELS[log.queryType] || log.queryType;
-}
-
-function getAIActionLabel(actionType: string) {
-  return AI_ACTION_LABELS[actionType] || humanizeCode(actionType);
-}
-
-function isChatAILog(log: AIInteractionLog) {
-  return CHAT_QUERY_TYPES.has(log.queryType);
 }
 
 function getAIStatusLabel(log: AIInteractionLog) {
@@ -2019,8 +1984,8 @@ export default function DocumentLogsPage() {
                   const isExpanded = expandedIds.has(log.id);
                   const beforeText = getSelectionText(log);
                   const afterText = getSuggestedText(log);
-                  const label = getAILogLabel(log);
-                  const isChatLog = isChatAILog(log);
+                  const label = getAIInteractionLogLabel(log);
+                  const isChatLog = isChatAIInteractionLog(log);
                   const detailBeforeText = isChatLog ? log.query : beforeText;
                   const canExpand = canExpandAILog(log);
 
