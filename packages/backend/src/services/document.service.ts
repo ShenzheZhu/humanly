@@ -27,6 +27,7 @@ type DeleteDocumentResult = {
   deleted: boolean;
   taskIds: string[];
   files: AppFile[];
+  blockedTaskSubmission?: boolean;
 };
 
 export class DocumentService {
@@ -182,6 +183,15 @@ export class DocumentService {
 
         const taskIds = linkedTaskResult.rows.map((row: { task_id: string }) => row.task_id);
 
+        if (taskIds.length > 0) {
+          return {
+            deleted: false,
+            taskIds,
+            files: [],
+            blockedTaskSubmission: true,
+          };
+        }
+
         const fileResult = await client.query(
           `
             SELECT ${FileModel.columns}
@@ -192,15 +202,6 @@ export class DocumentService {
           [documentId, userId]
         );
         const files = fileResult.rows as AppFile[];
-
-        await client.query(
-          `
-            DELETE FROM task_enrollments
-            WHERE submission_document_id = $1
-              AND user_id = $2
-          `,
-          [documentId, userId]
-        );
 
         const deletedDocumentResult = await client.query(
           `
@@ -217,6 +218,13 @@ export class DocumentService {
           files,
         };
       });
+
+      if (deleteResult.blockedTaskSubmission) {
+        throw new AppError(
+          409,
+          'Task submission documents cannot be deleted. Remove the task from your dashboard instead.'
+        );
+      }
 
       if (!deleteResult.deleted) {
         throw new AppError(404, 'Document not found or unauthorized');

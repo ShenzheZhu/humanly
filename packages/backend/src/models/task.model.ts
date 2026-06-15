@@ -64,6 +64,8 @@ export interface TaskEnrollmentRecord {
   userId: string;
   documentId: string | null;
   joinedAt: Date;
+  dashboardHiddenAt?: Date | null;
+  dashboardRestoredAt?: Date | null;
 }
 
 export interface CurrentUserTaskEnrollment {
@@ -80,6 +82,10 @@ export interface CurrentUserTaskEnrollment {
   endDate: Date;
   environmentConfig?: WritingEnvironmentConfig | null;
   isActive: boolean;
+  latestSubmissionId?: string | null;
+  latestCertificateId?: string | null;
+  latestCertificateGeneratedAt?: Date | null;
+  certificateCount: number;
 }
 
 export interface ExpiredTimedTaskEnrollment {
@@ -314,24 +320,32 @@ export class TaskModel {
     const sql = `
       INSERT INTO task_enrollments (task_id, user_id)
       VALUES ($1, $2)
-      ON CONFLICT (task_id, user_id) DO NOTHING
+      ON CONFLICT (task_id, user_id) DO UPDATE
+      SET
+        dashboard_restored_at = CASE
+          WHEN task_enrollments.dashboard_hidden_at IS NOT NULL THEN NOW()
+          ELSE task_enrollments.dashboard_restored_at
+        END,
+        dashboard_hidden_at = NULL
     `;
 
     await query(sql, [taskId, userId]);
   }
 
   /**
-   * Remove a user's invite-code enrollment from a task.
+   * Hide a user's invite-code enrollment from their dashboard without deleting
+   * the enrollment or any linked evidence.
    */
-  static async unenrollUser(taskId: string, userId: string): Promise<boolean> {
+  static async hideEnrollmentFromDashboard(taskId: string, userId: string): Promise<boolean> {
     const sql = `
-      DELETE FROM task_enrollments
+      UPDATE task_enrollments
+      SET dashboard_hidden_at = NOW()
       WHERE task_id = $1 AND user_id = $2
       RETURNING id
     `;
 
-    const deletedEnrollment = await queryOne<{ id: string }>(sql, [taskId, userId]);
-    return !!deletedEnrollment;
+    const hiddenEnrollment = await queryOne<{ id: string }>(sql, [taskId, userId]);
+    return !!hiddenEnrollment;
   }
 
   /**
@@ -356,7 +370,9 @@ export class TaskModel {
         task_id as "taskId",
         user_id as "userId",
         submission_document_id as "documentId",
-        joined_at as "joinedAt"
+        joined_at as "joinedAt",
+        dashboard_hidden_at as "dashboardHiddenAt",
+        dashboard_restored_at as "dashboardRestoredAt"
       FROM task_enrollments
       WHERE task_id = $1 AND user_id = $2
       LIMIT 1
@@ -397,13 +413,41 @@ export class TaskModel {
         t.start_date as "startDate",
         t.end_date as "endDate",
         t.environment_config as "environmentConfig",
-        t.is_active as "isActive"
+        t.is_active as "isActive",
+        latest_submission.id as "latestSubmissionId",
+        latest_certificate.id as "latestCertificateId",
+        latest_certificate.generated_at as "latestCertificateGeneratedAt",
+        COALESCE(certificate_stats.certificate_count, 0)::int as "certificateCount"
       FROM task_enrollments te
       JOIN tasks t ON t.id = te.task_id
       LEFT JOIN documents d
         ON d.id = te.submission_document_id
        AND d.user_id = te.user_id
+      LEFT JOIN LATERAL (
+        SELECT s.id
+        FROM submissions s
+        WHERE s.task_id = te.task_id
+          AND s.user_id = te.user_id
+          AND s.document_id = te.submission_document_id
+        ORDER BY (s.status = 'active') DESC, s.submitted_at DESC, s.created_at DESC
+        LIMIT 1
+      ) latest_submission ON true
+      LEFT JOIN LATERAL (
+        SELECT c.id, c.generated_at
+        FROM certificates c
+        WHERE c.user_id = te.user_id
+          AND c.document_id = te.submission_document_id
+        ORDER BY (c.status = 'active') DESC, c.generated_at DESC, c.created_at DESC
+        LIMIT 1
+      ) latest_certificate ON true
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*)::int as certificate_count
+        FROM certificates c
+        WHERE c.user_id = te.user_id
+          AND c.document_id = te.submission_document_id
+      ) certificate_stats ON true
       WHERE te.user_id = $1
+        AND te.dashboard_hidden_at IS NULL
       ORDER BY te.joined_at DESC
     `;
 
