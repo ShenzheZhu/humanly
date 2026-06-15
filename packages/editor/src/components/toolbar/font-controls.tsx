@@ -12,6 +12,7 @@ import {
 } from '../../utils/text-formatting';
 import { FONT_FAMILIES, DEFAULT_FONT_FAMILY } from '../../constants/fonts';
 import { FONT_SIZES, DEFAULT_FONT_SIZE } from '../../constants/font-sizes';
+import { toolbarSectionStyle, toolbarSelectStyle } from './toolbar-styles';
 
 /**
  * FontControls component for font family and size selection
@@ -114,18 +115,9 @@ export function FontControls(): JSX.Element {
 }
 
 const styles = {
-  container: {
-    display: 'flex',
-    gap: '4px',
-  },
+  container: toolbarSectionStyle,
   select: {
-    padding: '6px 8px',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    backgroundColor: '#ffffff',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontFamily: 'inherit',
+    ...toolbarSelectStyle,
     minWidth: '140px',
   },
 };

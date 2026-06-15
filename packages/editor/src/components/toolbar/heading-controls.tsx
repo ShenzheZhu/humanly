@@ -5,6 +5,7 @@ import { $isHeadingNode } from '@lexical/rich-text';
 import { mergeRegister } from '@lexical/utils';
 import { HEADING_CHANGE_COMMAND } from '../../commands/formatting-commands';
 import { $getCurrentHeadingLevel } from '../../plugins/heading-plugin';
+import { toolbarSelectStyle } from './toolbar-styles';
 
 type BlockType = 'paragraph' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
 
@@ -96,13 +97,7 @@ export function HeadingControls(): JSX.Element {
 
 const styles = {
   select: {
-    padding: '6px 12px',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    backgroundColor: '#ffffff',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontFamily: 'inherit',
+    ...toolbarSelectStyle,
     minWidth: '120px',
   },
 };

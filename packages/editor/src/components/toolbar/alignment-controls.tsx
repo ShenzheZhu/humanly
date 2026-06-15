@@ -4,6 +4,11 @@ import { $getSelection, $isRangeSelection, SELECTION_CHANGE_COMMAND } from 'lexi
 import { mergeRegister } from '@lexical/utils';
 import { AlignLeft, AlignCenter, AlignRight, AlignJustify } from 'lucide-react';
 import { ALIGNMENT_CHANGE_COMMAND } from '../../commands/formatting-commands';
+import {
+  toolbarActiveButtonStyle,
+  toolbarIconButtonStyle,
+  toolbarSectionStyle,
+} from './toolbar-styles';
 
 type AlignmentType = 'left' | 'center' | 'right' | 'justify';
 
@@ -76,22 +81,7 @@ export function AlignmentControls(): JSX.Element {
 }
 
 const styles = {
-  container: { display: 'flex', gap: '4px' },
-  button: {
-    padding: '6px 12px',
-    border: '1px solid #d8d9cf',
-    borderRadius: '4px',
-    backgroundColor: '#ffffff',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontFamily: 'inherit',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  activeButton: {
-    backgroundColor: '#1a1c20',
-    color: '#ffffff',
-    borderColor: '#1a1c20',
-  },
+  container: toolbarSectionStyle,
+  button: toolbarIconButtonStyle,
+  activeButton: toolbarActiveButtonStyle,
 };

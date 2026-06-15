@@ -8,6 +8,12 @@ import {
   LIST_CREATE_COMMAND,
   LIST_DELETE_COMMAND,
 } from '../../commands/formatting-commands';
+import {
+  toolbarActiveButtonStyle,
+  toolbarDividerStyle,
+  toolbarIconButtonStyle,
+  toolbarSectionStyle,
+} from './toolbar-styles';
 
 type ListType = 'bullet' | 'number' | 'check' | null;
 
@@ -139,36 +145,15 @@ export function ListControls(): JSX.Element {
 }
 
 const styles = {
-  container: {
-    display: 'flex',
-    gap: '4px',
-    alignItems: 'center',
-  },
-  button: {
-    padding: '6px 12px',
-    border: '1px solid #d8d9cf',
-    borderRadius: '4px',
-    backgroundColor: '#ffffff',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontFamily: 'inherit',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  activeButton: {
-    backgroundColor: '#1a1c20',
-    color: '#ffffff',
-    borderColor: '#1a1c20',
-  },
+  container: toolbarSectionStyle,
+  button: toolbarIconButtonStyle,
+  activeButton: toolbarActiveButtonStyle,
   disabledButton: {
     opacity: 0.5,
     cursor: 'not-allowed',
   },
   divider: {
-    width: '1px',
-    height: '24px',
-    backgroundColor: '#d8d9cf',
+    ...toolbarDividerStyle,
     margin: '0 4px',
   },
 };

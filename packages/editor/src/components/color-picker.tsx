@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { toolbarIconButtonStyle } from './toolbar/toolbar-styles';
 
 interface ColorPickerProps {
   currentColor: string;
@@ -123,16 +124,7 @@ const styles = {
     position: 'relative' as const,
   },
   button: {
-    padding: '6px 12px',
-    border: '1px solid #d1d5db',
-    borderRadius: '4px',
-    backgroundColor: '#ffffff',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontFamily: 'inherit',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    ...toolbarIconButtonStyle,
   },
   dropdown: {
     position: 'absolute' as const,
