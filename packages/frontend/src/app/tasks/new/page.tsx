@@ -1092,27 +1092,24 @@ export default function NewTaskPage() {
       trackCopyPaste: normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) === 'allowed',
     },
   };
-  const handleOpenWorkspacePreview = () => {
-    const payload: WorkspaceSetupPreviewPayload = {
-      allowGuestSubmissions,
-      config: workspacePreviewConfig,
-      description: watchedTaskDescription || '',
-      hasPdf: instructionFiles.length > 0 || !!environmentConfig.instructions.hasInstructionPdf,
-      mode: 'admin',
-      pdfLabel: instructionFiles.length > 1
-        ? `${instructionFiles.length} instruction PDFs`
-        : instructionFiles[0]?.name || 'Instruction PDF',
-      selectedAiModel,
-      taskWindow: {
-        enabled: timeLimitEnabled,
-        startDate: watchedStartDate,
-        endDate: watchedEndDate,
-      },
-      title: watchedTaskName,
-    };
-    const previewUrl = `${getFrontendUserUrl()}/documents/preview${buildWorkspaceSetupPreviewHash(payload)}`;
-    window.open(previewUrl, '_blank', 'noopener,noreferrer');
-  };
+  const getWorkspacePreviewPayload = (): WorkspaceSetupPreviewPayload => ({
+    allowGuestSubmissions,
+    config: workspacePreviewConfig,
+    description: watchedTaskDescription || '',
+    hasPdf: instructionFiles.length > 0 || !!environmentConfig.instructions.hasInstructionPdf,
+    mode: 'admin',
+    pdfLabel: instructionFiles.length > 1
+      ? `${instructionFiles.length} instruction PDFs`
+      : instructionFiles[0]?.name || 'Instruction PDF',
+    selectedAiModel,
+    taskWindow: {
+      enabled: timeLimitEnabled,
+      startDate: watchedStartDate,
+      endDate: watchedEndDate,
+    },
+    title: watchedTaskName,
+  });
+  const workspacePreviewHref = `${getFrontendUserUrl()}/documents/preview${buildWorkspaceSetupPreviewHash(getWorkspacePreviewPayload())}`;
   const customEnvironmentControls = (
     <div className="grid gap-4 xl:grid-cols-2">
       <div className="space-y-4 rounded-md border p-4 xl:col-span-2">
@@ -1774,15 +1771,17 @@ export default function NewTaskPage() {
                     title="Environment"
                     description="Choose a default, customize task controls, or import a JSON or YAML environment."
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleOpenWorkspacePreview}
-                    disabled={isSubmitting}
-                    className="shrink-0 gap-2"
-                  >
-                    <Eye className="h-4 w-4" />
-                    Preview
+                  <Button asChild variant="outline" className="shrink-0 gap-2">
+                    <a
+                      href={workspacePreviewHref}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-disabled={isSubmitting}
+                      className={isSubmitting ? 'pointer-events-none opacity-50' : undefined}
+                    >
+                      <Eye className="h-4 w-4" />
+                      Preview
+                    </a>
                   </Button>
                 </div>
 

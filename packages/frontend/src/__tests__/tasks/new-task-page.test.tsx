@@ -166,7 +166,7 @@ describe('admin new task page', () => {
     expect(screen.getByText('Two-week window')).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: /allow guest submissions/i })).toBeChecked();
     expect(screen.queryByLabelText(/AI Usage Limit/i)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /preview/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /preview/i })).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: /workspace preview/i })).not.toBeInTheDocument();
 
     await act(async () => {
@@ -210,8 +210,6 @@ describe('admin new task page', () => {
   });
 
   it('opens a user workspace preview tab with full AI, PDFs, and session timers', async () => {
-    const openSpy = jest.spyOn(window, 'open').mockImplementation(() => null);
-
     render(<NewTaskPage />);
 
     expect(await screen.findByRole('heading', { name: 'New Task' })).toBeInTheDocument();
@@ -239,15 +237,11 @@ describe('admin new task page', () => {
     });
     await closeCustomEnvironmentDialog();
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /preview/i }));
-    });
-
-    expect(openSpy).toHaveBeenCalledTimes(1);
-    const [previewUrl, target, features] = openSpy.mock.calls[0];
+    const previewLink = screen.getByRole('link', { name: /preview/i });
+    const previewUrl = previewLink.getAttribute('href');
     expect(previewUrl).toContain('/documents/preview#workspacePreview=');
-    expect(target).toBe('_blank');
-    expect(features).toBe('noopener,noreferrer');
+    expect(previewLink).toHaveAttribute('target', '_blank');
+    expect(previewLink).toHaveAttribute('rel', 'noreferrer');
 
     const encodedPayload = getWorkspaceSetupPreviewHashValue(new URL(previewUrl as string, 'https://admin.writehumanly.net').hash);
     expect(encodedPayload).toBeTruthy();
@@ -261,8 +255,6 @@ describe('admin new task page', () => {
     expect(payload.taskWindow).toEqual(expect.objectContaining({
       enabled: true,
     }));
-
-    openSpy.mockRestore();
   });
 
   it('creates tasks and instruction PDFs in one multipart request', async () => {

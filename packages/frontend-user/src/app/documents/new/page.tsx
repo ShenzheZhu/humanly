@@ -739,19 +739,17 @@ export default function NewDocumentPage() {
       trackCopyPaste: normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) === 'allowed',
     },
   };
-  const handleOpenWorkspacePreview = () => {
-    const payload: WorkspaceSetupPreviewPayload = {
-      config: workspacePreviewConfig,
-      description,
-      hasPdf: !!pdfFile || !!environmentConfig.instructions.hasInstructionPdf,
-      mode: 'personal',
-      pdfLabel: pdfFile?.name || 'Linked PDF',
-      selectedAiModel,
-      title,
-    };
+  const getWorkspacePreviewPayload = (): WorkspaceSetupPreviewPayload => ({
+    config: workspacePreviewConfig,
+    description,
+    hasPdf: !!pdfFile || !!environmentConfig.instructions.hasInstructionPdf,
+    mode: 'personal',
+    pdfLabel: pdfFile?.name || 'Linked PDF',
+    selectedAiModel,
+    title,
+  });
+  const workspacePreviewHref = `/documents/preview${buildWorkspaceSetupPreviewHash(getWorkspacePreviewPayload())}`;
 
-    window.open(`/documents/preview${buildWorkspaceSetupPreviewHash(payload)}`, '_blank', 'noopener,noreferrer');
-  };
   const customEnvironmentControls = (
     <div className="grid gap-4 lg:grid-cols-2">
       <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4 lg:col-span-2">
@@ -1186,15 +1184,17 @@ export default function NewDocumentPage() {
                 title="Environment"
                 description="Choose a default, customize the modules below, or import a JSON or YAML configuration."
               />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleOpenWorkspacePreview}
-                disabled={isCreating}
-                className="shrink-0 gap-2"
-              >
-                <Eye className="h-4 w-4" />
-                Preview
+              <Button asChild variant="outline" className="shrink-0 gap-2">
+                <a
+                  href={workspacePreviewHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-disabled={isCreating}
+                  className={isCreating ? 'pointer-events-none opacity-50' : undefined}
+                >
+                  <Eye className="h-4 w-4" />
+                  Preview
+                </a>
               </Button>
             </div>
 

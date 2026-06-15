@@ -132,7 +132,7 @@ describe('document creation workflow', () => {
     expect(screen.getByText('Choose Custom to configure AI access, copy-paste rules, or a time limit.')).toBeInTheDocument();
     expect(screen.queryByText('Writing Control')).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/ai api key/i)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /preview/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /preview/i })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /^create writing$/i }));
 
@@ -178,7 +178,6 @@ describe('document creation workflow', () => {
 
   it('opens a workspace preview tab with the current full AI and timed writing settings', async () => {
     const user = userEvent.setup();
-    const openSpy = jest.spyOn(window, 'open').mockImplementation(() => null);
 
     render(<NewDocumentPage />);
 
@@ -192,13 +191,11 @@ describe('document creation workflow', () => {
     await user.click(await screen.findByRole('option', { name: 'Time limited' }));
     await user.click(screen.getByRole('button', { name: 'Done' }));
 
-    await user.click(screen.getByRole('button', { name: /preview/i }));
-
-    expect(openSpy).toHaveBeenCalledTimes(1);
-    const [previewUrl, target, features] = openSpy.mock.calls[0];
+    const previewLink = screen.getByRole('link', { name: /preview/i });
+    const previewUrl = previewLink.getAttribute('href');
     expect(previewUrl).toContain('/documents/preview#workspacePreview=');
-    expect(target).toBe('_blank');
-    expect(features).toBe('noopener,noreferrer');
+    expect(previewLink).toHaveAttribute('target', '_blank');
+    expect(previewLink).toHaveAttribute('rel', 'noreferrer');
 
     const encodedPayload = getWorkspaceSetupPreviewHashValue(new URL(previewUrl as string, 'https://app.writehumanly.net').hash);
     expect(encodedPayload).toBeTruthy();
@@ -206,8 +203,6 @@ describe('document creation workflow', () => {
     expect(payload.mode).toBe('personal');
     expect(payload.config.aiAccess).toBe('full');
     expect(payload.config.time.timeLimitSeconds).toBe(3600);
-
-    openSpy.mockRestore();
   });
 
   const getEnvironmentConfigInput = () => (
