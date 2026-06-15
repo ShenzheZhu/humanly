@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt="Humanly" src="./docs/assets/humanly-readme-banner.gif" width="700">
+  <img alt="Humanly" src="./docs/assets/humanly-readme-banner.gif" width="600">
 </p>
 
 <h1 align="center">Humanly</h1>
@@ -16,14 +16,11 @@
 </p>
 
 <p align="center">
-  <a href="https://app.writehumanly.net/"><img alt="User portal" src="https://img.shields.io/badge/writehumanly.net-app-1b1c1f?style=flat-square"></a>
-  <a href="https://github.com/ShenzheZhu/humanly/releases/tag/v0.4.0"><img alt="Release" src="https://img.shields.io/badge/release-v0.4.0-6f7f6f?style=flat-square"></a>
-  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5-3178c6?style=flat-square">
-  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-14-1b1c1f?style=flat-square">
-  <img alt="Express" src="https://img.shields.io/badge/Express-API-7f927f?style=flat-square">
-  <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-TimescaleDB-416d8b?style=flat-square">
-  <img alt="Socket.IO" src="https://img.shields.io/badge/Socket.IO-realtime-8a8f7a?style=flat-square">
-  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-green?style=flat-square"></a>
+  <a href="https://app.writehumanly.net/"><img alt="User portal" src="https://img.shields.io/badge/writehumanly.net-app-7f927f?style=flat-square"></a>
+  <a href="https://github.com/ShenzheZhu/humanly/releases/tag/v0.4.0"><img alt="Release" src="https://img.shields.io/badge/release-v0.4.0-8f8578?style=flat-square"></a>
+  <img alt="Frontend stack" src="https://img.shields.io/badge/TypeScript%20%2F%20Next.js-frontend-7f8f96?style=flat-square">
+  <img alt="Backend stack" src="https://img.shields.io/badge/Express%20%2F%20PostgreSQL-backend-9a8f80?style=flat-square">
+  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-8d9b87?style=flat-square"></a>
 </p>
 
 <h2 id="overview">Overview</h2>
