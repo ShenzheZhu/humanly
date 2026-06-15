@@ -434,6 +434,7 @@ export default function NewTaskPage() {
   const { toast } = useToast();
   const [error, setError] = useState<string | null>(null);
   const [instructionFiles, setInstructionFiles] = useState<File[]>([]);
+  const [instructionPdfPreviewUrl, setInstructionPdfPreviewUrl] = useState<string | undefined>(undefined);
   const [aiAccess, setAiAccessState] = useState<WritingAiAccess>('off');
   const [aiBaseUrl, setAiBaseUrl] = useState(DEFAULT_AI_BASE_URL);
   const [aiApiKey, setAiApiKey] = useState('');
@@ -544,6 +545,20 @@ export default function NewTaskPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    const firstPdf = instructionFiles[0];
+    if (!firstPdf || typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') {
+      setInstructionPdfPreviewUrl(undefined);
+      return undefined;
+    }
+
+    const objectUrl = URL.createObjectURL(firstPdf);
+    setInstructionPdfPreviewUrl(objectUrl);
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [instructionFiles]);
 
   const aiModelOptions = useMemo(() => {
     const whitelist = getWhitelist(aiBaseUrl);
@@ -1101,6 +1116,7 @@ export default function NewTaskPage() {
     pdfLabel: instructionFiles.length > 1
       ? `${instructionFiles.length} instruction PDFs`
       : instructionFiles[0]?.name || 'Instruction PDF',
+    pdfPreviewUrl: instructionPdfPreviewUrl,
     selectedAiModel,
     taskWindow: {
       enabled: timeLimitEnabled,
@@ -1636,10 +1652,26 @@ export default function NewTaskPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Task Configuration</CardTitle>
-          <CardDescription>
-            Set up the task details, instruction files, timing, and environment before enrollment starts.
-          </CardDescription>
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <CardTitle>Task Configuration</CardTitle>
+              <CardDescription>
+                Set up the task details, instruction files, timing, and environment before enrollment starts.
+              </CardDescription>
+            </div>
+            <Button asChild variant="outline" className="shrink-0 gap-2">
+              <a
+                href={workspacePreviewHref}
+                target="_blank"
+                rel="noreferrer"
+                aria-disabled={isSubmitting}
+                className={isSubmitting ? 'pointer-events-none opacity-50' : undefined}
+              >
+                <Eye className="h-4 w-4" />
+                Preview
+              </a>
+            </Button>
+          </div>
         </CardHeader>
 
         <Form {...form}>
@@ -1766,24 +1798,10 @@ export default function NewTaskPage() {
               </section>
 
               <div className="space-y-5 rounded-md border p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <SectionHeading
-                    title="Environment"
-                    description="Choose a default, customize task controls, or import a JSON or YAML environment."
-                  />
-                  <Button asChild variant="outline" className="shrink-0 gap-2">
-                    <a
-                      href={workspacePreviewHref}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-disabled={isSubmitting}
-                      className={isSubmitting ? 'pointer-events-none opacity-50' : undefined}
-                    >
-                      <Eye className="h-4 w-4" />
-                      Preview
-                    </a>
-                  </Button>
-                </div>
+                <SectionHeading
+                  title="Environment"
+                  description="Choose a default, customize task controls, or import a JSON or YAML environment."
+                />
 
                 <div className="grid gap-2">
                   <FormLabel>Environment</FormLabel>

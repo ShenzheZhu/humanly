@@ -20,8 +20,9 @@ import { api } from '@/lib/api-client'
 import { usePDFTextStore } from '@/stores/pdf-text-store'
 
 interface PDFViewerProps {
-  fileId: string
+  fileId?: string
   documentId?: string
+  previewUrl?: string
   viewOnly?: boolean
 }
 
@@ -59,7 +60,7 @@ function getTextItemHighlightRect(item: any, matchStart: number, matchLength: nu
   }
 }
 
-export default function PDFViewer({ fileId, documentId, viewOnly = false }: PDFViewerProps) {
+export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = false }: PDFViewerProps) {
   const [numPages, setNumPages] = useState<number>(0)
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [textExtractionError, setTextExtractionError] = useState<string | null>(null)
@@ -250,9 +251,13 @@ export default function PDFViewer({ fileId, documentId, viewOnly = false }: PDFV
         }
         if (!window.pdfjsLib) throw new Error('PDF.js failed to load')
 
-        const url = await fileApi.getPdfBlob(fileId, { viewOnly })
+        if (!previewUrl && !fileId) {
+          throw new Error('No PDF file available')
+        }
+
+        const url = previewUrl || await fileApi.getPdfBlob(fileId!, { viewOnly })
         if (cancelled) return
-        blobUrl = url
+        blobUrl = previewUrl ? null : url
         setPdfBlobUrl(url)
 
         const pdf = await window.pdfjsLib.getDocument(url).promise
@@ -262,7 +267,7 @@ export default function PDFViewer({ fileId, documentId, viewOnly = false }: PDFV
         setFitToWidth(true)
         setLoading(false)
 
-        if (documentId && !viewOnly && !cancelled) {
+        if (documentId && fileId && !previewUrl && !viewOnly && !cancelled) {
           extractPDFTextInBackground(pdf, documentId, fileId)
         }
       } catch (err: any) {
@@ -286,7 +291,7 @@ export default function PDFViewer({ fileId, documentId, viewOnly = false }: PDFV
       }
       pdfDocRef.current = null
     }
-  }, [fileId, documentId, viewOnly, extractPDFTextInBackground, cancelCurrentRenderGeneration])
+  }, [fileId, documentId, previewUrl, viewOnly, extractPDFTextInBackground, cancelCurrentRenderGeneration])
 
   // Re-render all pages on scale change
   useEffect(() => {
@@ -509,7 +514,7 @@ export default function PDFViewer({ fileId, documentId, viewOnly = false }: PDFV
 
     const anchor = document.createElement('a')
     anchor.href = pdfBlobUrl
-    anchor.download = `humanly-source-${fileId}.pdf`
+    anchor.download = `humanly-source-${fileId || 'preview'}.pdf`
     anchor.style.display = 'none'
     document.body.appendChild(anchor)
     anchor.click()

@@ -52,6 +52,12 @@ interface AIAssistantPanelProps {
   insertAtCursor?: ((text: string, source: { messageId: string; logId?: string }) => void | Promise<void>) | null;
 }
 
+interface AIAssistantPanelPreviewProps {
+  lockedModel?: string;
+  lockedBaseUrl?: string;
+  onClose?: () => void;
+}
+
 const QUICK_ACTION_PROMPT_PREFIXES = [
   'Fix any grammar, spelling, and punctuation errors in the following text.',
   'Improve the following text to make it clearer and more professional while keeping the same meaning.',
@@ -866,6 +872,126 @@ export function AIAssistantPanel({
                 <Trash2 className="h-4 w-4" />
               </Button>
             )}
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+export function AIAssistantPanelPreview({
+  lockedModel,
+  lockedBaseUrl,
+  onClose,
+}: AIAssistantPanelPreviewProps) {
+  const modelLabel = lockedModel
+    ? formatModelOptionLabel(lockedBaseUrl || '', lockedModel)
+    : null;
+  const supportsImage = lockedModel
+    ? modelSupportsImage(lockedBaseUrl || '', lockedModel)
+    : false;
+
+  return (
+    <div className="flex h-full w-full flex-col bg-background min-w-0 overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-background shrink-0 min-w-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <Sparkles className="h-4 w-4 text-primary shrink-0" />
+          <span className="font-medium text-sm truncate">AI Assistant</span>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            title="New Chat"
+            onClick={(event) => event.preventDefault()}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            title="Chat History"
+            onClick={(event) => event.preventDefault()}
+          >
+            <History className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={onClose || ((event) => event.preventDefault())}
+            title="Close assistant"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 w-full">
+        <div className="p-4 space-y-4 w-full min-w-0">
+          <div className="text-center py-12">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <Sparkles className="h-6 w-6 text-primary" />
+            </div>
+            <h3 className="font-medium text-sm mb-1">How can I help?</h3>
+            <p className="text-xs text-muted-foreground max-w-[200px] mx-auto">
+              Ask me about grammar, style, or let me help you rewrite content.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div
+        data-testid="ai-chat-input-stack"
+        className="flex flex-col gap-2.5 border-t p-4 bg-background shrink-0 w-full min-w-0"
+      >
+        {modelLabel ? (
+          <div className="rounded-lg border bg-muted/40 px-2 py-1.5 text-[11px] text-muted-foreground">
+            AI model: {modelLabel}
+          </div>
+        ) : null}
+        <form
+          data-testid="ai-chat-input-form"
+          className="flex gap-2 min-w-0"
+          onSubmit={(event) => event.preventDefault()}
+        >
+          <div className="flex-1 relative min-w-0">
+            <Textarea
+              value=""
+              readOnly
+              placeholder="Type your message..."
+              className="min-h-[80px] max-h-[160px] resize-none text-sm w-full"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5 shrink-0">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-9 w-9 p-0"
+              disabled={!supportsImage}
+              aria-label="Attach image"
+              title={
+                supportsImage
+                  ? 'Attach image (png/jpeg/webp/gif, <=10 MB)'
+                  : `"${lockedModel || 'Current model'}" doesn't accept image input`
+              }
+            >
+              <ImageIcon className="h-4 w-4" />
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              className="h-9 w-9 p-0"
+              disabled
+            >
+              <Send className="h-4 w-4" />
+            </Button>
           </div>
         </form>
       </div>

@@ -4,17 +4,12 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   Award,
-  BookOpen,
-  Check,
   ChevronDown,
   Clock,
   Download,
   FileText,
   HelpCircle,
-  MessageSquare,
   PanelLeftClose,
-  Sparkles,
-  Wand2,
 } from 'lucide-react';
 import { LexicalEditor } from '@humanly/editor';
 import {
@@ -32,7 +27,8 @@ import {
   type WritingEnvironmentConfig,
 } from '@humanly/shared';
 
-import { AIAssistantButton } from '@/components/ai';
+import { AIAssistantButton, AIAssistantPanelPreview, AISelectionMenu } from '@/components/ai';
+import PDFViewer from '@/components/pdf/PDFViewer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -44,6 +40,37 @@ import { formatDateTime } from '@/lib/utils';
 
 const CANVAS = 'mx-auto w-full max-w-[2400px] px-3 sm:px-4';
 const PREVIEW_DOCUMENT_ID = 'workspace-preview';
+const PREVIEW_SELECTED_TEXT = 'This selected sentence shows where AI writing tools appear.';
+const PREVIEW_EDITOR_TEXT = `${PREVIEW_SELECTED_TEXT} The rest of this paragraph remains visible so the preview looks like the real writing workspace after a writer has typed and selected text.`;
+const PREVIEW_EDITOR_CONTENT = {
+  root: {
+    children: [
+      {
+        children: [
+          {
+            detail: 0,
+            format: 0,
+            mode: 'normal',
+            style: '',
+            text: PREVIEW_EDITOR_TEXT,
+            type: 'text',
+            version: 1,
+          },
+        ],
+        direction: 'ltr',
+        format: '',
+        indent: 0,
+        type: 'paragraph',
+        version: 1,
+      },
+    ],
+    direction: 'ltr',
+    format: '',
+    indent: 0,
+    type: 'root',
+    version: 1,
+  },
+};
 
 function normalizePreviewConfig(config: Partial<WritingEnvironmentConfig> | undefined): WritingEnvironmentConfig {
   const sourceConfig = config || {};
@@ -168,7 +195,15 @@ function getTraceabilityLabel(config: WritingEnvironmentConfig): string {
   return enabled.length ? enabled.join(', ') : 'Minimal';
 }
 
-function EmptyPdfPreview({ label, viewOnly }: { label?: string; viewOnly: boolean }) {
+function PdfPreviewPanel({
+  label,
+  previewUrl,
+  viewOnly,
+}: {
+  label?: string;
+  previewUrl?: string;
+  viewOnly: boolean;
+}) {
   return (
     <div className="flex h-full flex-col overflow-hidden border-r border-border/70 bg-card">
       <div className="flex items-center justify-between gap-3 border-b border-border/70 bg-muted/25 px-3 py-2">
@@ -180,20 +215,40 @@ function EmptyPdfPreview({ label, viewOnly }: { label?: string; viewOnly: boolea
           {viewOnly ? 'View only' : 'Downloadable'}
         </Badge>
       </div>
-      <div className="flex min-h-0 flex-1 items-center justify-center bg-muted/20 p-6">
-        <div className="w-full max-w-md rounded-lg border border-dashed border-border/80 bg-background p-6 text-center">
-          <FileText className="mx-auto h-10 w-10 text-muted-foreground" />
-          <p className="mt-3 text-sm font-medium">PDF panel preview</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            The real workspace loads this file after the writing document or task is created.
-          </p>
-        </div>
+      <div className="min-h-0 flex-1 bg-muted/20">
+        {previewUrl ? (
+          <PDFViewer
+            documentId={PREVIEW_DOCUMENT_ID}
+            previewUrl={previewUrl}
+            viewOnly={viewOnly}
+          />
+        ) : (
+          <div className="flex h-full items-start justify-center overflow-auto p-5">
+            <div className="min-h-[72%] w-full max-w-[520px] rounded-sm bg-background p-8 shadow-lg">
+              <div className="mb-6 h-5 w-2/3 rounded bg-muted" />
+              <div className="space-y-3">
+                <div className="h-3 rounded bg-muted/80" />
+                <div className="h-3 rounded bg-muted/80" />
+                <div className="h-3 w-5/6 rounded bg-muted/80" />
+                <div className="h-3 w-4/6 rounded bg-muted/80" />
+              </div>
+              <div className="mt-8 space-y-3">
+                <div className="h-3 rounded bg-muted/70" />
+                <div className="h-3 w-11/12 rounded bg-muted/70" />
+                <div className="h-3 w-3/4 rounded bg-muted/70" />
+              </div>
+              <p className="mt-8 text-xs text-muted-foreground">
+                First page preview appears here when a local PDF is selected.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function StaticSelectionActions({
+function PreviewSelectionActions({
   allowAskAI,
   allowPolish,
 }: {
@@ -202,69 +257,38 @@ function StaticSelectionActions({
 }) {
   if (!allowAskAI && !allowPolish) return null;
 
-  const actions = [
-    { icon: <Check className="h-3.5 w-3.5" />, label: 'Fix grammar', visible: allowPolish },
-    { icon: <Wand2 className="h-3.5 w-3.5" />, label: 'Improve writing', visible: allowPolish },
-    { icon: <BookOpen className="h-3.5 w-3.5" />, label: 'Simplify', visible: allowPolish },
-    { icon: <Sparkles className="h-3.5 w-3.5" />, label: 'Make formal', visible: allowPolish },
-    { icon: <MessageSquare className="h-3.5 w-3.5" />, label: 'Ask AI', visible: allowAskAI },
-  ].filter((action) => action.visible);
-
   return (
-    <div className="absolute left-8 top-28 z-10 flex items-center gap-0.5 rounded-lg border bg-background/95 p-1 shadow-lg backdrop-blur-sm">
-      {actions.map((action, index) => (
-        <div key={action.label} className="flex items-center gap-0.5">
-          {index > 0 && action.label === 'Ask AI' && allowPolish ? (
-            <div className="mx-0.5 h-5 w-px bg-border" />
-          ) : null}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1.5 px-2.5 text-xs font-medium"
-            disabled
-          >
-            {action.icon}
-            {action.label}
-          </Button>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function StaticAIAssistantPanel({ model }: { model?: string }) {
-  return (
-    <div className="flex h-full flex-col bg-card">
-      <div className="border-b border-border/70 px-4 py-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <Sparkles className="h-4 w-4 text-muted-foreground" />
-            <h2 className="truncate text-sm font-semibold">AI Assistant</h2>
-          </div>
-          {model ? (
-            <Badge variant="outline" className="max-w-[180px] truncate rounded-md">
-              {model}
-            </Badge>
-          ) : null}
-        </div>
+    <div className="pointer-events-none absolute left-8 top-[5.25rem] z-10">
+      <div className="mb-2 inline rounded bg-[#cfe0f5]/80 px-1 py-0.5 text-sm text-transparent">
+        {PREVIEW_SELECTED_TEXT}
       </div>
-      <div className="min-h-0 flex-1 space-y-3 overflow-auto p-4 text-sm">
-        <div className="max-w-[88%] rounded-lg bg-muted/45 p-3 text-muted-foreground">
-          Ask questions inside Humanly while the interaction is logged with the document.
-        </div>
-        <div className="ml-auto max-w-[88%] rounded-lg bg-primary px-3 py-2 text-primary-foreground">
-          Can you help me understand this paragraph?
-        </div>
-        <div className="max-w-[88%] rounded-lg border border-border/70 bg-background p-3 text-muted-foreground">
-          I can help with allowed writing support for this workspace.
-        </div>
-      </div>
-      <div className="border-t border-border/70 p-3">
-        <div className="rounded-lg border border-border/70 bg-background px-3 py-2 text-sm text-muted-foreground">
-          Message Humanly AI...
-        </div>
-      </div>
+      <AISelectionMenu
+        documentId={PREVIEW_DOCUMENT_ID}
+        selection={{
+          text: PREVIEW_SELECTED_TEXT,
+          start: 0,
+          end: PREVIEW_SELECTED_TEXT.length,
+          rect: {
+            bottom: 0,
+            height: 0,
+            left: 0,
+            right: 0,
+            top: 0,
+            width: 0,
+            x: 0,
+            y: 0,
+            toJSON: () => ({}),
+          } as DOMRect,
+        }}
+        onClose={() => undefined}
+        replaceSelection={() => undefined}
+        cancelAIAction={() => undefined}
+        undoLastAction={() => undefined}
+        onAskAI={() => undefined}
+        taskManaged
+        allowPolishActions={allowPolish}
+        allowAskAI={allowAskAI}
+      />
     </div>
   );
 }
@@ -319,6 +343,7 @@ export default function WorkspacePreviewPage() {
     : null;
   const taskWindowLabel = getTaskWindowLabel(payload);
   const lockedAiModel = payload.selectedAiModel || config.allowedModels?.[0] || config.customModels?.[0];
+  const lockedAiBaseUrl = config.aiProvider?.baseUrl;
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
@@ -423,7 +448,11 @@ export default function WorkspacePreviewPage() {
           <ResizablePanelGroup direction="horizontal" className="h-full w-full overflow-hidden rounded-lg border border-border/80 bg-card">
             {hasPdf ? (
               <ResizablePanel defaultSize={38} minSize={22}>
-                <EmptyPdfPreview label={payload.pdfLabel} viewOnly={isResourceViewOnly} />
+                <PdfPreviewPanel
+                  label={payload.pdfLabel}
+                  previewUrl={payload.pdfPreviewUrl}
+                  viewOnly={isResourceViewOnly}
+                />
               </ResizablePanel>
             ) : null}
 
@@ -447,7 +476,7 @@ export default function WorkspacePreviewPage() {
                   <div className="relative h-full">
                     <LexicalEditor
                       documentId={PREVIEW_DOCUMENT_ID}
-                      initialContent={undefined}
+                      initialContent={PREVIEW_EDITOR_CONTENT}
                       placeholder={hasPdf ? 'Start writing with your PDF open...' : 'Start typing your document...'}
                       editable={false}
                       trackingEnabled={false}
@@ -457,7 +486,7 @@ export default function WorkspacePreviewPage() {
                       className="h-full"
                     />
                     {aiEnabled ? (
-                      <StaticSelectionActions
+                      <PreviewSelectionActions
                         allowAskAI={aiChatEnabled}
                         allowPolish={aiPolishEnabled}
                       />
@@ -476,7 +505,10 @@ export default function WorkspacePreviewPage() {
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize={25} minSize={18}>
                   <div className="h-full overflow-hidden border-l border-border/70 bg-card">
-                    <StaticAIAssistantPanel model={lockedAiModel} />
+                    <AIAssistantPanelPreview
+                      lockedModel={lockedAiModel}
+                      lockedBaseUrl={lockedAiBaseUrl}
+                    />
                   </div>
                 </ResizablePanel>
               </>
