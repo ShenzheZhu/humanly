@@ -89,6 +89,9 @@ interface TaskEnrollment {
   startDate?: string;
   endDate?: string;
   environmentConfig?: WritingEnvironmentConfig | null;
+  latestCertificateId?: string | null;
+  latestCertificateGeneratedAt?: string | Date | null;
+  certificateCount?: number;
 }
 
 interface TimedWritingSource {
@@ -234,7 +237,7 @@ const getWritingTimerState = (
 
 export default function DocumentsPage() {
   const router = useRouter();
-  const { documents, isLoading, error, createDocument, deleteDocument } = useDocuments();
+  const { documents, isLoading, error, fetchDocuments, createDocument, deleteDocument } = useDocuments();
   const { toast } = useToast();
   const [sortBy, setSortBy] = useState<SortOption>('lastEdited');
   const [documentViewMode, setDocumentViewMode] = useState<DocumentViewMode>('list');
@@ -296,20 +299,19 @@ export default function DocumentsPage() {
 
   const handleDeleteTaskEnrollment = async () => {
     if (!taskToDelete) return;
-    if (!taskToDelete.documentId) return;
 
     try {
       await apiClient.delete(`/tasks/enrollments/${taskToDelete.id}`);
-      await deleteDocument(taskToDelete.documentId);
       await fetchTaskEnrollments();
+      await fetchDocuments();
       toast({
         title: 'Task removed',
-        description: 'The task submission was deleted from your dashboard',
+        description: 'The task is hidden from this dashboard. Rejoining restores the same submission.',
       });
     } catch (err: any) {
       toast({
         title: 'Error',
-        description: err.message || 'Failed to delete task',
+        description: err.message || 'Failed to remove task',
         variant: 'destructive',
       });
     } finally {
@@ -328,11 +330,7 @@ export default function DocumentsPage() {
       return;
     }
 
-    if (taskEnrollments.some((task) => (
-      task.inviteCode === normalizedCode &&
-      task.documentId &&
-      (documents || []).some((document) => document.id === task.documentId)
-    ))) {
+    if (taskEnrollments.some((task) => task.inviteCode === normalizedCode)) {
       toast({
         title: 'Already joined',
         description: 'This task is already on your dashboard',
@@ -352,36 +350,46 @@ export default function DocumentsPage() {
         throw new Error('Task invite code not found');
       }
 
-      const document = await createDocument(
-        `${enrollmentFromApi.name} Submission`,
-        undefined,
-        enrollmentFromApi.environmentConfig || null
-      );
+      const existingDocumentId = enrollmentFromApi.documentId || null;
+      const document = existingDocumentId
+        ? null
+        : await createDocument(
+            `${enrollmentFromApi.name} Submission`,
+            undefined,
+            enrollmentFromApi.environmentConfig || null
+          );
 
       const enrollment: TaskEnrollment = {
         id: enrollmentFromApi?.id || normalizedCode,
+        taskId: enrollmentFromApi?.taskId || enrollmentFromApi?.id || normalizedCode,
+        enrollmentId: enrollmentFromApi?.enrollmentId,
         name: enrollmentFromApi.name,
         description: enrollmentFromApi?.description || 'Task joined with invite code',
         startDate: enrollmentFromApi?.startDate,
         endDate: enrollmentFromApi?.endDate,
         environmentConfig: enrollmentFromApi?.environmentConfig || null,
         inviteCode: normalizedCode,
-        documentId: document.id,
-        joinedAt: new Date().toISOString(),
+        documentId: existingDocumentId || document?.id || null,
+        joinedAt: enrollmentFromApi?.joinedAt || new Date().toISOString(),
       };
 
-      await apiClient.put(`/tasks/enrollments/${enrollment.id}/submission-document`, {
-        documentId: document.id,
-      });
+      if (document?.id) {
+        await apiClient.put(`/tasks/enrollments/${enrollment.id}/submission-document`, {
+          documentId: document.id,
+        });
+      }
 
       await fetchTaskEnrollments();
+      await fetchDocuments();
       setShowJoinDialog(false);
       setInviteCode('');
       setActiveWorkspaceTab('tasks');
 
       toast({
-        title: 'Task joined',
-        description: 'A task submission document was added to your dashboard',
+        title: existingDocumentId ? 'Task restored' : 'Task joined',
+        description: existingDocumentId
+          ? 'Your existing task submission is back on this dashboard'
+          : 'A task submission document was added to your dashboard',
       });
     } catch (err: any) {
       toast({
@@ -392,7 +400,7 @@ export default function DocumentsPage() {
     } finally {
       setIsJoiningTask(false);
     }
-  }, [createDocument, documents, fetchTaskEnrollments, inviteCode, taskEnrollments, toast]);
+  }, [createDocument, fetchDocuments, fetchTaskEnrollments, inviteCode, taskEnrollments, toast]);
 
   const documentIds = new Set((documents || []).map((document) => document.id));
   const validTaskEnrollments = taskEnrollments.filter((task) => (
@@ -663,6 +671,8 @@ export default function DocumentsPage() {
                   expiredDetail: 'Submission opens in read-only mode.',
                 });
                 const statusBadge = getTaskStatusBadge(task, dashboardNowMs, timerState);
+                const latestCertificateId = task.latestCertificateId || null;
+                const certificateCount = task.certificateCount || 0;
                 return (
                   <Card
                     key={`${task.id}-${task.documentId}`}
@@ -715,25 +725,50 @@ export default function DocumentsPage() {
 
                     <CardFooter className="mt-auto border-t border-border/70 bg-muted/20 !p-0">
                       <div className="flex w-full gap-2 px-6 pb-6 pt-6">
-                        <Button
-                          variant="default"
-                          size="sm"
-                          className="h-10 flex-1"
-                          onClick={() => router.push(`/documents/${task.documentId}`)}
-                        >
-                          <Eye className="mr-2 h-4 w-4" />
-                          Open Submission
-                        </Button>
+                        {latestCertificateId ? (
+                          <>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className="h-10 flex-1"
+                              onClick={() => router.push(`/certificates/${latestCertificateId}`)}
+                            >
+                              <Award className="mr-2 h-4 w-4" />
+                              View Certificate
+                              {certificateCount > 1 ? ` (${certificateCount})` : ''}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-10 min-w-[52px] px-3"
+                              title="Open task submission"
+                              onClick={() => router.push(`/documents/${task.documentId}`)}
+                            >
+                              <Eye className="h-4 w-4" />
+                              <span className="sr-only">Open Submission</span>
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="h-10 flex-1"
+                            onClick={() => router.push(`/documents/${task.documentId}`)}
+                          >
+                            <Eye className="mr-2 h-4 w-4" />
+                            Open Submission
+                          </Button>
+                        )}
 
                         <Button
                           variant="outline"
                           size="sm"
                           className="h-10 min-w-[120px]"
-                          title="Delete task submission"
+                          title="Remove task from dashboard"
                           onClick={() => setTaskToDelete(task)}
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
+                          Remove
                         </Button>
                       </div>
                     </CardFooter>
@@ -748,10 +783,11 @@ export default function DocumentsPage() {
       <AlertDialog open={!!taskToDelete} onOpenChange={(open) => !open && setTaskToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Task Submission</AlertDialogTitle>
+            <AlertDialogTitle>Remove Task From Dashboard?</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the task from your dashboard and deletes its submission document.
-              This action cannot be undone.
+              This only hides the task card from this dashboard. Your submission document,
+              writing events, submissions, and certificates stay saved. Rejoining the same task
+              restores the existing submission.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -760,7 +796,7 @@ export default function DocumentsPage() {
               onClick={handleDeleteTaskEnrollment}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete
+              Remove
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

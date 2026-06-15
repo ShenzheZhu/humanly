@@ -418,7 +418,10 @@ export class TaskService {
   /**
    * Join task lookup for user portal invite-code enrollment.
    */
-  static async joinTaskByInviteCode(inviteCode: string, userId: string): Promise<Task> {
+  static async joinTaskByInviteCode(
+    inviteCode: string,
+    userId: string
+  ): Promise<{ task: Task; enrollment: Awaited<ReturnType<typeof TaskModel.findEnrollmentForUserTask>> }> {
     const normalizedCode = inviteCode.trim().toUpperCase();
 
     if (!/^[A-Z0-9]{6}$/.test(normalizedCode)) {
@@ -435,11 +438,16 @@ export class TaskService {
     await this.invalidateAnalytics(task.id);
 
     const enrolledTask = await TaskModel.findById(task.id);
-    return enrolledTask || task;
+    const enrollment = await TaskModel.findEnrollmentForUserTask(task.id, userId);
+    return {
+      task: enrolledTask || task,
+      enrollment,
+    };
   }
 
   /**
-   * Remove a user portal enrollment from a task.
+   * Hide a user portal enrollment from the dashboard while preserving the
+   * server-side task attempt and its linked evidence.
    */
   static async leaveTask(taskIdOrInviteCode: string, userId: string): Promise<void> {
     const normalizedIdentifier = taskIdOrInviteCode.trim();
@@ -451,7 +459,11 @@ export class TaskService {
       throw new AppError(404, 'Task not found');
     }
 
-    await TaskModel.unenrollUser(task.id, userId);
+    const hidden = await TaskModel.hideEnrollmentFromDashboard(task.id, userId);
+    if (!hidden) {
+      throw new AppError(404, 'Task enrollment not found');
+    }
+
     await this.invalidateAnalytics(task.id);
   }
 

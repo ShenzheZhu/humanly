@@ -127,7 +127,16 @@ export class DocumentModel {
       sortOrder = 'desc',
     } = filters;
 
-    let whereClauses = ['user_id = $1'];
+    let whereClauses = [
+      'user_id = $1',
+      `NOT EXISTS (
+        SELECT 1
+        FROM task_enrollments te
+        WHERE te.submission_document_id = documents.id
+          AND te.user_id = documents.user_id
+          AND te.dashboard_hidden_at IS NOT NULL
+      )`,
+    ];
     const params: any[] = [userId];
     let paramIndex = 2;
 

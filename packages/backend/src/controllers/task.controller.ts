@@ -257,13 +257,15 @@ export async function joinTask(req: Request, res: Response): Promise<void> {
     throw new AppError(400, 'Invite code is required');
   }
 
-  const task = await TaskService.joinTaskByInviteCode(inviteCode, userId);
+  const { task, enrollment } = await TaskService.joinTaskByInviteCode(inviteCode, userId);
 
   res.json({
     success: true,
     data: {
       task: {
         id: task.id,
+        taskId: task.id,
+        enrollmentId: enrollment?.id || null,
         name: task.name,
         description: task.description,
         startDate: task.startDate,
@@ -271,6 +273,8 @@ export async function joinTask(req: Request, res: Response): Promise<void> {
         environmentConfig: task.environmentConfig,
         enrolledUserCount: task.enrolledUserCount ?? 0,
         inviteCode: task.taskToken.slice(0, 6).toUpperCase(),
+        documentId: enrollment?.documentId || null,
+        joinedAt: enrollment?.joinedAt || null,
       },
     },
   });
@@ -291,7 +295,7 @@ export async function leaveTask(req: Request, res: Response): Promise<void> {
 
   res.json({
     success: true,
-    message: 'Task enrollment removed successfully',
+    message: 'Task enrollment hidden from dashboard successfully',
   });
 }
 
