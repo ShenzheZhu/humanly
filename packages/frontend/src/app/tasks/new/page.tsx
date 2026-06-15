@@ -55,6 +55,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { AdminEnvironmentSectionHeading as SectionHeading } from '@/components/admin-environment-ui';
+import { SetupWorkspacePreview } from '@/components/tasks/setup-workspace-preview';
 import { api } from '@/lib/api-client';
 import { MODEL_WHITELIST, getWhitelist } from '@/lib/ai-models';
 import {
@@ -463,6 +464,8 @@ export default function NewTaskPage() {
   });
 
   const { isSubmitting } = form.formState;
+  const watchedTaskName = form.watch('name');
+  const watchedTaskDescription = form.watch('description');
   const watchedStartDate = form.watch('startDate');
   const watchedEndDate = form.watch('endDate');
   const localTimeZoneLabel = getLocalTimeZoneLabel();
@@ -1062,6 +1065,30 @@ export default function NewTaskPage() {
     endDate: watchedEndDate,
     allowGuestSubmissions,
   });
+  const workspacePreviewConfig: WritingEnvironmentConfig = {
+    ...environmentConfig,
+    taskType: 'admin_assigned',
+    aiAccess,
+    allowedModels: aiAccess === 'off'
+      ? []
+      : selectedAiModel
+        ? [selectedAiModel]
+        : environmentConfig.allowedModels,
+    instructions: {
+      ...environmentConfig.instructions,
+      hasInstructionPdf: instructionFiles.length > 0,
+    },
+    time: {
+      ...environmentConfig.time,
+      startTime: timeLimitEnabled ? watchedStartDate : undefined,
+      endTime: timeLimitEnabled ? watchedEndDate : undefined,
+    },
+    traceability: {
+      ...environmentConfig.traceability,
+      trackAiUsage: aiAccess !== 'off',
+      trackCopyPaste: normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) === 'allowed',
+    },
+  };
   const customEnvironmentControls = (
     <div className="grid gap-4 xl:grid-cols-2">
       <div className="space-y-4 rounded-md border p-4 xl:col-span-2">
@@ -1826,6 +1853,27 @@ export default function NewTaskPage() {
                   </div>
                 )}
               </div>
+
+              <SetupWorkspacePreview
+                allowGuestSubmissions={allowGuestSubmissions}
+                className="xl:col-span-2"
+                config={workspacePreviewConfig}
+                description={watchedTaskDescription || ''}
+                hasPdf={instructionFiles.length > 0 || !!environmentConfig.instructions.hasInstructionPdf}
+                mode="admin"
+                pdfLabel={
+                  instructionFiles.length > 1
+                    ? `${instructionFiles.length} instruction PDFs`
+                    : instructionFiles[0]?.name || 'Instruction PDF'
+                }
+                selectedAiModel={selectedAiModel}
+                taskWindow={{
+                  enabled: timeLimitEnabled,
+                  startDate: watchedStartDate,
+                  endDate: watchedEndDate,
+                }}
+                title={watchedTaskName}
+              />
             </CardContent>
 
             <CardFooter className="flex justify-end gap-3 border-t border-border/70 pt-4">

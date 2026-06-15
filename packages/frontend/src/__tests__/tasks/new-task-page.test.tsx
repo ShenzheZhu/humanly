@@ -164,6 +164,11 @@ describe('admin new task page', () => {
     expect(screen.getByText('Two-week window')).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: /allow guest submissions/i })).toBeChecked();
     expect(screen.queryByLabelText(/AI Usage Limit/i)).not.toBeInTheDocument();
+    const preview = screen.getByRole('region', { name: /workspace preview/i });
+    expect(within(preview).getByText('Assigned task workspace')).toBeInTheDocument();
+    expect(within(preview).getByText('Display-only preview. No saves, tracking events, AI calls, or timers run here.')).toBeInTheDocument();
+    expect(within(preview).getByText(/May 19, 2026/)).toBeInTheDocument();
+    expect(within(preview).queryByText('AI Assistant')).not.toBeInTheDocument();
 
     await act(async () => {
       fireEvent.change(screen.getByLabelText(/Task Name/i), {
@@ -203,6 +208,46 @@ describe('admin new task page', () => {
     expect(payload.environmentConfig.time.startTime).toBe(payload.startDate);
     expect(payload.environmentConfig.time.endTime).toBe(payload.endDate);
     expect(payload.environmentConfig.time.timeLimitSeconds).toBeUndefined();
+  });
+
+  it('updates the workspace preview for full AI, PDFs, and session timers', async () => {
+    render(<NewTaskPage />);
+
+    expect(await screen.findByRole('heading', { name: 'New Task' })).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/Task Name/i), {
+        target: { value: 'Previewed Task' },
+      });
+    });
+
+    const pdfInput = document.querySelector('input[accept="application/pdf"]') as HTMLInputElement;
+    const file = new File(['%PDF-1.4\npreview'], 'preview-instructions.pdf', {
+      type: 'application/pdf',
+    });
+    await act(async () => {
+      fireEvent.change(pdfInput, { target: { files: [file] } });
+    });
+
+    const dialog = await openCustomEnvironmentDialog();
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('option', { name: 'Full' }));
+    });
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('option', { name: 'Time limited' }));
+    });
+    await closeCustomEnvironmentDialog();
+
+    const preview = screen.getByRole('region', { name: /workspace preview/i });
+    expect(within(preview).getByText('Previewed Task')).toBeInTheDocument();
+    expect(within(preview).getByText('preview-instructions.pdf')).toBeInTheDocument();
+    expect(within(preview).getByText('AI Assistant')).toBeInTheDocument();
+    expect(within(preview).getByText('Grammar')).toBeInTheDocument();
+    expect(within(preview).getByText('Improve')).toBeInTheDocument();
+    expect(within(preview).getByText('Simplify')).toBeInTheDocument();
+    expect(within(preview).getByText('Formal')).toBeInTheDocument();
+    expect(within(preview).getByText('Ask AI')).toBeInTheDocument();
+    expect(within(preview).getAllByText('1h').length).toBeGreaterThan(0);
   });
 
   it('creates tasks and instruction PDFs in one multipart request', async () => {
