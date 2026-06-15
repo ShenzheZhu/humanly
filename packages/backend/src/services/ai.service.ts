@@ -1894,6 +1894,15 @@ function classifyQueryType(query: string): AIQueryType {
   return 'other';
 }
 
+function withChatInteractionOrigin(
+  context: AIChatRequest['context'] | undefined,
+): AIInteractionLog['contextSnapshot'] {
+  return {
+    ...(context ?? {}),
+    interactionOrigin: 'chat',
+  };
+}
+
 /**
  * Question Category Types
  */
@@ -2840,7 +2849,7 @@ export class AIService {
       query: request.message,
       queryType,
       questionCategory,
-      contextSnapshot: request.context,
+      contextSnapshot: withChatInteractionOrigin(request.context),
     });
 
     try {
@@ -3119,7 +3128,7 @@ export class AIService {
         query: request.message,
         queryType,
         questionCategory,
-        contextSnapshot: request.context,
+        contextSnapshot: withChatInteractionOrigin(request.context),
       });
 
       // Add user message to session, carrying attachment metadata when

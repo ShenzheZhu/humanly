@@ -2942,6 +2942,31 @@ describe('editor and logs workflows', () => {
     expect(await screen.findByRole('row', { name: new RegExp(`${expectedLocalTime}.*Chat`) })).toBeInTheDocument();
   });
 
+  it('shows chat-origin AI logs as Chat even when queryType is format', async () => {
+    mockAiLogs = [
+      {
+        id: 'ai-log-chat-format',
+        queryType: 'format',
+        query: 'Explain current assignment handout and list the goal',
+        response: 'The goal is to explain the assignment.',
+        timestamp: '2026-05-14T12:00:02.000Z',
+        status: 'success',
+        modificationsApplied: false,
+        contextSnapshot: {
+          interactionOrigin: 'chat',
+        },
+      },
+    ];
+
+    render(<DocumentLogsPage />);
+
+    const chatRow = await screen.findByRole('row', {
+      name: /chat explain current assignment handout and list the goal/i,
+    });
+    expect(within(chatRow).getByText('Chat')).toBeInTheDocument();
+    expect(within(chatRow).queryByText('Format')).not.toBeInTheDocument();
+  });
+
   it('does not expand discarded AI quick actions', async () => {
     mockAiLogs = [
       {

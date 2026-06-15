@@ -41,7 +41,12 @@ import { ANALYTICS_CHART_COLORS } from '@/lib/analytics-palette';
 import { buildCertificateVerifyUrl } from '@/lib/certificate-url';
 import { formatDateTime } from '@/lib/utils';
 import { getReviewSignals } from '@/lib/review-signals';
-import { getCopiedTextFromEventMetadata } from '@humanly/shared';
+import {
+  getAIActionLabel,
+  getAIInteractionLogLabel,
+  getCopiedTextFromEventMetadata,
+  isChatAIInteractionLog,
+} from '@humanly/shared';
 import type {
   AIInteractionLog,
   DocumentEventTimelineItem,
@@ -226,29 +231,6 @@ const getRawEventColor = (eventType: string): CSSProperties => {
 
   return DEFAULT_TIMELINE_COLOR;
 };
-
-const AI_ACTION_LABELS: Record<string, string> = {
-  grammar_check: 'Fix grammar',
-  spelling_check: 'Fix spelling',
-  rewrite: 'Rewrite',
-  summarize: 'Summarize',
-  expand: 'Expand',
-  translate: 'Translate',
-  format: 'Format',
-  grammar: 'Fix grammar',
-  improve: 'Improve writing',
-  simplify: 'Simplify',
-  formal: 'Make formal',
-  question: 'Chat',
-  reference: 'Chat',
-  other: 'Chat',
-};
-
-const CHAT_QUERY_TYPES = new Set<AIInteractionLog['queryType']>([
-  'question',
-  'reference',
-  'other',
-]);
 
 type HistoryItem =
   | {
@@ -444,23 +426,6 @@ function isAIAppliedMirrorReplace(
       normalizeForComparison(getSuggestedText(log)) === newText
     );
   });
-}
-
-function getAILogLabel(log: AIInteractionLog) {
-  if (isChatAILog(log)) return 'Chat';
-  if (log.queryType === 'grammar_check') return 'Fix grammar';
-  if (log.query.toLowerCase().includes('simplify')) return 'Simplify';
-  if (log.query.toLowerCase().includes('formal')) return 'Make formal';
-  if (log.query.toLowerCase().includes('improve')) return 'Improve writing';
-  return AI_ACTION_LABELS[log.queryType] || log.queryType;
-}
-
-function getAIActionLabel(actionType: string) {
-  return AI_ACTION_LABELS[actionType] || humanizeCode(actionType);
-}
-
-function isChatAILog(log: AIInteractionLog) {
-  return CHAT_QUERY_TYPES.has(log.queryType);
 }
 
 function getAIStatusLabel(log: AIInteractionLog) {
@@ -2131,8 +2096,8 @@ export default function TaskSubmissionAnalyticsPage() {
                     const isExpanded = expandedIds.has(log.id);
                     const beforeText = getSelectionText(log);
                     const afterText = getSuggestedText(log);
-                    const label = getAILogLabel(log);
-                    const isChatLog = isChatAILog(log);
+                    const label = getAIInteractionLogLabel(log);
+                    const isChatLog = isChatAIInteractionLog(log);
                     const detailBeforeText = isChatLog ? log.query : beforeText;
                     const canExpand = canExpandAILog(log);
 
