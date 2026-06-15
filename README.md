@@ -1,6 +1,8 @@
 <p align="center">
-  <img alt="Humanly" src="./docs/assets/humanly-readme-banner.svg" width="760">
+  <img alt="Humanly" src="./docs/assets/humanly-readme-banner.gif" width="700">
 </p>
+
+<h1 align="center">Humanly</h1>
 
 <p align="center">
   <strong>Write with AI. Prove your process.</strong>
@@ -14,9 +16,13 @@
 </p>
 
 <p align="center">
-  <a href="https://app.writehumanly.net/"><img alt="User portal" src="https://img.shields.io/badge/app-writehumanly.net-1b1c1f?style=flat-square"></a>
-  <a href="https://admin.writehumanly.net/"><img alt="Admin dashboard" src="https://img.shields.io/badge/admin-writehumanly.net-7f927f?style=flat-square"></a>
+  <a href="https://app.writehumanly.net/"><img alt="User portal" src="https://img.shields.io/badge/writehumanly.net-app-1b1c1f?style=flat-square"></a>
   <a href="https://github.com/ShenzheZhu/humanly/releases/tag/v0.4.0"><img alt="Release" src="https://img.shields.io/badge/release-v0.4.0-6f7f6f?style=flat-square"></a>
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5-3178c6?style=flat-square">
+  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-14-1b1c1f?style=flat-square">
+  <img alt="Express" src="https://img.shields.io/badge/Express-API-7f927f?style=flat-square">
+  <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-TimescaleDB-416d8b?style=flat-square">
+  <img alt="Socket.IO" src="https://img.shields.io/badge/Socket.IO-realtime-8a8f7a?style=flat-square">
   <a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-green?style=flat-square"></a>
 </p>
 
@@ -40,7 +46,7 @@ shareable certificate.
 
 Live product:
 
-- User portal: [app.writehumanly.net](https://app.writehumanly.net/)
+- User portal: [writehumanly.net](https://app.writehumanly.net/)
 - Admin dashboard: [admin.writehumanly.net](https://admin.writehumanly.net/)
 
 <h2 id="certificates">Certificates</h2>
