@@ -38,6 +38,7 @@ export class EditorTracker {
   private lastVisibilityState: string | null = null;
   private workspaceVisibilityState: 'visible' | 'hidden' = 'visible';
   private pendingWindowBlurTimer: ReturnType<typeof setTimeout> | null = null;
+  private trackingStartedAt: number | null = null;
 
   private get copyPastePolicy() {
     return this.config.copyPastePolicy === 'blocked' ? 'blocked' : 'allowed';
@@ -101,6 +102,7 @@ export class EditorTracker {
     }
 
     this.isTracking = true;
+    this.trackingStartedAt = Date.now();
 
     // Track keydown events
     const removeKeyDownListener = this.editor.registerCommand(
@@ -378,6 +380,8 @@ export class EditorTracker {
       this.listeners.push(removePageVisibilityListener);
     }
 
+    this.restorePendingWorkspaceReturn();
+
     // Start flush timer
     this.scheduleFlush();
   }
@@ -390,7 +394,12 @@ export class EditorTracker {
       return;
     }
 
+    if (this.shouldTrackStopAsWorkspaceExit()) {
+      this.markWorkspaceHidden('tracker_stop');
+    }
+
     this.isTracking = false;
+    this.trackingStartedAt = null;
 
     // Remove all listeners
     this.listeners.forEach((remove) => remove());
@@ -713,9 +722,11 @@ export class EditorTracker {
 
     if (eventType === 'page_hidden') {
       this.lastPageHiddenAt = now;
+      this.persistWorkspaceHidden(now, source);
     } else if (this.lastPageHiddenAt !== null) {
       metadata.hiddenDurationMs = Math.max(0, now - this.lastPageHiddenAt);
       this.lastPageHiddenAt = null;
+      this.clearPersistedWorkspaceHidden();
     }
 
     const event: TrackedEvent = {
@@ -731,6 +742,102 @@ export class EditorTracker {
     };
 
     this.addEvent(event);
+  }
+
+  private shouldTrackStopAsWorkspaceExit(): boolean {
+    if (!this.isTracking || this.workspaceVisibilityState === 'hidden') {
+      return false;
+    }
+
+    if (this.trackingStartedAt === null) {
+      return false;
+    }
+
+    // React StrictMode intentionally mounts and unmounts effects once in
+    // development. A short guard prevents that probe from creating fake
+    // workspace-leave events while still capturing real route exits.
+    return Date.now() - this.trackingStartedAt > 1000;
+  }
+
+  private restorePendingWorkspaceReturn(): void {
+    if (!this.isTracking || this.getCurrentVisibilityState() === 'hidden') {
+      return;
+    }
+
+    const hiddenAt = this.readPersistedWorkspaceHiddenAt();
+    if (hiddenAt === null) {
+      return;
+    }
+
+    this.lastPageHiddenAt = hiddenAt;
+    this.workspaceVisibilityState = 'hidden';
+    this.markWorkspaceVisible('tracker_start');
+  }
+
+  private getWorkspaceLifecycleStorageKey(): string {
+    return `humanly:workspace-lifecycle:${this.config.documentId}`;
+  }
+
+  private getWorkspaceLifecycleStorage(): Storage | null {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    try {
+      return window.localStorage || null;
+    } catch {
+      return null;
+    }
+  }
+
+  private readPersistedWorkspaceHiddenAt(): number | null {
+    const storage = this.getWorkspaceLifecycleStorage();
+    if (!storage) {
+      return null;
+    }
+
+    try {
+      const stored = storage.getItem(this.getWorkspaceLifecycleStorageKey());
+      if (!stored) {
+        return null;
+      }
+
+      const parsed = JSON.parse(stored) as { hiddenAt?: unknown };
+      return typeof parsed.hiddenAt === 'number' && Number.isFinite(parsed.hiddenAt)
+        ? parsed.hiddenAt
+        : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private persistWorkspaceHidden(hiddenAt: number, source: string): void {
+    const storage = this.getWorkspaceLifecycleStorage();
+    if (!storage) {
+      return;
+    }
+
+    try {
+      storage.setItem(
+        this.getWorkspaceLifecycleStorageKey(),
+        JSON.stringify({ hiddenAt, source })
+      );
+    } catch {
+      // Local storage can be unavailable in private or embedded contexts.
+    }
+  }
+
+  private clearPersistedWorkspaceHidden(): void {
+    const storage = this.getWorkspaceLifecycleStorage();
+    if (!storage) {
+      return;
+    }
+
+    try {
+      storage.removeItem(this.getWorkspaceLifecycleStorageKey());
+    } catch {
+      // Local storage can be unavailable in private or embedded contexts.
+    }
   }
 
   /**
