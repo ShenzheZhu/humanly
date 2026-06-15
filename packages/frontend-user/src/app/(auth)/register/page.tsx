@@ -30,6 +30,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { OAuthButtons } from '@/components/auth/oauth-buttons';
+import { AuthenticatedRedirect } from '@/components/auth/authenticated-redirect';
 
 // Form validation schema
 const registerSchema = z
@@ -176,6 +177,7 @@ export default function RegisterPage() {
 
   return (
     <Card className="border-border bg-white shadow-none humanly-panel-shadow">
+      <AuthenticatedRedirect to={safeNext} />
       <CardHeader className="space-y-2 pb-2 text-center">
         <CardTitle className="text-2xl font-bold tracking-normal">
           Create an account

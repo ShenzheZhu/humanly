@@ -18,7 +18,7 @@ export function AuthenticatedRedirect({ to = '/documents' }: AuthenticatedRedire
     if (startedRef.current) return;
     startedRef.current = true;
 
-    checkAuth({ allowCookieRefresh: false }).finally(() => {
+    checkAuth({ allowCookieRefresh: true }).finally(() => {
       const latestAuthState = useAuthStore.getState?.() ?? authState;
       if (latestAuthState.isAuthenticated || authState.isAuthenticated) {
         router.replace(to);
