@@ -16,6 +16,14 @@ import { FontControls } from '../components/toolbar/font-controls';
 import { ColorControls } from '../components/toolbar/color-controls';
 import { ListControls } from '../components/toolbar/list-controls';
 import { AlignmentControls } from '../components/toolbar/alignment-controls';
+import {
+  toolbarActiveButtonStyle,
+  toolbarColors,
+  toolbarControlHeight,
+  toolbarDividerStyle,
+  toolbarIconButtonStyle,
+  toolbarSectionStyle,
+} from '../components/toolbar/toolbar-styles';
 
 interface ToolbarState {
   isBold: boolean;
@@ -262,32 +270,10 @@ const toolbarStyles = {
     backgroundColor: '#f7f8f3',
     alignItems: 'center',
   },
-  section: {
-    display: 'flex',
-    gap: '4px',
-  },
-  divider: {
-    width: '1px',
-    height: '24px',
-    backgroundColor: '#d8d9cf',
-  },
-  button: {
-    padding: '6px 12px',
-    border: '1px solid #d8d9cf',
-    borderRadius: '4px',
-    backgroundColor: '#ffffff',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontFamily: 'inherit',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  activeButton: {
-    backgroundColor: '#1a1c20',
-    color: '#ffffff',
-    border: '1px solid #1a1c20',
-  },
+  section: toolbarSectionStyle,
+  divider: toolbarDividerStyle,
+  button: toolbarIconButtonStyle,
+  activeButton: toolbarActiveButtonStyle,
   markdownGroup: {
     display: 'flex',
     alignItems: 'center',
@@ -295,22 +281,23 @@ const toolbarStyles = {
     marginLeft: 'auto',
   },
   markdownToggle: {
-    height: '32px',
+    height: toolbarControlHeight,
     padding: '4px 5px 4px 10px',
-    border: '1px solid #d8d9cf',
+    border: `1px solid ${toolbarColors.border}`,
     borderRadius: '999px',
-    backgroundColor: '#ffffff',
-    color: '#1a1c20',
+    backgroundColor: toolbarColors.surface,
+    color: toolbarColors.text,
     cursor: 'pointer',
     fontSize: '13px',
     fontFamily: 'inherit',
     display: 'inline-flex',
     alignItems: 'center',
     gap: '8px',
+    boxSizing: 'border-box' as const,
     whiteSpace: 'nowrap' as const,
   },
   markdownToggleActive: {
-    borderColor: '#1a1c20',
+    borderColor: toolbarColors.borderStrong,
   },
   markdownMark: {
     fontWeight: 700,

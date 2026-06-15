@@ -37,10 +37,12 @@ import { SelectionPopupPlugin } from './plugins/selection-popup-plugin';
 import { LexicalEditorProps, EditorTheme, EditorInsertResult } from './types';
 import { TRACKING_TEXT_CHANGE_METADATA_COMMAND } from './commands/formatting-commands';
 import {
+  createMarkdownSourceFromCurrentEditor,
   createSerializedMarkdownNodes,
   editorNodes,
   looksLikeMarkdown,
   markdownShortcutTransformers,
+  normalizeMarkdownOffContent,
 } from './markdown/common-markdown';
 
 /**
@@ -84,13 +86,30 @@ const defaultTheme: EditorTheme = {
 };
 
 function insertSerializedNodesAtSelection(serializedNodes: SerializedLexicalNode[]): void {
-  const nodes = serializedNodes
-    .map((serializedNode) => $parseSerializedNode(serializedNode))
-    .filter((node): node is LexicalNode => Boolean(node));
+  const nodes = parseSerializedNodes(serializedNodes);
 
   if (nodes.length > 0) {
     $insertNodes(nodes);
   }
+}
+
+function parseSerializedNodes(serializedNodes: SerializedLexicalNode[]): LexicalNode[] {
+  return serializedNodes
+    .map((serializedNode) => $parseSerializedNode(serializedNode))
+    .filter((node): node is LexicalNode => Boolean(node));
+}
+
+function replaceRootWithNodes(nodes: LexicalNode[]): void {
+  const root = $getRoot();
+  root.clear();
+
+  if (nodes.length > 0) {
+    root.append(...nodes);
+  } else {
+    root.append($createParagraphNode());
+  }
+
+  root.selectEnd();
 }
 
 interface MarkdownPastePromptPosition {
@@ -684,6 +703,61 @@ function AIBridgePlugin({
   return <>{renderAIBridge({ insertAtCursor })}</>;
 }
 
+interface MarkdownToolbarPluginProps {
+  markdownEnabled: boolean;
+  onMarkdownEnabledChange: (enabled: boolean) => void;
+}
+
+function MarkdownToolbarPlugin({
+  markdownEnabled,
+  onMarkdownEnabledChange,
+}: MarkdownToolbarPluginProps): JSX.Element {
+  const [editor] = useLexicalComposerContext();
+
+  const handleMarkdownEnabledChange = React.useCallback((nextEnabled: boolean) => {
+    if (nextEnabled === markdownEnabled) {
+      return;
+    }
+
+    editor.update(() => {
+      if (nextEnabled) {
+        const sourceText = createMarkdownSourceFromCurrentEditor();
+        const serializedNodes = createSerializedMarkdownNodes(sourceText);
+
+        editor.dispatchCommand(TRACKING_TEXT_CHANGE_METADATA_COMMAND, {
+          markdownToggleMode: 'rendered',
+          sourceText,
+          textRenderMode: 'markdown',
+        });
+        replaceRootWithNodes(parseSerializedNodes(serializedNodes));
+        return;
+      }
+
+      const sourceText = createMarkdownSourceFromCurrentEditor();
+      const normalization = normalizeMarkdownOffContent();
+
+      if (normalization.changed) {
+        editor.dispatchCommand(TRACKING_TEXT_CHANGE_METADATA_COMMAND, {
+          downgradedNodeTypes: normalization.downgradedNodeTypes,
+          markdownToggleMode: 'constrained',
+          sourceText,
+          textRenderMode: 'plain',
+        });
+      }
+    }, { discrete: true });
+
+    onMarkdownEnabledChange(nextEnabled);
+    editor.focus();
+  }, [editor, markdownEnabled, onMarkdownEnabledChange]);
+
+  return (
+    <ToolbarPlugin
+      markdownEnabled={markdownEnabled}
+      onMarkdownEnabledChange={handleMarkdownEnabledChange}
+    />
+  );
+}
+
 function hasNonEmptyLexicalRoot(content: unknown): boolean {
   if (!content || typeof content !== 'object') {
     return false;
@@ -769,7 +843,7 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
   return (
     <LexicalComposer initialConfig={initialConfig}>
       <div className={`editor-container ${className}`} style={editorStyles.container}>
-        <ToolbarPlugin
+        <MarkdownToolbarPlugin
           markdownEnabled={markdownEnabled}
           onMarkdownEnabledChange={setMarkdownEnabled}
         />

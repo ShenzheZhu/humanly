@@ -2,6 +2,7 @@ import { CodeNode } from '@lexical/code';
 import { $createLinkNode, $isLinkNode, LinkNode } from '@lexical/link';
 import {
   $convertFromMarkdownString,
+  $convertToMarkdownString,
   CHECK_LIST,
   CODE,
   HEADING,
@@ -17,6 +18,9 @@ import {
   $createTableCellNode,
   $createTableNode,
   $createTableRowNode,
+  $isTableCellNode,
+  $isTableNode,
+  $isTableRowNode,
   TableCellHeaderStates,
   TableCellNode,
   TableNode,
@@ -31,12 +35,19 @@ import { HeadingNode, QuoteNode } from '@lexical/rich-text';
 import { ListItemNode, ListNode } from '@lexical/list';
 import {
   $createParagraphNode,
+  $createLineBreakNode,
   $createTextNode,
   $getRoot,
+  $isDecoratorNode,
+  $isElementNode,
+  $isLineBreakNode,
+  $isRootNode,
+  $isTabNode,
   $isTextNode,
   $parseSerializedNode,
   createEditor,
   type ElementFormatType,
+  type ElementNode,
   type Klass,
   type LexicalNode,
   type SerializedLexicalNode,
@@ -52,6 +63,11 @@ interface ParsedMarkdownTable {
 type MarkdownBlock =
   | { type: 'markdown'; text: string }
   | { type: 'table'; table: ParsedMarkdownTable };
+
+export interface MarkdownOffNormalizationResult {
+  changed: boolean;
+  downgradedNodeTypes: string[];
+}
 
 const markdownUrlPattern = '(?:https?:\\/\\/|mailto:)[^\\s<>()\\]]+[^\\s<>()\\].,!?;:]';
 
@@ -130,8 +146,49 @@ const BARE_AUTOLINK: TextMatchTransformer = {
   type: 'text-match',
 };
 
+const TABLE: ElementTransformer = {
+  dependencies: [TableNode, TableRowNode, TableCellNode],
+  export: (node, exportChildren) => {
+    if (!$isTableNode(node)) {
+      return null;
+    }
+
+    return serializeTableNodeToMarkdown(node, exportChildren);
+  },
+  regExp: /^ {0,3}\|?.+\|.+$/,
+  replace: () => undefined,
+  type: 'element',
+};
+
+const markdownOffSupportedNodeTypes = new Set([
+  'root',
+  'paragraph',
+  'heading',
+  'quote',
+  'code',
+  'list',
+  'listitem',
+  'link',
+  'autolink',
+  'horizontalrule',
+]);
+
 export const markdownShortcutTransformers: Transformer[] = [
   HORIZONTAL_RULE,
+  HEADING,
+  QUOTE,
+  CODE,
+  CHECK_LIST,
+  UNORDERED_LIST,
+  ORDERED_LIST,
+  ...TEXT_FORMAT_TRANSFORMERS,
+  SAFE_LINK,
+  BARE_AUTOLINK,
+];
+
+export const markdownExportTransformers: Transformer[] = [
+  HORIZONTAL_RULE,
+  TABLE,
   HEADING,
   QUOTE,
   CODE,
@@ -206,6 +263,28 @@ export function createSerializedMarkdownNodes(markdown: string): SerializedLexic
   }
 
   return serializedNodes;
+}
+
+export function createMarkdownSourceFromCurrentEditor(): string {
+  return $convertToMarkdownString(markdownExportTransformers);
+}
+
+export function normalizeMarkdownOffContent(): MarkdownOffNormalizationResult {
+  const downgradedNodeTypes: string[] = [];
+  const root = $getRoot();
+
+  for (const child of root.getChildren()) {
+    normalizeMarkdownOffNode(child, downgradedNodeTypes);
+  }
+
+  if (downgradedNodeTypes.length > 0) {
+    root.selectEnd();
+  }
+
+  return {
+    changed: downgradedNodeTypes.length > 0,
+    downgradedNodeTypes: Array.from(new Set(downgradedNodeTypes)),
+  };
 }
 
 function createTextNodeWithFormat(text: string, sourceNode: TextNode): TextNode {
@@ -466,6 +545,140 @@ function normalizeTableRow(row: string[], columnCount: number): string[] {
     normalizedRow.push('');
   }
   return normalizedRow;
+}
+
+function serializeTableNodeToMarkdown(
+  node: TableNode,
+  renderCell: (node: ElementNode) => string
+): string | null {
+  const rows = node.getChildren().filter($isTableRowNode);
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const tableRows = rows.map((row) => row.getChildren().filter($isTableCellNode));
+  const columnCount = Math.max(...tableRows.map((row) => row.length));
+  if (columnCount === 0) {
+    return null;
+  }
+
+  const renderedRows = tableRows.map((row) =>
+    normalizeTableRow(
+      row.map((cell) => escapeMarkdownTableCell(renderCell(cell))),
+      columnCount
+    )
+  );
+  const alignments = normalizeTableRow(
+    tableRows[0].map(getMarkdownTableAlignmentMarker),
+    columnCount
+  ).map((alignment) => alignment || '---');
+
+  return [
+    formatMarkdownTableRow(renderedRows[0]),
+    formatMarkdownTableRow(alignments),
+    ...renderedRows.slice(1).map(formatMarkdownTableRow),
+  ].join('\n');
+}
+
+function formatMarkdownTableRow(row: string[]): string {
+  return `| ${row.join(' | ')} |`;
+}
+
+function escapeMarkdownTableCell(cell: string): string {
+  return cell
+    .replace(/\r\n|\r|\n/g, '<br>')
+    .replace(/\|/g, '\\|')
+    .trim();
+}
+
+function getMarkdownTableAlignmentMarker(cell: TableCellNode): string {
+  const firstChild = cell.getFirstChild();
+  const alignment = $isElementNode(firstChild) ? firstChild.getFormatType() : '';
+
+  if (alignment === 'center') {
+    return ':---:';
+  }
+
+  if (alignment === 'right') {
+    return '---:';
+  }
+
+  return '---';
+}
+
+function normalizeMarkdownOffNode(node: LexicalNode, downgradedNodeTypes: string[]): void {
+  if (!isMarkdownOffSupportedNode(node)) {
+    downgradeMarkdownOffNode(node, downgradedNodeTypes);
+    return;
+  }
+
+  if (!$isElementNode(node)) {
+    return;
+  }
+
+  for (const child of node.getChildren()) {
+    normalizeMarkdownOffNode(child, downgradedNodeTypes);
+  }
+}
+
+function isMarkdownOffSupportedNode(node: LexicalNode): boolean {
+  if ($isTextNode(node) || $isLineBreakNode(node) || $isTabNode(node)) {
+    return true;
+  }
+
+  if ($isTableNode(node) || $isTableRowNode(node) || $isTableCellNode(node) || $isDecoratorNode(node)) {
+    return false;
+  }
+
+  return markdownOffSupportedNodeTypes.has(node.getType());
+}
+
+function downgradeMarkdownOffNode(node: LexicalNode, downgradedNodeTypes: string[]): void {
+  downgradedNodeTypes.push(node.getType());
+
+  const markdownSource = serializeUnsupportedMarkdownOffNode(node);
+  const parent = node.getParent();
+
+  if (!parent || $isRootNode(parent)) {
+    replaceNodeWithMarkdownSourceBlock(node, markdownSource);
+    return;
+  }
+
+  node.replace($createTextNode(markdownSource));
+}
+
+function serializeUnsupportedMarkdownOffNode(node: LexicalNode): string {
+  if ($isTableNode(node)) {
+    return serializeTableNodeToMarkdown(node, renderTableCellMarkdownForOffMode)
+      || node.getTextContent();
+  }
+
+  if ($isElementNode(node)) {
+    return $convertToMarkdownString(markdownExportTransformers, node) || node.getTextContent();
+  }
+
+  return node.getTextContent();
+}
+
+function renderTableCellMarkdownForOffMode(cell: ElementNode): string {
+  return $convertToMarkdownString(markdownExportTransformers, cell) || cell.getTextContent();
+}
+
+function replaceNodeWithMarkdownSourceBlock(node: LexicalNode, markdownSource: string): void {
+  const paragraphNode = $createParagraphNode();
+  const lines = markdownSource.split('\n');
+
+  lines.forEach((line, index) => {
+    if (index > 0) {
+      paragraphNode.append($createLineBreakNode());
+    }
+
+    if (line) {
+      paragraphNode.append($createTextNode(line));
+    }
+  });
+
+  node.replace(paragraphNode);
 }
 
 function splitUnescapedPipes(value: string): string[] {

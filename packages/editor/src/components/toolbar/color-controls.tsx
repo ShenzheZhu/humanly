@@ -13,6 +13,7 @@ import {
 } from '../../utils/text-formatting';
 import { TEXT_COLORS, HIGHLIGHT_COLORS, DEFAULT_TEXT_COLOR, DEFAULT_HIGHLIGHT_COLOR } from '../../constants/colors';
 import { ColorPicker } from '../color-picker';
+import { toolbarSectionStyle } from './toolbar-styles';
 
 /**
  * ColorControls component for text and highlight color selection
@@ -87,8 +88,5 @@ export function ColorControls(): JSX.Element {
 }
 
 const styles = {
-  container: {
-    display: 'flex',
-    gap: '4px',
-  },
+  container: toolbarSectionStyle,
 };
