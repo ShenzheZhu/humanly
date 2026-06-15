@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   CalendarClock,
   CheckCircle,
+  Eye,
   FileText,
   Loader2,
   Upload,
@@ -55,9 +56,9 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { AdminEnvironmentSectionHeading as SectionHeading } from '@/components/admin-environment-ui';
-import { SetupWorkspacePreview } from '@/components/tasks/setup-workspace-preview';
 import { api } from '@/lib/api-client';
 import { MODEL_WHITELIST, getWhitelist } from '@/lib/ai-models';
+import { getFrontendUserUrl } from '@/lib/certificate-url';
 import {
   formatDateTime,
   getLocalTimeZoneLabel,
@@ -90,8 +91,10 @@ import {
   normalizeResourceAccessPolicy,
   parseEnvironmentConfigContent,
   validateWritingEnvironmentImportTemplate,
+  buildWorkspaceSetupPreviewHash,
   type Task,
   type UserAISettings,
+  type WorkspaceSetupPreviewPayload,
   type WritingAiAccess,
   type WritingAiPolicyMode,
   type WritingAiProvider,
@@ -1089,6 +1092,27 @@ export default function NewTaskPage() {
       trackCopyPaste: normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) === 'allowed',
     },
   };
+  const handleOpenWorkspacePreview = () => {
+    const payload: WorkspaceSetupPreviewPayload = {
+      allowGuestSubmissions,
+      config: workspacePreviewConfig,
+      description: watchedTaskDescription || '',
+      hasPdf: instructionFiles.length > 0 || !!environmentConfig.instructions.hasInstructionPdf,
+      mode: 'admin',
+      pdfLabel: instructionFiles.length > 1
+        ? `${instructionFiles.length} instruction PDFs`
+        : instructionFiles[0]?.name || 'Instruction PDF',
+      selectedAiModel,
+      taskWindow: {
+        enabled: timeLimitEnabled,
+        startDate: watchedStartDate,
+        endDate: watchedEndDate,
+      },
+      title: watchedTaskName,
+    };
+    const previewUrl = `${getFrontendUserUrl()}/documents/preview${buildWorkspaceSetupPreviewHash(payload)}`;
+    window.open(previewUrl, '_blank', 'noopener,noreferrer');
+  };
   const customEnvironmentControls = (
     <div className="grid gap-4 xl:grid-cols-2">
       <div className="space-y-4 rounded-md border p-4 xl:col-span-2">
@@ -1745,10 +1769,22 @@ export default function NewTaskPage() {
               </section>
 
               <div className="space-y-5 rounded-md border p-4">
-                <SectionHeading
-                  title="Environment"
-                  description="Choose a default, customize task controls, or import a JSON or YAML environment."
-                />
+                <div className="flex items-start justify-between gap-4">
+                  <SectionHeading
+                    title="Environment"
+                    description="Choose a default, customize task controls, or import a JSON or YAML environment."
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleOpenWorkspacePreview}
+                    disabled={isSubmitting}
+                    className="shrink-0 gap-2"
+                  >
+                    <Eye className="h-4 w-4" />
+                    Preview
+                  </Button>
+                </div>
 
                 <div className="grid gap-2">
                   <FormLabel>Environment</FormLabel>
@@ -1854,26 +1890,6 @@ export default function NewTaskPage() {
                 )}
               </div>
 
-              <SetupWorkspacePreview
-                allowGuestSubmissions={allowGuestSubmissions}
-                className="xl:col-span-2"
-                config={workspacePreviewConfig}
-                description={watchedTaskDescription || ''}
-                hasPdf={instructionFiles.length > 0 || !!environmentConfig.instructions.hasInstructionPdf}
-                mode="admin"
-                pdfLabel={
-                  instructionFiles.length > 1
-                    ? `${instructionFiles.length} instruction PDFs`
-                    : instructionFiles[0]?.name || 'Instruction PDF'
-                }
-                selectedAiModel={selectedAiModel}
-                taskWindow={{
-                  enabled: timeLimitEnabled,
-                  startDate: watchedStartDate,
-                  endDate: watchedEndDate,
-                }}
-                title={watchedTaskName}
-              />
             </CardContent>
 
             <CardFooter className="flex justify-end gap-3 border-t border-border/70 pt-4">

@@ -10,6 +10,8 @@ import {
   TASK_DESCRIPTION_MAX_LENGTH,
   TASK_INSTRUCTION_PDF_MAX_FILES,
   TASK_NAME_MAX_LENGTH,
+  decodeWorkspaceSetupPreviewPayload,
+  getWorkspaceSetupPreviewHashValue,
   serializeEnvironmentConfig,
   type WritingEnvironmentConfig,
 } from '@humanly/shared';
@@ -164,11 +166,8 @@ describe('admin new task page', () => {
     expect(screen.getByText('Two-week window')).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: /allow guest submissions/i })).toBeChecked();
     expect(screen.queryByLabelText(/AI Usage Limit/i)).not.toBeInTheDocument();
-    const preview = screen.getByRole('region', { name: /workspace preview/i });
-    expect(within(preview).getByText('Assigned task workspace')).toBeInTheDocument();
-    expect(within(preview).getByText('Display-only preview. No saves, tracking events, AI calls, or timers run here.')).toBeInTheDocument();
-    expect(within(preview).getByText(/May 19, 2026/)).toBeInTheDocument();
-    expect(within(preview).queryByText('AI Assistant')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /preview/i })).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: /workspace preview/i })).not.toBeInTheDocument();
 
     await act(async () => {
       fireEvent.change(screen.getByLabelText(/Task Name/i), {
@@ -210,7 +209,9 @@ describe('admin new task page', () => {
     expect(payload.environmentConfig.time.timeLimitSeconds).toBeUndefined();
   });
 
-  it('updates the workspace preview for full AI, PDFs, and session timers', async () => {
+  it('opens a user workspace preview tab with full AI, PDFs, and session timers', async () => {
+    const openSpy = jest.spyOn(window, 'open').mockImplementation(() => null);
+
     render(<NewTaskPage />);
 
     expect(await screen.findByRole('heading', { name: 'New Task' })).toBeInTheDocument();
@@ -238,16 +239,30 @@ describe('admin new task page', () => {
     });
     await closeCustomEnvironmentDialog();
 
-    const preview = screen.getByRole('region', { name: /workspace preview/i });
-    expect(within(preview).getByText('Previewed Task')).toBeInTheDocument();
-    expect(within(preview).getByText('preview-instructions.pdf')).toBeInTheDocument();
-    expect(within(preview).getByText('AI Assistant')).toBeInTheDocument();
-    expect(within(preview).getByText('Grammar')).toBeInTheDocument();
-    expect(within(preview).getByText('Improve')).toBeInTheDocument();
-    expect(within(preview).getByText('Simplify')).toBeInTheDocument();
-    expect(within(preview).getByText('Formal')).toBeInTheDocument();
-    expect(within(preview).getByText('Ask AI')).toBeInTheDocument();
-    expect(within(preview).getAllByText('1h').length).toBeGreaterThan(0);
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /preview/i }));
+    });
+
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    const [previewUrl, target, features] = openSpy.mock.calls[0];
+    expect(previewUrl).toContain('/documents/preview#workspacePreview=');
+    expect(target).toBe('_blank');
+    expect(features).toBe('noopener,noreferrer');
+
+    const encodedPayload = getWorkspaceSetupPreviewHashValue(new URL(previewUrl as string, 'https://admin.writehumanly.net').hash);
+    expect(encodedPayload).toBeTruthy();
+    const payload = decodeWorkspaceSetupPreviewPayload(encodedPayload as string);
+    expect(payload.mode).toBe('admin');
+    expect(payload.title).toBe('Previewed Task');
+    expect(payload.hasPdf).toBe(true);
+    expect(payload.pdfLabel).toBe('preview-instructions.pdf');
+    expect(payload.config.aiAccess).toBe('full');
+    expect(payload.config.time.timeLimitSeconds).toBe(3600);
+    expect(payload.taskWindow).toEqual(expect.objectContaining({
+      enabled: true,
+    }));
+
+    openSpy.mockRestore();
   });
 
   it('creates tasks and instruction PDFs in one multipart request', async () => {

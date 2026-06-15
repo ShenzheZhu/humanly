@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   CheckCircle,
+  Eye,
   FileText,
   Loader2,
   Upload,
@@ -31,9 +32,11 @@ import {
   normalizeResourceAccessPolicy,
   parseEnvironmentConfigContent,
   validateWritingEnvironmentImportTemplate,
+  buildWorkspaceSetupPreviewHash,
   type UserAISettings,
   type WritingAiAccess,
   type WritingAiPolicyMode,
+  type WorkspaceSetupPreviewPayload,
   type WritingAiProviderConfig,
   type WritingEnvironmentConfig,
   type WritingEnvironmentPreset,
@@ -67,7 +70,6 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
-import { SetupWorkspacePreview } from '@/components/documents/setup-workspace-preview';
 import { useDocuments } from '@/hooks/use-documents';
 import { apiClient } from '@/lib/api-client';
 import {
@@ -719,6 +721,37 @@ export default function NewDocumentPage() {
   const isImportingEnvironment = environmentSelection === IMPORT_ENVIRONMENT_VALUE;
   const showCustomEnvironmentSummary = environmentSelection === 'custom';
   const customEnvironmentSummaryItems = buildPersonalEnvironmentSummary(environmentConfig, selectedAiModel);
+  const workspacePreviewConfig: WritingEnvironmentConfig = {
+    ...environmentConfig,
+    taskType: 'personal',
+    allowedModels: environmentConfig.aiAccess === 'off'
+      ? []
+      : selectedAiModel
+        ? [selectedAiModel]
+        : environmentConfig.allowedModels,
+    instructions: {
+      ...environmentConfig.instructions,
+      hasInstructionPdf: !!pdfFile || !!environmentConfig.instructions.hasInstructionPdf,
+    },
+    traceability: {
+      ...environmentConfig.traceability,
+      trackAiUsage: environmentConfig.aiAccess !== 'off',
+      trackCopyPaste: normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) === 'allowed',
+    },
+  };
+  const handleOpenWorkspacePreview = () => {
+    const payload: WorkspaceSetupPreviewPayload = {
+      config: workspacePreviewConfig,
+      description,
+      hasPdf: !!pdfFile || !!environmentConfig.instructions.hasInstructionPdf,
+      mode: 'personal',
+      pdfLabel: pdfFile?.name || 'Linked PDF',
+      selectedAiModel,
+      title,
+    };
+
+    window.open(`/documents/preview${buildWorkspaceSetupPreviewHash(payload)}`, '_blank', 'noopener,noreferrer');
+  };
   const customEnvironmentControls = (
     <div className="grid gap-4 lg:grid-cols-2">
       <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4 lg:col-span-2">
@@ -1148,10 +1181,22 @@ export default function NewDocumentPage() {
           </section>
 
           <div className="h-full space-y-4 rounded-lg border border-border/70 bg-background p-3">
-            <SectionHeading
-              title="Environment"
-              description="Choose a default, customize the modules below, or import a JSON or YAML configuration."
-            />
+            <div className="flex items-start justify-between gap-4">
+              <SectionHeading
+                title="Environment"
+                description="Choose a default, customize the modules below, or import a JSON or YAML configuration."
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleOpenWorkspacePreview}
+                disabled={isCreating}
+                className="shrink-0 gap-2"
+              >
+                <Eye className="h-4 w-4" />
+                Preview
+              </Button>
+            </div>
 
             <div className="humanly-field">
               <Label>Environment</Label>
@@ -1260,16 +1305,6 @@ export default function NewDocumentPage() {
             )}
           </div>
 
-          <SetupWorkspacePreview
-            className="xl:col-span-2"
-            config={environmentConfig}
-            description={description}
-            hasPdf={!!pdfFile || !!environmentConfig.instructions.hasInstructionPdf}
-            mode="personal"
-            pdfLabel={pdfFile?.name || 'Linked PDF'}
-            selectedAiModel={selectedAiModel}
-            title={title}
-          />
         </CardContent>
         <CardFooter className="mt-4 flex justify-end gap-3 border-t border-border/70 bg-muted/20 px-5 pb-5 pt-7 sm:pt-7">
           <Button variant="outline" onClick={() => router.push('/documents')} disabled={isCreating}>
