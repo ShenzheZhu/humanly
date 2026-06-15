@@ -1,10 +1,12 @@
 /**
  * @jest-environment-options {"customExportConditions":["node"]}
  */
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   ENVIRONMENT_CONFIG_ACCEPT,
+  decodeWorkspaceSetupPreviewPayload,
+  getWorkspaceSetupPreviewHashValue,
   serializeEnvironmentConfig,
   type WritingEnvironmentConfig,
 } from '@humanly/shared';
@@ -130,11 +132,7 @@ describe('document creation workflow', () => {
     expect(screen.getByText('Choose Custom to configure AI access, copy-paste rules, or a time limit.')).toBeInTheDocument();
     expect(screen.queryByText('Writing Control')).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/ai api key/i)).not.toBeInTheDocument();
-    const preview = screen.getByRole('region', { name: /workspace preview/i });
-    expect(within(preview).getByText('Personal writing workspace')).toBeInTheDocument();
-    expect(within(preview).getByText('Display-only preview. No saves, tracking events, AI calls, or timers run here.')).toBeInTheDocument();
-    expect(within(preview).getByText('No timer')).toBeInTheDocument();
-    expect(within(preview).queryByText('AI Assistant')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /preview/i })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /^create writing$/i }));
 
@@ -178,8 +176,9 @@ describe('document creation workflow', () => {
     expect(screen.queryByText('Choose Custom to configure AI access, copy-paste rules, or a time limit.')).not.toBeInTheDocument();
   });
 
-  it('updates the workspace preview when full AI and timed writing are configured', async () => {
+  it('opens a workspace preview tab with the current full AI and timed writing settings', async () => {
     const user = userEvent.setup();
+    const openSpy = jest.spyOn(window, 'open').mockImplementation(() => null);
 
     render(<NewDocumentPage />);
 
@@ -193,14 +192,22 @@ describe('document creation workflow', () => {
     await user.click(await screen.findByRole('option', { name: 'Time limited' }));
     await user.click(screen.getByRole('button', { name: 'Done' }));
 
-    const preview = screen.getByRole('region', { name: /workspace preview/i });
-    expect(within(preview).getByText('AI Assistant')).toBeInTheDocument();
-    expect(within(preview).getByText('Grammar')).toBeInTheDocument();
-    expect(within(preview).getByText('Improve')).toBeInTheDocument();
-    expect(within(preview).getByText('Simplify')).toBeInTheDocument();
-    expect(within(preview).getByText('Formal')).toBeInTheDocument();
-    expect(within(preview).getByText('Ask AI')).toBeInTheDocument();
-    expect(within(preview).getAllByText('1h').length).toBeGreaterThan(0);
+    await user.click(screen.getByRole('button', { name: /preview/i }));
+
+    expect(openSpy).toHaveBeenCalledTimes(1);
+    const [previewUrl, target, features] = openSpy.mock.calls[0];
+    expect(previewUrl).toContain('/documents/preview#workspacePreview=');
+    expect(target).toBe('_blank');
+    expect(features).toBe('noopener,noreferrer');
+
+    const encodedPayload = getWorkspaceSetupPreviewHashValue(new URL(previewUrl as string, 'https://app.writehumanly.net').hash);
+    expect(encodedPayload).toBeTruthy();
+    const payload = decodeWorkspaceSetupPreviewPayload(encodedPayload as string);
+    expect(payload.mode).toBe('personal');
+    expect(payload.config.aiAccess).toBe('full');
+    expect(payload.config.time.timeLimitSeconds).toBe(3600);
+
+    openSpy.mockRestore();
   });
 
   const getEnvironmentConfigInput = () => (

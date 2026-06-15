@@ -19,6 +19,7 @@ export default function DocumentsLayout({
   const [hasChecked, setHasChecked] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isBasicInfoOpen, setIsBasicInfoOpen] = useState(false);
+  const isWorkspacePreviewRoute = pathname === '/documents/preview';
   const documentIdMatch = pathname.match(/^\/documents\/([^/]+)/);
   const publicDocumentId = documentIdMatch?.[1] || '';
   const isPublicGuestDocumentRoute = Boolean(
@@ -32,9 +33,14 @@ export default function DocumentsLayout({
     isAuthenticated &&
     user?.profileCompleted === false &&
     !isGuestUserEmail(user?.email) &&
+    !isWorkspacePreviewRoute &&
     !isPublicGuestDocumentRoute;
 
   useEffect(() => {
+    if (isWorkspacePreviewRoute) {
+      return;
+    }
+
     if (!hasChecked) {
       const shouldSwitchSession = typeof window !== 'undefined'
         && new URLSearchParams(window.location.search).get('switchSession') === '1';
@@ -47,27 +53,31 @@ export default function DocumentsLayout({
         setIsCheckingAuth(false);
       });
     }
-  }, [hasChecked, checkAuth, pathname, router]);
+  }, [hasChecked, checkAuth, isWorkspacePreviewRoute, pathname, router]);
 
   useEffect(() => {
     // Only redirect after we've checked auth and user is not authenticated
-    if (hasChecked && !isCheckingAuth && !isLoading && !isAuthenticated) {
+    if (!isWorkspacePreviewRoute && hasChecked && !isCheckingAuth && !isLoading && !isAuthenticated) {
       router.push('/login');
     }
-  }, [isAuthenticated, isLoading, router, hasChecked, isCheckingAuth]);
+  }, [isAuthenticated, isLoading, router, hasChecked, isCheckingAuth, isWorkspacePreviewRoute]);
 
   useEffect(() => {
-    if (hasChecked && !isCheckingAuth && !isLoading && isGuestWorkspaceRoute) {
+    if (!isWorkspacePreviewRoute && hasChecked && !isCheckingAuth && !isLoading && isGuestWorkspaceRoute) {
       clearLocalSession();
       router.replace('/login');
     }
-  }, [clearLocalSession, hasChecked, isCheckingAuth, isGuestWorkspaceRoute, isLoading, router]);
+  }, [clearLocalSession, hasChecked, isCheckingAuth, isGuestWorkspaceRoute, isLoading, router, isWorkspacePreviewRoute]);
 
   useEffect(() => {
     if (hasChecked && !isCheckingAuth && !isLoading && requiresBasicInfo) {
       setIsBasicInfoOpen(true);
     }
   }, [hasChecked, isCheckingAuth, isLoading, requiresBasicInfo]);
+
+  if (isWorkspacePreviewRoute) {
+    return <>{children}</>;
+  }
 
   if (isCheckingAuth || isLoading) {
     return (
