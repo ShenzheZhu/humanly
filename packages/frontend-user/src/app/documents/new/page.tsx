@@ -67,6 +67,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
+import { SetupWorkspacePreview } from '@/components/documents/setup-workspace-preview';
 import { useDocuments } from '@/hooks/use-documents';
 import { apiClient } from '@/lib/api-client';
 import {
@@ -1258,6 +1259,17 @@ export default function NewDocumentPage() {
               </div>
             )}
           </div>
+
+          <SetupWorkspacePreview
+            className="xl:col-span-2"
+            config={environmentConfig}
+            description={description}
+            hasPdf={!!pdfFile || !!environmentConfig.instructions.hasInstructionPdf}
+            mode="personal"
+            pdfLabel={pdfFile?.name || 'Linked PDF'}
+            selectedAiModel={selectedAiModel}
+            title={title}
+          />
         </CardContent>
         <CardFooter className="mt-4 flex justify-end gap-3 border-t border-border/70 bg-muted/20 px-5 pb-5 pt-7 sm:pt-7">
           <Button variant="outline" onClick={() => router.push('/documents')} disabled={isCreating}>

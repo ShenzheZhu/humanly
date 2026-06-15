@@ -1,7 +1,7 @@
 /**
  * @jest-environment-options {"customExportConditions":["node"]}
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   ENVIRONMENT_CONFIG_ACCEPT,
@@ -130,6 +130,11 @@ describe('document creation workflow', () => {
     expect(screen.getByText('Choose Custom to configure AI access, copy-paste rules, or a time limit.')).toBeInTheDocument();
     expect(screen.queryByText('Writing Control')).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/ai api key/i)).not.toBeInTheDocument();
+    const preview = screen.getByRole('region', { name: /workspace preview/i });
+    expect(within(preview).getByText('Personal writing workspace')).toBeInTheDocument();
+    expect(within(preview).getByText('Display-only preview. No saves, tracking events, AI calls, or timers run here.')).toBeInTheDocument();
+    expect(within(preview).getByText('No timer')).toBeInTheDocument();
+    expect(within(preview).queryByText('AI Assistant')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /^create writing$/i }));
 
@@ -171,6 +176,31 @@ describe('document creation workflow', () => {
     expect(screen.getByText('Typing, Focus')).toBeInTheDocument();
     expect(screen.queryByText('Submission')).not.toBeInTheDocument();
     expect(screen.queryByText('Choose Custom to configure AI access, copy-paste rules, or a time limit.')).not.toBeInTheDocument();
+  });
+
+  it('updates the workspace preview when full AI and timed writing are configured', async () => {
+    const user = userEvent.setup();
+
+    render(<NewDocumentPage />);
+
+    await screen.findByRole('heading', { name: /create writing/i });
+    await user.click(screen.getByRole('combobox', { name: /environment/i }));
+    await user.click(await screen.findByRole('option', { name: 'Custom' }));
+
+    await user.click(screen.getByRole('combobox', { name: /ai access/i }));
+    await user.click(await screen.findByRole('option', { name: 'Full' }));
+    await user.click(screen.getByRole('combobox', { name: /time policy/i }));
+    await user.click(await screen.findByRole('option', { name: 'Time limited' }));
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+
+    const preview = screen.getByRole('region', { name: /workspace preview/i });
+    expect(within(preview).getByText('AI Assistant')).toBeInTheDocument();
+    expect(within(preview).getByText('Grammar')).toBeInTheDocument();
+    expect(within(preview).getByText('Improve')).toBeInTheDocument();
+    expect(within(preview).getByText('Simplify')).toBeInTheDocument();
+    expect(within(preview).getByText('Formal')).toBeInTheDocument();
+    expect(within(preview).getByText('Ask AI')).toBeInTheDocument();
+    expect(within(preview).getAllByText('1h').length).toBeGreaterThan(0);
   });
 
   const getEnvironmentConfigInput = () => (
