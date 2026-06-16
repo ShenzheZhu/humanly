@@ -1496,7 +1496,9 @@ export default function DocumentEditorPage() {
                         <div>
                           <h2 className="text-sm font-semibold">No PDF linked</h2>
                           <p className="text-sm text-muted-foreground">
-                            This personal document does not have a source PDF.
+                            {taskEnrollment
+                              ? 'This assigned task does not have an instruction PDF.'
+                              : 'This personal document does not have a source PDF.'}
                           </p>
                         </div>
                       </div>
