@@ -442,7 +442,9 @@ export default function WorkspacePreviewPage() {
                     <div className="mb-4 rounded-lg border border-dashed border-border/80 bg-muted/30 p-4">
                       <h2 className="text-sm font-semibold">No PDF linked</h2>
                       <p className="text-sm text-muted-foreground">
-                        This personal document does not have a source PDF.
+                        {payload.mode === 'admin'
+                          ? 'This assigned task does not have an instruction PDF.'
+                          : 'This personal document does not have a source PDF.'}
                       </p>
                     </div>
                   ) : null}

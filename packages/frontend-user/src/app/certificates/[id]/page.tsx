@@ -92,6 +92,7 @@ export default function CertificateDetailPage() {
   const [isUpdatingAccessCode, setIsUpdatingAccessCode] = useState(false);
   const [isUpdatingDisplay, setIsUpdatingDisplay] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [verificationUrl, setVerificationUrl] = useState('');
   const isGuestCertificateView = isGuestUserEmail(user?.email)
     || Boolean(TokenManager.getPublicCertificateAccessToken(certificateId));
 
@@ -110,6 +111,7 @@ export default function CertificateDetailPage() {
   useEffect(() => {
     if (certificate) {
       const verifyUrl = `${window.location.origin}/verify/${certificate.verificationToken}`;
+      setVerificationUrl(verifyUrl);
       QRCode.toDataURL(verifyUrl, {
         width: 200,
         margin: 2,
@@ -120,6 +122,8 @@ export default function CertificateDetailPage() {
       })
         .then((dataURL) => setQrCodeDataURL(dataURL))
         .catch((err) => console.error('Error generating QR code:', err));
+    } else {
+      setVerificationUrl('');
     }
   }, [certificate]);
 
@@ -149,7 +153,7 @@ export default function CertificateDetailPage() {
 
   const handleShareVerificationLink = async () => {
     if (certificate) {
-      const verifyUrl = `${window.location.origin}/verify/${certificate.verificationToken}`;
+      const verifyUrl = verificationUrl || `${window.location.origin}/verify/${certificate.verificationToken}`;
       const didCopy = await copyTextToClipboard(verifyUrl);
       if (didCopy) {
         toast({
@@ -157,6 +161,7 @@ export default function CertificateDetailPage() {
           description: 'Certificate link copied to clipboard',
         });
       } else {
+        setDetailsOpen(true);
         showCopyUnavailableToast('Certificate link');
       }
     }
@@ -406,6 +411,11 @@ export default function CertificateDetailPage() {
                         <Share2 className="mr-2 h-4 w-4" />
                         Copy Certificate Link
                       </Button>
+                      {verificationUrl ? (
+                        <div className="mt-2 w-full max-w-56 rounded-md border border-border/70 bg-background px-2 py-1.5 text-center text-[11px] text-muted-foreground">
+                          <span className="select-all break-all">{verificationUrl}</span>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
 
