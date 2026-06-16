@@ -5,6 +5,7 @@ export type WritingAiPolicyMode = 'off' | 'guard';
 export type WritingAiUsageLimitMode = 'unlimited' | 'max_requests' | 'max_tokens' | 'time_restricted';
 export type WritingLateSubmissionPolicy = 'allowed' | 'not_allowed';
 export type WritingSubmissionMode = 'single' | 'multiple';
+export type WritingAttemptPolicyMode = 'single' | 'restart_allowed';
 export type CopyPastePolicy = 'allowed' | 'blocked';
 export type ResourceAccessPolicy = 'downloadable' | 'view-only';
 export type WritingEnvironmentPreset = 'default_writing' | 'no_ai' | 'ai_assisted' | 'timed_writing' | 'custom';
@@ -23,6 +24,11 @@ export interface WritingAiTokenBudget {
 export interface WritingAiPolicyConfig {
   mode: WritingAiPolicyMode;
   rejectionRule?: string;
+}
+
+export interface WritingAttemptPolicyConfig {
+  mode: WritingAttemptPolicyMode;
+  maxAttempts?: number;
 }
 
 export interface WritingEnvironmentConfig {
@@ -54,6 +60,7 @@ export interface WritingEnvironmentConfig {
     mode: WritingSubmissionMode;
     minCharacters?: number;
     maxCharacters?: number;
+    attemptPolicy?: WritingAttemptPolicyConfig;
   };
   traceability: {
     trackAiUsage: boolean;
@@ -154,6 +161,36 @@ export const normalizeResourceAccessPolicy = (policy?: string | null): ResourceA
   policy === 'view-only' ? 'view-only' : 'downloadable'
 );
 
+export const normalizeWritingAttemptPolicy = (
+  value?: Partial<WritingAttemptPolicyConfig> | null
+): WritingAttemptPolicyConfig => {
+  if (value?.mode !== 'restart_allowed') {
+    return { mode: 'single' };
+  }
+
+  const parsedMaxAttempts = Number(value.maxAttempts);
+  const maxAttempts = Number.isFinite(parsedMaxAttempts)
+    ? Math.max(2, Math.min(20, Math.floor(parsedMaxAttempts)))
+    : 2;
+
+  return {
+    mode: 'restart_allowed',
+    maxAttempts,
+  };
+};
+
+export const isWritingRestartAllowed = (
+  config?: Pick<WritingEnvironmentConfig, 'submission'> | null
+): boolean => (
+  normalizeWritingAttemptPolicy(config?.submission?.attemptPolicy).mode === 'restart_allowed'
+);
+
+export const getMaxWritingAttempts = (
+  config?: Pick<WritingEnvironmentConfig, 'submission'> | null
+): number => (
+  normalizeWritingAttemptPolicy(config?.submission?.attemptPolicy).maxAttempts || 1
+);
+
 export const DEFAULT_WRITING_ENVIRONMENT_CONFIG: WritingEnvironmentConfig = {
   preset: 'default_writing',
   taskType: 'personal',
@@ -179,6 +216,9 @@ export const DEFAULT_WRITING_ENVIRONMENT_CONFIG: WritingEnvironmentConfig = {
   },
   submission: {
     mode: 'multiple',
+    attemptPolicy: {
+      mode: 'single',
+    },
   },
   traceability: {
     trackAiUsage: false,

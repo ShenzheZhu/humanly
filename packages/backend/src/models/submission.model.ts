@@ -6,6 +6,8 @@ const SUBMISSION_SELECT_FIELDS = `
   task_id as "taskId",
   user_id as "userId",
   document_id as "documentId",
+  task_attempt_id as "taskAttemptId",
+  NULL::int as "attemptNumber",
   certificate_id as "certificateId",
   NULL::text as "certificateVerificationToken",
   submitted_at as "submittedAt",
@@ -25,6 +27,8 @@ const SUBMISSION_WITH_CERTIFICATE_SELECT_FIELDS = `
   u.email as "userEmail",
   s.document_id as "documentId",
   d.title as "documentTitle",
+  s.task_attempt_id as "taskAttemptId",
+  ta.attempt_number as "attemptNumber",
   s.certificate_id as "certificateId",
   c.verification_token as "certificateVerificationToken",
   s.submitted_at as "submittedAt",
@@ -50,13 +54,14 @@ export class SubmissionModel {
         task_id,
         user_id,
         document_id,
+        task_attempt_id,
         payload_snapshot,
         plain_text_snapshot,
         supersedes_submission_id,
         anomaly_flags,
         status
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING ${SUBMISSION_SELECT_FIELDS}
     `;
 
@@ -64,6 +69,7 @@ export class SubmissionModel {
       data.taskId,
       data.userId,
       data.documentId,
+      data.taskAttemptId || null,
       JSON.stringify(data.payloadSnapshot),
       data.plainTextSnapshot,
       data.supersedesSubmissionId || null,
@@ -85,6 +91,7 @@ export class SubmissionModel {
       LEFT JOIN certificates c ON c.id = s.certificate_id
       LEFT JOIN users u ON u.id = s.user_id
       LEFT JOIN documents d ON d.id = s.document_id
+      LEFT JOIN task_attempts ta ON ta.id = s.task_attempt_id
       WHERE s.id = $1
     `;
 
@@ -115,6 +122,18 @@ export class SubmissionModel {
     return queryOne<Submission>(sql, [taskId, userId]);
   }
 
+  static async findActiveForTaskAttempt(taskAttemptId: string): Promise<Submission | null> {
+    const sql = `
+      SELECT ${SUBMISSION_SELECT_FIELDS}
+      FROM submissions
+      WHERE task_attempt_id = $1 AND status = 'active'
+      ORDER BY submitted_at DESC, created_at DESC
+      LIMIT 1
+    `;
+
+    return queryOne<Submission>(sql, [taskAttemptId]);
+  }
+
   static async listForUserTask(taskId: string, userId: string): Promise<Submission[]> {
     const sql = `
       SELECT ${SUBMISSION_WITH_CERTIFICATE_SELECT_FIELDS}
@@ -122,6 +141,7 @@ export class SubmissionModel {
       LEFT JOIN certificates c ON c.id = s.certificate_id
       LEFT JOIN users u ON u.id = s.user_id
       LEFT JOIN documents d ON d.id = s.document_id
+      LEFT JOIN task_attempts ta ON ta.id = s.task_attempt_id
       WHERE s.task_id = $1 AND s.user_id = $2
       ORDER BY s.submitted_at DESC, s.created_at DESC
     `;
@@ -136,6 +156,7 @@ export class SubmissionModel {
       LEFT JOIN certificates c ON c.id = s.certificate_id
       LEFT JOIN users u ON u.id = s.user_id
       LEFT JOIN documents d ON d.id = s.document_id
+      LEFT JOIN task_attempts ta ON ta.id = s.task_attempt_id
       WHERE s.task_id = $1
       ORDER BY s.submitted_at DESC, s.created_at DESC
     `;

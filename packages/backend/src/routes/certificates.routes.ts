@@ -14,6 +14,7 @@ import {
   updateDisplayOptions,
   deleteCertificate,
   getEditHistory,
+  getCertificateLogs,
   getPublicCertificateLogs,
   getAIAuthorshipStats,
 } from '../controllers/certificate.controller';
@@ -72,6 +73,12 @@ router.get('/', asyncHandler(listCertificates));
  * Body: { documentId: string, certificateType?: 'full_authorship' | 'partial_authorship' }
  */
 router.post('/', asyncHandler(generateCertificate));
+
+/**
+ * GET /api/v1/certificates/:id/logs
+ * Get owner activity logs frozen to certificate generation time
+ */
+router.get('/:id/logs', asyncHandler(getCertificateLogs));
 
 /**
  * GET /api/v1/certificates/:id

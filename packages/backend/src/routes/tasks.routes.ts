@@ -14,6 +14,7 @@ import {
   joinTask,
   leaveTask,
   linkSubmissionDocument,
+  startNewTaskAttempt,
   startSubmissionSession,
   endSubmissionSession,
   submitTaskDocument,
@@ -92,6 +93,12 @@ router.get('/my-enrollments', asyncHandler(listMyTaskEnrollments));
  * Remove the current user's enrollment from a task.
  */
 router.delete('/enrollments/:taskId', asyncHandler(leaveTask));
+
+/**
+ * POST /api/v1/tasks/enrollments/:taskId/attempts
+ * Start a new attempt for the current user's task enrollment.
+ */
+router.post('/enrollments/:taskId/attempts', asyncHandler(startNewTaskAttempt));
 
 /**
  * PUT /api/v1/tasks/enrollments/:taskId/submission-document

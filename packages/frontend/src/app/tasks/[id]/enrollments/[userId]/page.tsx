@@ -36,6 +36,8 @@ interface TaskEnrollment {
   email: string;
   documentId: string | null;
   documentTitle: string | null;
+  currentAttemptNumber?: number | null;
+  attemptCount?: number;
   joinedAt: string;
   submissionCount: number;
   eventCount: number;
@@ -46,6 +48,8 @@ interface Submission {
   id: string;
   documentId: string;
   documentTitle?: string | null;
+  taskAttemptId?: string | null;
+  attemptNumber?: number | null;
   certificateId: string | null;
   certificateVerificationToken?: string | null;
   submittedAt: string;
@@ -113,6 +117,9 @@ export default function EnrollmentSubmissionsPage() {
   };
 
   const latestSubmission = submissions[0] || null;
+  const formatAttemptLabel = (attemptNumber?: number | null) => (
+    attemptNumber ? `Attempt ${attemptNumber}` : 'Attempt 1'
+  );
 
   return (
     <div className="space-y-6">
@@ -149,7 +156,7 @@ export default function EnrollmentSubmissionsPage() {
         </div>
       ) : enrollment ? (
         <>
-          <div className="grid gap-4 md:grid-cols-3">
+	          <div className="grid gap-4 md:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">User</CardTitle>
@@ -164,16 +171,30 @@ export default function EnrollmentSubmissionsPage() {
                 </p>
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Submissions</CardTitle>
-                <FileText className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{submissions.length.toLocaleString()}</div>
-              </CardContent>
-            </Card>
-            <Card>
+	            <Card>
+	              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+	                <CardTitle className="text-sm font-medium">Total Submissions</CardTitle>
+	                <FileText className="h-4 w-4 text-muted-foreground" />
+	              </CardHeader>
+	              <CardContent>
+	                <div className="text-2xl font-bold">{submissions.length.toLocaleString()}</div>
+	              </CardContent>
+	            </Card>
+	            <Card>
+	              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+	                <CardTitle className="text-sm font-medium">Attempts</CardTitle>
+	                <FileText className="h-4 w-4 text-muted-foreground" />
+	              </CardHeader>
+	              <CardContent>
+	                <div className="text-2xl font-bold">{(enrollment.attemptCount || 0).toLocaleString()}</div>
+	                {enrollment.currentAttemptNumber ? (
+	                  <p className="mt-1 text-xs text-muted-foreground">
+	                    Current attempt {enrollment.currentAttemptNumber}
+	                  </p>
+	                ) : null}
+	              </CardContent>
+	            </Card>
+	            <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Last Activity</CardTitle>
                 <FileText className="h-4 w-4 text-muted-foreground" />
@@ -196,10 +217,11 @@ export default function EnrollmentSubmissionsPage() {
                   onClick={() => router.push(`/tasks/${taskId}/submissions/${latestSubmission.id}`)}
                 >
                   <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge>Latest</Badge>
-                      <span className="text-sm text-muted-foreground">
-                        Submitted {formatDateTime(latestSubmission.submittedAt)}
+	                    <div className="flex flex-wrap items-center gap-2">
+	                      <Badge>Latest</Badge>
+	                      <Badge variant="outline">{formatAttemptLabel(latestSubmission.attemptNumber)}</Badge>
+	                      <span className="text-sm text-muted-foreground">
+	                        Submitted {formatDateTime(latestSubmission.submittedAt)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 text-sm">
@@ -270,8 +292,9 @@ export default function EnrollmentSubmissionsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Submitted</TableHead>
-                        <TableHead>Status</TableHead>
+	                        <TableHead>Submitted</TableHead>
+	                        <TableHead>Attempt</TableHead>
+	                        <TableHead>Status</TableHead>
                         <TableHead>Document</TableHead>
                         <TableHead>Submission ID</TableHead>
                         <TableHead className="text-right">Certificate</TableHead>
@@ -284,7 +307,8 @@ export default function EnrollmentSubmissionsPage() {
                           className="cursor-pointer hover:bg-muted/50"
                           onClick={() => router.push(`/tasks/${taskId}/submissions/${submission.id}`)}
                         >
-                          <TableCell>{formatDateTime(submission.submittedAt)}</TableCell>
+	                          <TableCell>{formatDateTime(submission.submittedAt)}</TableCell>
+	                          <TableCell>{formatAttemptLabel(submission.attemptNumber)}</TableCell>
                           <TableCell>
                             <Badge variant={index === 0 || submission.status === 'active' ? 'default' : 'secondary'}>
                               {index === 0 || submission.status === 'active' ? 'Latest' : 'Historical'}

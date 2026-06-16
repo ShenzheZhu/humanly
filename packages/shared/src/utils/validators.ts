@@ -19,6 +19,7 @@ import type {
 import {
   isWritingAiChatEnabled,
   normalizeWritingAiAccess,
+  normalizeWritingAttemptPolicy,
   normalizeWritingAiPolicy,
 } from '../types/environment.types';
 
@@ -43,6 +44,9 @@ const writingSubmissionConfigSchema = z.object({
   mode: z.enum(['single', 'multiple']),
   minCharacters: z.number().int().min(1).max(SUBMISSION_MIN_CHARACTERS_MAX).optional(),
   maxCharacters: z.number().int().min(1).max(SUBMISSION_MAX_CHARACTERS_MAX).optional(),
+  attemptPolicy: z.any()
+    .transform((value) => normalizeWritingAttemptPolicy(value))
+    .optional(),
 }).refine((submission) => {
   if (!submission.minCharacters || !submission.maxCharacters) return true;
   return submission.minCharacters <= submission.maxCharacters;
@@ -287,6 +291,10 @@ export const validateWritingEnvironmentImportTemplate = (
     ...normalizedParsed,
     customModels,
     aiPolicy: normalizeWritingAiPolicy(parsed.aiPolicy),
+    submission: {
+      ...parsed.submission,
+      attemptPolicy: normalizeWritingAttemptPolicy(parsed.submission.attemptPolicy),
+    },
     resourceAccess: parsed.resourceAccess || 'downloadable',
   };
 };

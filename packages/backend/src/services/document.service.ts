@@ -171,15 +171,23 @@ export class DocumentService {
           return { deleted: false, taskIds: [] as string[], files: [] };
         }
 
-        const linkedTaskResult = await client.query(
-          `
-            SELECT DISTINCT task_id
-            FROM task_enrollments
-            WHERE submission_document_id = $1
-              AND user_id = $2
-          `,
-          [documentId, userId]
-        );
+	        const linkedTaskResult = await client.query(
+	          `
+	            SELECT DISTINCT task_id
+	            FROM (
+	              SELECT task_id
+	              FROM task_enrollments
+	              WHERE submission_document_id = $1
+	                AND user_id = $2
+	              UNION
+	              SELECT task_id
+	              FROM task_attempts
+	              WHERE document_id = $1
+	                AND user_id = $2
+	            ) linked_tasks
+	          `,
+	          [documentId, userId]
+	        );
 
         const taskIds = linkedTaskResult.rows.map((row: { task_id: string }) => row.task_id);
 
@@ -347,14 +355,23 @@ export class DocumentService {
       const enrollment = await queryOne<{ id: string }>(
         `
           SELECT pe.id
-          FROM task_enrollments pe
-          JOIN users u ON u.id = pe.user_id
-          WHERE pe.task_id = $1
-            AND pe.user_id = $2
-            AND pe.submission_document_id = $3
-            AND u.email = $4
-          LIMIT 1
-        `,
+	          FROM task_enrollments pe
+	          JOIN users u ON u.id = pe.user_id
+	          WHERE pe.task_id = $1
+	            AND pe.user_id = $2
+	            AND (
+	              pe.submission_document_id = $3
+	              OR EXISTS (
+	                SELECT 1
+	                FROM task_attempts ta
+	                WHERE ta.task_id = pe.task_id
+	                  AND ta.user_id = pe.user_id
+	                  AND ta.document_id = $3
+	              )
+	            )
+	            AND u.email = $4
+	          LIMIT 1
+	        `,
         [session.taskId, userId, documentId, session.externalUserId]
       );
 
@@ -365,14 +382,21 @@ export class DocumentService {
   }
 
   private static async invalidateTaskAnalyticsForDocument(documentId: string): Promise<void> {
-    const linkedTasks = await query<{ taskId: string }>(
-      `
-        SELECT DISTINCT task_id as "taskId"
-        FROM task_enrollments
-        WHERE submission_document_id = $1
-      `,
-      [documentId]
-    );
+	    const linkedTasks = await query<{ taskId: string }>(
+	      `
+	        SELECT DISTINCT task_id as "taskId"
+	        FROM (
+	          SELECT task_id
+	          FROM task_enrollments
+	          WHERE submission_document_id = $1
+	          UNION
+	          SELECT task_id
+	          FROM task_attempts
+	          WHERE document_id = $1
+	        ) linked_tasks
+	      `,
+	      [documentId]
+	    );
 
     await Promise.all(
       linkedTasks.map((task) => cacheDelPattern(`analytics:${task.taskId}:*`))

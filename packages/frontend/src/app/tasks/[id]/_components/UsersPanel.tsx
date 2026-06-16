@@ -108,10 +108,11 @@ export function UsersPanel({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Joined</TableHead>
-                    <TableHead className="text-right">Submissions</TableHead>
-                    <TableHead className="text-right">Events</TableHead>
+	                    <TableHead>User</TableHead>
+	                    <TableHead>Joined</TableHead>
+	                    <TableHead className="text-right">Attempts</TableHead>
+	                    <TableHead className="text-right">Submissions</TableHead>
+	                    <TableHead className="text-right">Events</TableHead>
                     <TableHead>Last Activity</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -120,9 +121,10 @@ export function UsersPanel({
                     <TableRow key={enrollment.id}>
                       <TableCell>
                         <div className="font-medium">{enrollment.email}</div>
-                      </TableCell>
-                      <TableCell>{formatDateTime(enrollment.joinedAt)}</TableCell>
-                      <TableCell className="text-right">{enrollment.submissionCount}</TableCell>
+	                      </TableCell>
+	                      <TableCell>{formatDateTime(enrollment.joinedAt)}</TableCell>
+	                      <TableCell className="text-right">{enrollment.attemptCount || 0}</TableCell>
+	                      <TableCell className="text-right">{enrollment.submissionCount}</TableCell>
                       <TableCell className="text-right">{enrollment.eventCount}</TableCell>
                       <TableCell>
                         {enrollment.lastActivity ? formatDateTime(enrollment.lastActivity) : 'No activity yet'}
