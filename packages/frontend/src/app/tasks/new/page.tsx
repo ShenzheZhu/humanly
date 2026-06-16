@@ -82,11 +82,13 @@ import {
   WRITING_AI_MODELS,
   WRITING_ENVIRONMENT_PRESETS,
   formatWritingAiAccess,
+  getMaxWritingAttempts,
   isWritingAiChatEnabled,
   isWritingAiPolishEnabled,
   isTaskStartDateTooFarInPast,
   normalizeWritingAiPolicy,
   normalizeWritingAiAccess,
+  normalizeWritingAttemptPolicy,
   normalizeCopyPastePolicy,
   normalizeResourceAccessPolicy,
   parseEnvironmentConfigContent,
@@ -99,6 +101,7 @@ import {
   type WritingAiPolicyMode,
   type WritingAiProvider,
   type WritingAiProviderConfig,
+  type WritingAttemptPolicyMode,
   type WritingEnvironmentConfig,
   type WritingEnvironmentPreset,
 } from '@humanly/shared';
@@ -271,6 +274,12 @@ const parseOptionalMaxCharacters = (value: string): number | undefined => {
   return Math.min(Math.floor(parsed), SUBMISSION_MAX_CHARACTERS_MAX);
 };
 
+const parseMaxAttempts = (value: string, fallback = 2): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(2, Math.min(20, Math.floor(parsed)));
+};
+
 const normalizeImportedEnvironmentConfig = (value: unknown): WritingEnvironmentConfig => {
   const imported = validateWritingEnvironmentImportTemplate(value, 'admin_assigned');
   const aiAccess: WritingAiAccess = normalizeWritingAiAccess(imported.aiAccess);
@@ -343,6 +352,14 @@ const formatAdminTraceability = (config: WritingEnvironmentConfig): string => {
   return enabled.length ? enabled.join(', ') : 'Minimal';
 };
 
+const formatAdminAttemptPolicy = (config: WritingEnvironmentConfig): string => {
+  const policy = normalizeWritingAttemptPolicy(config.submission.attemptPolicy);
+  if (policy.mode === 'restart_allowed') {
+    return `Restarts allowed, max ${getMaxWritingAttempts(config)}`;
+  }
+  return 'Single durable attempt';
+};
+
 const buildAdminEnvironmentSummary = ({
   config,
   aiAccess,
@@ -407,7 +424,7 @@ const buildAdminEnvironmentSummary = ({
     {
       label: 'Submission',
       value: config.submission.mode === 'single' ? 'Single submission' : 'Multiple submissions',
-      detail: allowGuestSubmissions ? 'Guests allowed' : 'Sign-in required',
+      detail: `${formatAdminAttemptPolicy(config)} · ${allowGuestSubmissions ? 'Guests allowed' : 'Sign-in required'}`,
     },
     {
       label: 'Traceability',
@@ -732,6 +749,35 @@ export default function NewTaskPage() {
     }));
   };
 
+  const setAttemptPolicyMode = (mode: WritingAttemptPolicyMode) => {
+    markCustom((current) => ({
+      ...current,
+      submission: {
+        ...current.submission,
+        attemptPolicy: normalizeWritingAttemptPolicy({
+          ...current.submission.attemptPolicy,
+          mode,
+        }),
+      },
+    }));
+  };
+
+  const setAttemptPolicyMaxAttempts = (value: string) => {
+    markCustom((current) => ({
+      ...current,
+      submission: {
+        ...current.submission,
+        attemptPolicy: normalizeWritingAttemptPolicy({
+          mode: 'restart_allowed',
+          maxAttempts: parseMaxAttempts(
+            value,
+            normalizeWritingAttemptPolicy(current.submission.attemptPolicy).maxAttempts || 2
+          ),
+        }),
+      },
+    }));
+  };
+
   const setWritingSessionTimerEnabled = (enabled: boolean) => {
     const minutes = parseTimeLimitMinutes(
       writingTimeLimitMinutesInput,
@@ -982,6 +1028,10 @@ export default function NewTaskPage() {
             timeLimitSeconds: writingTimeLimitSeconds,
             lateSubmission: timeLimitEnabled ? 'not_allowed' : 'allowed',
           },
+          submission: {
+            ...environmentConfig.submission,
+            attemptPolicy: normalizeWritingAttemptPolicy(environmentConfig.submission.attemptPolicy),
+          },
           traceability: {
             ...environmentConfig.traceability,
             trackAiUsage: aiAccess !== 'off',
@@ -1100,6 +1150,10 @@ export default function NewTaskPage() {
       ...environmentConfig.time,
       startTime: timeLimitEnabled ? watchedStartDate : undefined,
       endTime: timeLimitEnabled ? watchedEndDate : undefined,
+    },
+    submission: {
+      ...environmentConfig.submission,
+      attemptPolicy: normalizeWritingAttemptPolicy(environmentConfig.submission.attemptPolicy),
     },
     traceability: {
       ...environmentConfig.traceability,
@@ -1442,6 +1496,45 @@ export default function NewTaskPage() {
           <FormDescription className="sm:col-span-2">
             These limits apply to the final submitted document, not copy-paste length.
           </FormDescription>
+        </div>
+
+        <div className="grid gap-3 rounded-md border bg-background p-3">
+          <div className="grid gap-2">
+            <FormLabel>Task Attempts</FormLabel>
+            <Select
+              value={normalizeWritingAttemptPolicy(environmentConfig.submission.attemptPolicy).mode}
+              onValueChange={(value) => setAttemptPolicyMode(value as WritingAttemptPolicyMode)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Task attempt policy" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="single">Single durable attempt</SelectItem>
+                <SelectItem value="restart_allowed">Allow writers to restart</SelectItem>
+              </SelectContent>
+            </Select>
+            <FormDescription>
+              Single attempt restores the same submission if a writer removes and rejoins the task.
+            </FormDescription>
+          </div>
+
+          {normalizeWritingAttemptPolicy(environmentConfig.submission.attemptPolicy).mode === 'restart_allowed' ? (
+            <div className="grid gap-2 sm:max-w-xs">
+              <FormLabel htmlFor="maximum-task-attempts">Maximum Attempts</FormLabel>
+              <Input
+                id="maximum-task-attempts"
+                type="number"
+                min={2}
+                max={20}
+                value={normalizeWritingAttemptPolicy(environmentConfig.submission.attemptPolicy).maxAttempts || 2}
+                disabled={isSubmitting}
+                onChange={(event) => setAttemptPolicyMaxAttempts(event.target.value)}
+              />
+              <FormDescription>
+                Previous attempts and certificates stay saved.
+              </FormDescription>
+            </div>
+          ) : null}
         </div>
       </div>
 

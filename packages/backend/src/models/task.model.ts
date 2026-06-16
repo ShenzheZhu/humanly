@@ -1,4 +1,4 @@
-import { query, queryOne } from '../config/database';
+import { query, queryOne, transaction } from '../config/database';
 import { Task, WritingEnvironmentConfig } from '@humanly/shared';
 import { generateTaskToken } from '../utils/crypto';
 
@@ -51,6 +51,8 @@ export interface TaskEnrollmentSummary {
   email: string;
   documentId: string | null;
   documentTitle: string | null;
+  currentAttemptNumber?: number | null;
+  attemptCount?: number;
   joinedAt: Date;
   sessionCount: number;
   submissionCount: number;
@@ -63,6 +65,9 @@ export interface TaskEnrollmentRecord {
   taskId: string;
   userId: string;
   documentId: string | null;
+  currentAttemptId?: string | null;
+  currentAttemptNumber?: number | null;
+  attemptCount?: number;
   joinedAt: Date;
   dashboardHiddenAt?: Date | null;
   dashboardRestoredAt?: Date | null;
@@ -76,6 +81,8 @@ export interface CurrentUserTaskEnrollment {
   description?: string | null;
   inviteCode: string;
   documentId: string | null;
+  currentAttemptNumber?: number | null;
+  attemptCount?: number;
   writingStartedAt?: Date | null;
   joinedAt: Date;
   startDate: Date;
@@ -86,6 +93,19 @@ export interface CurrentUserTaskEnrollment {
   latestCertificateId?: string | null;
   latestCertificateGeneratedAt?: Date | null;
   certificateCount: number;
+}
+
+export interface TaskAttemptRecord {
+  id: string;
+  taskId: string;
+  userId: string;
+  documentId: string;
+  attemptNumber: number;
+  status: 'active' | 'historical';
+  startedAt: Date;
+  endedAt?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface ExpiredTimedTaskEnrollment {
@@ -127,17 +147,20 @@ export class TaskModel {
     LEFT JOIN (
       SELECT
         te.task_id,
-        (COUNT(DISTINCT te.submission_document_id)
-          FILTER (WHERE te.submission_document_id IS NOT NULL))::int as document_count,
+        (COUNT(DISTINCT COALESCE(ta.document_id, te.submission_document_id))
+          FILTER (WHERE COALESCE(ta.document_id, te.submission_document_id) IS NOT NULL))::int as document_count,
         COUNT(DISTINCT sub.id)::int as submission_count,
         (COUNT(DISTINCT e.id) + COUNT(DISTINCT de.id))::int as event_count
       FROM task_enrollments te
+      LEFT JOIN task_attempts ta
+        ON ta.task_id = te.task_id
+       AND ta.user_id = te.user_id
       LEFT JOIN users u ON u.id = te.user_id
       LEFT JOIN sessions s
         ON s.task_id = te.task_id
        AND s.external_user_id = u.email
       LEFT JOIN events e ON e.session_id = s.id
-      LEFT JOIN document_events de ON de.document_id = te.submission_document_id
+      LEFT JOIN document_events de ON de.document_id = COALESCE(ta.document_id, te.submission_document_id)
       LEFT JOIN submissions sub
         ON sub.task_id = te.task_id
        AND sub.user_id = te.user_id
@@ -303,10 +326,13 @@ export class TaskModel {
       FROM tasks p
       ${this.enrollmentCountJoin}
       ${this.taskStatsJoin}
+      JOIN task_attempts ta
+        ON ta.task_id = p.id
+       AND ta.document_id = $1
+       AND ta.user_id = $2
       JOIN task_enrollments te
-        ON te.task_id = p.id
-       AND te.submission_document_id = $1
-       AND te.user_id = $2
+        ON te.task_id = ta.task_id
+       AND te.user_id = ta.user_id
       WHERE p.is_active = TRUE
       LIMIT 1
     `;
@@ -366,15 +392,32 @@ export class TaskModel {
   ): Promise<TaskEnrollmentRecord | null> {
     const sql = `
       SELECT
-        id,
-        task_id as "taskId",
-        user_id as "userId",
-        submission_document_id as "documentId",
-        joined_at as "joinedAt",
-        dashboard_hidden_at as "dashboardHiddenAt",
-        dashboard_restored_at as "dashboardRestoredAt"
-      FROM task_enrollments
-      WHERE task_id = $1 AND user_id = $2
+        te.id,
+        te.task_id as "taskId",
+        te.user_id as "userId",
+        te.submission_document_id as "documentId",
+        active_attempt.id as "currentAttemptId",
+        active_attempt.attempt_number as "currentAttemptNumber",
+        COALESCE(attempt_stats.attempt_count, 0)::int as "attemptCount",
+        te.joined_at as "joinedAt",
+        te.dashboard_hidden_at as "dashboardHiddenAt",
+        te.dashboard_restored_at as "dashboardRestoredAt"
+      FROM task_enrollments te
+      LEFT JOIN LATERAL (
+        SELECT ta.id, ta.attempt_number
+        FROM task_attempts ta
+        WHERE ta.task_id = te.task_id
+          AND ta.user_id = te.user_id
+          AND ta.document_id = te.submission_document_id
+        LIMIT 1
+      ) active_attempt ON true
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*)::int as attempt_count
+        FROM task_attempts ta
+        WHERE ta.task_id = te.task_id
+          AND ta.user_id = te.user_id
+      ) attempt_stats ON true
+      WHERE te.task_id = $1 AND te.user_id = $2
       LIMIT 1
     `;
 
@@ -384,15 +427,208 @@ export class TaskModel {
   /**
    * Link an enrollment to the user's task submission document.
    */
-  static async linkSubmissionDocument(taskId: string, userId: string, documentId: string): Promise<boolean> {
+  static async linkSubmissionDocument(taskId: string, userId: string, documentId: string): Promise<TaskAttemptRecord | null> {
+    return transaction<TaskAttemptRecord | null>(async (client) => {
+      const enrollmentResult = await client.query(
+        `
+          SELECT id, submission_document_id
+          FROM task_enrollments
+          WHERE task_id = $1 AND user_id = $2
+          LIMIT 1
+        `,
+        [taskId, userId]
+      );
+      const enrollment = enrollmentResult.rows[0] as { id: string; submission_document_id: string | null } | undefined;
+      if (!enrollment) return null;
+      if (enrollment.submission_document_id && enrollment.submission_document_id !== documentId) {
+        return null;
+      }
+
+      const existingAttemptResult = await client.query(
+        `
+          SELECT
+            id,
+            task_id as "taskId",
+            user_id as "userId",
+            document_id as "documentId",
+            attempt_number as "attemptNumber",
+            status,
+            started_at as "startedAt",
+            ended_at as "endedAt",
+            created_at as "createdAt",
+            updated_at as "updatedAt"
+          FROM task_attempts
+          WHERE task_id = $1 AND user_id = $2 AND document_id = $3
+          LIMIT 1
+        `,
+        [taskId, userId, documentId]
+      );
+
+      let attempt = existingAttemptResult.rows[0] as TaskAttemptRecord | undefined;
+      if (!attempt) {
+        const insertedAttemptResult = await client.query(
+          `
+            INSERT INTO task_attempts (
+              task_id,
+              user_id,
+              document_id,
+              attempt_number,
+              status
+            )
+            VALUES (
+              $1,
+              $2,
+              $3,
+              COALESCE((
+                SELECT MAX(attempt_number)
+                FROM task_attempts
+                WHERE task_id = $1 AND user_id = $2
+              ), 0) + 1,
+              'active'
+            )
+            RETURNING
+              id,
+              task_id as "taskId",
+              user_id as "userId",
+              document_id as "documentId",
+              attempt_number as "attemptNumber",
+              status,
+              started_at as "startedAt",
+              ended_at as "endedAt",
+              created_at as "createdAt",
+              updated_at as "updatedAt"
+          `,
+          [taskId, userId, documentId]
+        );
+        attempt = insertedAttemptResult.rows[0] as TaskAttemptRecord;
+      }
+
+      await client.query(
+        `
+          UPDATE task_enrollments
+          SET submission_document_id = $3
+          WHERE task_id = $1 AND user_id = $2
+        `,
+        [taskId, userId, documentId]
+      );
+
+      return attempt;
+    });
+  }
+
+  static async createRestartAttempt(taskId: string, userId: string, documentId: string): Promise<TaskAttemptRecord | null> {
+    return transaction<TaskAttemptRecord | null>(async (client) => {
+      const enrollmentResult = await client.query(
+        `
+          SELECT id
+          FROM task_enrollments
+          WHERE task_id = $1 AND user_id = $2
+          LIMIT 1
+        `,
+        [taskId, userId]
+      );
+      if (enrollmentResult.rowCount === 0) return null;
+
+      await client.query(
+        `
+          UPDATE task_attempts
+          SET status = 'historical',
+              ended_at = COALESCE(ended_at, NOW()),
+              updated_at = NOW()
+          WHERE task_id = $1 AND user_id = $2 AND status = 'active'
+        `,
+        [taskId, userId]
+      );
+
+      const insertedAttemptResult = await client.query(
+        `
+          INSERT INTO task_attempts (
+            task_id,
+            user_id,
+            document_id,
+            attempt_number,
+            status
+          )
+          VALUES (
+            $1,
+            $2,
+            $3,
+            COALESCE((
+              SELECT MAX(attempt_number)
+              FROM task_attempts
+              WHERE task_id = $1 AND user_id = $2
+            ), 0) + 1,
+            'active'
+          )
+          RETURNING
+            id,
+            task_id as "taskId",
+            user_id as "userId",
+            document_id as "documentId",
+            attempt_number as "attemptNumber",
+            status,
+            started_at as "startedAt",
+            ended_at as "endedAt",
+            created_at as "createdAt",
+            updated_at as "updatedAt"
+        `,
+        [taskId, userId, documentId]
+      );
+
+      await client.query(
+        `
+          UPDATE task_enrollments
+          SET submission_document_id = $3,
+              auto_submit_completed_at = NULL,
+              auto_submit_claimed_at = NULL,
+              auto_submit_error = NULL,
+              dashboard_hidden_at = NULL,
+              dashboard_restored_at = NOW()
+          WHERE task_id = $1 AND user_id = $2
+        `,
+        [taskId, userId, documentId]
+      );
+
+      return insertedAttemptResult.rows[0] as TaskAttemptRecord;
+    });
+  }
+
+  static async countAttemptsForUserTask(taskId: string, userId: string): Promise<number> {
+    const result = await queryOne<{ count: string }>(
+      `
+        SELECT COUNT(*)::text as count
+        FROM task_attempts
+        WHERE task_id = $1 AND user_id = $2
+      `,
+      [taskId, userId]
+    );
+
+    return parseInt(result?.count || '0', 10);
+  }
+
+  static async findAttemptForDocument(
+    taskId: string,
+    userId: string,
+    documentId: string
+  ): Promise<TaskAttemptRecord | null> {
     const sql = `
-      UPDATE task_enrollments
-      SET submission_document_id = $3
-      WHERE task_id = $1 AND user_id = $2
-      RETURNING id
+      SELECT
+        id,
+        task_id as "taskId",
+        user_id as "userId",
+        document_id as "documentId",
+        attempt_number as "attemptNumber",
+        status,
+        started_at as "startedAt",
+        ended_at as "endedAt",
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+      FROM task_attempts
+      WHERE task_id = $1 AND user_id = $2 AND document_id = $3
+      LIMIT 1
     `;
-    const result = await queryOne<{ id: string }>(sql, [taskId, userId, documentId]);
-    return !!result;
+
+    return queryOne<TaskAttemptRecord>(sql, [taskId, userId, documentId]);
   }
 
   /**
@@ -408,6 +644,8 @@ export class TaskModel {
         t.description,
         UPPER(SUBSTRING(t.task_token FROM 1 FOR 6)) as "inviteCode",
         te.submission_document_id as "documentId",
+        active_attempt.attempt_number as "currentAttemptNumber",
+        COALESCE(attempt_stats.attempt_count, 0)::int as "attemptCount",
         d.writing_started_at as "writingStartedAt",
         te.joined_at as "joinedAt",
         t.start_date as "startDate",
@@ -424,11 +662,24 @@ export class TaskModel {
         ON d.id = te.submission_document_id
        AND d.user_id = te.user_id
       LEFT JOIN LATERAL (
+        SELECT ta.id, ta.attempt_number
+        FROM task_attempts ta
+        WHERE ta.task_id = te.task_id
+          AND ta.user_id = te.user_id
+          AND ta.document_id = te.submission_document_id
+        LIMIT 1
+      ) active_attempt ON true
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*)::int as attempt_count
+        FROM task_attempts ta
+        WHERE ta.task_id = te.task_id
+          AND ta.user_id = te.user_id
+      ) attempt_stats ON true
+      LEFT JOIN LATERAL (
         SELECT s.id
         FROM submissions s
         WHERE s.task_id = te.task_id
           AND s.user_id = te.user_id
-          AND s.document_id = te.submission_document_id
         ORDER BY (s.status = 'active') DESC, s.submitted_at DESC, s.created_at DESC
         LIMIT 1
       ) latest_submission ON true
@@ -436,7 +687,13 @@ export class TaskModel {
         SELECT c.id, c.generated_at
         FROM certificates c
         WHERE c.user_id = te.user_id
-          AND c.document_id = te.submission_document_id
+          AND EXISTS (
+            SELECT 1
+            FROM submissions s
+            WHERE s.certificate_id = c.id
+              AND s.task_id = te.task_id
+              AND s.user_id = te.user_id
+          )
         ORDER BY (c.status = 'active') DESC, c.generated_at DESC, c.created_at DESC
         LIMIT 1
       ) latest_certificate ON true
@@ -444,7 +701,13 @@ export class TaskModel {
         SELECT COUNT(*)::int as certificate_count
         FROM certificates c
         WHERE c.user_id = te.user_id
-          AND c.document_id = te.submission_document_id
+          AND EXISTS (
+            SELECT 1
+            FROM submissions s
+            WHERE s.certificate_id = c.id
+              AND s.task_id = te.task_id
+              AND s.user_id = te.user_id
+          )
       ) certificate_stats ON true
       WHERE te.user_id = $1
         AND te.dashboard_hidden_at IS NULL
@@ -469,6 +732,10 @@ export class TaskModel {
         JOIN documents d
           ON d.id = te.submission_document_id
          AND d.user_id = te.user_id
+        JOIN task_attempts ta
+          ON ta.task_id = te.task_id
+         AND ta.user_id = te.user_id
+         AND ta.document_id = te.submission_document_id
         WHERE te.submission_document_id IS NOT NULL
           AND d.writing_started_at IS NOT NULL
           AND te.auto_submit_completed_at IS NULL
@@ -485,8 +752,7 @@ export class TaskModel {
           AND NOT EXISTS (
             SELECT 1
             FROM submissions s
-            WHERE s.task_id = te.task_id
-              AND s.user_id = te.user_id
+            WHERE s.task_attempt_id = ta.id
               AND s.status = 'active'
           )
         ORDER BY d.writing_started_at ASC
@@ -553,6 +819,8 @@ export class TaskModel {
         u.email,
         pe.submission_document_id as "documentId",
         d.title as "documentTitle",
+        active_attempt.attempt_number as "currentAttemptNumber",
+        COALESCE(attempt_stats.attempt_count, 0)::int as "attemptCount",
         pe.joined_at as "joinedAt",
         COUNT(DISTINCT s.id)::int as "sessionCount",
         COUNT(DISTINCT sub.id)::int as "submissionCount",
@@ -568,16 +836,33 @@ export class TaskModel {
       FROM task_enrollments pe
       JOIN users u ON u.id = pe.user_id
       LEFT JOIN documents d ON d.id = pe.submission_document_id
+      LEFT JOIN LATERAL (
+        SELECT ta.id, ta.attempt_number
+        FROM task_attempts ta
+        WHERE ta.task_id = pe.task_id
+          AND ta.user_id = pe.user_id
+          AND ta.document_id = pe.submission_document_id
+        LIMIT 1
+      ) active_attempt ON true
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*)::int as attempt_count
+        FROM task_attempts ta
+        WHERE ta.task_id = pe.task_id
+          AND ta.user_id = pe.user_id
+      ) attempt_stats ON true
       LEFT JOIN sessions s
         ON s.task_id = pe.task_id
        AND s.external_user_id = u.email
       LEFT JOIN events e ON e.session_id = s.id
-      LEFT JOIN document_events de ON de.document_id = pe.submission_document_id
+      LEFT JOIN task_attempts ta
+        ON ta.task_id = pe.task_id
+       AND ta.user_id = pe.user_id
+      LEFT JOIN document_events de ON de.document_id = COALESCE(ta.document_id, pe.submission_document_id)
       LEFT JOIN submissions sub
         ON sub.task_id = pe.task_id
        AND sub.user_id = pe.user_id
       WHERE pe.task_id = $1
-      GROUP BY pe.id, u.email, d.title
+      GROUP BY pe.id, u.email, d.title, active_attempt.attempt_number, attempt_stats.attempt_count
       ORDER BY pe.joined_at DESC
     `;
 

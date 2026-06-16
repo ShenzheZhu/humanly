@@ -14,6 +14,7 @@ import {
   LayoutGrid,
   List,
   Plus,
+  RotateCcw,
   Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -58,7 +59,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiClient } from '@/lib/api-client';
 import { formatDateTime } from '@/lib/utils';
-import type { Document, WritingEnvironmentConfig } from '@humanly/shared';
+import {
+  getMaxWritingAttempts,
+  isWritingRestartAllowed,
+  type Document,
+  type WritingEnvironmentConfig,
+} from '@humanly/shared';
 
 type SortOption = 'lastEdited' | 'title' | 'characterCount';
 type WorkspaceTab = 'documents' | 'tasks';
@@ -89,6 +95,8 @@ interface TaskEnrollment {
   startDate?: string;
   endDate?: string;
   environmentConfig?: WritingEnvironmentConfig | null;
+  currentAttemptNumber?: number | null;
+  attemptCount?: number;
   latestCertificateId?: string | null;
   latestCertificateGeneratedAt?: string | Date | null;
   certificateCount?: number;
@@ -235,6 +243,28 @@ const getWritingTimerState = (
   };
 };
 
+const getTaskAttemptCount = (task: TaskEnrollment): number => (
+  Math.max(1, Math.floor(task.attemptCount || task.currentAttemptNumber || 1))
+);
+
+const getTaskCurrentAttemptNumber = (task: TaskEnrollment): number => (
+  Math.max(1, Math.floor(task.currentAttemptNumber || getTaskAttemptCount(task)))
+);
+
+const getTaskAttemptLabel = (task: TaskEnrollment): string => {
+  const currentAttempt = getTaskCurrentAttemptNumber(task);
+  const maxAttempts = getMaxWritingAttempts(task.environmentConfig);
+  if (isWritingRestartAllowed(task.environmentConfig)) {
+    return `Attempt ${currentAttempt} of ${maxAttempts}`;
+  }
+  return `Attempt ${currentAttempt}`;
+};
+
+const canStartNewTaskAttempt = (task: TaskEnrollment): boolean => (
+  isWritingRestartAllowed(task.environmentConfig)
+  && getTaskAttemptCount(task) < getMaxWritingAttempts(task.environmentConfig)
+);
+
 export default function DocumentsPage() {
   const router = useRouter();
   const { documents, isLoading, error, fetchDocuments, createDocument, deleteDocument } = useDocuments();
@@ -244,8 +274,10 @@ export default function DocumentsPage() {
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<WorkspaceTab>('documents');
   const [showJoinDialog, setShowJoinDialog] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<TaskEnrollment | null>(null);
+  const [taskToRestart, setTaskToRestart] = useState<TaskEnrollment | null>(null);
   const [inviteCode, setInviteCode] = useState('');
   const [isJoiningTask, setIsJoiningTask] = useState(false);
+  const [isStartingNewAttempt, setIsStartingNewAttempt] = useState(false);
   const [taskEnrollments, setTaskEnrollments] = useState<TaskEnrollment[]>([]);
   const [isLoadingTaskEnrollments, setIsLoadingTaskEnrollments] = useState(true);
   const [taskEnrollmentsError, setTaskEnrollmentsError] = useState<string | null>(null);
@@ -319,6 +351,35 @@ export default function DocumentsPage() {
     }
   };
 
+  const handleStartNewTaskAttempt = async () => {
+    if (!taskToRestart) return;
+
+    try {
+      setIsStartingNewAttempt(true);
+      const response = await apiClient.post(`/tasks/enrollments/${taskToRestart.id}/attempts`);
+      const documentId = response.data?.data?.document?.id;
+      await fetchTaskEnrollments();
+      await fetchDocuments();
+      setTaskToRestart(null);
+      setActiveWorkspaceTab('tasks');
+      toast({
+        title: 'New attempt started',
+        description: 'A blank submission was created. Earlier attempts and certificates stay saved.',
+      });
+      if (documentId) {
+        router.push(`/documents/${documentId}`);
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err.message || 'Failed to start a new attempt',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsStartingNewAttempt(false);
+    }
+  };
+
   const handleJoinTask = useCallback(async () => {
     const normalizedCode = inviteCode.trim().toUpperCase();
     if (!/^[A-Z0-9]{6}$/.test(normalizedCode)) {
@@ -371,6 +432,8 @@ export default function DocumentsPage() {
         inviteCode: normalizedCode,
         documentId: existingDocumentId || document?.id || null,
         joinedAt: enrollmentFromApi?.joinedAt || new Date().toISOString(),
+        currentAttemptNumber: enrollmentFromApi?.currentAttemptNumber ?? (existingDocumentId ? 1 : undefined),
+        attemptCount: enrollmentFromApi?.attemptCount ?? (existingDocumentId ? 1 : undefined),
       };
 
       if (document?.id) {
@@ -402,9 +465,8 @@ export default function DocumentsPage() {
     }
   }, [createDocument, fetchDocuments, fetchTaskEnrollments, inviteCode, taskEnrollments, toast]);
 
-  const documentIds = new Set((documents || []).map((document) => document.id));
   const validTaskEnrollments = taskEnrollments.filter((task) => (
-    task.documentId && documentIds.has(task.documentId)
+    !!task.documentId
   ));
   const taskDocumentIds = new Set(validTaskEnrollments.map((task) => task.documentId));
   const personalDocuments = (documents || [])
@@ -709,6 +771,12 @@ export default function DocumentsPage() {
                     <CardContent className="shrink-0 pb-8">
                       <div className="space-y-2 text-sm text-muted-foreground">
                         <div className="flex items-center gap-3">
+                          <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="min-w-0 truncate">
+                            {getTaskAttemptLabel(task)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
                           <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
                           <span className="min-w-0 truncate">
                             Start Date: {formatTaskDateLabel(task.startDate, 'Not scheduled')}
@@ -724,52 +792,65 @@ export default function DocumentsPage() {
                     </CardContent>
 
                     <CardFooter className="mt-auto border-t border-border/70 bg-muted/20 !p-0">
-                      <div className="flex w-full gap-2 px-6 pb-6 pt-6">
-                        {latestCertificateId ? (
-                          <>
+                      <div className="flex w-full flex-col gap-2 px-6 pb-6 pt-6">
+                        <div className="flex w-full gap-2">
+                          {latestCertificateId ? (
+                            <>
+                              <Button
+                                variant="default"
+                                size="sm"
+                                className="h-10 flex-1"
+                                onClick={() => router.push(`/certificates/${latestCertificateId}`)}
+                              >
+                                <Award className="mr-2 h-4 w-4" />
+                                View Certificate
+                                {certificateCount > 1 ? ` (${certificateCount})` : ''}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-10 min-w-[52px] px-3"
+                                title="Open task submission"
+                                onClick={() => router.push(`/documents/${task.documentId}`)}
+                              >
+                                <Eye className="h-4 w-4" />
+                                <span className="sr-only">Open Submission</span>
+                              </Button>
+                            </>
+                          ) : (
                             <Button
                               variant="default"
                               size="sm"
                               className="h-10 flex-1"
-                              onClick={() => router.push(`/certificates/${latestCertificateId}`)}
-                            >
-                              <Award className="mr-2 h-4 w-4" />
-                              View Certificate
-                              {certificateCount > 1 ? ` (${certificateCount})` : ''}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-10 min-w-[52px] px-3"
-                              title="Open task submission"
                               onClick={() => router.push(`/documents/${task.documentId}`)}
                             >
-                              <Eye className="h-4 w-4" />
-                              <span className="sr-only">Open Submission</span>
+                              <Eye className="mr-2 h-4 w-4" />
+                              Open Submission
                             </Button>
-                          </>
-                        ) : (
-                          <Button
-                            variant="default"
-                            size="sm"
-                            className="h-10 flex-1"
-                            onClick={() => router.push(`/documents/${task.documentId}`)}
-                          >
-                            <Eye className="mr-2 h-4 w-4" />
-                            Open Submission
-                          </Button>
-                        )}
+                          )}
 
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-10 min-w-[120px]"
-                          title="Remove task from dashboard"
-                          onClick={() => setTaskToDelete(task)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Remove
-                        </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-10 min-w-[120px]"
+                            title="Remove task from dashboard"
+                            onClick={() => setTaskToDelete(task)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Remove
+                          </Button>
+                        </div>
+                        {canStartNewTaskAttempt(task) ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-10 w-full"
+                            onClick={() => setTaskToRestart(task)}
+                          >
+                            <RotateCcw className="mr-2 h-4 w-4" />
+                            Start New Attempt
+                          </Button>
+                        ) : null}
                       </div>
                     </CardFooter>
                   </Card>
@@ -797,6 +878,26 @@ export default function DocumentsPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!taskToRestart} onOpenChange={(open) => {
+        if (!open && !isStartingNewAttempt) setTaskToRestart(null);
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Start New Attempt?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This creates a blank submission for this task. Earlier attempts, writing logs,
+              submissions, and certificates remain saved for review.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isStartingNewAttempt}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleStartNewTaskAttempt} disabled={isStartingNewAttempt}>
+              {isStartingNewAttempt ? 'Starting...' : 'Start New Attempt'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

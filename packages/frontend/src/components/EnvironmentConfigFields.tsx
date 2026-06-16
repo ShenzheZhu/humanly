@@ -14,11 +14,13 @@ import {
   isWritingAiChatEnabled,
   isWritingAiPolishEnabled,
   normalizeWritingAiAccess,
+  normalizeWritingAttemptPolicy,
   normalizeWritingAiPolicy,
   normalizeCopyPastePolicy,
   normalizeResourceAccessPolicy,
   WritingEnvironmentConfig,
   WritingAiPolicyMode,
+  WritingAttemptPolicyMode,
 } from '@humanly/shared';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -59,6 +61,12 @@ const parseOptionalMaxCharacters = (value: string): number | undefined => {
   return Math.min(Math.floor(parsed), SUBMISSION_MAX_CHARACTERS_MAX);
 };
 
+const parseMaxAttempts = (value: string, fallback = 2): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(2, Math.min(20, Math.floor(parsed)));
+};
+
 export default function EnvironmentConfigFields({
   value,
   onChange,
@@ -83,6 +91,7 @@ export default function EnvironmentConfigFields({
     submission: {
       ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.submission,
       ...(value.submission || {}),
+      attemptPolicy: normalizeWritingAttemptPolicy(value.submission?.attemptPolicy),
     },
     traceability: {
       ...DEFAULT_WRITING_ENVIRONMENT_CONFIG.traceability,
@@ -417,6 +426,62 @@ export default function EnvironmentConfigFields({
             <option value="blocked">Copy-paste blocked</option>
           </select>
         </div>
+
+        {config.taskType === 'admin_assigned' && (
+          <div className="space-y-2">
+            <Label>Task Attempts</Label>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={normalizeWritingAttemptPolicy(config.submission.attemptPolicy).mode}
+              disabled={disabled}
+              onChange={(event) => onChange(setNested(config, {
+                submission: {
+                  ...config.submission,
+                  attemptPolicy: normalizeWritingAttemptPolicy({
+                    ...config.submission.attemptPolicy,
+                    mode: event.target.value as WritingAttemptPolicyMode,
+                  }),
+                },
+              }))}
+            >
+              <option value="single">Single durable attempt</option>
+              <option value="restart_allowed">Allow writers to restart</option>
+            </select>
+            <p className="text-xs text-muted-foreground">
+              Single attempt restores the same submission if a writer rejoins.
+            </p>
+          </div>
+        )}
+
+        {config.taskType === 'admin_assigned'
+          && normalizeWritingAttemptPolicy(config.submission.attemptPolicy).mode === 'restart_allowed' && (
+            <div className="space-y-2">
+              <Label htmlFor="max-task-attempts">Maximum Attempts</Label>
+              <Input
+                id="max-task-attempts"
+                type="number"
+                min={2}
+                max={20}
+                value={normalizeWritingAttemptPolicy(config.submission.attemptPolicy).maxAttempts || 2}
+                disabled={disabled}
+                onChange={(event) => onChange(setNested(config, {
+                  submission: {
+                    ...config.submission,
+                    attemptPolicy: normalizeWritingAttemptPolicy({
+                      mode: 'restart_allowed',
+                      maxAttempts: parseMaxAttempts(
+                        event.target.value,
+                        normalizeWritingAttemptPolicy(config.submission.attemptPolicy).maxAttempts || 2
+                      ),
+                    }),
+                  },
+                }))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Previous attempts and certificates remain saved.
+              </p>
+            </div>
+          )}
 
         <div className="space-y-2">
           <Label>Instruction PDF Access</Label>

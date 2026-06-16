@@ -41,6 +41,10 @@ const formatSubmissionCount = (count: number) => {
   return `${count.toLocaleString()} ${count === 1 ? 'submission' : 'submissions'}`;
 };
 
+const formatAttemptLabel = (attemptNumber?: number | null) => (
+  attemptNumber ? `Attempt ${attemptNumber}` : 'Attempt 1'
+);
+
 const severityRank = {
   info: 0,
   warning: 1,
@@ -284,12 +288,17 @@ export function SubmissionPanel({
                           <TableCell>
                             <div className="font-medium">{enrollment.email}</div>
                           </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <FileText className="h-4 w-4 text-muted-foreground" />
-                              <span>{submission.documentTitle || 'Submission Document'}</span>
-                            </div>
-                          </TableCell>
+	                          <TableCell>
+	                            <div className="flex items-start gap-2">
+	                              <FileText className="mt-0.5 h-4 w-4 text-muted-foreground" />
+	                              <div className="min-w-0">
+	                                <span className="block truncate">{submission.documentTitle || 'Submission Document'}</span>
+	                                <span className="text-xs text-muted-foreground">
+	                                  {formatAttemptLabel(submission.attemptNumber)}
+	                                </span>
+	                              </div>
+	                            </div>
+	                          </TableCell>
                           <TableCell>{formatDateTime(submission.submittedAt)}</TableCell>
                           <TableCell>{renderSignalsCell(submission)}</TableCell>
                           <TableCell className="text-right">{renderCertificateCell(submission)}</TableCell>
@@ -336,12 +345,17 @@ export function SubmissionPanel({
                 <TableBody>
                   {selectedSubmissions.map((submission) => (
                     <TableRow key={submission.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          <span>{submission.documentTitle || 'Submission Document'}</span>
-                        </div>
-                      </TableCell>
+	                      <TableCell>
+	                        <div className="flex items-start gap-2">
+	                          <FileText className="mt-0.5 h-4 w-4 text-muted-foreground" />
+	                          <div className="min-w-0">
+	                            <span className="block truncate">{submission.documentTitle || 'Submission Document'}</span>
+	                            <span className="text-xs text-muted-foreground">
+	                              {formatAttemptLabel(submission.attemptNumber)}
+	                            </span>
+	                          </div>
+	                        </div>
+	                      </TableCell>
                       <TableCell>{formatDateTime(submission.submittedAt)}</TableCell>
                       <TableCell>{renderSignalsCell(submission)}</TableCell>
                       <TableCell className="text-right">{renderCertificateCell(submission)}</TableCell>

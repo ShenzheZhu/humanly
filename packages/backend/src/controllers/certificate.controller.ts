@@ -127,6 +127,49 @@ async function buildPublicCertificateResponse(
   };
 }
 
+async function buildCertificateLogsPayload(
+  certificate: Certificate,
+  options: { eventLimit?: number; aiLogLimit?: number } = {}
+) {
+  const eventLimit = Math.min(options.eventLimit || 10000, 10000);
+  const aiLogLimit = Math.min(options.aiLogLimit || 50, 200);
+  const generatedAt = certificateGeneratedAt(certificate);
+
+  const [events, rawEventTotal, aiLogResult] = await Promise.all([
+    DocumentEventModel.findByDocumentId(certificate.documentId, {
+      limit: eventLimit,
+      offset: 0,
+      endDate: generatedAt,
+    }),
+    DocumentEventModel.countByDocumentIdWithFilters(certificate.documentId, {
+      endDate: generatedAt,
+    }),
+    AIModel.getLogs({
+      documentId: certificate.documentId,
+      limit: aiLogLimit,
+      offset: 0,
+      endDate: generatedAt,
+    }).catch((error) => {
+      logger.warn('Failed to fetch certificate AI logs', {
+        certificateId: certificate.id,
+        documentId: certificate.documentId,
+        error,
+      });
+      return { logs: [], total: 0 };
+    }),
+  ]);
+
+  return {
+    certificateId: certificate.id,
+    documentId: certificate.documentId,
+    title: certificate.title,
+    anomalyFlags: certificate.anomalyFlags || [],
+    timeline: buildDocumentEventTimeline(events, rawEventTotal),
+    aiLogs: aiLogResult.logs,
+    aiLogTotal: aiLogResult.total,
+  };
+}
+
 async function resolvePublicCertificateWithEditHistoryAccess(
   req: Request,
   res: Response,
@@ -542,42 +585,33 @@ export async function getPublicCertificateLogs(req: Request, res: Response): Pro
   const certificate = verification.certificate!;
   const eventLimit = Math.min(parseInt(req.query.limit as string) || 10000, 10000);
   const aiLogLimit = Math.min(parseInt(req.query.aiLimit as string) || 50, 200);
-
-  const [events, rawEventTotal, aiLogResult] = await Promise.all([
-    DocumentEventModel.findByDocumentId(certificate.documentId, {
-      limit: eventLimit,
-      offset: 0,
-      endDate: certificateGeneratedAt(certificate),
-    }),
-    DocumentEventModel.countByDocumentIdWithFilters(certificate.documentId, {
-      endDate: certificateGeneratedAt(certificate),
-    }),
-    AIModel.getLogs({
-      documentId: certificate.documentId,
-      limit: aiLogLimit,
-      offset: 0,
-      endDate: certificateGeneratedAt(certificate),
-    }).catch((error) => {
-      logger.warn('Failed to fetch public certificate AI logs', {
-        certificateId: certificate.id,
-        documentId: certificate.documentId,
-        error,
-      });
-      return { logs: [], total: 0 };
-    }),
-  ]);
+  const payload = await buildCertificateLogsPayload(certificate, { eventLimit, aiLogLimit });
 
   res.json({
     success: true,
-    data: {
-      certificateId: certificate.id,
-      documentId: certificate.documentId,
-      title: certificate.title,
-      anomalyFlags: certificate.anomalyFlags || [],
-      timeline: buildDocumentEventTimeline(events, rawEventTotal),
-      aiLogs: aiLogResult.logs,
-      aiLogTotal: aiLogResult.total,
-    },
+    data: payload,
+  });
+}
+
+/**
+ * Get owner certificate logs for a generated certificate.
+ */
+export async function getCertificateLogs(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.userId;
+  const certificateId = req.params.id;
+
+  if (!certificateId) {
+    throw new AppError(400, 'Certificate ID is required');
+  }
+
+  const certificate = await CertificateService.getCertificate(certificateId, userId);
+  const eventLimit = Math.min(parseInt(req.query.limit as string) || 10000, 10000);
+  const aiLogLimit = Math.min(parseInt(req.query.aiLimit as string) || 50, 200);
+  const payload = await buildCertificateLogsPayload(certificate, { eventLimit, aiLogLimit });
+
+  res.json({
+    success: true,
+    data: payload,
   });
 }
 

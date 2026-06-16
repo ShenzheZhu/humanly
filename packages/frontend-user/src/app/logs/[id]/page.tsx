@@ -1493,15 +1493,25 @@ export default function DocumentLogsPage() {
         return;
       }
 
-      const [docRes, timelineRes, aiLogsRes, certificateRes] = await Promise.all([
+      if (certificateId) {
+        const response = await apiClient.get(`/certificates/${certificateId}/logs?limit=10000`);
+        const payload = response.data.data || {};
+        const timelineData = payload.timeline || {};
+
+        setDocumentTitle(payload.title || 'Certificate logs');
+        setTimelineItems(Array.isArray(timelineData.items) ? timelineData.items : []);
+        setTimelineSummary(timelineData.summary || EMPTY_SUMMARY);
+        setAiLogs(Array.isArray(payload.aiLogs) ? payload.aiLogs : []);
+        setCertificateAnomalyFlags(Array.isArray(payload.anomalyFlags) ? payload.anomalyFlags : []);
+        return;
+      }
+
+      const [docRes, timelineRes, aiLogsRes] = await Promise.all([
         apiClient.get(`/documents/${documentId}`),
         apiClient.get(`/documents/${documentId}/events/timeline?limit=10000`),
         apiClient
           .get(`/ai/logs?documentId=${documentId}&limit=50&offset=0`)
           .catch(() => ({ data: { data: [] } })),
-        certificateId
-          ? apiClient.get(`/certificates/${certificateId}`).catch(() => null)
-          : Promise.resolve(null),
       ]);
 
       setDocumentTitle(docRes.data.data?.document?.title || 'Document');
@@ -1512,8 +1522,7 @@ export default function DocumentLogsPage() {
 
       const aiLogData = aiLogsRes.data.data || [];
       setAiLogs(Array.isArray(aiLogData) ? aiLogData : []);
-      const certificate = certificateRes?.data?.data?.certificate;
-      setCertificateAnomalyFlags(Array.isArray(certificate?.anomalyFlags) ? certificate.anomalyFlags : []);
+      setCertificateAnomalyFlags([]);
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Failed to load logs');
     } finally {

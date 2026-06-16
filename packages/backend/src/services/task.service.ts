@@ -21,7 +21,9 @@ import {
   TASK_INSTRUCTION_PDF_MAX_FILES,
   TASK_START_DATE_PAST_ERROR_MESSAGE,
   getIframeComment,
+  getMaxWritingAttempts,
   getTrackerComment,
+  isWritingRestartAllowed,
   isTaskStartDateTooFarInPast,
 } from '@humanly/shared';
 import { AppError } from '../middleware/error-handler';
@@ -78,23 +80,6 @@ const getDocumentCharacterCount = (document: Document): number => {
   }
 
   return (document.plainText || '').length;
-};
-
-const getWritingTimeLimitSeconds = (task: Task): number | null => {
-  const configuredSeconds = task.environmentConfig?.time?.timeLimitSeconds;
-  if (!Number.isFinite(configuredSeconds) || !configuredSeconds) return null;
-
-  return Math.max(1, Math.floor(configuredSeconds));
-};
-
-const isDocumentWritingTimeExpired = (task: Task, document: Document): boolean => {
-  const timeLimitSeconds = getWritingTimeLimitSeconds(task);
-  if (timeLimitSeconds === null || !document.writingStartedAt) return false;
-
-  const startedAtMs = getDateMs(document.writingStartedAt);
-  if (!Number.isFinite(startedAtMs)) return false;
-
-  return Date.now() - startedAtMs >= timeLimitSeconds * 1000;
 };
 
 const assertSubmissionCharacterBounds = (task: Task, actualCharacters: number): void => {
@@ -161,6 +146,9 @@ const createLexicalContentFromPlainText = (plainText: string) => {
     },
   };
 };
+
+const createTaskAttemptDocumentTitle = (taskName: string, attemptNumber: number): string =>
+  attemptNumber <= 1 ? `${taskName} Submission` : `${taskName} Submission Attempt ${attemptNumber}`;
 
 export interface PublicTaskStartData {
   sessionId?: string;
@@ -498,6 +486,98 @@ export class TaskService {
   }
 
   /**
+   * Create a new blank task attempt when the task owner explicitly allows restarts.
+   */
+  static async startNewTaskAttempt(
+    taskIdOrInviteCode: string,
+    userId: string
+  ): Promise<{
+    task: Task;
+    document: Document;
+    enrollment: {
+      id: string;
+      taskId: string;
+      userId: string;
+      documentId: string | null;
+      currentAttemptId?: string | null;
+      currentAttemptNumber?: number | null;
+      attemptCount?: number;
+      joinedAt: Date;
+      dashboardHiddenAt?: Date | null;
+      dashboardRestoredAt?: Date | null;
+    };
+    attempt: {
+      id: string;
+      taskId: string;
+      userId: string;
+      documentId: string;
+      attemptNumber: number;
+      status: 'active' | 'historical';
+      startedAt: Date;
+      endedAt?: Date | null;
+      createdAt: Date;
+      updatedAt: Date;
+    };
+  }> {
+    const normalizedIdentifier = taskIdOrInviteCode.trim();
+    const task = /^[A-Z0-9]{6}$/i.test(normalizedIdentifier)
+      ? await TaskModel.findByInviteCode(normalizedIdentifier.toUpperCase())
+      : await TaskModel.findById(normalizedIdentifier);
+
+    if (!task) {
+      throw new AppError(404, 'Task not found');
+    }
+
+    const hasEnrollment = await TaskModel.hasEnrollment(task.id, userId);
+    if (!hasEnrollment) {
+      throw new AppError(403, 'Access denied to this task');
+    }
+
+    if (!isWritingRestartAllowed(task.environmentConfig)) {
+      throw new AppError(409, 'This task does not allow new attempts');
+    }
+
+    const attemptCount = await TaskModel.countAttemptsForUserTask(task.id, userId);
+    const maxAttempts = getMaxWritingAttempts(task.environmentConfig);
+    if (attemptCount >= maxAttempts) {
+      throw new AppError(409, `This task allows at most ${maxAttempts} attempts`);
+    }
+
+    const nextAttemptNumber = attemptCount + 1;
+    const blankContent = createLexicalContentFromPlainText('');
+    const document = await DocumentModel.create({
+      userId,
+      title: createTaskAttemptDocumentTitle(task.name, nextAttemptNumber),
+      description: 'Assigned task restart attempt.',
+      content: blankContent,
+      plainText: '',
+      status: 'draft',
+      wordCount: 0,
+      characterCount: 0,
+      environmentConfig: task.environmentConfig || null,
+    });
+
+    const attempt = await TaskModel.createRestartAttempt(task.id, userId, document.id);
+    if (!attempt) {
+      throw new AppError(404, 'Task enrollment not found');
+    }
+
+    const enrollment = await TaskModel.findEnrollmentForUserTask(task.id, userId);
+    if (!enrollment) {
+      throw new AppError(404, 'Task enrollment not found');
+    }
+
+    await this.invalidateAnalytics(task.id);
+
+    return {
+      task,
+      document,
+      enrollment,
+      attempt,
+    };
+  }
+
+  /**
    * Start a real analytics session for a user portal submission document.
    */
   static async startSubmissionSession(
@@ -608,8 +688,22 @@ export class TaskService {
       throw new AppError(403, 'Access denied to this task');
     }
 
+    const document = await DocumentModel.findByIdAndUserId(documentId, userId);
+    if (!document) {
+      throw new AppError(404, 'Document not found or unauthorized');
+    }
+
+    if (!options.bypassCharacterBounds) {
+      assertSubmissionCharacterBounds(task, getDocumentCharacterCount(document));
+    }
+
+    const attempt = await TaskModel.linkSubmissionDocument(task.id, userId, documentId);
+    if (!attempt) {
+      throw new AppError(404, 'Task enrollment not found');
+    }
+
     if (options.skipIfAlreadySubmitted) {
-      const activeSubmission = await SubmissionModel.findActiveForUserTask(task.id, userId);
+      const activeSubmission = await SubmissionModel.findActiveForTaskAttempt(attempt.id);
       if (activeSubmission) {
         return {
           submission: activeSubmission,
@@ -620,17 +714,6 @@ export class TaskService {
       }
     }
 
-    const document = await DocumentModel.findByIdAndUserId(documentId, userId);
-    if (!document) {
-      throw new AppError(404, 'Document not found or unauthorized');
-    }
-
-    if (!options.bypassCharacterBounds) {
-      assertSubmissionCharacterBounds(task, getDocumentCharacterCount(document));
-    }
-
-    await TaskModel.linkSubmissionDocument(task.id, userId, documentId);
-
     const latestSubmission = await SubmissionModel.findLatestForUserTask(task.id, userId);
     await SubmissionModel.markHistoricalForUserTask(task.id, userId);
     await CertificateModel.markSupersededForDocument(documentId, userId);
@@ -639,6 +722,7 @@ export class TaskService {
       taskId: task.id,
       userId,
       documentId,
+      taskAttemptId: attempt.id,
       payloadSnapshot: document.content,
       plainTextSnapshot: document.plainText,
       supersedesSubmissionId: latestSubmission?.id || null,
@@ -771,10 +855,6 @@ export class TaskService {
     let document = enrollment.documentId
       ? await DocumentModel.findByIdAndUserId(enrollment.documentId, participantUser.id)
       : null;
-
-    if (document && !isGuestMode && isDocumentWritingTimeExpired(task, document)) {
-      document = null;
-    }
 
     if (!document) {
       const titleSuffix = isGuestMode

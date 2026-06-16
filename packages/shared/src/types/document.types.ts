@@ -81,6 +81,8 @@ export interface Submission {
   userEmail?: string | null;
   documentId: string;
   documentTitle?: string | null;
+  taskAttemptId?: string | null;
+  attemptNumber?: number | null;
   certificateId?: string | null;
   certificateVerificationToken?: string | null;
   submittedAt: Date;
@@ -97,6 +99,7 @@ export interface SubmissionInsertData {
   taskId: string;
   userId: string;
   documentId: string;
+  taskAttemptId?: string | null;
   payloadSnapshot: Record<string, any>;
   plainTextSnapshot: string;
   supersedesSubmissionId?: string | null;

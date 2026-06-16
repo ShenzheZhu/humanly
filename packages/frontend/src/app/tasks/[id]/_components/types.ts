@@ -31,6 +31,8 @@ export interface TaskEnrollment {
   email: string;
   documentId: string | null;
   documentTitle: string | null;
+  currentAttemptNumber?: number | null;
+  attemptCount?: number;
   joinedAt: string;
   submissionCount: number;
   eventCount: number;
@@ -43,6 +45,8 @@ export interface AdminSubmission {
   userEmail?: string | null;
   documentId: string;
   documentTitle?: string | null;
+  taskAttemptId?: string | null;
+  attemptNumber?: number | null;
   certificateId?: string | null;
   certificateVerificationToken?: string | null;
   submittedAt: string;

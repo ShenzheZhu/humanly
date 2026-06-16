@@ -129,14 +129,20 @@ export class DocumentModel {
 
     let whereClauses = [
       'user_id = $1',
-      `NOT EXISTS (
-        SELECT 1
-        FROM task_enrollments te
-        WHERE te.submission_document_id = documents.id
-          AND te.user_id = documents.user_id
-          AND te.dashboard_hidden_at IS NOT NULL
-      )`,
-    ];
+	      `NOT EXISTS (
+	        SELECT 1
+	        FROM task_enrollments te
+	        WHERE te.submission_document_id = documents.id
+	          AND te.user_id = documents.user_id
+	          AND te.dashboard_hidden_at IS NOT NULL
+	      )`,
+	      `NOT EXISTS (
+	        SELECT 1
+	        FROM task_attempts ta
+	        WHERE ta.document_id = documents.id
+	          AND ta.user_id = documents.user_id
+	      )`,
+	    ];
     const params: any[] = [userId];
     let paramIndex = 2;
 

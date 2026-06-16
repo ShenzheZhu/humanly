@@ -273,9 +273,11 @@ export async function joinTask(req: Request, res: Response): Promise<void> {
         environmentConfig: task.environmentConfig,
         enrolledUserCount: task.enrolledUserCount ?? 0,
         inviteCode: task.taskToken.slice(0, 6).toUpperCase(),
-        documentId: enrollment?.documentId || null,
-        joinedAt: enrollment?.joinedAt || null,
-      },
+	        documentId: enrollment?.documentId || null,
+	        currentAttemptNumber: enrollment?.currentAttemptNumber || null,
+	        attemptCount: enrollment?.attemptCount || 0,
+	        joinedAt: enrollment?.joinedAt || null,
+	      },
     },
   });
 }
@@ -320,6 +322,39 @@ export async function linkSubmissionDocument(req: Request, res: Response): Promi
   res.json({
     success: true,
     message: 'Task submission document linked successfully',
+  });
+}
+
+/**
+ * Start a new task attempt when the task policy allows restarts.
+ */
+export async function startNewTaskAttempt(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.userId;
+  const taskId = req.params.taskId;
+
+  if (!taskId) {
+    throw new AppError(400, 'Task ID is required');
+  }
+
+  const result = await TaskService.startNewTaskAttempt(taskId, userId);
+
+  res.status(201).json({
+    success: true,
+    data: {
+      task: {
+        ...result.task,
+        id: result.task.id,
+        taskId: result.task.id,
+        enrollmentId: result.enrollment.id,
+        documentId: result.document.id,
+        currentAttemptNumber: result.attempt.attemptNumber,
+        attemptCount: result.enrollment.attemptCount || result.attempt.attemptNumber,
+        joinedAt: result.enrollment.joinedAt,
+      },
+      document: result.document,
+      attempt: result.attempt,
+    },
+    message: 'New task attempt started successfully',
   });
 }
 
