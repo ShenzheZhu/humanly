@@ -880,6 +880,7 @@ export default function NewTaskPage() {
       const result = await api.post<{ success: boolean; message?: string; models?: string[] }>('/api/v1/ai/settings/test', {
         apiKey: aiApiKey.trim() || USE_EXISTING_AI_KEY,
         baseUrl: aiBaseUrl.trim() || DEFAULT_AI_BASE_URL,
+        model: selectedAiModel,
       });
 
       setAiConnectionResult({

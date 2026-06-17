@@ -240,15 +240,20 @@ const createApiClient = (): AxiosInstance => {
       }
 
       // Transform error to ApiError
+      const responseData = error.response?.data as any;
+      const status = error.response?.status;
       const errorMessage =
-        (error.response?.data as any)?.message ||
-        error.message ||
+        responseData?.message ||
+        responseData?.error ||
+        (status
+          ? `Request failed with HTTP ${status}. Please try again or check the settings for this action.`
+          : error.message) ||
         'An unexpected error occurred';
 
       const apiError = new ApiError(
         errorMessage,
-        error.response?.status,
-        error.response?.data
+        status,
+        responseData
       );
 
       return Promise.reject(apiError);

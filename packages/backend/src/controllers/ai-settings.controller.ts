@@ -149,15 +149,74 @@ const PROVIDER_BASE_URL_GUARDS: ProviderBaseUrlGuard[] = [
   },
 ];
 
+function extractProviderModels(data: ProviderModelsResponse): string[] {
+  const modelList = Array.isArray(data) ? data : data.data;
+  if (!Array.isArray(modelList)) return [];
+
+  return modelList
+    .map((model) => model.id)
+    .filter((id): id is string => typeof id === 'string' && id.length > 0)
+    .sort();
+}
+
+function providerStatusHint(status: number): string {
+  if (status === 401) return 'The API key was rejected. Check that the key belongs to the selected provider.';
+  if (status === 403) return 'The API key does not have permission for this provider or model.';
+  if (status === 404) return 'The provider endpoint was not found. Check that the Base URL is an OpenAI-compatible API URL and includes /v1 when required.';
+  if (status === 429) return 'The provider rate limit was reached. Try again later or use a different key.';
+  if (status >= 500) return 'The provider is temporarily unavailable. Try again later.';
+  return 'Check the API key, Base URL, provider, and selected model.';
+}
+
+function providerStatusLabel(status: number): string {
+  if (status === 401) return '401 Unauthorized';
+  if (status === 403) return '403 Forbidden';
+  if (status === 404) return '404 Not Found';
+  if (status === 429) return '429 Rate Limited';
+  return `${status}`;
+}
+
+function formatProviderHttpError(status: number, detail?: string): string {
+  const trimmedDetail = detail?.trim();
+  const statusText = providerStatusLabel(status);
+  const hint = providerStatusHint(status);
+  if (trimmedDetail && trimmedDetail !== statusText && !/^API returned \d+$/i.test(trimmedDetail)) {
+    return `Provider returned ${statusText}: ${trimmedDetail}. ${hint}`;
+  }
+  return `Provider returned ${statusText}. ${hint}`;
+}
+
+function formatAiConfigurationFailure(reason: string): string {
+  return `AI API configuration failed. ${reason}`;
+}
+
+function validateSelectedModel(
+  model: unknown,
+  models: string[],
+  modelSource: 'supported' | 'available'
+): { ok: true } | { ok: false; message: string } {
+  if (typeof model !== 'string' || !model.trim()) return { ok: true };
+  const selectedModel = model.trim();
+  if (models.includes(selectedModel)) return { ok: true };
+
+  const suggestions = models.slice(0, 6).join(', ');
+  return {
+    ok: false,
+    message: formatAiConfigurationFailure(
+      `Model "${selectedModel}" was not found in this provider's ${modelSource} model list.${suggestions ? ` Choose one of: ${suggestions}.` : ''}`
+    ),
+  };
+}
+
 async function readProviderErrorMessage(response: globalThis.Response): Promise<string> {
   const contentType = response.headers.get('content-type') || '';
   if (contentType.includes('application/json')) {
     const body = await response.json().catch(() => null) as ProviderAuthResponse | null;
-    return body?.error?.message || body?.message || `API returned ${response.status}`;
+    return formatProviderHttpError(response.status, body?.error?.message || body?.message);
   }
 
   const text = await response.text().catch(() => '');
-  return text.trim() || `API returned ${response.status}`;
+  return formatProviderHttpError(response.status, text);
 }
 
 function validateProviderBaseUrl(url: URL): { ok: true } | { ok: false; message: string } {
@@ -186,21 +245,25 @@ async function fetchProviderModelsCatalog(
     const htmlHint = bodyPreview.trim().startsWith('<!DOCTYPE') || bodyPreview.trim().startsWith('<html')
       ? ' The endpoint returned an HTML page.'
       : '';
+    const statusHint = response.ok
+      ? ''
+      : `${formatProviderHttpError(response.status)} `;
     return {
       ok: false,
       message: [
+        statusHint,
         `Expected JSON from ${modelsUrl}, but received ${contentType || 'unknown content type'}.`,
         `Check that the Base URL is an OpenAI-compatible API endpoint.${htmlHint}`,
-      ].join(' '),
+      ].filter(Boolean).join(' '),
     };
   }
 
   const data = await response.json() as ProviderModelsResponse;
 
   if (!response.ok) {
-    let errorMessage = `API returned ${response.status}`;
+    let errorMessage = formatProviderHttpError(response.status);
     if (!Array.isArray(data)) {
-      errorMessage = data.error?.message || data.message || errorMessage;
+      errorMessage = formatProviderHttpError(response.status, data.error?.message || data.message);
     }
     return {
       ok: false,
@@ -227,7 +290,9 @@ async function validateProviderCredentials(
   }
   return {
     ok: false,
-    message: `${rule.label} authentication failed. Use a valid ${rule.label} API key for this provider. ${providerValidation.message}`,
+    message: formatAiConfigurationFailure(
+      `${rule.label} validation failed. Use a valid ${rule.label} API key and Base URL for this provider. ${providerValidation.message}`
+    ),
   };
 }
 
@@ -358,18 +423,26 @@ export async function saveSettings(req: Request, res: Response): Promise<void> {
       if (!modelsResult.ok) {
         res.status(400).json({
           success: false,
-          error: modelsResult.message,
+          error: formatAiConfigurationFailure(modelsResult.message),
+        });
+        return;
+      }
+      const modelValidation = validateSelectedModel(model, extractProviderModels(modelsResult.data), 'available');
+      if (!modelValidation.ok) {
+        res.status(400).json({
+          success: false,
+          error: modelValidation.message,
         });
         return;
       }
     }
   } catch (error: any) {
     const message = error.name === 'TimeoutError'
-      ? 'Connection timed out (15s)'
-      : error.message || 'Connection failed';
+      ? 'Connection timed out after 15s. Check that the Base URL is reachable.'
+      : error.message || 'Connection failed. Check that the Base URL is reachable.';
     res.status(400).json({
       success: false,
-      error: message,
+      error: formatAiConfigurationFailure(message),
     });
     return;
   }
@@ -403,7 +476,7 @@ export async function deleteSettings(req: Request, res: Response): Promise<void>
 
 export async function testConnection(req: Request, res: Response): Promise<void> {
   const userId = (req as any).user.userId;
-  let { apiKey, baseUrl } = req.body;
+  let { apiKey, baseUrl, model } = req.body;
 
   if (!baseUrl) {
     res.status(400).json({
@@ -466,6 +539,15 @@ export async function testConnection(req: Request, res: Response): Promise<void>
     }
 
     if (providerAuth.skipCatalogProbe && whitelistedModels) {
+      const modelValidation = validateSelectedModel(model, whitelistedModels, 'supported');
+      if (!modelValidation.ok) {
+        res.json({
+          success: false,
+          message: modelValidation.message,
+        });
+        return;
+      }
+
       res.json({
         success: true,
         message: `Connection successful. Found ${whitelistedModels.length} supported models.`,
@@ -481,27 +563,22 @@ export async function testConnection(req: Request, res: Response): Promise<void>
     if (!modelsResult.ok) {
       res.json({
         success: false,
-        message: modelsResult.message,
+        message: formatAiConfigurationFailure(modelsResult.message),
       });
       return;
     }
 
-    // Extract model IDs from response. OpenAI-compatible providers usually
-    // return { data: [{ id: "gpt-5.4-mini", ... }] }, while Together currently
-    // returns a top-level array from /v1/models.
-    let models: string[] = [];
-    const modelList = Array.isArray(modelsResult.data)
-      ? modelsResult.data
-      : modelsResult.data.data;
-    if (Array.isArray(modelList)) {
-      models = modelList
-        .map((m) => m.id)
-        .filter((id): id is string => typeof id === 'string' && id.length > 0)
-        .sort();
-    }
-
+    const models = extractProviderModels(modelsResult.data);
     const returnedModels = whitelistedModels || models;
     const modelSource = whitelistedModels ? 'supported' : 'available';
+    const modelValidation = validateSelectedModel(model, returnedModels, modelSource);
+    if (!modelValidation.ok) {
+      res.json({
+        success: false,
+        message: modelValidation.message,
+      });
+      return;
+    }
 
     res.json({
       success: true,
@@ -510,11 +587,11 @@ export async function testConnection(req: Request, res: Response): Promise<void>
     });
   } catch (error: any) {
     const message = error.name === 'TimeoutError'
-      ? 'Connection timed out (15s)'
-      : error.message || 'Connection failed';
+      ? 'Connection timed out after 15s. Check that the Base URL is reachable.'
+      : error.message || 'Connection failed. Check that the Base URL is reachable.';
     res.json({
       success: false,
-      message,
+      message: formatAiConfigurationFailure(message),
     });
   }
 }
