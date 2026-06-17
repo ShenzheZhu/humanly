@@ -6,6 +6,7 @@
 <p align="center">
   <a href="#overview">Overview</a> ·
   <a href="#product">Product</a> ·
+  <a href="#self-host-quick-start-tldr">Self-Host</a> ·
   <a href="#certificates">Certificates</a> ·
   <a href="#repository">Repository</a>
 </p>
@@ -39,6 +40,29 @@ Live product:
 - User portal: [writehumanly.net](https://app.writehumanly.net/)
 - Admin dashboard: [admin.writehumanly.net](https://admin.writehumanly.net/)
 
+<h2 id="self-host-quick-start-tldr">Self-Host quick start (TL;DR)</h2>
+
+Requirements: Node.js 20, pnpm 9, Docker, PostgreSQL, Redis, and persistent file
+storage.
+
+```bash
+pnpm install
+pnpm docker:up
+pnpm build:shared
+pnpm build:editor
+pnpm dev:backend
+pnpm dev:frontend
+pnpm dev:frontend-user
+```
+
+Default local URLs:
+
+- Admin dashboard: `http://localhost:3000`
+- User portal: `http://localhost:3002`
+- Backend API: `http://localhost:3001`
+
+For self-deployment, see [docs/SELF_DEPLOY.md](https://github.com/ShenzheZhu/humanly/blob/main/docs/SELF_DEPLOY.md).
+
 <h2 id="certificates">Certificates</h2>
 
 A Humanly certificate can show authorship statistics, the active writing
@@ -60,7 +84,5 @@ packages/tracker        External-form tracking library
 packages/shared         Shared types
 docs/                   Self-deployment guide
 ```
-
-For self-deployment, see [docs/SELF_DEPLOY.md](docs/SELF_DEPLOY.md).
 
 Release notes are tracked in [CHANGELOG.md](CHANGELOG.md).
