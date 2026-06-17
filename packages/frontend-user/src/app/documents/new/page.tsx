@@ -295,6 +295,7 @@ export default function NewDocumentPage() {
   const [testedAiModels, setTestedAiModels] = useState<string[]>([]);
   const [timeLimitMinutesInput, setTimeLimitMinutesInput] = useState('60');
   const [environmentDialogOpen, setEnvironmentDialogOpen] = useState(false);
+  const [isValidatingEnvironment, setIsValidatingEnvironment] = useState(false);
   const allowEnvironmentDialogCloseRef = useRef(false);
 
   useEffect(() => {
@@ -562,7 +563,73 @@ export default function NewDocumentPage() {
     }
   };
 
-  const handleCustomEnvironmentDone = () => {
+  const validateAiEnvironmentBeforeDone = async (): Promise<boolean> => {
+    if (environmentConfig.aiAccess === 'off') return true;
+
+    if (!aiApiKey.trim() && !hasExistingAiKey) {
+      toast({
+        title: 'AI key required',
+        description: 'Enter an AI API key before using an AI-enabled environment.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    if (!selectedAiModel) {
+      toast({
+        title: 'AI model required',
+        description: 'Select or enter the AI model for this writing environment.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    const baseUrlToTest = aiBaseUrl.trim();
+    if (!baseUrlToTest) {
+      toast({
+        title: 'AI provider required',
+        description: 'Select a provider or enter a custom base URL before using an AI-enabled environment.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    setIsValidatingEnvironment(true);
+    try {
+      const response = await apiClient.post('/ai/settings/test', {
+        apiKey: aiApiKey.trim() || USE_EXISTING_AI_KEY,
+        baseUrl: baseUrlToTest,
+        model: selectedAiModel,
+      });
+      const result = response.data;
+      if (!result?.success) {
+        toast({
+          title: 'AI API configuration failed',
+          description: result?.message || 'Humanly could not validate this API key, provider, and model.',
+          variant: 'destructive',
+        });
+        return false;
+      }
+      if (Array.isArray(result.models) && result.models.length > 0) {
+        setTestedAiModels(result.models);
+      }
+      return true;
+    } catch (err: any) {
+      toast({
+        title: 'AI API configuration failed',
+        description: err?.message || 'Humanly could not validate this API key, provider, and model.',
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      setIsValidatingEnvironment(false);
+    }
+  };
+
+  const handleCustomEnvironmentDone = async () => {
+    const valid = await validateAiEnvironmentBeforeDone();
+    if (!valid) return;
+
     allowEnvironmentDialogCloseRef.current = true;
     setEnvironmentDialogOpen(false);
   };
@@ -571,6 +638,10 @@ export default function NewDocumentPage() {
     if (open) {
       allowEnvironmentDialogCloseRef.current = false;
       setEnvironmentDialogOpen(true);
+      return;
+    }
+
+    if (isValidatingEnvironment) {
       return;
     }
 
@@ -1349,9 +1420,10 @@ export default function NewDocumentPage() {
             <Button
               type="button"
               onClick={handleCustomEnvironmentDone}
-              disabled={isCreating}
+              disabled={isCreating || isValidatingEnvironment}
             >
-              Done
+              {isValidatingEnvironment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isValidatingEnvironment ? 'Checking API...' : 'Done'}
             </Button>
           </DialogFooter>
         </DialogContent>
