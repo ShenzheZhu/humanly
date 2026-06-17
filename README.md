@@ -2,8 +2,6 @@
   <img alt="Humanly" src="./assets/humanly-readme-banner.gif" width="680">
 </p>
 
-<h1 align="center">Humanly</h1>
-
 <p align="center">
   <a href="#overview">Overview</a> ·
   <a href="#product">Product</a> ·
