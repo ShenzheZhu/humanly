@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { BookOpen, Check, MessageSquare, Sparkles, Wand2 } from 'lucide-react';
+import { BookOpen, Check, Github, MessageSquare, Sparkles, Wand2 } from 'lucide-react';
 import { AuthenticatedRedirect } from '@/components/auth/authenticated-redirect';
 import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
 import { HeroShowcase } from '@/components/marketing/hero-showcase';
@@ -13,6 +13,7 @@ const bg2 = '#ebede4';
 const good = '#6f8a78';
 const fastDemoHref = '/demo/fast-writing';
 const launchVideoSrc = '/videos/humanly-launch.mp4';
+const githubHref = 'https://github.com/ShenzheZhu/humanly/tree/main';
 
 const logRows = [
   ['12:41:48', 'input', '#dde6df', '#4a655a', '796'],
@@ -180,6 +181,15 @@ function NavBar() {
         <a href="#demo" className="hover:text-foreground">Demo</a>
         <a href="#process" className="hover:text-foreground">How it works</a>
         <a href="#faq" className="hover:text-foreground">FAQ</a>
+        <a
+          href={githubHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 hover:text-foreground"
+        >
+          <Github className="h-3.5 w-3.5" strokeWidth={1.8} />
+          GitHub
+        </a>
       </nav>
 
       <div className="flex items-center gap-2 justify-self-end sm:gap-3">
@@ -681,6 +691,9 @@ function Footer() {
         <div className="flex shrink-0 flex-wrap justify-end gap-5 text-xs font-medium text-muted-foreground">
           <Link href="/privacy" className="hover:text-foreground">Privacy</Link>
           <Link href="/terms" className="hover:text-foreground">Terms</Link>
+          <a href={githubHref} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">
+            GitHub
+          </a>
         </div>
       </div>
     </footer>
