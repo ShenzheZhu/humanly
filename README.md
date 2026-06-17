@@ -1,3 +1,4 @@
+# ✏️ Humanly: Human-AI Writing Environments with Process Tracing and Certificates
 <p align="center">
   <img alt="Humanly" src="./assets/humanly-readme-banner.gif" width="680">
 </p>
