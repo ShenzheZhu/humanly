@@ -1,4 +1,4 @@
-import { CopyPastePolicy, EventType, TextRenderMode } from '@humanly/shared';
+import { CopyPastePolicy, EventType } from '@humanly/shared';
 
 /**
  * Configuration for the editor tracker
@@ -13,8 +13,6 @@ export interface EditorTrackerConfig {
   flushInterval?: number;
   enabled?: boolean;
   copyPastePolicy?: CopyPastePolicy;
-  textRenderMode?: TextRenderMode;
-  getTextRenderMode?: () => TextRenderMode;
 }
 
 /**
@@ -44,8 +42,6 @@ export interface EventMetadata {
   // Line spacing & indentation
   lineSpacing?: number;
   indentLevel?: number;
-  // Text display mode captured for audit-log full text rendering
-  textRenderMode?: TextRenderMode;
   sourceText?: string;
   replacedSourceText?: string;
   // Clipboard evidence
@@ -207,9 +203,6 @@ export interface ToolbarConfig {
   showStrikethrough?: boolean;
   showCode?: boolean;
   showClear?: boolean;
-  showMarkdownToggle?: boolean;
-  markdownEnabled?: boolean;
-  onMarkdownEnabledChange?: (enabled: boolean) => void;
 }
 
 /**

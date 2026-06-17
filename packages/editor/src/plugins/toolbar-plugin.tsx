@@ -18,8 +18,6 @@ import { ListControls } from '../components/toolbar/list-controls';
 import { AlignmentControls } from '../components/toolbar/alignment-controls';
 import {
   toolbarActiveButtonStyle,
-  toolbarColors,
-  toolbarControlHeight,
   toolbarDividerStyle,
   toolbarIconButtonStyle,
   toolbarSectionStyle,
@@ -38,10 +36,6 @@ interface ToolbarState {
  */
 export function ToolbarPlugin(config: ToolbarConfig = {}): JSX.Element {
   const [editor] = useLexicalComposerContext();
-  const markdownEnabled = config.markdownEnabled === true;
-  const showMarkdownToggle =
-    config.showMarkdownToggle !== false &&
-    typeof config.onMarkdownEnabledChange === 'function';
   const [toolbarState, setToolbarState] = useState<ToolbarState>({
     isBold: false,
     isItalic: false,
@@ -220,41 +214,6 @@ export function ToolbarPlugin(config: ToolbarConfig = {}): JSX.Element {
         </>
       )}
 
-      {showMarkdownToggle && (
-        <div style={toolbarStyles.markdownGroup}>
-          <div style={toolbarStyles.divider} />
-          <button
-            type="button"
-            role="switch"
-            aria-checked={markdownEnabled}
-            aria-label="Markdown input"
-            title="Markdown input"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => config.onMarkdownEnabledChange?.(!markdownEnabled)}
-            style={{
-              ...toolbarStyles.markdownToggle,
-              ...(markdownEnabled ? toolbarStyles.markdownToggleActive : {}),
-            }}
-          >
-            <span style={toolbarStyles.markdownMark}>M</span>
-            <span style={toolbarStyles.markdownLabel}>Markdown</span>
-            <span
-              aria-hidden="true"
-              style={{
-                ...toolbarStyles.markdownSwitchTrack,
-                ...(markdownEnabled ? toolbarStyles.markdownSwitchTrackActive : {}),
-              }}
-            >
-              <span
-                style={{
-                  ...toolbarStyles.markdownSwitchThumb,
-                  transform: markdownEnabled ? 'translateX(12px)' : 'translateX(0)',
-                }}
-              />
-            </span>
-          </button>
-        </div>
-      )}
     </div>
   );
 }
@@ -274,60 +233,4 @@ const toolbarStyles = {
   divider: toolbarDividerStyle,
   button: toolbarIconButtonStyle,
   activeButton: toolbarActiveButtonStyle,
-  markdownGroup: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    marginLeft: 'auto',
-  },
-  markdownToggle: {
-    height: toolbarControlHeight,
-    padding: '4px 5px 4px 10px',
-    border: `1px solid ${toolbarColors.border}`,
-    borderRadius: '999px',
-    backgroundColor: toolbarColors.surface,
-    color: toolbarColors.text,
-    cursor: 'pointer',
-    fontSize: '13px',
-    fontFamily: 'inherit',
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '8px',
-    boxSizing: 'border-box' as const,
-    whiteSpace: 'nowrap' as const,
-  },
-  markdownToggleActive: {
-    borderColor: toolbarColors.borderStrong,
-  },
-  markdownMark: {
-    fontWeight: 700,
-    lineHeight: 1,
-    letterSpacing: 0,
-  },
-  markdownLabel: {
-    lineHeight: 1,
-  },
-  markdownSwitchTrack: {
-    width: '30px',
-    height: '18px',
-    padding: '1px',
-    border: '1px solid #c9cac0',
-    borderRadius: '999px',
-    backgroundColor: '#e8e9df',
-    display: 'flex',
-    alignItems: 'center',
-    transition: 'background-color 0.15s ease, border-color 0.15s ease',
-  },
-  markdownSwitchTrackActive: {
-    borderColor: '#1a1c20',
-    backgroundColor: '#1a1c20',
-  },
-  markdownSwitchThumb: {
-    width: '14px',
-    height: '14px',
-    borderRadius: '999px',
-    backgroundColor: '#ffffff',
-    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.18)',
-    transition: 'transform 0.15s ease',
-  },
 };
