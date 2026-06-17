@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { BookOpen, Check, Github, MessageSquare, Sparkles, Wand2 } from 'lucide-react';
+import { BookOpen, Check, MessageSquare, Sparkles, Wand2 } from 'lucide-react';
 import { AuthenticatedRedirect } from '@/components/auth/authenticated-redirect';
 import { HumanlyWordmark } from '@/components/brand/humanly-wordmark';
 import { HeroShowcase } from '@/components/marketing/hero-showcase';
@@ -185,9 +185,8 @@ function NavBar() {
           href={githubHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 hover:text-foreground"
+          className="hover:text-foreground"
         >
-          <Github className="h-3.5 w-3.5" strokeWidth={1.8} />
           GitHub
         </a>
       </nav>
