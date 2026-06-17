@@ -1,5 +1,5 @@
 import { LexicalEditor, EditorState, $getRoot, $getSelection, $isRangeSelection, COMMAND_PRIORITY_LOW, COMMAND_PRIORITY_HIGH, KEY_DOWN_COMMAND, PASTE_COMMAND, COPY_COMMAND, CUT_COMMAND, SELECTION_CHANGE_COMMAND, FOCUS_COMMAND, BLUR_COMMAND, INDENT_CONTENT_COMMAND, OUTDENT_CONTENT_COMMAND, FORMAT_TEXT_COMMAND, TextFormatType } from 'lexical';
-import { buildCopiedTextEventMetadata, EventType, TextRenderMode } from '@humanly/shared';
+import { buildCopiedTextEventMetadata, EventType } from '@humanly/shared';
 import { EditorTrackerConfig, EventMetadata, TrackedEvent } from '../types';
 import {
   HEADING_CHANGE_COMMAND,
@@ -52,10 +52,6 @@ export class EditorTracker {
     return !this.shouldBlockClipboard();
   }
 
-  private getTextRenderMode(): TextRenderMode {
-    return this.config.getTextRenderMode?.() || this.config.textRenderMode || 'plain';
-  }
-
   private setPendingTextChangeMetadata(metadata: EventMetadata): void {
     this.pendingTextChangeMetadata = {
       ...(this.pendingTextChangeMetadata || {}),
@@ -65,11 +61,6 @@ export class EditorTracker {
 
   private buildTextChangeMetadata(metadata?: EventMetadata): EventMetadata | undefined {
     const nextMetadata: EventMetadata = {};
-    const textRenderMode = this.getTextRenderMode();
-
-    if (textRenderMode === 'markdown') {
-      nextMetadata.textRenderMode = 'markdown';
-    }
 
     if (metadata) {
       Object.assign(nextMetadata, metadata);
