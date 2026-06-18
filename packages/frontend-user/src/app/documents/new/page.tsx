@@ -18,6 +18,7 @@ import {
   AI_SHORTCUT_MAX_TOKENS_DEFAULT,
   ENVIRONMENT_CONFIG_ACCEPT,
   SUBMISSION_MAX_CHARACTERS_MAX,
+  TASK_INSTRUCTION_MAX_LENGTH,
   WRITING_AI_ACCESS_OPTIONS,
   WRITING_AI_POLICY_OPTIONS,
   WRITING_AI_MODELS,
@@ -282,6 +283,7 @@ export default function NewDocumentPage() {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [taskInstruction, setTaskInstruction] = useState('');
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | undefined>(undefined);
   const [isCreating, setIsCreating] = useState(false);
@@ -676,6 +678,7 @@ export default function NewDocumentPage() {
         instructions: {
           ...environmentConfig.instructions,
           hasInstructionPdf: !!pdfFile,
+          taskInstruction: taskInstruction.trim(),
         },
         traceability: {
           ...environmentConfig.traceability,
@@ -791,6 +794,7 @@ export default function NewDocumentPage() {
   }, [
     title,
     description,
+    taskInstruction,
     pdfFile,
     environmentConfig,
     timeLimitMinutesInput,
@@ -817,6 +821,7 @@ export default function NewDocumentPage() {
     instructions: {
       ...environmentConfig.instructions,
       hasInstructionPdf: !!pdfFile || !!environmentConfig.instructions.hasInstructionPdf,
+      taskInstruction: taskInstruction.trim(),
     },
     traceability: {
       ...environmentConfig.traceability,
@@ -1234,6 +1239,21 @@ export default function NewDocumentPage() {
                 placeholder="Optional context for this document..."
                 disabled={isCreating}
               />
+            </div>
+
+            <div className="humanly-field">
+              <Label htmlFor="document-instruction">Instruction</Label>
+              <Textarea
+                id="document-instruction"
+                value={taskInstruction}
+                onChange={(event) => setTaskInstruction(event.target.value)}
+                placeholder="Optional instructions to review before writing starts..."
+                maxLength={TASK_INSTRUCTION_MAX_LENGTH}
+                disabled={isCreating}
+              />
+              <p className="text-xs text-muted-foreground">
+                Shown above the writing rules in the Instructions dialog.
+              </p>
             </div>
 
             <div className="rounded-lg border border-dashed border-border/80 bg-muted/25 p-3">

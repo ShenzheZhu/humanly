@@ -37,6 +37,7 @@ export interface WritingEnvironmentConfig {
   description?: string;
   instructions: {
     hasInstructionPdf?: boolean;
+    taskInstruction?: string;
     editableAfterSubmission: boolean;
   };
   aiAccess: WritingAiAccess;
@@ -196,6 +197,7 @@ export const DEFAULT_WRITING_ENVIRONMENT_CONFIG: WritingEnvironmentConfig = {
   taskType: 'personal',
   instructions: {
     hasInstructionPdf: false,
+    taskInstruction: '',
     editableAfterSubmission: true,
   },
   aiAccess: 'off',

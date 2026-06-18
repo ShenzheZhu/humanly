@@ -1364,11 +1364,11 @@ export default function DocumentEditorPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setTaskRulesDialogOpen(true)}
-                  title="View writing rules"
+                  title="View instructions"
                   className="gap-1 px-2 text-muted-foreground hover:text-foreground"
                 >
                   <HelpCircle className="h-4 w-4" />
-                  <span className="hidden sm:inline">Rules</span>
+                  <span className="hidden sm:inline">Instructions</span>
                 </Button>
               )}
 

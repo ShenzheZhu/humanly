@@ -882,6 +882,20 @@ export function SettingsPanel({ taskId }: SettingsPanelProps) {
                   )}
                 />
 
+                <div className="space-y-2">
+                  <FormLabel>Instruction</FormLabel>
+                  <Textarea
+                    value={environmentConfig.instructions.taskInstruction || ''}
+                    placeholder="No text instruction configured for this task."
+                    className="resize-none"
+                    disabled
+                    readOnly
+                  />
+                  <FormDescription>
+                    This text appears above the writing rules in the writer Instructions dialog.
+                  </FormDescription>
+                </div>
+
                 <div className="rounded-md border border-dashed p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
