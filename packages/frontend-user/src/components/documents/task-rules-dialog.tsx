@@ -200,14 +200,14 @@ export function TaskRulesDialog({
           <DialogTitle>Instructions</DialogTitle>
           <DialogDescription>
             {taskName
-              ? `${taskName} includes the instruction and writing rules below.`
-              : 'Review the instruction and writing rules for this workspace.'}
+              ? `${taskName} includes the task instruction and writing rules below.`
+              : 'Review the task instruction and writing rules for this workspace.'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
           <section className="rounded-lg border border-border/70 bg-muted/20 px-4 py-3">
-            <h3 className="text-sm font-semibold text-foreground">Instruction</h3>
+            <h3 className="text-sm font-semibold text-foreground">Task Instruction</h3>
             <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
               {taskInstruction || 'No additional task instruction was provided for this workspace.'}
             </p>

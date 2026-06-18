@@ -883,7 +883,7 @@ export function SettingsPanel({ taskId }: SettingsPanelProps) {
                 />
 
                 <div className="space-y-2">
-                  <FormLabel>Instruction</FormLabel>
+                  <FormLabel>Task Instruction</FormLabel>
                   <Textarea
                     value={environmentConfig.instructions.taskInstruction || ''}
                     placeholder="No text instruction configured for this task."
@@ -1085,10 +1085,10 @@ export function SettingsPanel({ taskId }: SettingsPanelProps) {
                       {chatTokensEnabled && (
                         <div className="grid gap-4 rounded-md border border-border/70 bg-background p-4">
                           <div className="space-y-2">
-                            <FormLabel htmlFor="ai-policy-enforcement">AI Policy Enforcement</FormLabel>
+                            <FormLabel htmlFor="ai-policy-enforcement">AI Guard policy</FormLabel>
                             <select
                               id="ai-policy-enforcement"
-                              aria-label="AI policy enforcement"
+                              aria-label="AI Guard policy"
                               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                               value={normalizeWritingAiPolicy(environmentConfig.aiPolicy).mode}
                               disabled={controlsDisabled}

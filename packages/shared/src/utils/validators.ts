@@ -135,7 +135,7 @@ export const writingEnvironmentConfigSchema = z.object({
       inclusive: true,
       exact: false,
       path: ['aiPolicy', 'rejectionRule'],
-      message: 'AI policy rejection rule must be at most 2000 characters.',
+      message: 'AI Guard policy rejection rule must be at most 2000 characters.',
     });
   }
   if (aiPolicy.mode === 'guard') {
@@ -143,14 +143,14 @@ export const writingEnvironmentConfigSchema = z.object({
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['aiPolicy', 'mode'],
-        message: 'AI policy guard is only available when AI access is Only agent chat or Full.',
+        message: 'AI Guard policy is only available when AI access is Only agent chat or Full.',
       });
     }
     if (!aiPolicy.rejectionRule) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['aiPolicy', 'rejectionRule'],
-        message: 'AI policy guard requires a rejection rule.',
+        message: 'AI Guard policy requires a rejection rule.',
       });
     }
   }

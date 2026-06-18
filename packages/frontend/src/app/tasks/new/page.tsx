@@ -120,7 +120,7 @@ const taskFormSchema = z.object({
     .or(z.literal('')),
   taskInstruction: z
     .string()
-    .max(TASK_INSTRUCTION_MAX_LENGTH, `Instruction must not exceed ${TASK_INSTRUCTION_MAX_LENGTH} characters`)
+    .max(TASK_INSTRUCTION_MAX_LENGTH, `Task Instruction must not exceed ${TASK_INSTRUCTION_MAX_LENGTH} characters`)
     .optional()
     .or(z.literal('')),
   aiUsageLimit: z.coerce.number().int().min(1, 'AI usage limit must be at least 1'),
@@ -373,7 +373,6 @@ const buildAdminEnvironmentSummary = ({
   timeLimitEnabled,
   startDate,
   endDate,
-  allowGuestSubmissions,
 }: {
   config: WritingEnvironmentConfig;
   aiAccess: WritingAiAccess;
@@ -381,7 +380,6 @@ const buildAdminEnvironmentSummary = ({
   timeLimitEnabled: boolean;
   startDate?: string;
   endDate?: string;
-  allowGuestSubmissions: boolean;
 }): EnvironmentSummaryItem[] => {
   const normalizedAiAccess = normalizeWritingAiAccess(aiAccess);
   const aiPolicy = normalizeWritingAiPolicy(config.aiPolicy);
@@ -428,9 +426,9 @@ const buildAdminEnvironmentSummary = ({
       detail: 'Per enrolled writer',
     },
     {
-      label: 'Submission',
-      value: config.submission.mode === 'single' ? 'Single submission' : 'Multiple submissions',
-      detail: `${formatAdminAttemptPolicy(config)} · ${allowGuestSubmissions ? 'Guests allowed' : 'Sign-in required'}`,
+      label: 'Task Attempts',
+      value: formatAdminAttemptPolicy(config),
+      detail: 'Per enrolled writer',
     },
     {
       label: 'Traceability',
@@ -441,7 +439,7 @@ const buildAdminEnvironmentSummary = ({
 
   if (isWritingAiChatEnabled(normalizedAiAccess)) {
     items.splice(1, 0, {
-      label: 'AI policy',
+      label: 'AI Guard policy',
       value: aiPolicy.mode === 'guard' ? 'Guard' : 'Off',
       detail: aiPolicy.mode === 'guard'
         ? 'Custom rejection rule active'
@@ -974,7 +972,7 @@ export default function NewTaskPage() {
         ? normalizeWritingAiPolicy(environmentConfig.aiPolicy)
         : { mode: 'off' as const };
       if (effectiveAiPolicy.mode === 'guard' && !effectiveAiPolicy.rejectionRule?.trim()) {
-        throw new Error('Enter an AI policy rejection rule or turn AI policy enforcement off.');
+        throw new Error('Enter an AI Guard policy rejection rule or turn AI Guard policy off.');
       }
 
       const allowedModels = aiAccess === 'off' ? [] : [selectedAiModel];
@@ -1138,11 +1136,10 @@ export default function NewTaskPage() {
     config: environmentConfig,
     aiAccess,
     selectedAiModel,
-    timeLimitEnabled,
-    startDate: watchedStartDate,
-    endDate: watchedEndDate,
-    allowGuestSubmissions,
-  });
+  timeLimitEnabled,
+  startDate: watchedStartDate,
+  endDate: watchedEndDate,
+});
   const workspacePreviewConfig: WritingEnvironmentConfig = {
     ...environmentConfig,
     taskType: 'admin_assigned',
@@ -1365,13 +1362,13 @@ export default function NewTaskPage() {
             {chatTokensEnabled && (
               <div className="grid gap-4 rounded-md border bg-background p-3">
                 <div className="grid gap-2">
-                  <FormLabel>AI Policy Enforcement</FormLabel>
+                  <FormLabel>AI Guard policy</FormLabel>
                   <Select
                     value={normalizeWritingAiPolicy(environmentConfig.aiPolicy).mode}
                     onValueChange={(value) => setAiPolicyMode(value as WritingAiPolicyMode)}
                   >
-                    <SelectTrigger aria-label="AI policy enforcement">
-                      <SelectValue placeholder="AI policy enforcement" />
+                    <SelectTrigger aria-label="AI Guard policy">
+                      <SelectValue placeholder="AI Guard policy" />
                     </SelectTrigger>
                     <SelectContent>
                       {WRITING_AI_POLICY_OPTIONS.map((option) => (
@@ -1842,7 +1839,7 @@ export default function NewTaskPage() {
                   name="taskInstruction"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Instruction</FormLabel>
+                      <FormLabel>Task Instruction</FormLabel>
                       <FormControl>
                         <Textarea
                           placeholder="Optional instructions writers should review before they start..."
