@@ -74,6 +74,7 @@ import {
   SUBMISSION_MAX_CHARACTERS_MAX,
   SUBMISSION_MIN_CHARACTERS_MAX,
   TASK_DESCRIPTION_MAX_LENGTH,
+  TASK_INSTRUCTION_MAX_LENGTH,
   TASK_INSTRUCTION_PDF_MAX_FILES,
   TASK_NAME_MAX_LENGTH,
   TASK_START_DATE_PAST_ERROR_MESSAGE,
@@ -115,6 +116,11 @@ const taskFormSchema = z.object({
   description: z
     .string()
     .max(TASK_DESCRIPTION_MAX_LENGTH, `Description must not exceed ${TASK_DESCRIPTION_MAX_LENGTH} characters`)
+    .optional()
+    .or(z.literal('')),
+  taskInstruction: z
+    .string()
+    .max(TASK_INSTRUCTION_MAX_LENGTH, `Instruction must not exceed ${TASK_INSTRUCTION_MAX_LENGTH} characters`)
     .optional()
     .or(z.literal('')),
   aiUsageLimit: z.coerce.number().int().min(1, 'AI usage limit must be at least 1'),
@@ -478,6 +484,7 @@ export default function NewTaskPage() {
     defaultValues: {
       name: '',
       description: '',
+      taskInstruction: '',
       aiUsageLimit: 100,
       startDate: initialDefaultTaskWindow.startDate,
       endDate: initialDefaultTaskWindow.endDate,
@@ -487,6 +494,7 @@ export default function NewTaskPage() {
   const { isSubmitting } = form.formState;
   const watchedTaskName = form.watch('name');
   const watchedTaskDescription = form.watch('description');
+  const watchedTaskInstruction = form.watch('taskInstruction');
   const watchedStartDate = form.watch('startDate');
   const watchedEndDate = form.watch('endDate');
   const localTimeZoneLabel = getLocalTimeZoneLabel();
@@ -1017,6 +1025,7 @@ export default function NewTaskPage() {
           instructions: {
             ...environmentConfig.instructions,
             hasInstructionPdf: instructionFiles.length > 0,
+            taskInstruction: submittedData.taskInstruction?.trim() || '',
           },
           aiUsageLimit: {
             mode: 'max_requests',
@@ -1146,6 +1155,7 @@ export default function NewTaskPage() {
     instructions: {
       ...environmentConfig.instructions,
       hasInstructionPdf: instructionFiles.length > 0,
+      taskInstruction: watchedTaskInstruction?.trim() || '',
     },
     time: {
       ...environmentConfig.time,
@@ -1821,6 +1831,29 @@ export default function NewTaskPage() {
                       </FormControl>
                       <FormDescription>
                         Up to {TASK_DESCRIPTION_MAX_LENGTH.toLocaleString()} characters.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="taskInstruction"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Instruction</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Optional instructions writers should review before they start..."
+                          className="resize-none"
+                          {...field}
+                          maxLength={TASK_INSTRUCTION_MAX_LENGTH}
+                          disabled={isSubmitting}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Shown above the writing rules in the writer Instructions dialog.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

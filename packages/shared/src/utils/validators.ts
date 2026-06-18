@@ -6,6 +6,7 @@ import {
   EVENT_TYPES,
   PAGINATION,
   TASK_DESCRIPTION_MAX_LENGTH,
+  TASK_INSTRUCTION_MAX_LENGTH,
   TASK_NAME_MAX_LENGTH,
   SUBMISSION_MAX_CHARACTERS_MAX,
   SUBMISSION_MIN_CHARACTERS_MAX,
@@ -69,6 +70,7 @@ export const writingEnvironmentConfigSchema = z.object({
   description: z.string().max(1000).optional(),
   instructions: z.object({
     hasInstructionPdf: z.boolean().optional(),
+    taskInstruction: z.string().max(TASK_INSTRUCTION_MAX_LENGTH).optional(),
     editableAfterSubmission: z.boolean(),
   }),
   aiAccess: writingAiAccessSchema,

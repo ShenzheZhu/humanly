@@ -191,24 +191,39 @@ export function TaskRulesDialog({
   taskEndDate,
 }: TaskRulesDialogProps) {
   const ruleItems = buildRuleItems(config, taskStartDate, taskEndDate);
+  const taskInstruction = config.instructions?.taskInstruction?.trim();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Writing rules</DialogTitle>
+          <DialogTitle>Instructions</DialogTitle>
           <DialogDescription>
-            {taskName ? `${taskName} uses these writing rules.` : 'This writing workspace uses these rules.'}
+            {taskName
+              ? `${taskName} includes the instruction and writing rules below.`
+              : 'Review the instruction and writing rules for this workspace.'}
           </DialogDescription>
         </DialogHeader>
 
-        <ul className="space-y-2 rounded-lg border border-border/70 bg-muted/20 px-5 py-4 text-sm leading-6 text-foreground">
-          {ruleItems.map((item) => (
-            <li key={item.id} className="ml-3 list-disc pl-1">
-              {item.content}
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-3">
+          <section className="rounded-lg border border-border/70 bg-muted/20 px-4 py-3">
+            <h3 className="text-sm font-semibold text-foreground">Instruction</h3>
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+              {taskInstruction || 'No additional task instruction was provided for this workspace.'}
+            </p>
+          </section>
+
+          <section className="rounded-lg border border-border/70 bg-muted/20 px-4 py-3">
+            <h3 className="text-sm font-semibold text-foreground">Writing rules</h3>
+            <ul className="mt-2 space-y-2 text-sm leading-6 text-foreground">
+              {ruleItems.map((item) => (
+                <li key={item.id} className="ml-4 list-disc pl-1">
+                  {item.content}
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

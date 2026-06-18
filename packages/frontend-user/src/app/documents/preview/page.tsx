@@ -380,12 +380,12 @@ export default function WorkspacePreviewPage() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                title="View writing rules"
+                title="View instructions"
                 className="gap-1 px-2 text-muted-foreground hover:text-foreground"
                 disabled
               >
                 <HelpCircle className="h-4 w-4" />
-                <span className="hidden sm:inline">Rules</span>
+                <span className="hidden sm:inline">Instructions</span>
               </Button>
 
               {aiChatEnabled ? (
