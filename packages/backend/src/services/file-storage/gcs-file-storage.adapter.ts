@@ -3,8 +3,10 @@ import { Storage, type StorageOptions } from '@google-cloud/storage';
 import { AppError } from '../../middleware/error-handler';
 import type {
   FileStorageAdapter,
+  ListStorageObjectsOptions,
   NormalizedFileStorageLocator,
   StoredFile,
+  StorageObjectMetadata,
 } from './types';
 
 export class GcsFileStorageAdapter implements FileStorageAdapter {
@@ -57,6 +59,31 @@ export class GcsFileStorageAdapter implements FileStorageAdapter {
   async delete(locator: NormalizedFileStorageLocator): Promise<void> {
     const gcsFile = this.getGcsFile(locator);
     await gcsFile.delete({ ignoreNotFound: true });
+  }
+
+  async *listObjects(options: ListStorageObjectsOptions = {}): AsyncIterable<StorageObjectMetadata> {
+    const bucketName = this.gcsBucketName();
+    const stream = this.gcsClientInstance().bucket(bucketName).getFilesStream({
+      prefix: options.prefix,
+    });
+
+    for await (const gcsFile of stream as AsyncIterable<any>) {
+      const metadata = gcsFile.metadata || {};
+      const updatedAt = typeof metadata.updated === 'string'
+        ? new Date(metadata.updated)
+        : null;
+      const size = metadata.size === undefined || metadata.size === null
+        ? null
+        : Number(metadata.size);
+
+      yield {
+        storageProvider: this.provider,
+        storageKey: gcsFile.name,
+        storageBucket: bucketName,
+        updatedAt: updatedAt && !Number.isNaN(updatedAt.getTime()) ? updatedAt : null,
+        size: Number.isFinite(size) ? size : null,
+      };
+    }
   }
 
   private async getExistingGcsFile(locator: NormalizedFileStorageLocator) {

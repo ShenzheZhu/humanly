@@ -4,8 +4,10 @@ import type { Readable } from 'stream';
 import { AppError } from '../../middleware/error-handler';
 import type {
   FileStorageAdapter,
+  ListStorageObjectsOptions,
   NormalizedFileStorageLocator,
   StoredFile,
+  StorageObjectMetadata,
 } from './types';
 
 export class LocalFileStorageAdapter implements FileStorageAdapter {
@@ -67,6 +69,26 @@ export class LocalFileStorageAdapter implements FileStorageAdapter {
     }
   }
 
+  async *listObjects(options: ListStorageObjectsOptions = {}): AsyncIterable<StorageObjectMetadata> {
+    const root = this.localStorageRoot();
+    if (!(await fs.pathExists(root))) {
+      return;
+    }
+
+    const realRoot = await fs.realpath(root);
+    const normalizedPrefix = this.normalizeStorageKey(options.prefix || '');
+    const scanRoot = normalizedPrefix ? this.localPath(normalizedPrefix) : root;
+
+    if (!(await fs.pathExists(scanRoot))) {
+      return;
+    }
+
+    const realScanRoot = await fs.realpath(scanRoot);
+    await this.verifyPathUnderStorageRoot(realScanRoot);
+
+    yield* this.walkStorageDirectory(realScanRoot, realRoot, normalizedPrefix);
+  }
+
   private async resolveAndVerify(storageKey: string): Promise<string> {
     const absolutePath = path.isAbsolute(storageKey)
       ? storageKey
@@ -95,5 +117,48 @@ export class LocalFileStorageAdapter implements FileStorageAdapter {
 
   private localPath(storageKey: string): string {
     return path.join(this.localStorageRoot(), storageKey);
+  }
+
+  private normalizeStorageKey(storageKey: string): string {
+    return storageKey
+      .replace(/\\/g, '/')
+      .replace(/^\/+|\/+$/g, '');
+  }
+
+  private async *walkStorageDirectory(
+    directory: string,
+    realRoot: string,
+    prefix: string
+  ): AsyncIterable<StorageObjectMetadata> {
+    const entries = await fs.readdir(directory, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const absolutePath = path.join(directory, entry.name);
+      const realPath = await fs.realpath(absolutePath);
+      await this.verifyPathUnderStorageRoot(realPath);
+
+      if (entry.isDirectory()) {
+        yield* this.walkStorageDirectory(realPath, realRoot, prefix);
+        continue;
+      }
+
+      if (!entry.isFile()) {
+        continue;
+      }
+
+      const relativeKey = path.relative(realRoot, realPath).split(path.sep).join('/');
+      if (prefix && relativeKey !== prefix && !relativeKey.startsWith(`${prefix}/`)) {
+        continue;
+      }
+
+      const stat = await fs.stat(realPath);
+      yield {
+        storageProvider: this.provider,
+        storageKey: relativeKey,
+        storageBucket: null,
+        updatedAt: stat.mtime,
+        size: stat.size,
+      };
+    }
   }
 }
