@@ -1,11 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
-  Check,
   ChevronDown,
   Download,
   FileText,
@@ -28,6 +27,7 @@ import {
   isWritingAiPolishEnabled,
   normalizeWritingAiPolicy,
   normalizeWritingAiAccess,
+  normalizeWritingAttemptPolicy,
   normalizeCopyPastePolicy,
   normalizeResourceAccessPolicy,
   serializeEnvironmentConfig,
@@ -37,6 +37,7 @@ import {
   type WritingAiPolicyMode,
   type WritingAiProvider,
   type WritingAiProviderConfig,
+  type WritingAttemptPolicyMode,
   type WritingEnvironmentConfig,
 } from '@humanly/shared';
 
@@ -44,7 +45,6 @@ import { api } from '@/lib/api-client';
 import { MODEL_WHITELIST, getWhitelist } from '@/lib/ai-models';
 import { downloadBlob } from '@/lib/download';
 import {
-  cn,
   getLocalTimeZoneLabel,
   localDateTimeInputToISOString,
   toLocalDateTimeInputValue,
@@ -76,7 +76,6 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { RadioGroup } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -224,6 +223,12 @@ const parseOptionalMaxCharacters = (value: string): number | undefined => {
   return Math.min(Math.floor(parsed), SUBMISSION_MAX_CHARACTERS_MAX);
 };
 
+const parseMaxAttempts = (value: string, fallback = 2): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(2, Math.min(20, Math.floor(parsed)));
+};
+
 const formatDateTimeSummary = (value?: string) => {
   if (!value) return 'Not set';
 
@@ -248,72 +253,6 @@ const formatCharacterBounds = (submission: WritingEnvironmentConfig['submission'
   if (max) return `Up to ${max.toLocaleString()} submission characters`;
   return 'No submission length limit';
 };
-
-type SegmentedOption = {
-  value: string;
-  label: string;
-};
-
-function SegmentedControl({
-  ariaLabel,
-  disabled,
-  onValueChange,
-  options,
-  value,
-}: {
-  ariaLabel: string;
-  disabled?: boolean;
-  onValueChange: (value: string) => void;
-  options: SegmentedOption[];
-  value: string;
-}) {
-  return (
-    <RadioGroup
-      aria-label={ariaLabel}
-      className="inline-flex rounded-md border border-input bg-muted/30 p-0.5"
-      value={value}
-      onValueChange={onValueChange}
-    >
-      {options.map((option) => {
-        const selected = value === option.value;
-        const disabledSelected = disabled && selected;
-
-        return (
-          <button
-            key={option.value}
-            type="button"
-            role="radio"
-            aria-checked={selected}
-            disabled={disabled}
-            className={cn(
-              'inline-flex h-8 min-w-16 items-center justify-center gap-1.5 rounded-[5px] px-3 text-sm font-medium transition-colors',
-              selected && !disabledSelected && 'bg-background text-foreground shadow-sm',
-              !selected && 'text-muted-foreground hover:text-foreground',
-              disabledSelected && 'border border-border bg-muted text-foreground shadow-sm',
-              disabled && !selected && 'cursor-not-allowed opacity-45',
-              disabledSelected && 'cursor-not-allowed opacity-100'
-            )}
-            onClick={() => onValueChange(option.value)}
-          >
-            {disabledSelected && <Check className="h-3.5 w-3.5" aria-hidden="true" />}
-            {option.label}
-          </button>
-        );
-      })}
-    </RadioGroup>
-  );
-}
-
-function SettingRow({ children, label }: { children: ReactNode; label: string }) {
-  return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <FormLabel className="text-sm font-medium">{label}</FormLabel>
-      <div className="sm:flex sm:min-w-[220px] sm:justify-end">
-        {children}
-      </div>
-    </div>
-  );
-}
 
 type TaskInstructionFile = {
   id: string;
@@ -570,6 +509,35 @@ export function SettingsPanel({ taskId }: SettingsPanelProps) {
       submission: {
         ...current.submission,
         maxCharacters,
+      },
+    }));
+  };
+
+  const setAttemptPolicyMode = (mode: WritingAttemptPolicyMode) => {
+    setEnvironmentConfig((current) => ({
+      ...current,
+      submission: {
+        ...current.submission,
+        attemptPolicy: normalizeWritingAttemptPolicy({
+          ...current.submission.attemptPolicy,
+          mode,
+        }),
+      },
+    }));
+  };
+
+  const setAttemptPolicyMaxAttempts = (value: string) => {
+    setEnvironmentConfig((current) => ({
+      ...current,
+      submission: {
+        ...current.submission,
+        attemptPolicy: normalizeWritingAttemptPolicy({
+          mode: 'restart_allowed',
+          maxAttempts: parseMaxAttempts(
+            value,
+            normalizeWritingAttemptPolicy(current.submission.attemptPolicy).maxAttempts || 2
+          ),
+        }),
       },
     }));
   };
@@ -977,7 +945,7 @@ export function SettingsPanel({ taskId }: SettingsPanelProps) {
         </form>
 
         <Dialog open={environmentDialogOpen} onOpenChange={setEnvironmentDialogOpen}>
-          <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-5xl overflow-y-auto">
+          <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-6xl overflow-y-auto">
             <DialogHeader>
               <DialogTitle>View Environment</DialogTitle>
               <DialogDescription>
@@ -985,11 +953,11 @@ export function SettingsPanel({ taskId }: SettingsPanelProps) {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid gap-4 xl:grid-cols-2">
               <AdminEnvironmentDialogSection
-                className="lg:col-span-2"
+                className="xl:col-span-2"
                 title="AI"
-                description="Control whether this task can use assistant support."
+                description="Control whether enrolled users can use assistant support."
               >
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]">
                   <div className="space-y-2">
@@ -1176,24 +1144,139 @@ export function SettingsPanel({ taskId }: SettingsPanelProps) {
               </AdminEnvironmentDialogSection>
 
               <AdminEnvironmentDialogSection
-                title="Task Availability"
-                description={`Review the task availability window shown to enrolled users. Times are shown in your local timezone: ${localTimeZoneLabel}.`}
+                title="Writing Control"
+                description="Set copy-paste behavior and final submission length rules."
               >
-                <SettingRow label="Time">
-                  <SegmentedControl
-                    ariaLabel="Time"
+                <div className="grid gap-2">
+                  <FormLabel htmlFor="copy-paste-policy">Copy & Paste</FormLabel>
+                  <select
+                    id="copy-paste-policy"
+                    aria-label="Copy-paste policy"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={normalizeCopyPastePolicy(environmentConfig.copyPastePolicy)}
+                    disabled={controlsDisabled}
+                    onChange={(event) => updateEnvironment({
+                      copyPastePolicy: normalizeCopyPastePolicy(event.target.value),
+                    })}
+                  >
+                    <option value="allowed">Copy-paste allowed</option>
+                    <option value="blocked">Copy-paste blocked</option>
+                  </select>
+                </div>
+
+                <div className="grid gap-2">
+                  <FormLabel htmlFor="instruction-pdf-access">Instruction PDF Access</FormLabel>
+                  <select
+                    id="instruction-pdf-access"
+                    aria-label="Instruction PDF Access"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={normalizeResourceAccessPolicy(environmentConfig.resourceAccess)}
+                    disabled={controlsDisabled}
+                    onChange={(event) => updateEnvironment({
+                      resourceAccess: normalizeResourceAccessPolicy(event.target.value),
+                    })}
+                  >
+                    <option value="downloadable">View and download</option>
+                    <option value="view-only">View only</option>
+                  </select>
+                  <FormDescription>
+                    View-only instruction PDFs load through short-lived workspace access and hide file-saving affordances.
+                  </FormDescription>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-2">
+                    <FormLabel htmlFor="minimum-characters">Minimum Submission Characters</FormLabel>
+                    <Input
+                      id="minimum-characters"
+                      type="number"
+                      min={1}
+                      max={SUBMISSION_MIN_CHARACTERS_MAX}
+                      value={environmentConfig.submission.minCharacters ?? ''}
+                      onChange={(event) => setSubmissionMinimumCharacters(event.target.value)}
+                      placeholder="No minimum"
+                      disabled={controlsDisabled}
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <FormLabel htmlFor="maximum-characters">Maximum Submission Characters</FormLabel>
+                    <Input
+                      id="maximum-characters"
+                      type="number"
+                      min={1}
+                      max={SUBMISSION_MAX_CHARACTERS_MAX}
+                      value={environmentConfig.submission.maxCharacters ?? ''}
+                      onChange={(event) => setSubmissionMaximumCharacters(event.target.value)}
+                      placeholder="No maximum"
+                      disabled={controlsDisabled}
+                    />
+                  </div>
+                  <FormDescription className="sm:col-span-2">
+                    These limits apply to the final submitted document, not copy-paste length.
+                  </FormDescription>
+                </div>
+
+                <div className="grid gap-3 rounded-md border bg-background p-3">
+                  <div className="grid gap-2">
+                    <FormLabel htmlFor="task-attempt-policy">Task Attempts</FormLabel>
+                    <select
+                      id="task-attempt-policy"
+                      aria-label="Task Attempts"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      value={normalizeWritingAttemptPolicy(environmentConfig.submission.attemptPolicy).mode}
+                      disabled={controlsDisabled}
+                      onChange={(event) => setAttemptPolicyMode(event.target.value as WritingAttemptPolicyMode)}
+                    >
+                      <option value="single">Single durable attempt</option>
+                      <option value="restart_allowed">Allow writers to restart</option>
+                    </select>
+                    <FormDescription>
+                      Single attempt restores the same submission if a writer removes and rejoins the task.
+                    </FormDescription>
+                  </div>
+
+                  {normalizeWritingAttemptPolicy(environmentConfig.submission.attemptPolicy).mode === 'restart_allowed' ? (
+                    <div className="grid gap-2 sm:max-w-xs">
+                      <FormLabel htmlFor="maximum-task-attempts">Maximum Attempts</FormLabel>
+                      <Input
+                        id="maximum-task-attempts"
+                        type="number"
+                        min={2}
+                        max={20}
+                        value={normalizeWritingAttemptPolicy(environmentConfig.submission.attemptPolicy).maxAttempts || 2}
+                        disabled={controlsDisabled}
+                        onChange={(event) => setAttemptPolicyMaxAttempts(event.target.value)}
+                      />
+                      <FormDescription>
+                        Previous attempts and certificates stay saved.
+                      </FormDescription>
+                    </div>
+                  ) : null}
+                </div>
+              </AdminEnvironmentDialogSection>
+
+              <AdminEnvironmentDialogSection
+                title="Time"
+                description="Set the task availability window shown to enrolled users."
+              >
+                <div className="grid gap-2">
+                  <FormLabel htmlFor="task-availability-mode">Time</FormLabel>
+                  <select
+                    id="task-availability-mode"
+                    aria-label="Task availability"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     value={timeLimitEnabled ? 'on' : 'off'}
                     disabled={controlsDisabled}
-                    options={[
-                      { value: 'off', label: 'Off' },
-                      { value: 'on', label: 'On' },
-                    ]}
-                    onValueChange={(value) => setTimeLimitEnabled(value === 'on')}
-                  />
-                </SettingRow>
+                    onChange={(event) => setTimeLimitEnabled(event.target.value === 'on')}
+                  >
+                    <option value="off">Off</option>
+                    <option value="on">On</option>
+                  </select>
+                </div>
 
                 {timeLimitEnabled && (
-                  <div className="grid gap-4">
+                  <div className="grid gap-4 rounded-md border bg-muted/30 p-3 sm:grid-cols-2">
                     <FormField
                       control={form.control}
                       name="startDate"
@@ -1233,110 +1316,48 @@ export function SettingsPanel({ taskId }: SettingsPanelProps) {
                     />
                   </div>
                 )}
-              </AdminEnvironmentDialogSection>
 
-              <AdminEnvironmentDialogSection
-                title="Writing Session"
-                description="Review whether the writing session has a time limit."
-              >
-                <div className="grid gap-2">
-                  <FormLabel htmlFor="writing-session-time-mode">Time</FormLabel>
-                  <select
-                    id="writing-session-time-mode"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={environmentConfig.time.timeLimitSeconds ? 'time_limited' : 'unlimited'}
-                    disabled={controlsDisabled}
-                    onChange={(event) => setWritingSessionTimerEnabled(event.target.value === 'time_limited')}
-                  >
-                    <option value="unlimited">No limitations</option>
-                    <option value="time_limited">Time limited</option>
-                  </select>
-                </div>
+                <div className="space-y-4 border-t border-border/70 pt-4">
+                  <div className="space-y-1">
+                    <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Writing Session Timer
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Set an optional countdown shown while enrolled users write.
+                    </p>
+                  </div>
 
-                {environmentConfig.time.timeLimitSeconds && (
                   <div className="grid gap-2">
-                    <FormLabel htmlFor="writing-time-limit-minutes">Time Limit (minutes)</FormLabel>
-                    <Input
-                      id="writing-time-limit-minutes"
-                      type="number"
-                      min={1}
-                      value={writingTimeLimitMinutesInput}
-                      onChange={(event) => setWritingSessionTimerMinutes(event.target.value)}
-                      onBlur={commitWritingSessionTimerMinutes}
+                    <FormLabel htmlFor="writing-session-time-mode">Timer</FormLabel>
+                    <select
+                      id="writing-session-time-mode"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      value={environmentConfig.time.timeLimitSeconds ? 'time_limited' : 'unlimited'}
                       disabled={controlsDisabled}
-                    />
+                      onChange={(event) => setWritingSessionTimerEnabled(event.target.value === 'time_limited')}
+                    >
+                      <option value="unlimited">No time limit</option>
+                      <option value="time_limited">Time limited</option>
+                    </select>
                   </div>
-                )}
-              </AdminEnvironmentDialogSection>
 
-                <AdminEnvironmentDialogSection
-                  className="lg:col-span-2"
-                  title="Writing Rules"
-                  description="Review copy-paste behavior and final submission length rules."
-                >
-                <div className="grid gap-5 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]">
-                  <SettingRow label="Copy-Paste Policy">
-                    <SegmentedControl
-                      ariaLabel="Copy-Paste Policy"
-                      value={normalizeCopyPastePolicy(environmentConfig.copyPastePolicy)}
-                      disabled={controlsDisabled}
-                      options={[
-                        { value: 'allowed', label: 'Copy-paste allowed' },
-                        { value: 'blocked', label: 'Copy-paste blocked' },
-                      ]}
-                      onValueChange={(value) => updateEnvironment({
-                        copyPastePolicy: normalizeCopyPastePolicy(value),
-                      })}
-                    />
-                  </SettingRow>
-
-                  <SettingRow label="Instruction PDF Access">
-                    <SegmentedControl
-                      ariaLabel="Instruction PDF Access"
-                      value={normalizeResourceAccessPolicy(environmentConfig.resourceAccess)}
-                      disabled={controlsDisabled}
-                      options={[
-                        { value: 'downloadable', label: 'View and download' },
-                        { value: 'view-only', label: 'View only' },
-                      ]}
-                      onValueChange={(value) => updateEnvironment({
-                        resourceAccess: normalizeResourceAccessPolicy(value),
-                      })}
-                    />
-                  </SettingRow>
-
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  {environmentConfig.time.timeLimitSeconds && (
                     <div className="grid gap-2">
-                      <FormLabel htmlFor="minimum-characters">Minimum Submission Characters</FormLabel>
+                      <FormLabel htmlFor="writing-time-limit-minutes">Time Limit (minutes)</FormLabel>
                       <Input
-                        id="minimum-characters"
+                        id="writing-time-limit-minutes"
                         type="number"
                         min={1}
-                        max={SUBMISSION_MIN_CHARACTERS_MAX}
-                        value={environmentConfig.submission.minCharacters ?? ''}
-                        onChange={(event) => setSubmissionMinimumCharacters(event.target.value)}
-                        placeholder="No minimum"
+                        value={writingTimeLimitMinutesInput}
+                        onChange={(event) => setWritingSessionTimerMinutes(event.target.value)}
+                        onBlur={commitWritingSessionTimerMinutes}
                         disabled={controlsDisabled}
                       />
+                      <FormDescription>
+                        The editor shows a countdown and blocks submission when the timer reaches zero.
+                      </FormDescription>
                     </div>
-
-                    <div className="grid gap-2">
-                      <FormLabel htmlFor="maximum-characters">Maximum Submission Characters</FormLabel>
-                      <Input
-                        id="maximum-characters"
-                        type="number"
-                        min={1}
-                        max={SUBMISSION_MAX_CHARACTERS_MAX}
-                        value={environmentConfig.submission.maxCharacters ?? ''}
-                        onChange={(event) => setSubmissionMaximumCharacters(event.target.value)}
-                        placeholder="No maximum"
-                        disabled={controlsDisabled}
-                      />
-                    </div>
-                    <FormDescription className="sm:col-span-2">
-                      These limits apply to the final submitted document, not copy-paste length.
-                    </FormDescription>
-                  </div>
+                  )}
                 </div>
               </AdminEnvironmentDialogSection>
             </div>
