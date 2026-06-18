@@ -7,8 +7,10 @@ import type {
   FileStorageAdapter,
   FileStorageLocator,
   FileStorageProvider,
+  ListStorageObjectsOptions,
   NormalizedFileStorageLocator,
   StoredFile,
+  StorageObjectMetadata,
 } from './file-storage/types';
 
 export class FileStorageService {
@@ -38,6 +40,18 @@ export class FileStorageService {
   static async delete(locator: FileStorageLocator): Promise<void> {
     const normalized = this.normalizeLocator(locator);
     return this.readAdapter(normalized.storageProvider).delete(normalized);
+  }
+
+  static listObjects(options: ListStorageObjectsOptions = {}): AsyncIterable<StorageObjectMetadata> {
+    return this.writeAdapter().listObjects(options);
+  }
+
+  static activeStorageProvider(): FileStorageProvider {
+    return this.activeProvider();
+  }
+
+  static defaultStorageKeyPrefix(): string {
+    return this.storageKeyPrefix();
   }
 
   private static writeAdapter(): FileStorageAdapter {
@@ -85,13 +99,16 @@ export class FileStorageService {
   }
 
   private static buildObjectKey(fileId: string, checksum: string): string {
-    const prefix = (process.env.FILE_STORAGE_KEY_PREFIX || process.env.GCS_UPLOAD_PREFIX || 'files')
-      .trim()
-      .replace(/^\/+|\/+$/g, '');
-
+    const prefix = this.storageKeyPrefix();
     const filename = `${checksum}.pdf`;
     return prefix
       ? path.posix.join(prefix, fileId, filename)
       : path.posix.join(fileId, filename);
+  }
+
+  private static storageKeyPrefix(): string {
+    return (process.env.FILE_STORAGE_KEY_PREFIX || process.env.GCS_UPLOAD_PREFIX || 'files')
+      .trim()
+      .replace(/^\/+|\/+$/g, '');
   }
 }
