@@ -307,9 +307,9 @@ export default function EnvironmentConfigFields({
       {chatTokensEnabled && (
         <div className="grid gap-4 rounded-md border bg-muted/30 p-3">
           <div className="space-y-2">
-            <Label>AI Policy Enforcement</Label>
+            <Label>AI Guard policy</Label>
             <select
-              aria-label="AI policy enforcement"
+              aria-label="AI Guard policy"
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               value={aiPolicy.mode}
               disabled={disabled}

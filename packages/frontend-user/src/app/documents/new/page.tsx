@@ -264,7 +264,7 @@ const buildPersonalEnvironmentSummary = (
 
   if (isWritingAiChatEnabled(aiAccess)) {
     items.splice(1, 0, {
-      label: 'AI policy',
+      label: 'AI Guard policy',
       value: aiPolicy.mode === 'guard' ? 'Guard' : 'Off',
       detail: aiPolicy.mode === 'guard'
         ? 'Custom rejection rule active'
@@ -714,8 +714,8 @@ export default function NewDocumentPage() {
         && !configToCreate.aiPolicy.rejectionRule?.trim()
       ) {
         toast({
-          title: 'AI policy rule required',
-          description: 'Enter a rejection rule or turn AI policy enforcement off.',
+          title: 'AI Guard policy rule required',
+          description: 'Enter a rejection rule or turn AI Guard policy off.',
           variant: 'destructive',
         });
         return;
@@ -979,13 +979,13 @@ export default function NewDocumentPage() {
             {chatTokensEnabled && (
               <div className="grid gap-4 rounded-lg border border-border/70 bg-background p-3">
                 <div className="humanly-field">
-                  <Label>AI Policy Enforcement</Label>
+                  <Label>AI Guard policy</Label>
                   <Select
                     value={normalizeWritingAiPolicy(environmentConfig.aiPolicy).mode}
                     onValueChange={(value) => setAiPolicyMode(value as WritingAiPolicyMode)}
                   >
-                    <SelectTrigger aria-label="AI policy enforcement">
-                      <SelectValue placeholder="AI policy enforcement" />
+                    <SelectTrigger aria-label="AI Guard policy">
+                      <SelectValue placeholder="AI Guard policy" />
                     </SelectTrigger>
                     <SelectContent>
                       {WRITING_AI_POLICY_OPTIONS.map((option) => (
@@ -1242,7 +1242,7 @@ export default function NewDocumentPage() {
             </div>
 
             <div className="humanly-field">
-              <Label htmlFor="document-instruction">Instruction</Label>
+              <Label htmlFor="document-instruction">Task Instruction</Label>
               <Textarea
                 id="document-instruction"
                 value={taskInstruction}

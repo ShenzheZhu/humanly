@@ -19,9 +19,11 @@ import {
   formatCompactDuration,
   formatWritingAiAccess,
   formatWritingAiPolicy,
+  getMaxWritingAttempts,
   isWritingAiChatEnabled,
   isWritingAiPolishEnabled,
   normalizeCopyPastePolicy,
+  normalizeWritingAttemptPolicy,
   normalizeResourceAccessPolicy,
   getEnvironmentConfigExtension,
   serializeEnvironmentConfig,
@@ -217,7 +219,7 @@ function getEnvironmentRows(config?: WritingEnvironmentConfig | null) {
   if (isWritingAiChatEnabled(config.aiAccess)) {
     rows.push(['Agent chat token limit', formatTokenLimit(config.aiTokenBudget?.chatMaxTokens)]);
     rows.push([
-      'AI policy',
+      'AI Guard policy',
       formatWritingAiPolicy(config) === 'Guard' ? 'Guarded by custom rejection rule' : 'Off',
     ]);
   }
@@ -245,7 +247,13 @@ function getEnvironmentRows(config?: WritingEnvironmentConfig | null) {
 
   if (isAdminAssigned) {
     rows.push(['Character limit', formatCharacterLimit(config)]);
-    rows.push(['Submission mode', config.submission?.mode === 'single' ? 'Single submission' : 'Multiple submissions']);
+    const attemptPolicy = normalizeWritingAttemptPolicy(config.submission?.attemptPolicy);
+    rows.push([
+      'Task Attempts',
+      attemptPolicy.mode === 'restart_allowed'
+        ? `Restarts allowed, max ${getMaxWritingAttempts(config)}`
+        : 'Single durable attempt',
+    ]);
   } else {
     rows.push([
       'Maximum characters',
