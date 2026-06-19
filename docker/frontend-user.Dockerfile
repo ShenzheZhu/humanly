@@ -28,7 +28,9 @@ COPY tsconfig.json ./
 
 RUN pnpm --filter @humanly/shared build
 RUN pnpm --filter @humanly/editor build
-RUN pnpm --filter @humanly/frontend-user build
+RUN rm -rf packages/frontend-user/.next \
+  && pnpm --filter @humanly/frontend-user build \
+  && test -f packages/frontend-user/.next/BUILD_ID
 
 # ── Production stage ──────────────────────────────────────────────────────────
 FROM node:20-alpine

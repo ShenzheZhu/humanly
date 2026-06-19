@@ -1,0 +1,173 @@
+services:
+  postgres:
+    image: timescale/timescaledb:latest-pg15
+    environment:
+      POSTGRES_DB: humanly_dev
+      POSTGRES_USER: humanly_user
+      POSTGRES_PASSWORD: humanly_password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - quickstart_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U humanly_user -d humanly_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - quickstart_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  quickstart-migrate:
+    image: timescale/timescaledb:latest-pg15
+    environment:
+      PGHOST: postgres
+      PGDATABASE: humanly_dev
+      PGUSER: humanly_user
+      PGPASSWORD: humanly_password
+      MIGRATIONS_DIR: /migrations
+    volumes:
+      - ./packages/backend/src/db/migrations:/migrations:ro
+      - ./scripts/quickstart-migrate.sh:/quickstart-migrate.sh:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["sh", "/quickstart-migrate.sh"]
+    restart: "no"
+
+  quickstart-seed:
+    image: humanly-quickstart-backend:local
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    environment:
+      HUMANLY_QUICKSTART: "true"
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: postgresql://humanly_user:humanly_password@postgres:5432/humanly_dev
+      DATABASE_POOL_MIN: 1
+      DATABASE_POOL_MAX: 5
+      DATABASE_SSL: "false"
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: humanly_quickstart_local_jwt_secret_change_before_production
+      JWT_ACCESS_EXPIRES: 15m
+      JWT_REFRESH_EXPIRES: 7d
+      CORS_ORIGIN: http://localhost:3000,http://localhost:3002,http://127.0.0.1:3000,http://127.0.0.1:3002
+      FRONTEND_ADMIN_URL: http://localhost:3000
+      FRONTEND_USER_URL: http://localhost:3002
+      PUBLIC_API_URL: http://localhost:3001/api/v1
+      EMAIL_SERVICE: console
+      EMAIL_FROM: noreply@humanly.local
+      RATE_LIMIT_ENABLED: "true"
+      FILE_STORAGE_PROVIDER: local
+      UPLOAD_DIR: /app/storage
+      AI_AGENT_MAX_TOOL_CALLS: 60
+      AI_PROVIDER_TIMEOUT_MS: 180000
+      AI_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+      LOG_LEVEL: info
+      QUICKSTART_ADMIN_EMAIL: admin@mail.com
+      QUICKSTART_ADMIN_PASSWORD: admin123456
+    depends_on:
+      quickstart-migrate:
+        condition: service_completed_successfully
+    command: ["node", "dist/jobs/seed-quickstart-admin.js"]
+    restart: "no"
+
+  backend:
+    image: humanly-quickstart-backend:local
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    environment:
+      HUMANLY_QUICKSTART: "true"
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: postgresql://humanly_user:humanly_password@postgres:5432/humanly_dev
+      DATABASE_POOL_MIN: 1
+      DATABASE_POOL_MAX: 10
+      DATABASE_SSL: "false"
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: humanly_quickstart_local_jwt_secret_change_before_production
+      JWT_ACCESS_EXPIRES: 15m
+      JWT_REFRESH_EXPIRES: 7d
+      CORS_ORIGIN: http://localhost:3000,http://localhost:3002,http://127.0.0.1:3000,http://127.0.0.1:3002
+      FRONTEND_ADMIN_URL: http://localhost:3000
+      FRONTEND_USER_URL: http://localhost:3002
+      PUBLIC_API_URL: http://localhost:3001/api/v1
+      EMAIL_SERVICE: console
+      EMAIL_FROM: noreply@humanly.local
+      RATE_LIMIT_ENABLED: "true"
+      FILE_STORAGE_PROVIDER: local
+      UPLOAD_DIR: /app/storage
+      AI_AGENT_MAX_TOOL_CALLS: 60
+      AI_PROVIDER_TIMEOUT_MS: 180000
+      AI_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+      LOG_LEVEL: info
+    ports:
+      - "127.0.0.1:3001:3001"
+    volumes:
+      - quickstart_uploads:/app/storage
+    depends_on:
+      redis:
+        condition: service_healthy
+      quickstart-seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3001/health',(r)=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3001
+        NEXT_PUBLIC_WS_URL: http://localhost:3001
+        NEXT_PUBLIC_TRACKER_URL: http://localhost:3001/tracker/humanly-tracker.min.js
+        NEXT_PUBLIC_BASE_PATH: ""
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend-user:
+    build:
+      context: .
+      dockerfile: docker/frontend-user.Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+        NEXT_PUBLIC_WS_URL: http://localhost:3001
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "127.0.0.1:3002:3002"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  quickstart_postgres_data:
+  quickstart_redis_data:
+  quickstart_uploads:

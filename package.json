@@ -13,6 +13,7 @@
     "dev:frontend": "pnpm --filter @humanly/frontend dev",
     "dev:frontend-user": "pnpm --filter @humanly/frontend-user dev",
     "dev:tracker": "pnpm --filter @humanly/tracker build:watch",
+    "setup:local": "bash scripts/setup-env.sh && pnpm docker:up && pnpm build:shared && pnpm build:editor",
     "qa:deploy:smoke": "node scripts/qa/deploy-smoke.mjs",
     "qa:backend:contract": "node scripts/qa/backend-contract.mjs",
     "qa:ai:usage": "node scripts/qa/ai-usage.mjs",
