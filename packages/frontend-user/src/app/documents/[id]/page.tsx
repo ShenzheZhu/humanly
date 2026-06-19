@@ -46,6 +46,7 @@ import {
   getDocumentScopedAccessToken,
   getPublicDocumentAuthConfig,
   TokenManager,
+  waitForDocumentScopedAccessTokenReady,
 } from '@/lib/api-client';
 import {
   AI_PROVIDER_OPTIONS,
@@ -640,6 +641,8 @@ export default function DocumentEditorPage() {
     const fetchTaskEnrollment = async () => {
       try {
         setIsTaskEnrollmentLoading(true);
+        await waitForDocumentScopedAccessTokenReady(documentId);
+
         const response = await apiClient.get(
           '/tasks/my-enrollments',
           getPublicDocumentAuthConfig(documentId)
@@ -680,6 +683,8 @@ export default function DocumentEditorPage() {
       }
 
       try {
+        await waitForDocumentScopedAccessTokenReady(documentId);
+
         await apiClient.put(
           `/tasks/enrollments/${enrollment.id}/submission-document`,
           { documentId },
@@ -751,6 +756,8 @@ export default function DocumentEditorPage() {
 
     const startSubmissionSession = async () => {
       try {
+        await waitForDocumentScopedAccessTokenReady(documentId);
+
         const response = await apiClient.post(
           `/tasks/enrollments/${enrollment.id}/submission-sessions`,
           { documentId },
@@ -871,6 +878,8 @@ export default function DocumentEditorPage() {
 
   const postEventBatch = useCallback(
     async (batch: PendingActivityEventBatch) => {
+      await waitForDocumentScopedAccessTokenReady(documentId);
+
       const shouldUseKeepalive =
         containsWorkspaceLifecycleEvent(batch.events) ||
         (typeof window !== 'undefined' && window.document.visibilityState === 'hidden');
@@ -1181,6 +1190,8 @@ export default function DocumentEditorPage() {
 
     try {
       setIsSubmittingTask(true);
+      await waitForDocumentScopedAccessTokenReady(documentId);
+
       const activityLogsSynced = await syncActivityLogsForAuditAction();
       if (!activityLogsSynced) return;
 

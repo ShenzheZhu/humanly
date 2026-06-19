@@ -5,6 +5,9 @@ export type HumanlyAxiosRequestConfig = AxiosRequestConfig & {
   skipAuthRefresh?: boolean;
 };
 
+const DOCUMENT_AUTH_READY_RETRY_MS = 25;
+const DOCUMENT_AUTH_READY_TIMEOUT_MS = 2000;
+
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   (process.env.NODE_ENV === 'production' ? '/api/v1' : 'http://localhost:3001/api/v1');
@@ -138,6 +141,11 @@ export const TokenManager = {
       ...readPublicDocumentAccessTokens(),
       [documentId]: token,
     });
+    // Public guest task starts must switch the active bearer immediately. Some
+    // first-load AI/PDF/log requests can fire before the documents layout effect
+    // runs, so relying on the layout bridge alone leaves a one-render window
+    // where auxiliary calls use the previous session token.
+    TokenManager.setAccessToken(token);
   },
 
   clearPublicDocumentAccessToken: (documentId: string): void => {
@@ -188,13 +196,56 @@ export const TokenManager = {
   },
 };
 
+export function activateDocumentScopedAccessToken(documentId: string): string | null {
+  if (!documentId) return TokenManager.getAccessToken();
+
+  const publicDocumentAccessToken = TokenManager.getPublicDocumentAccessToken(documentId);
+  if (publicDocumentAccessToken) {
+    if (TokenManager.getAccessToken() !== publicDocumentAccessToken) {
+      TokenManager.setAccessToken(publicDocumentAccessToken);
+    }
+    return publicDocumentAccessToken;
+  }
+
+  return TokenManager.getAccessToken();
+}
+
 export function getDocumentScopedAccessToken(documentId: string): string | null {
-  return TokenManager.getPublicDocumentAccessToken(documentId) || TokenManager.getAccessToken();
+  return activateDocumentScopedAccessToken(documentId);
 }
 
 export function isDocumentScopedAccessTokenReady(documentId: string): boolean {
+  if (!documentId) return true;
+
   const publicDocumentAccessToken = TokenManager.getPublicDocumentAccessToken(documentId);
   return !publicDocumentAccessToken || TokenManager.getAccessToken() === publicDocumentAccessToken;
+}
+
+export async function waitForDocumentScopedAccessTokenReady(
+  documentId: string,
+  timeoutMs: number = DOCUMENT_AUTH_READY_TIMEOUT_MS,
+  retryMs: number = DOCUMENT_AUTH_READY_RETRY_MS
+): Promise<boolean> {
+  activateDocumentScopedAccessToken(documentId);
+  if (isDocumentScopedAccessTokenReady(documentId)) {
+    return true;
+  }
+  if (typeof window === 'undefined') {
+    return isDocumentScopedAccessTokenReady(documentId);
+  }
+
+  const startedAt = Date.now();
+  return new Promise((resolve) => {
+    const intervalId = window.setInterval(() => {
+      activateDocumentScopedAccessToken(documentId);
+      const isReady = isDocumentScopedAccessTokenReady(documentId);
+      const timedOut = Date.now() - startedAt >= timeoutMs;
+      if (!isReady && !timedOut) return;
+
+      window.clearInterval(intervalId);
+      resolve(isReady);
+    }, retryMs);
+  });
 }
 
 export function getPublicDocumentAuthConfig(
@@ -202,7 +253,7 @@ export function getPublicDocumentAuthConfig(
   baseConfig: HumanlyAxiosRequestConfig = {}
 ): HumanlyAxiosRequestConfig | undefined {
   const publicDocumentAccessToken = TokenManager.getPublicDocumentAccessToken(documentId);
-  const documentScopedAccessToken = publicDocumentAccessToken || TokenManager.getAccessToken();
+  const documentScopedAccessToken = activateDocumentScopedAccessToken(documentId);
   if (!documentScopedAccessToken) {
     return Object.keys(baseConfig).length > 0 ? baseConfig : undefined;
   }

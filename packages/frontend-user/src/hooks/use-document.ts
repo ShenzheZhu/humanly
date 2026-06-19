@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   apiClient,
   getPublicDocumentAuthConfig,
+  waitForDocumentScopedAccessTokenReady,
   type HumanlyAxiosRequestConfig,
 } from '@/lib/api-client';
 import type { AppFile, Document, DocumentEvent } from '@humanly/shared';
@@ -21,6 +22,8 @@ export function useDocument(documentId: string) {
     try {
       setIsLoading(true);
       setError(null);
+      await waitForDocumentScopedAccessTokenReady(documentId);
+
       const response = await apiClient.get(
         `/documents/${documentId}`,
         getPublicDocumentAuthConfig(documentId)
@@ -59,6 +62,8 @@ export function useDocument(documentId: string) {
   ) => {
     try {
       setIsSaving(true);
+      await waitForDocumentScopedAccessTokenReady(documentId);
+
       const response = await apiClient.put(
         `/documents/${documentId}`,
         {
@@ -80,6 +85,8 @@ export function useDocument(documentId: string) {
 
   const startWritingSession = useCallback(async () => {
     try {
+      await waitForDocumentScopedAccessTokenReady(documentId);
+
       const response = await apiClient.post(
         `/documents/${documentId}/writing-session/start`,
         undefined,
@@ -100,6 +107,8 @@ export function useDocument(documentId: string) {
     options: TrackEventsOptions = {}
   ) => {
     try {
+      await waitForDocumentScopedAccessTokenReady(documentId);
+
       const backgroundRequestConfig: HumanlyAxiosRequestConfig = (
         getPublicDocumentAuthConfig(documentId, { skipAuthRedirect: true })
         || { skipAuthRedirect: true }

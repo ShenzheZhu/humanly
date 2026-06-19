@@ -16,6 +16,7 @@ import {
 import api, {
   getDocumentScopedAccessToken,
   getPublicDocumentAuthConfig,
+  waitForDocumentScopedAccessTokenReady,
 } from '@/lib/api-client';
 import {
   getSocket,
@@ -275,6 +276,11 @@ function initializeDocumentSocket(documentId: string) {
   return initializeSocket(getDocumentScopedAccessToken(documentId));
 }
 
+async function ensureDocumentScopedAuthReady(documentId: string): Promise<void> {
+  if (!documentId) return;
+  await waitForDocumentScopedAccessTokenReady(documentId);
+}
+
 function clearConversationState(): Pick<
   AIState,
   | 'currentSession'
@@ -356,6 +362,8 @@ export const useAIStore = create<AIState>()(
         set({ isLoading: true, error: null });
 
         try {
+          await ensureDocumentScopedAuthReady(documentId);
+
           const response = await api.post<{
             success: boolean;
             data: AIChatResponse;
@@ -407,57 +415,60 @@ export const useAIStore = create<AIState>()(
 
       // Send message via WebSocket (streaming)
       sendMessageViaSocket: (documentId, message, context, attachments) => {
-        const { currentSession, pendingNewSession } = get();
-        const sessionForDocument = currentSession?.documentId === documentId ? currentSession : null;
-        const forceNewSession = !sessionForDocument?.id && pendingNewSession;
-        const clientRequestId = createClientRequestId('chat');
-        const requestAttachments = stripClientOnlyAttachmentPreview(attachments);
-
-        const socket = initializeDocumentSocket(documentId);
-        get().setupSocketListeners();
-
-        const emitMessage = () => {
-          // Add user message immediately. Attachments ride on metadata so
-          // the bubble can show an image thumbnail without re-fetching (#93).
-          const userMessage: AIChatMessage = {
-            id: `user-${Date.now()}`,
-            role: 'user',
-            content: message,
-            timestamp: new Date(),
-            metadata: attachments && attachments.length > 0 ? { attachments } : undefined,
-          };
-
-          set((state) => ({
-            messages: [...state.messages, userMessage],
-            isLoading: false,
-            isStreaming: true,
-            streamingContent: '',
-            streamingMessageId: null,
-            activeStreamSessionId: sessionForDocument?.id ?? null,
-            activeStreamClientRequestId: clientRequestId,
-            activeStreamDocumentId: documentId,
-            error: null,
-          }));
-
-          emitEvent('ai:message', {
-            documentId,
-            sessionId: sessionForDocument?.id,
-            forceNewSession,
-            message,
-            context,
-            attachments: requestAttachments,
-            clientRequestId,
-          } as AIChatRequest);
-        };
-
-        if (socket.connected) {
-          emitMessage();
-          return;
-        }
-
         set({ isLoading: true, error: null });
-        waitForSocketConnection(socket)
-          .then(emitMessage)
+
+        ensureDocumentScopedAuthReady(documentId)
+          .then(() => {
+            const { currentSession, pendingNewSession } = get();
+            const sessionForDocument = currentSession?.documentId === documentId ? currentSession : null;
+            const forceNewSession = !sessionForDocument?.id && pendingNewSession;
+            const clientRequestId = createClientRequestId('chat');
+            const requestAttachments = stripClientOnlyAttachmentPreview(attachments);
+
+            const socket = initializeDocumentSocket(documentId);
+            get().setupSocketListeners();
+
+            const emitMessage = () => {
+              // Add user message immediately. Attachments ride on metadata so
+              // the bubble can show an image thumbnail without re-fetching (#93).
+              const userMessage: AIChatMessage = {
+                id: `user-${Date.now()}`,
+                role: 'user',
+                content: message,
+                timestamp: new Date(),
+                metadata: attachments && attachments.length > 0 ? { attachments } : undefined,
+              };
+
+              set((state) => ({
+                messages: [...state.messages, userMessage],
+                isLoading: false,
+                isStreaming: true,
+                streamingContent: '',
+                streamingMessageId: null,
+                activeStreamSessionId: sessionForDocument?.id ?? null,
+                activeStreamClientRequestId: clientRequestId,
+                activeStreamDocumentId: documentId,
+                error: null,
+              }));
+
+              emitEvent('ai:message', {
+                documentId,
+                sessionId: sessionForDocument?.id,
+                forceNewSession,
+                message,
+                context,
+                attachments: requestAttachments,
+                clientRequestId,
+              } as AIChatRequest);
+            };
+
+            if (socket.connected) {
+              emitMessage();
+              return Promise.resolve();
+            }
+
+            return waitForSocketConnection(socket).then(emitMessage);
+          })
           .catch((error: any) => {
             set({
               isLoading: false,
@@ -533,11 +544,6 @@ export const useAIStore = create<AIState>()(
             offEvent('ai:error', onError);
           };
 
-          onEvent('ai:response-start', onStart);
-          onEvent('ai:response-chunk', onChunkEvent);
-          onEvent('ai:response-complete', onComplete);
-          onEvent('ai:error', onError);
-
           const emitSilentMessage = () => emitEvent('ai:message', {
             documentId,
             message,
@@ -546,14 +552,21 @@ export const useAIStore = create<AIState>()(
             context,
           } as AIChatRequest);
 
-          const socket = initializeDocumentSocket(documentId);
-          if (socket.connected) {
-            emitSilentMessage();
-            return;
-          }
+          ensureDocumentScopedAuthReady(documentId)
+            .then(() => {
+              onEvent('ai:response-start', onStart);
+              onEvent('ai:response-chunk', onChunkEvent);
+              onEvent('ai:response-complete', onComplete);
+              onEvent('ai:error', onError);
 
-          waitForSocketConnection(socket)
-            .then(emitSilentMessage)
+              const socket = initializeDocumentSocket(documentId);
+              if (socket.connected) {
+                emitSilentMessage();
+                return Promise.resolve();
+              }
+
+              return waitForSocketConnection(socket).then(emitSilentMessage);
+            })
             .catch((error) => {
               cleanup();
               reject(error instanceof Error ? error : new Error('Failed to connect to the AI assistant'));
@@ -580,6 +593,9 @@ export const useAIStore = create<AIState>()(
         // If there's an active session, delete it from the backend
         if (deletedSessionId) {
           try {
+            if (deletedSessionDocumentId) {
+              await ensureDocumentScopedAuthReady(deletedSessionDocumentId);
+            }
             await api.delete(
               `/ai/sessions/${deletedSessionId}`,
               deletedSessionDocumentId
@@ -660,6 +676,8 @@ export const useAIStore = create<AIState>()(
         }));
 
         try {
+          await ensureDocumentScopedAuthReady(documentId);
+
           // Guest shared-link documents must join the AI room with the
           // document-scoped token before any first-load chat or log action.
           const socket = initializeDocumentSocket(documentId);
@@ -735,6 +753,9 @@ export const useAIStore = create<AIState>()(
             get().sessions.find((session) => session.id === sessionId)?.documentId
             || get().currentSession?.documentId
             || '';
+          if (sessionDocumentId) {
+            await ensureDocumentScopedAuthReady(sessionDocumentId);
+          }
           const response = await api.get<{
             success: boolean;
             data: AIChatSession;
@@ -790,6 +811,9 @@ export const useAIStore = create<AIState>()(
         const deletedSessionDocumentId = currentSession.documentId || '';
 
         try {
+          if (deletedSessionDocumentId) {
+            await ensureDocumentScopedAuthReady(deletedSessionDocumentId);
+          }
           await api.delete(
             `/ai/sessions/${deletedSessionId}`,
             deletedSessionDocumentId
@@ -832,6 +856,9 @@ export const useAIStore = create<AIState>()(
         }
 
         try {
+          if (deletedSessionDocumentId) {
+            await ensureDocumentScopedAuthReady(deletedSessionDocumentId);
+          }
           await api.delete(
             `/ai/sessions/${sessionId}`,
             deletedSessionDocumentId
@@ -867,6 +894,9 @@ export const useAIStore = create<AIState>()(
 
         try {
           const sessionDocumentId = get().currentSession?.documentId || '';
+          if (sessionDocumentId) {
+            await ensureDocumentScopedAuthReady(sessionDocumentId);
+          }
           await api.post(
             '/ai/apply-suggestion',
             {
@@ -911,6 +941,8 @@ export const useAIStore = create<AIState>()(
         set({ isLoading: true, error: null });
 
         try {
+          await ensureDocumentScopedAuthReady(documentId);
+
           const response = await api.get<{
             success: boolean;
             data: AIInteractionLog[];
@@ -937,6 +969,8 @@ export const useAIStore = create<AIState>()(
         const { logs } = get();
 
         try {
+          await ensureDocumentScopedAuthReady(documentId);
+
           const response = await api.get<{
             success: boolean;
             data: AIInteractionLog[];
