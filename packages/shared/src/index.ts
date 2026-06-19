@@ -12,3 +12,4 @@ export * from './utils/environment-config-file';
 export * from './utils/validators';
 export * from './utils/time';
 export * from './utils/workspace-preview';
+export * from './utils/writing-ai-connection';

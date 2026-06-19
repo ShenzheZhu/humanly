@@ -20,6 +20,7 @@ import {
   ENVIRONMENT_CONFIG_ACCEPT,
   SUBMISSION_MAX_CHARACTERS_MAX,
   TASK_INSTRUCTION_MAX_LENGTH,
+  WRITING_AI_EXISTING_KEY_SENTINEL,
   WRITING_AI_ACCESS_OPTIONS,
   WRITING_AI_POLICY_OPTIONS,
   WRITING_AI_MODELS,
@@ -36,13 +37,18 @@ import {
   parseEnvironmentConfigContent,
   validateWritingEnvironmentImportTemplate,
   buildWorkspaceSetupPreviewHash,
+  buildWritingAiConnectionTestRequest,
   type UserAISettings,
+  type WritingAiConnectionTestResult,
   type WritingAiAccess,
   type WritingAiPolicyMode,
   type WorkspaceSetupPreviewPayload,
   type WritingAiProviderConfig,
   type WritingEnvironmentConfig,
   type WritingEnvironmentPreset,
+  getWritingAiConnectionTestValidationError,
+  normalizeWritingAiConnectionTestResult,
+  resolveWritingAiConnectionTestModels,
 } from '@humanly/shared';
 
 import { Button } from '@/components/ui/button';
@@ -83,7 +89,6 @@ import {
 } from '@/lib/ai-models';
 
 const DEFAULT_AI_BASE_URL = TOGETHER_AI_BASE_URL;
-const USE_EXISTING_AI_KEY = '__use_existing__';
 const IMPORT_ENVIRONMENT_VALUE = 'import_environment';
 
 type EnvironmentSelection = WritingEnvironmentPreset | typeof IMPORT_ENVIRONMENT_VALUE;
@@ -92,11 +97,6 @@ type EnvironmentSummaryItem = {
   value: string;
   detail?: string;
 };
-type AiConnectionResult = {
-  success: boolean;
-  message: string;
-};
-
 function SectionHeading({
   title,
   description,
@@ -302,7 +302,7 @@ export default function NewDocumentPage() {
   const [maskedAiKey, setMaskedAiKey] = useState('');
   const [testedAiModels, setTestedAiModels] = useState<string[]>([]);
   const [isTestingAiConnection, setIsTestingAiConnection] = useState(false);
-  const [aiConnectionResult, setAiConnectionResult] = useState<AiConnectionResult | null>(null);
+  const [aiConnectionResult, setAiConnectionResult] = useState<WritingAiConnectionTestResult | null>(null);
   const [timeLimitMinutesInput, setTimeLimitMinutesInput] = useState('60');
   const [environmentDialogOpen, setEnvironmentDialogOpen] = useState(false);
   const [isValidatingEnvironment, setIsValidatingEnvironment] = useState(false);
@@ -591,8 +591,11 @@ export default function NewDocumentPage() {
   }: {
     showFailureToast?: boolean;
   } = {}): Promise<boolean> => {
-    const failConnectionTest = (title: string, message: string) => {
-      setAiConnectionResult({ success: false, message });
+    const failConnectionTest = (title: string, message: string): false => {
+      setAiConnectionResult({
+        success: false,
+        message,
+      });
       if (showFailureToast) {
         toast({
           title,
@@ -603,26 +606,15 @@ export default function NewDocumentPage() {
       return false;
     };
 
-    if (!aiApiKey.trim() && !hasExistingAiKey) {
-      return failConnectionTest(
-        'AI key required',
-        'Enter an AI API key before testing the connection.'
-      );
-    }
-
-    if (!selectedAiModel) {
-      return failConnectionTest(
-        'AI model required',
-        'Select or enter the AI model for this writing environment.'
-      );
-    }
-
-    const baseUrlToTest = aiBaseUrl.trim();
-    if (!baseUrlToTest) {
-      return failConnectionTest(
-        'AI provider required',
-        'Select a provider or enter a custom base URL before testing the connection.'
-      );
+    const validationError = getWritingAiConnectionTestValidationError({
+      apiKey: aiApiKey,
+      hasExistingKey: hasExistingAiKey,
+      baseUrl: aiBaseUrl,
+      defaultBaseUrl: DEFAULT_AI_BASE_URL,
+      model: selectedAiModel,
+    });
+    if (validationError) {
+      return failConnectionTest(validationError.title, validationError.message);
     }
 
     setIsTestingAiConnection(true);
@@ -630,22 +622,24 @@ export default function NewDocumentPage() {
     setTestedAiModels([]);
 
     try {
-      const response = await apiClient.post('/ai/settings/test', {
-        apiKey: aiApiKey.trim() || USE_EXISTING_AI_KEY,
-        baseUrl: baseUrlToTest,
+      const request = buildWritingAiConnectionTestRequest({
+        apiKey: aiApiKey,
+        hasExistingKey: hasExistingAiKey,
+        baseUrl: aiBaseUrl,
+        defaultBaseUrl: DEFAULT_AI_BASE_URL,
         model: selectedAiModel,
       });
+      const response = await apiClient.post('/ai/settings/test', request);
       const result = response.data;
-      const success = !!result?.success;
-      const message = result?.message || (success ? 'Connection successful.' : 'Connection failed.');
+      const connectionResult = normalizeWritingAiConnectionTestResult(result);
 
-      setAiConnectionResult({ success, message });
+      setAiConnectionResult(connectionResult);
 
-      if (!success) {
+      if (!connectionResult.success) {
         if (showFailureToast) {
           toast({
             title: 'AI API configuration failed',
-            description: message,
+            description: connectionResult.message,
             variant: 'destructive',
           });
         }
@@ -657,9 +651,10 @@ export default function NewDocumentPage() {
         description: 'Connection test passed. This document can use AI.',
       });
 
-      const fallbackModels = getWhitelist(baseUrlToTest) || [];
-      const modelsFromApi = Array.isArray(result.models) ? result.models.filter(Boolean) : [];
-      const nextModels = fallbackModels.length ? fallbackModels : modelsFromApi;
+      const nextModels = resolveWritingAiConnectionTestModels({
+        whitelistedModels: getWhitelist(request.baseUrl),
+        providerModels: result?.models,
+      });
 
       setTestedAiModels(nextModels);
 
@@ -828,7 +823,7 @@ export default function NewDocumentPage() {
         }
 
         await apiClient.put('/ai/settings', {
-          apiKey: aiApiKey.trim() || USE_EXISTING_AI_KEY,
+          apiKey: aiApiKey.trim() || WRITING_AI_EXISTING_KEY_SENTINEL,
           baseUrl: baseUrlToSave,
           model: selectedAiModel,
           shortcutMaxTokens: configToCreate.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
@@ -920,7 +915,7 @@ export default function NewDocumentPage() {
 
   const customEnvironmentControls = (
     <div className="grid gap-4 lg:grid-cols-2">
-      <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4 lg:col-span-2">
+      <div className="space-y-4 rounded-md border p-4 lg:col-span-2">
         <SectionHeading
           title="AI"
           description="Control whether this document can use assistant support."
@@ -943,7 +938,7 @@ export default function NewDocumentPage() {
         </div>
 
         {environmentConfig.aiAccess !== 'off' && (
-          <div className="grid gap-4 rounded-lg border border-border/70 bg-muted/30 p-3">
+          <div className="grid gap-4 rounded-md border bg-muted/30 p-3">
             <div className="humanly-field">
               <Label htmlFor="ai-api-key">AI API Key</Label>
               <Input
@@ -1087,7 +1082,7 @@ export default function NewDocumentPage() {
             </div>
 
             {chatTokensEnabled && (
-              <div className="grid gap-4 rounded-lg border border-border/70 bg-background p-3">
+              <div className="grid gap-4 rounded-md border bg-background p-3">
                 <div className="humanly-field">
                   <Label>AI Guard policy</Label>
                   <Select
@@ -1129,7 +1124,7 @@ export default function NewDocumentPage() {
         )}
       </div>
 
-      <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4">
+      <div className="space-y-4 rounded-md border p-4">
         <SectionHeading
           title="Writing Control"
           description="Set rules for editing behavior during writing."
@@ -1201,7 +1196,7 @@ export default function NewDocumentPage() {
         </div>
       </div>
 
-      <div className="space-y-4 rounded-lg border border-border/70 bg-card p-4">
+      <div className="space-y-4 rounded-md border p-4">
         <SectionHeading
           title="Time Limitation"
           description="Set whether the writing session should have a time limit."

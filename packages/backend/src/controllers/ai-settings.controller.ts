@@ -6,6 +6,7 @@ import {
   AI_MAX_TOKENS_MAX,
   AI_MAX_TOKENS_MIN,
   AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+  WRITING_AI_EXISTING_KEY_SENTINEL,
 } from '@humanly/shared';
 import { getModelWhitelist } from '../services/ai-model-capabilities';
 
@@ -370,10 +371,10 @@ export async function saveSettings(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  // If apiKey is '__use_existing__', keep the current key but update other fields
+  // If requested, keep the current key but update other fields.
   let keyToSave = apiKey;
   const existing = await UserAISettingsModel.getByUserId(userId);
-  if (!apiKey || apiKey === '__use_existing__') {
+  if (!apiKey || apiKey === WRITING_AI_EXISTING_KEY_SENTINEL) {
     if (!existing) {
       res.status(400).json({
         success: false,
@@ -487,7 +488,7 @@ export async function testConnection(req: Request, res: Response): Promise<void>
   }
 
   // If using existing key, load from DB
-  if (!apiKey || apiKey === '__use_existing__') {
+  if (!apiKey || apiKey === WRITING_AI_EXISTING_KEY_SENTINEL) {
     const existing = await UserAISettingsModel.getByUserId(userId);
     if (!existing) {
       res.status(400).json({
