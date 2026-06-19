@@ -1051,7 +1051,7 @@ export default function DocumentEditorPage() {
         return;
       }
 
-      const insertion = editorInsertAtCursor(text);
+      const insertion = editorInsertAtCursor(text, { suppressTextChangeTracking: true });
       if (insertion.inserted === false) return;
       const currentSessionId =
         submissionSessionRef.current?.sessionId ||

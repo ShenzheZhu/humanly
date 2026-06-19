@@ -2039,6 +2039,13 @@ function buildQuickActionSystemPrompt(context?: AIChatRequest['context']): strin
 }
 
 export class AIService {
+  private static async assertDocumentAccess(userId: string, documentId: string): Promise<void> {
+    const canAccess = await DocumentModel.canAccess(documentId, userId);
+    if (!canAccess) {
+      throw new AppError(404, 'Document not found');
+    }
+  }
+
   private static async enforceAiRequestLimitForDocument(
     userId: string,
     documentId: string,
@@ -2051,7 +2058,7 @@ export class AIService {
       scope = 'task';
       limit = resolveAiRequestLimit(task.environmentConfig, task.aiUsageLimit ?? null);
     } else {
-      const document = await DocumentModel.findByIdAndUserId(documentId, userId);
+      const document = await DocumentModel.findAccessibleByIdAndUserId(documentId, userId);
       if (!document) {
         throw new AppError(404, 'Document not found');
       }
@@ -2084,7 +2091,7 @@ export class AIService {
     const task = await TaskModel.findBySubmissionDocument(documentId, userId);
 
     if (!task) {
-      const document = await DocumentModel.findByIdAndUserId(documentId, userId);
+      const document = await DocumentModel.findAccessibleByIdAndUserId(documentId, userId);
       if (!document) {
         throw new AppError(404, 'Document not found');
       }
@@ -2223,11 +2230,7 @@ export class AIService {
     userId: string,
     request: AIChatRequest
   ): Promise<{ message: { id: string; role: string; content: string } }> {
-    // Verify document ownership
-    const isOwner = await DocumentModel.isOwner(request.documentId, userId);
-    if (!isOwner) {
-      throw new AppError(404, 'Document not found');
-    }
+    await this.assertDocumentAccess(userId, request.documentId);
 
     const { provider, shortcutMaxTokens } = await this.getExecutionSettingsForDocument(userId, request.documentId, 'polish');
 
@@ -2282,10 +2285,7 @@ export class AIService {
     onError: (error: Error) => void,
   ): Promise<void> {
     try {
-      const isOwner = await DocumentModel.isOwner(request.documentId, userId);
-      if (!isOwner) {
-        throw new AppError(404, 'Document not found');
-      }
+      await this.assertDocumentAccess(userId, request.documentId);
 
       const { provider, shortcutMaxTokens } = await this.getExecutionSettingsForDocument(userId, request.documentId, 'polish');
 
@@ -2755,11 +2755,7 @@ export class AIService {
   ): Promise<AIChatResponse> {
     const startTime = Date.now();
 
-    // Verify document ownership
-    const isOwner = await DocumentModel.isOwner(request.documentId, userId);
-    if (!isOwner) {
-      throw new AppError(404, 'Document not found');
-    }
+    await this.assertDocumentAccess(userId, request.documentId);
 
     await this.enforceAiRequestLimitForDocument(userId, request.documentId);
 
@@ -3050,11 +3046,7 @@ export class AIService {
     const startTime = Date.now();
 
     try {
-      // Verify document ownership
-      const isOwner = await DocumentModel.isOwner(request.documentId, userId);
-      if (!isOwner) {
-        throw new AppError(404, 'Document not found');
-      }
+      await this.assertDocumentAccess(userId, request.documentId);
 
       await this.enforceAiRequestLimitForDocument(userId, request.documentId);
 
@@ -3357,11 +3349,7 @@ export class AIService {
     documentId: string,
     filters: Omit<AILogQueryFilters, 'documentId' | 'userId'> = {}
   ): Promise<{ logs: AIInteractionLog[]; total: number }> {
-    // Verify document ownership
-    const isOwner = await DocumentModel.isOwner(documentId, userId);
-    if (!isOwner) {
-      throw new AppError(404, 'Document not found');
-    }
+    await this.assertDocumentAccess(userId, documentId);
 
     return AIModel.getLogsByDocument(documentId, userId, filters.limit, filters.offset);
   }
@@ -3390,11 +3378,7 @@ export class AIService {
     documentId: string,
     limit = 10
   ): Promise<AIChatSession[]> {
-    // Verify document ownership
-    const isOwner = await DocumentModel.isOwner(documentId, userId);
-    if (!isOwner) {
-      throw new AppError(404, 'Document not found');
-    }
+    await this.assertDocumentAccess(userId, documentId);
 
     return AIModel.getSessionsByDocument(documentId, userId, limit);
   }

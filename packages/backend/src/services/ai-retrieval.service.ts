@@ -300,7 +300,7 @@ export class AIRetrievalService {
   }
 
   private static async getOwnedDocument(userId: string, documentId: string) {
-    const document = await DocumentModel.findByIdAndUserId(documentId, userId);
+    const document = await DocumentModel.findAccessibleByIdAndUserId(documentId, userId);
     if (!document) {
       throw new AppError(404, 'Document not found');
     }

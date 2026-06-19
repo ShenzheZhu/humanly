@@ -78,6 +78,12 @@ const writePublicCertificateAccessTokens = (tokens: Record<string, string>) => (
   writeScopedAccessTokens(PUBLIC_CERTIFICATE_ACCESS_TOKENS_KEY, tokens)
 );
 
+const clearPrimaryTokens = (): void => {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+};
+
 /**
  * Token management utilities
  */
@@ -107,10 +113,11 @@ export const TokenManager = {
     localStorage.setItem('refreshToken', token);
   },
 
+  clearPrimaryTokens,
+
   clearTokens: (): void => {
     if (typeof window === 'undefined') return;
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    clearPrimaryTokens();
     try {
       sessionStorage.removeItem(PUBLIC_DOCUMENT_ACCESS_TOKENS_KEY);
       sessionStorage.removeItem(PUBLIC_DOCUMENT_PREVIOUS_ACCESS_TOKENS_KEY);
@@ -183,6 +190,11 @@ export const TokenManager = {
 
 export function getDocumentScopedAccessToken(documentId: string): string | null {
   return TokenManager.getPublicDocumentAccessToken(documentId) || TokenManager.getAccessToken();
+}
+
+export function isDocumentScopedAccessTokenReady(documentId: string): boolean {
+  const publicDocumentAccessToken = TokenManager.getPublicDocumentAccessToken(documentId);
+  return !publicDocumentAccessToken || TokenManager.getAccessToken() === publicDocumentAccessToken;
 }
 
 export function getPublicDocumentAuthConfig(

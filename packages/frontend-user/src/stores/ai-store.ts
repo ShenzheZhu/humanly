@@ -990,6 +990,7 @@ export const useAIStore = create<AIState>()(
         // Response complete
         onEvent('ai:response-complete', (response: AIChatResponse & { clientRequestId?: string }) => {
           if (shouldIgnoreStreamEvent(get(), response.sessionId, response.clientRequestId)) return;
+          let completedDocumentId = '';
           set((state) => {
             // Don't add if it's the system connection message
             if (response.message.role === 'system' && response.logId === '') {
@@ -1006,6 +1007,7 @@ export const useAIStore = create<AIState>()(
 
             // Create or update session with the response session ID
             const responseDocumentId = state.activeStreamDocumentId || state.currentSession?.documentId || '';
+            completedDocumentId = responseDocumentId;
             const updatedSession = state.currentSession?.documentId === responseDocumentId
               ? { ...state.currentSession, id: response.sessionId, documentId: responseDocumentId }
               : {
@@ -1068,6 +1070,10 @@ export const useAIStore = create<AIState>()(
               thinkingByMessageId,
             };
           });
+
+          if (completedDocumentId && response.logId) {
+            void get().loadLogs(completedDocumentId, 0, 20);
+          }
         });
 
         // Suggestions

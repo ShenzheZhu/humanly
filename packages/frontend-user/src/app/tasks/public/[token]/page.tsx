@@ -34,6 +34,7 @@ interface PublicTaskStartResponse {
     accessToken?: string;
     publicSessionId: string;
     mode?: PublicTaskStartMode;
+    user?: User;
     task: {
       id: string;
       name: string;
@@ -72,7 +73,7 @@ const getSafeSharePath = (token: string) => {
 export default function PublicTaskDocumentStartPage() {
   const params = useParams();
   const router = useRouter();
-  const { checkAuth } = useAuthStore();
+  const { checkAuth, adoptAuthenticatedSession } = useAuthStore();
   const token = String(params.token || '');
   const hasStartedRef = useRef(false);
   const [task, setTask] = useState<PublicTaskResponse['data']['task'] | null>(null);
@@ -157,7 +158,11 @@ export default function PublicTaskDocumentStartPage() {
           TokenManager.setPublicDocumentPreviousAccessToken(documentId, existingAccessToken);
         }
         TokenManager.setPublicDocumentAccessToken(documentId, response.data.accessToken);
-        TokenManager.setAccessToken(response.data.accessToken);
+        if (response.data.user) {
+          adoptAuthenticatedSession(response.data.user, response.data.accessToken);
+        } else {
+          TokenManager.setAccessToken(response.data.accessToken);
+        }
       }
       router.replace(`/documents/${documentId}`);
     } catch (err) {
@@ -166,7 +171,16 @@ export default function PublicTaskDocumentStartPage() {
       setError(apiError.message || 'This task link is unavailable.');
       setIsStarting(false);
     }
-  }, [allowGuestSubmissions, availabilityStatus, isTaskOpen, loginHref, router, signedInUser, token]);
+  }, [
+    adoptAuthenticatedSession,
+    allowGuestSubmissions,
+    availabilityStatus,
+    isTaskOpen,
+    loginHref,
+    router,
+    signedInUser,
+    token,
+  ]);
 
   useEffect(() => {
     void loadTask();

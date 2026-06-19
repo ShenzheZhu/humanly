@@ -39,6 +39,7 @@ interface AuthState {
   validatePasswordResetToken: (token: string) => Promise<void>;
   resetPassword: (token: string, newPassword: string) => Promise<void>;
   checkAuth: (options?: { forceRefresh?: boolean; allowCookieRefresh?: boolean }) => Promise<void>;
+  adoptAuthenticatedSession: (user: User, accessToken: string) => void;
   fetchUser: () => Promise<void>;
   updateUser: (data: Partial<User>) => Promise<void>;
   clearLocalSession: () => void;
@@ -292,17 +293,24 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
 
         const allowCookieRefresh = options.allowCookieRefresh ?? true;
+        const clearFailedAuthState = () => {
+          if (allowCookieRefresh) {
+            TokenManager.clearTokens();
+          } else {
+            TokenManager.clearPrimaryTokens();
+          }
+          set({
+            user: null,
+            isAuthenticated: false,
+            isLoading: false,
+            error: null,
+          });
+        };
         const existingToken = TokenManager.getAccessToken();
         let token = options.forceRefresh ? null : existingToken;
         if (!token || options.forceRefresh) {
           if (!allowCookieRefresh) {
-            TokenManager.clearTokens();
-            set({
-              user: null,
-              isAuthenticated: false,
-              isLoading: false,
-              error: null,
-            });
+            clearFailedAuthState();
             return;
           }
 
@@ -319,26 +327,14 @@ export const useAuthStore = create<AuthState>()(
             if (options.forceRefresh && existingToken) {
               token = existingToken;
             } else {
-              TokenManager.clearTokens();
-              set({
-                user: null,
-                isAuthenticated: false,
-                isLoading: false,
-                error: null,
-              });
+              clearFailedAuthState();
               return;
             }
           }
         }
 
         if (!token) {
-          TokenManager.clearTokens();
-          set({
-            user: null,
-            isAuthenticated: false,
-            isLoading: false,
-            error: null,
-          });
+          clearFailedAuthState();
           return;
         }
 
@@ -361,17 +357,27 @@ export const useAuthStore = create<AuthState>()(
           });
 
           // Initialize socket if not connected
-          initializeSocket();
+          initializeSocket(token);
         } catch (error) {
           // If fetching user fails, clear auth state
-          TokenManager.clearTokens();
-          set({
-            user: null,
-            isAuthenticated: false,
-            isLoading: false,
-            error: null,
-          });
+          clearFailedAuthState();
         }
+      },
+
+      /**
+       * Adopt an already-issued authenticated session without another round
+       * trip. Public guest task starts return a guest token and user together;
+       * applying them before navigation avoids first-load auth races.
+       */
+      adoptAuthenticatedSession: (user: User, accessToken: string) => {
+        TokenManager.setAccessToken(accessToken);
+        set({
+          user,
+          isAuthenticated: true,
+          isLoading: false,
+          error: null,
+        });
+        initializeSocket(accessToken);
       },
 
       /**

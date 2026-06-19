@@ -2,7 +2,36 @@
 
 import { useEffect, useCallback } from 'react';
 import { useAIStore } from '@/stores/ai-store';
+import { isDocumentScopedAccessTokenReady } from '@/lib/api-client';
 import { AISuggestion, AIChatRequest } from '@humanly/shared';
+
+const DOCUMENT_AUTH_READY_RETRY_MS = 25;
+const DOCUMENT_AUTH_READY_TIMEOUT_MS = 2000;
+
+function waitForDocumentScopedAuthReady(documentId: string, onReady: () => void): () => void {
+  if (isDocumentScopedAccessTokenReady(documentId)) {
+    onReady();
+    return () => undefined;
+  }
+
+  let cancelled = false;
+  const startedAt = Date.now();
+  const intervalId = window.setInterval(() => {
+    const isReady = isDocumentScopedAccessTokenReady(documentId);
+    const timedOut = Date.now() - startedAt >= DOCUMENT_AUTH_READY_TIMEOUT_MS;
+    if (!isReady && !timedOut) return;
+
+    window.clearInterval(intervalId);
+    if (!cancelled) {
+      onReady();
+    }
+  }, DOCUMENT_AUTH_READY_RETRY_MS);
+
+  return () => {
+    cancelled = true;
+    window.clearInterval(intervalId);
+  };
+}
 
 /**
  * Hook for AI Assistant functionality
@@ -53,9 +82,11 @@ export function useAI(documentId: string) {
 
   // Initialize session when panel opens
   useEffect(() => {
-    if (isPanelOpen && documentId) {
+    if (!isPanelOpen || !documentId) return undefined;
+
+    return waitForDocumentScopedAuthReady(documentId, () => {
       initSession(documentId);
-    }
+    });
   }, [isPanelOpen, documentId, initSession]);
 
   // Send a message (uses WebSocket streaming).
@@ -158,9 +189,11 @@ export function useAILogs(documentId: string) {
 
   // Load logs when documentId changes
   useEffect(() => {
-    if (documentId) {
+    if (!documentId) return undefined;
+
+    return waitForDocumentScopedAuthReady(documentId, () => {
       loadLogs(documentId);
-    }
+    });
   }, [documentId, loadLogs]);
 
   const loadMore = useCallback(() => {

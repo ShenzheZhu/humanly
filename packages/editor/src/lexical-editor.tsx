@@ -28,7 +28,8 @@ import { FormattingPlugin } from './plugins/formatting-plugin';
 import { ListPlugin } from './plugins/list-plugin';
 import { AlignmentPlugin } from './plugins/alignment-plugin';
 import { SelectionPopupPlugin } from './plugins/selection-popup-plugin';
-import { LexicalEditorProps, EditorTheme, EditorInsertResult } from './types';
+import { LexicalEditorProps, EditorTheme, EditorInsertResult, EditorInsertOptions } from './types';
+import { TRACKING_SUPPRESS_NEXT_TEXT_CHANGE_COMMAND } from './commands/formatting-commands';
 import { editorNodes } from './editor-nodes';
 
 /**
@@ -397,7 +398,10 @@ function AIBridgePlugin({
 }: AIBridgePluginProps): JSX.Element {
   const [editor] = useLexicalComposerContext();
 
-  const insertAtCursor = React.useCallback((text: string): EditorInsertResult => {
+  const insertAtCursor = React.useCallback((
+    text: string,
+    options?: EditorInsertOptions
+  ): EditorInsertResult => {
     const editorStateBefore = editor.getEditorState().toJSON();
     let editorStateAfter: Record<string, any> | undefined;
     let selectionStart = 0;
@@ -406,6 +410,11 @@ function AIBridgePlugin({
     let textBefore = '';
     let textAfter = '';
     let inserted = true;
+    const shouldSuppressTextChange = options?.suppressTextChangeTracking === true && text.length > 0;
+
+    if (shouldSuppressTextChange) {
+      editor.dispatchCommand(TRACKING_SUPPRESS_NEXT_TEXT_CHANGE_COMMAND, true);
+    }
 
     editor.update(() => {
       const root = $getRoot();
@@ -442,6 +451,10 @@ function AIBridgePlugin({
 
       textAfter = root.getTextContent();
     }, { discrete: true });
+
+    if (shouldSuppressTextChange && !inserted) {
+      editor.dispatchCommand(TRACKING_SUPPRESS_NEXT_TEXT_CHANGE_COMMAND, false);
+    }
 
     editorStateAfter = editor.getEditorState().toJSON();
     editor.focus();

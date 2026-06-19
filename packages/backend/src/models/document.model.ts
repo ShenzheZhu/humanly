@@ -112,6 +112,52 @@ export class DocumentModel {
   }
 
   /**
+   * Find a document a user can access either directly as owner or through a
+   * task submission relationship. Guest shared-link submissions can be linked
+   * through task enrollment/attempt records before every downstream service has
+   * the same direct-owner assumptions.
+   */
+  static async findAccessibleByIdAndUserId(id: string, userId: string): Promise<Document | null> {
+    const sql = `
+      SELECT
+        d.id,
+        d.user_id as "userId",
+        d.title,
+        d.description,
+        d.content,
+        d.plain_text as "plainText",
+        d.status,
+        d.version,
+        d.word_count as "wordCount",
+        d.character_count as "characterCount",
+        d.environment_config as "environmentConfig",
+        d.writing_started_at as "writingStartedAt",
+        d.created_at as "createdAt",
+        d.updated_at as "updatedAt",
+        d.last_edited_at as "lastEditedAt"
+      FROM documents d
+      WHERE d.id = $1
+        AND (
+          d.user_id = $2
+          OR EXISTS (
+            SELECT 1
+            FROM task_enrollments te
+            WHERE te.submission_document_id = d.id
+              AND te.user_id = $2
+          )
+          OR EXISTS (
+            SELECT 1
+            FROM task_attempts ta
+            WHERE ta.document_id = d.id
+              AND ta.user_id = $2
+          )
+        )
+    `;
+
+    return queryOne<Document>(sql, [id, userId]);
+  }
+
+  /**
    * Find documents by user ID with filters and pagination
    */
   static async findByUserId(
@@ -379,6 +425,35 @@ export class DocumentModel {
       SELECT id
       FROM documents
       WHERE id = $1 AND user_id = $2
+    `;
+
+    const result = await queryOne<{ id: string }>(sql, [documentId, userId]);
+    return !!result;
+  }
+
+  /**
+   * Check direct owner or task-submission access.
+   */
+  static async canAccess(documentId: string, userId: string): Promise<boolean> {
+    const sql = `
+      SELECT d.id
+      FROM documents d
+      WHERE d.id = $1
+        AND (
+          d.user_id = $2
+          OR EXISTS (
+            SELECT 1
+            FROM task_enrollments te
+            WHERE te.submission_document_id = d.id
+              AND te.user_id = $2
+          )
+          OR EXISTS (
+            SELECT 1
+            FROM task_attempts ta
+            WHERE ta.document_id = d.id
+              AND ta.user_id = $2
+          )
+        )
     `;
 
     const result = await queryOne<{ id: string }>(sql, [documentId, userId]);

@@ -72,9 +72,8 @@ export async function handleAIJoinSession(
       return;
     }
 
-    // Verify document ownership
-    const isOwner = await DocumentModel.isOwner(documentId, userId);
-    if (!isOwner) {
+    const canAccessDocument = await DocumentModel.canAccess(documentId, userId);
+    if (!canAccessDocument) {
       socket.emit('ai:error', {
         sessionId: sessionId || '',
         message: 'Document not found or unauthorized',
@@ -313,9 +312,8 @@ export async function handleAIMessage(
       return;
     }
 
-    // Verify document ownership
-    const isOwner = await DocumentModel.isOwner(documentId, userId);
-    if (!isOwner) {
+    const canAccessDocument = await DocumentModel.canAccess(documentId, userId);
+    if (!canAccessDocument) {
       socket.emit('ai:error', {
         sessionId: sessionId || '',
         clientRequestId,
