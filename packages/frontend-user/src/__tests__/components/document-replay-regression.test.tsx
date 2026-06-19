@@ -32,6 +32,7 @@ describe('DocumentReplay controls', () => {
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     delete (global as any).fetch;
   });
 

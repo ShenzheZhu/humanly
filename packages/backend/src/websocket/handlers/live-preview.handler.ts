@@ -68,7 +68,7 @@ export async function handleJoinTask(
       return;
     }
 
-    if (!task.isActive) {
+    if (!task.isActive || (task.lifecycleStatus || 'active') !== 'active') {
       logger.warn('Join task failed: Task is not active', {
         socketId: socket.id,
         userId,

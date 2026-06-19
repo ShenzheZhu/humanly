@@ -130,7 +130,7 @@ export class EventsController {
       const TaskModel = (await import('../models/task.model')).TaskModel;
       const task = await TaskModel.findByToken(validatedData.taskToken);
 
-      if (!task || !task.isActive) {
+      if (!task || !task.isActive || (task.lifecycleStatus || 'active') !== 'active') {
         res.status(401).json({
           success: false,
           error: 'Invalid task token',

@@ -15,7 +15,7 @@ export interface TaskDashboardItem extends Task {
 }
 
 export interface TaskWindowStatus {
-  label: 'Scheduled' | 'Open now' | 'Ended';
+  label: 'Draft' | 'Active' | 'Paused' | 'Ended' | 'Archived';
   tone: 'muted' | 'success' | 'warning';
 }
 
@@ -24,21 +24,24 @@ export const getTaskDashboardTab = (task: Pick<TaskDashboardItem, 'isActive'>): 
 );
 
 export const getTaskWindowStatus = (
-  task: Pick<TaskDashboardItem, 'startDate' | 'endDate'>,
-  nowMs = Date.now()
+  task: Pick<TaskDashboardItem, 'lifecycleStatus'> & Partial<Pick<TaskDashboardItem, 'isActive'>>,
+  _nowMs = Date.now()
 ): TaskWindowStatus => {
-  const startMs = new Date(task.startDate).getTime();
-  const endMs = new Date(task.endDate).getTime();
-
-  if (Number.isFinite(startMs) && nowMs < startMs) {
-    return { label: 'Scheduled', tone: 'muted' };
+  if (task.isActive === false) {
+    return { label: 'Archived', tone: 'muted' };
   }
 
-  if (Number.isFinite(endMs) && nowMs > endMs) {
+  if (task.lifecycleStatus === 'draft') {
+    return { label: 'Draft', tone: 'muted' };
+  }
+  if (task.lifecycleStatus === 'paused') {
+    return { label: 'Paused', tone: 'warning' };
+  }
+  if (task.lifecycleStatus === 'ended') {
     return { label: 'Ended', tone: 'warning' };
   }
 
-  return { label: 'Open now', tone: 'success' };
+  return { label: 'Active', tone: 'success' };
 };
 
 export const filterTasksForDashboard = (

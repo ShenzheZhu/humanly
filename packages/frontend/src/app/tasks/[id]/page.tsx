@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Archive, Link as LinkIcon, Loader2, Pause, Play, Square } from 'lucide-react';
 import type { AnalyticsSummary, Task } from '@humanly/shared';
 
 import api, { ApiError } from '@/lib/api-client';
+import { buildTaskShareUrl } from '@/lib/certificate-url';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 
 import { AnalyticsPanel } from './_components/AnalyticsPanel';
@@ -29,6 +31,7 @@ export default function TaskDetailPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { toast } = useToast();
   const taskId = params.id as string;
   const requestedTab = useMemo(
     () => parseTaskDetailTab(searchParams.get('tab')),
@@ -45,6 +48,7 @@ export default function TaskDetailPage() {
   const [isLoadingEnrollments, setIsLoadingEnrollments] = useState(true);
   const [taskError, setTaskError] = useState<string | null>(null);
   const [enrollmentsError, setEnrollmentsError] = useState<string | null>(null);
+  const [isChangingLifecycle, setIsChangingLifecycle] = useState(false);
 
   const fetchTask = useCallback(async (showLoading = true) => {
     try {
@@ -144,6 +148,52 @@ export default function TaskDetailPage() {
   const activeTab: TaskDetailTab = requestedTab;
   const visibleTabs = useMemo(() => getTaskDetailTabs(), []);
 
+  const handleTaskLifecycleAction = async (action: 'launch' | 'pause' | 'resume' | 'end') => {
+    if (!task) return;
+    if (action === 'end' && !confirm('End this task? Writers will no longer be able to start or submit work. This cannot be undone.')) {
+      return;
+    }
+
+    try {
+      setIsChangingLifecycle(true);
+      const response = await api.post<{
+        success: boolean;
+        data: Task;
+        message: string;
+      }>(`/api/v1/tasks/${task.id}/${action}`);
+      setTask(response.data);
+      toast({
+        title: 'Task updated',
+        description: response.message,
+      });
+    } catch (err) {
+      const errorMessage = err instanceof ApiError
+        ? err.message
+        : `Failed to ${action} task`;
+      toast({
+        title: 'Task update failed',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsChangingLifecycle(false);
+    }
+  };
+
+  const handleCopyShareLink = async () => {
+    if (!task) return;
+    const shareLink = buildTaskShareUrl(task.taskToken);
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      toast({
+        title: 'Sharing link copied',
+        description: shareLink,
+      });
+    } catch {
+      alert(`Copy failed. Sharing link: ${shareLink}`);
+    }
+  };
+
   if (isLoadingTask) {
     return (
       <div className="flex min-h-[calc(100vh-200px)] items-center justify-center">
@@ -171,6 +221,8 @@ export default function TaskDetailPage() {
       </div>
     );
   }
+
+  const isArchived = task.isActive === false;
 
   const renderActivePanel = () => {
     switch (activeTab) {
@@ -239,9 +291,79 @@ export default function TaskDetailPage() {
             </p>
           )}
         </div>
-        <Button variant="outline" size="sm" onClick={() => router.push('/tasks')}>
-          Back to Tasks
-        </Button>
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          {isArchived && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled
+            >
+              <Archive className="mr-2 h-4 w-4" />
+              Archived
+            </Button>
+          )}
+          {!isArchived && task.lifecycleStatus === 'draft' && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => handleTaskLifecycleAction('launch')}
+              disabled={isChangingLifecycle}
+            >
+              {isChangingLifecycle ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+              Launch
+            </Button>
+          )}
+          {!isArchived && task.lifecycleStatus === 'active' && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleTaskLifecycleAction('pause')}
+              disabled={isChangingLifecycle}
+            >
+              {isChangingLifecycle ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Pause className="mr-2 h-4 w-4" />}
+              Pause
+            </Button>
+          )}
+          {!isArchived && task.lifecycleStatus === 'paused' && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => handleTaskLifecycleAction('resume')}
+              disabled={isChangingLifecycle}
+            >
+              {isChangingLifecycle ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+              Resume
+            </Button>
+          )}
+          {!isArchived && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="border-[#b99791] text-[#8d5e57] hover:bg-[#f3e9e7] hover:text-[#704942]"
+              onClick={() => handleTaskLifecycleAction('end')}
+              disabled={isChangingLifecycle || task.lifecycleStatus === 'ended'}
+            >
+              {isChangingLifecycle ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Square className="mr-2 h-4 w-4" />}
+              End Study
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label="Copy sharing link"
+            title="Copy sharing link"
+            onClick={handleCopyShareLink}
+          >
+            <LinkIcon className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => router.push('/tasks')}>
+            Back to Tasks
+          </Button>
+        </div>
       </div>
 
       <div className="border-b border-border/70">

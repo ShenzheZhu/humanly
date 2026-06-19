@@ -64,7 +64,7 @@ export async function validateTaskToken(
     }
 
     // Check if task is active
-    if (!task.isActive) {
+    if (!task.isActive || (task.lifecycleStatus || 'active') !== 'active') {
       throw new AppError(403, 'Task is not active');
     }
 

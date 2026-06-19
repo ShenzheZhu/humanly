@@ -93,6 +93,7 @@ export default function CertificateDetailPage() {
   const [isUpdatingDisplay, setIsUpdatingDisplay] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [verificationUrl, setVerificationUrl] = useState('');
+  const showOwnerDetails = !certificate?.submissionId;
   const isGuestCertificateView = isGuestUserEmail(user?.email)
     || Boolean(TokenManager.getPublicCertificateAccessToken(certificateId));
 
@@ -372,20 +373,21 @@ export default function CertificateDetailPage() {
           integrityMessage={integrityMessage}
         />
 
-        <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
-          <Card>
-            <CollapsibleTrigger asChild>
-              <button className="flex w-full items-center justify-between px-5 py-4 text-left">
-                <div>
-                  <p className="font-medium">More details</p>
-                  <p className="text-sm text-muted-foreground">Certificate sharing, access, display, and identifiers.</p>
-                </div>
-                <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${detailsOpen ? 'rotate-180' : ''}`} />
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <Separator />
-              <CardContent className="grid gap-5 p-5 !pt-6 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+        {showOwnerDetails ? (
+          <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
+            <Card>
+              <CollapsibleTrigger asChild>
+                <button className="flex w-full items-center justify-between px-5 py-4 text-left">
+                  <div>
+                    <p className="font-medium">More details</p>
+                    <p className="text-sm text-muted-foreground">Certificate sharing, access, display, and identifiers.</p>
+                  </div>
+                  <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${detailsOpen ? 'rotate-180' : ''}`} />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <Separator />
+                <CardContent className="grid gap-5 p-5 !pt-6 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
                 <div className="grid gap-4 rounded-lg border border-border/70 bg-muted/20 p-4 lg:grid-cols-[minmax(190px,0.8fr)_minmax(280px,1.2fr)]">
                   <div className="space-y-3">
                     <div>
@@ -604,10 +606,11 @@ export default function CertificateDetailPage() {
                     </Button>
                   </div>
                 </div>
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+        ) : null}
       </div>
     </div>
   );

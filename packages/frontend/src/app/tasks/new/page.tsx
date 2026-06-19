@@ -493,6 +493,7 @@ export default function NewTaskPage() {
   const watchedTaskName = form.watch('name');
   const watchedTaskDescription = form.watch('description');
   const watchedTaskInstruction = form.watch('taskInstruction');
+  const watchedAiUsageLimit = form.watch('aiUsageLimit');
   const watchedStartDate = form.watch('startDate');
   const watchedEndDate = form.watch('endDate');
   const localTimeZoneLabel = getLocalTimeZoneLabel();
@@ -1132,41 +1133,49 @@ export default function NewTaskPage() {
 
   const isImportingEnvironment = environmentSelection === IMPORT_ENVIRONMENT_VALUE;
   const showCustomEnvironmentSummary = environmentSelection === 'custom';
+  const effectiveAiUsageLimit = Number(watchedAiUsageLimit) || 100;
+  const effectiveEnvironmentConfig: WritingEnvironmentConfig = {
+    ...environmentConfig,
+    aiUsageLimit: {
+      mode: 'max_requests',
+      maxRequests: effectiveAiUsageLimit,
+    },
+  };
   const customEnvironmentSummaryItems = buildAdminEnvironmentSummary({
-    config: environmentConfig,
+    config: effectiveEnvironmentConfig,
     aiAccess,
     selectedAiModel,
-  timeLimitEnabled,
-  startDate: watchedStartDate,
-  endDate: watchedEndDate,
-});
+    timeLimitEnabled,
+    startDate: watchedStartDate,
+    endDate: watchedEndDate,
+  });
   const workspacePreviewConfig: WritingEnvironmentConfig = {
-    ...environmentConfig,
+    ...effectiveEnvironmentConfig,
     taskType: 'admin_assigned',
     aiAccess,
     allowedModels: aiAccess === 'off'
       ? []
       : selectedAiModel
         ? [selectedAiModel]
-        : environmentConfig.allowedModels,
+        : effectiveEnvironmentConfig.allowedModels,
     instructions: {
-      ...environmentConfig.instructions,
+      ...effectiveEnvironmentConfig.instructions,
       hasInstructionPdf: instructionFiles.length > 0,
       taskInstruction: watchedTaskInstruction?.trim() || '',
     },
     time: {
-      ...environmentConfig.time,
+      ...effectiveEnvironmentConfig.time,
       startTime: timeLimitEnabled ? watchedStartDate : undefined,
       endTime: timeLimitEnabled ? watchedEndDate : undefined,
     },
     submission: {
-      ...environmentConfig.submission,
-      attemptPolicy: normalizeWritingAttemptPolicy(environmentConfig.submission.attemptPolicy),
+      ...effectiveEnvironmentConfig.submission,
+      attemptPolicy: normalizeWritingAttemptPolicy(effectiveEnvironmentConfig.submission.attemptPolicy),
     },
     traceability: {
-      ...environmentConfig.traceability,
+      ...effectiveEnvironmentConfig.traceability,
       trackAiUsage: aiAccess !== 'off',
-      trackCopyPaste: normalizeCopyPastePolicy(environmentConfig.copyPastePolicy) === 'allowed',
+      trackCopyPaste: normalizeCopyPastePolicy(effectiveEnvironmentConfig.copyPastePolicy) === 'allowed',
     },
   };
   const getWorkspacePreviewPayload = (): WorkspaceSetupPreviewPayload => ({

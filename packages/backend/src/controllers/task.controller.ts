@@ -270,6 +270,7 @@ export async function joinTask(req: Request, res: Response): Promise<void> {
         description: task.description,
         startDate: task.startDate,
         endDate: task.endDate,
+        lifecycleStatus: task.lifecycleStatus,
         environmentConfig: task.environmentConfig,
         enrolledUserCount: task.enrolledUserCount ?? 0,
         inviteCode: task.taskToken.slice(0, 6).toUpperCase(),
@@ -519,6 +520,61 @@ export async function updateTask(req: Request, res: Response): Promise<void> {
     success: true,
     data: task,
     message: 'Task updated successfully',
+  });
+}
+
+async function updateTaskLifecycle(
+  req: Request,
+  res: Response,
+  lifecycleStatus: 'active' | 'paused' | 'ended',
+  actionLabel: 'launched' | 'paused' | 'resumed' | 'ended'
+): Promise<void> {
+  const userId = req.user!.userId;
+  const taskId = req.params.id;
+
+  if (!taskId) {
+    throw new AppError(400, 'Task ID is required');
+  }
+
+  const task = await TaskService.updateTaskLifecycle(taskId, userId, lifecycleStatus);
+
+  res.json({
+    success: true,
+    data: task,
+    message: `Task ${actionLabel} successfully`,
+  });
+}
+
+export async function launchTask(req: Request, res: Response): Promise<void> {
+  await updateTaskLifecycle(req, res, 'active', 'launched');
+}
+
+export async function pauseTask(req: Request, res: Response): Promise<void> {
+  await updateTaskLifecycle(req, res, 'paused', 'paused');
+}
+
+export async function resumeTask(req: Request, res: Response): Promise<void> {
+  await updateTaskLifecycle(req, res, 'active', 'resumed');
+}
+
+export async function endTask(req: Request, res: Response): Promise<void> {
+  await updateTaskLifecycle(req, res, 'ended', 'ended');
+}
+
+export async function duplicateTask(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.userId;
+  const taskId = req.params.id;
+
+  if (!taskId) {
+    throw new AppError(400, 'Task ID is required');
+  }
+
+  const task = await TaskService.duplicateTask(taskId, userId);
+
+  res.status(201).json({
+    success: true,
+    data: task,
+    message: 'Task duplicated successfully',
   });
 }
 

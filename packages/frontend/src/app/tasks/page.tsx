@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api, { ApiError } from '@/lib/api-client';
+import { buildTaskShareUrl } from '@/lib/certificate-url';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,6 +32,7 @@ import {
   LayoutGrid,
   List,
 } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 import { TaskCard } from './_components/task-card';
 import {
   filterTasksForDashboard,
@@ -65,6 +67,7 @@ const getTaskCreatedAtMs = (task: TaskDashboardItem) => {
  */
 export default function TasksPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [tasks, setTasks] = useState<TaskDashboardItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +76,8 @@ export default function TasksPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
   const [changingActiveStateTaskId, setChangingActiveStateTaskId] = useState<string | null>(null);
+  const [changingLifecycleTaskId, setChangingLifecycleTaskId] = useState<string | null>(null);
+  const [duplicatingTaskId, setDuplicatingTaskId] = useState<string | null>(null);
   const [openOptionsTaskId, setOpenOptionsTaskId] = useState<string | null>(null);
   const [dashboardNowMs, setDashboardNowMs] = useState(() => Date.now());
   const [taskViewMode, setTaskViewMode] = useState<TaskViewMode>('cards');
@@ -181,6 +186,79 @@ export default function TasksPage() {
       alert(errorMessage);
     } finally {
       setChangingActiveStateTaskId(null);
+    }
+  };
+
+  const handleTaskLifecycleAction = async (
+    task: TaskDashboardItem,
+    action: 'launch' | 'pause' | 'resume'
+  ) => {
+    try {
+      setChangingLifecycleTaskId(task.id);
+      const response = await api.post<{
+        success: boolean;
+        data: TaskDashboardItem;
+        message: string;
+      }>(`/api/v1/tasks/${task.id}/${action}`);
+
+      setTasks(prev => prev.map(currentTask => (
+        currentTask.id === task.id ? { ...currentTask, ...response.data } : currentTask
+      )));
+      setOpenOptionsTaskId(null);
+    } catch (err) {
+      const errorMessage = err instanceof ApiError
+        ? err.message
+        : `Failed to ${action} task`;
+      alert(errorMessage);
+    } finally {
+      setChangingLifecycleTaskId(null);
+    }
+  };
+
+  const copyText = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast({
+        title: `${label} copied`,
+        description: value,
+      });
+    } catch {
+      alert(`Copy failed. ${label}: ${value}`);
+    }
+  };
+
+  const handleCopyShareLink = (task: TaskDashboardItem) => {
+    copyText(buildTaskShareUrl(task.taskToken), 'Sharing link');
+    setOpenOptionsTaskId(null);
+  };
+
+  const handleCopyInviteCode = (task: TaskDashboardItem) => {
+    copyText(task.taskToken.slice(0, 6).toUpperCase(), 'Invite code');
+    setOpenOptionsTaskId(null);
+  };
+
+  const handleDuplicateTask = async (task: TaskDashboardItem) => {
+    try {
+      setDuplicatingTaskId(task.id);
+      const response = await api.post<{
+        success: boolean;
+        data: TaskDashboardItem;
+        message: string;
+      }>(`/api/v1/tasks/${task.id}/duplicate`);
+
+      setTasks(prev => [response.data, ...prev]);
+      setOpenOptionsTaskId(null);
+      toast({
+        title: 'Task duplicated',
+        description: `${response.data.name} was created as a draft.`,
+      });
+    } catch (err) {
+      const errorMessage = err instanceof ApiError
+        ? err.message
+        : 'Failed to duplicate task';
+      alert(errorMessage);
+    } finally {
+      setDuplicatingTaskId(null);
     }
   };
 
@@ -518,19 +596,25 @@ export default function TasksPage() {
               nowMs={dashboardNowMs}
               isDeleting={deletingTaskId === task.id}
               isChangingActiveState={changingActiveStateTaskId === task.id}
+              isChangingLifecycleState={changingLifecycleTaskId === task.id}
+              isDuplicating={duplicatingTaskId === task.id}
               isOptionsOpen={openOptionsTaskId === task.id}
               onOptionsOpenChange={(open) => setOpenOptionsTaskId(open ? task.id : null)}
               onView={(selectedTask) => router.push(`/tasks/${selectedTask.id}`)}
               onEditSetting={(selectedTask) => router.push(`/tasks/${selectedTask.id}?tab=setting`)}
               onDelete={handleDeleteTask}
               onActiveStateChange={handleTaskActiveStateChange}
+              onLifecycleAction={handleTaskLifecycleAction}
+              onCopyShareLink={handleCopyShareLink}
+              onCopyInviteCode={handleCopyInviteCode}
+              onDuplicate={handleDuplicateTask}
               variant="card"
             />
           ))}
         </div>
       ) : (
         <div>
-          <div className="hidden grid-cols-[minmax(0,1.4fr)_8.5rem_10rem_11rem_8rem] border-b border-border/70 px-2 pb-2 text-xs font-medium uppercase tracking-normal text-muted-foreground md:grid">
+          <div className="hidden grid-cols-[minmax(0,1.4fr)_8.5rem_10rem_11rem_15rem] border-b border-border/70 px-2 pb-2 text-xs font-medium uppercase tracking-normal text-muted-foreground md:grid">
             <span>Task name</span>
             <span>Status</span>
             <span>Completions</span>
@@ -546,12 +630,18 @@ export default function TasksPage() {
                 nowMs={dashboardNowMs}
                 isDeleting={deletingTaskId === task.id}
                 isChangingActiveState={changingActiveStateTaskId === task.id}
+                isChangingLifecycleState={changingLifecycleTaskId === task.id}
+                isDuplicating={duplicatingTaskId === task.id}
                 isOptionsOpen={openOptionsTaskId === task.id}
                 onOptionsOpenChange={(open) => setOpenOptionsTaskId(open ? task.id : null)}
                 onView={(selectedTask) => router.push(`/tasks/${selectedTask.id}`)}
                 onEditSetting={(selectedTask) => router.push(`/tasks/${selectedTask.id}?tab=setting`)}
                 onDelete={handleDeleteTask}
                 onActiveStateChange={handleTaskActiveStateChange}
+                onLifecycleAction={handleTaskLifecycleAction}
+                onCopyShareLink={handleCopyShareLink}
+                onCopyInviteCode={handleCopyInviteCode}
+                onDuplicate={handleDuplicateTask}
                 variant="list"
               />
             ))}

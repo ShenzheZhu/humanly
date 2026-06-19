@@ -300,13 +300,14 @@ const mergeEnvironmentConfig = (config?: WritingEnvironmentConfig | null): Writi
   },
 });
 
-export function SettingsPanel({ taskId }: SettingsPanelProps) {
+export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
   const { toast } = useToast();
 
   const [task, setTask] = useState<Task | null>(null);
   const [files, setFiles] = useState<TaskInstructionFile[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [environmentDialogOpen, setEnvironmentDialogOpen] = useState(false);
 
   const [environmentConfig, setEnvironmentConfig] = useState<WritingEnvironmentConfig>({
@@ -712,6 +713,48 @@ export function SettingsPanel({ taskId }: SettingsPanelProps) {
     downloadBlob(blob, buildEnvironmentConfigFilename(form.getValues('name') || task?.name, format));
   };
 
+  const handleSaveSettings = form.handleSubmit(async (data) => {
+    if (!task || task.lifecycleStatus !== 'draft') return;
+
+    try {
+      setIsSaving(true);
+      setError(null);
+
+      const config = buildCurrentEnvironmentConfig(data);
+      const response = await api.put<{
+        success: boolean;
+        data: Task;
+        message: string;
+      }>(`/api/v1/tasks/${taskId}`, {
+        name: data.name,
+        description: data.description || '',
+        startDate: data.startDate ? localDateTimeInputToISOString(data.startDate) : task.startDate,
+        endDate: data.endDate ? localDateTimeInputToISOString(data.endDate) : task.endDate,
+        aiUsageLimit: Number(data.aiUsageLimit) || 100,
+        allowedLlmModels: config.allowedModels,
+        environmentConfig: config,
+        allowGuestSubmissions,
+      });
+
+      setTask(response.data);
+      onTaskUpdated?.(response.data);
+      toast({
+        title: 'Task settings saved',
+        description: 'Draft settings were updated.',
+      });
+    } catch (err: any) {
+      const message = err.message || 'Failed to save task settings';
+      setError(message);
+      toast({
+        title: 'Save failed',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  });
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -724,7 +767,7 @@ export function SettingsPanel({ taskId }: SettingsPanelProps) {
     return null;
   }
 
-  const controlsDisabled = true;
+  const controlsDisabled = task.lifecycleStatus !== 'draft' || isSaving;
   const localTimeZoneLabel = getLocalTimeZoneLabel();
   const watchedStartDate = form.watch('startDate');
   const watchedEndDate = form.watch('endDate');
@@ -795,7 +838,7 @@ export function SettingsPanel({ taskId }: SettingsPanelProps) {
       </div>
 
       <Form {...form}>
-        <form className="space-y-6">
+        <form className="space-y-6" onSubmit={handleSaveSettings}>
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
@@ -807,7 +850,9 @@ export function SettingsPanel({ taskId }: SettingsPanelProps) {
               <CardHeader>
                 <CardTitle>Task Details</CardTitle>
                 <CardDescription>
-                  Task settings are read-only after creation so submitted documents and certificates stay consistent.
+                  {task.lifecycleStatus === 'draft'
+                    ? 'Edit this draft before launch. Settings become read-only after launch.'
+                    : 'Task settings are read-only after launch so submitted documents and certificates stay consistent.'}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -818,7 +863,7 @@ export function SettingsPanel({ taskId }: SettingsPanelProps) {
                     <FormItem>
                       <FormLabel>Task Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="Research Reflection Assignment" {...field} disabled />
+                        <Input placeholder="Research Reflection Assignment" {...field} disabled={controlsDisabled} />
                       </FormControl>
                       <FormDescription>
                         A user-facing title shown on the admin dashboard and enrolled user documents.
@@ -839,7 +884,7 @@ export function SettingsPanel({ taskId }: SettingsPanelProps) {
                           placeholder="Describe the writing task, deadline, evaluation criteria, or class context..."
                           className="resize-none"
                           {...field}
-                          disabled
+                          disabled={controlsDisabled}
                         />
                       </FormControl>
                       <FormDescription>
@@ -850,71 +895,80 @@ export function SettingsPanel({ taskId }: SettingsPanelProps) {
                   )}
                 />
 
-                <div className="space-y-2">
-                  <FormLabel>Task Instruction</FormLabel>
-                  <Textarea
-                    value={environmentConfig.instructions.taskInstruction || ''}
-                    placeholder="No text instruction configured for this task."
-                    className="resize-none"
-                    disabled
-                    readOnly
-                  />
-                  <FormDescription>
-                    This text appears above the writing rules in the writer Instructions dialog. Markdown formatting is supported.
-                  </FormDescription>
-                </div>
+                <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.42fr)] xl:items-start">
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <FormLabel>Task Instruction</FormLabel>
+                      <Textarea
+                        value={environmentConfig.instructions.taskInstruction || ''}
+                        placeholder="No text instruction configured for this task."
+                        className="resize-none"
+                        disabled={controlsDisabled}
+                        readOnly={controlsDisabled}
+                        onChange={(event) => updateEnvironment({
+                          instructions: {
+                            ...environmentConfig.instructions,
+                            taskInstruction: event.target.value,
+                          },
+                        })}
+                      />
+                      <FormDescription>
+                        This text appears above the writing rules in the writer Instructions dialog. Markdown formatting is supported.
+                      </FormDescription>
+                    </div>
 
-                <div className="rounded-md border border-dashed p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2 text-sm font-medium">
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        Files
+                    <div className="rounded-md border border-dashed p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2 text-sm font-medium">
+                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            Files
+                          </div>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            Existing PDF instruction files attached when this task was created.
+                          </p>
+                        </div>
                       </div>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Existing PDF instruction files attached when this task was created.
-                      </p>
+
+                      {currentInstructionFiles.length > 0 ? (
+                        <div className="mt-3 space-y-2">
+                          {currentInstructionFiles.map((file) => (
+                            <div key={file.id} className="flex items-center gap-3 rounded-md border bg-muted/40 p-3">
+                              <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium" title={file.title}>
+                                  {file.title}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Existing PDF
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-3 text-sm text-muted-foreground">No instruction PDFs attached.</p>
+                      )}
                     </div>
                   </div>
 
-                  {currentInstructionFiles.length > 0 ? (
-                    <div className="mt-3 space-y-2">
-                      {currentInstructionFiles.map((file) => (
-                        <div key={file.id} className="flex items-center gap-3 rounded-md border bg-muted/40 p-3">
-                          <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium" title={file.title}>
-                              {file.title}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Existing PDF
-                            </p>
-                          </div>
-                        </div>
-                      ))}
+                  <div className="rounded-md border border-border/80 bg-muted/20 p-4 xl:self-start">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <FormLabel htmlFor="settings-allow-guest-submissions" className="text-sm font-medium">
+                          Allow guest submissions from public link
+                        </FormLabel>
+                        <FormDescription className="mt-1">
+                          When off, visitors must sign in or create an account before writing from the share link.
+                        </FormDescription>
+                      </div>
+                      <Checkbox
+                        id="settings-allow-guest-submissions"
+                        checked={allowGuestSubmissions}
+                        onCheckedChange={(checked) => setAllowGuestSubmissions(checked === true)}
+                        disabled={controlsDisabled}
+                      />
                     </div>
-                  ) : (
-                    <p className="mt-3 text-sm text-muted-foreground">No instruction PDFs attached.</p>
-                  )}
-
-                </div>
-
-                <div className="rounded-md border border-border/80 bg-muted/20 p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="min-w-0">
-                      <FormLabel htmlFor="settings-allow-guest-submissions" className="text-sm font-medium">
-                        Allow guest submissions from public link
-                      </FormLabel>
-                      <FormDescription className="mt-1">
-                        When off, visitors must sign in or create an account before writing from the share link.
-                      </FormDescription>
-                    </div>
-                    <Checkbox
-                      id="settings-allow-guest-submissions"
-                      checked={allowGuestSubmissions}
-                      onCheckedChange={(checked) => setAllowGuestSubmissions(checked === true)}
-                      disabled
-                    />
                   </div>
                 </div>
               </CardContent>
@@ -941,6 +995,15 @@ export function SettingsPanel({ taskId }: SettingsPanelProps) {
               </CardContent>
             </Card>
           </div>
+
+          {task.lifecycleStatus === 'draft' && (
+            <div className="flex justify-end">
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Save Settings
+              </Button>
+            </div>
+          )}
 
         </form>
 

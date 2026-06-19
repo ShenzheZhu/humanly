@@ -96,6 +96,7 @@ interface TaskEnrollment {
   name: string;
   inviteCode: string;
   documentId: string | null;
+  lifecycleStatus?: 'draft' | 'active' | 'paused' | 'ended';
   joinedAt: string;
   description?: string;
   startDate?: string;
@@ -418,7 +419,16 @@ export default function DocumentEditorPage() {
     activeTimeLimitSeconds !== null &&
     timerStartedAtMs !== null &&
     timeLimitRemainingSeconds === 0;
-  const isEditorReadOnly = isTimeLimitExpired;
+  const taskLifecycleStatus = taskEnrollment?.lifecycleStatus || 'active';
+  const taskLifecycleBlocksWriting = Boolean(taskEnrollment) && taskLifecycleStatus !== 'active';
+  const taskLifecycleReadOnlyMessage = taskLifecycleStatus === 'draft'
+    ? 'This task has not been launched yet. The document is read-only until the owner launches it.'
+    : taskLifecycleStatus === 'paused'
+      ? 'This task is paused. The document is read-only until the owner resumes it.'
+      : taskLifecycleStatus === 'ended'
+        ? 'This task has ended. The document is read-only.'
+        : null;
+  const isEditorReadOnly = isTimeLimitExpired || taskLifecycleBlocksWriting;
   const taskDeadlineMs = taskEnrollment ? getTimestampMs(taskEnrollment.endDate) : null;
   const taskDeadlineRemainingSeconds = taskDeadlineMs === null
     ? null
@@ -1239,6 +1249,11 @@ export default function DocumentEditorPage() {
   const isResourceViewOnly = normalizeResourceAccessPolicy(currentEnvironmentConfig.resourceAccess) === 'view-only';
   const lockedAiModel = currentEnvironmentConfig.allowedModels?.[0] || (taskEnrollment ? 'Task model' : undefined);
   const lockedAiBaseUrl = currentEnvironmentConfig.aiProvider?.baseUrl;
+  const aiRequestLimit =
+    currentEnvironmentConfig.aiUsageLimit.mode === 'max_requests' &&
+    typeof currentEnvironmentConfig.aiUsageLimit.maxRequests === 'number'
+      ? currentEnvironmentConfig.aiUsageLimit.maxRequests
+      : null;
 
   const handleExportConfig = (format: EnvironmentConfigFileFormat) => {
     const configForExport = enrichEnvironmentConfigForExport(currentEnvironmentConfig);
@@ -1531,8 +1546,12 @@ export default function DocumentEditorPage() {
                   )}
                   {isEditorReadOnly && (
                     <div className="mb-4 rounded-lg border border-border/70 bg-muted/40 p-4 text-sm text-muted-foreground">
-                      The writing time limit has ended. This document is now read-only.
-                      {taskEnrollment ? ' Humanly is submitting the task automatically.' : null}
+                      {taskLifecycleReadOnlyMessage || (
+                        <>
+                          The writing time limit has ended. This document is now read-only.
+                          {taskEnrollment ? ' Humanly is submitting the task automatically.' : null}
+                        </>
+                      )}
                     </div>
                   )}
                   <LexicalEditor
@@ -1600,6 +1619,7 @@ export default function DocumentEditorPage() {
                       lockedModel={lockedAiModel}
                       lockedBaseUrl={lockedAiBaseUrl}
                       pdfContextFile={displayFile}
+                      aiRequestLimit={aiRequestLimit}
                       insertAtCursor={!isEditorReadOnly && editorInsertAtCursor ? handleInsertAssistantMessage : null}
                     />
                   </div>

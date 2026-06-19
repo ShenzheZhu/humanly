@@ -1,6 +1,7 @@
 import { query, queryOne, transaction } from '../config/database';
-import { Task, WritingEnvironmentConfig } from '@humanly/shared';
+import { Task, TaskLifecycleStatus, WritingEnvironmentConfig } from '@humanly/shared';
 import { generateTaskToken } from '../utils/crypto';
+import crypto from 'crypto';
 
 export interface CreateTaskData {
   name: string;
@@ -89,6 +90,9 @@ export interface CurrentUserTaskEnrollment {
   endDate: Date;
   environmentConfig?: WritingEnvironmentConfig | null;
   isActive: boolean;
+  lifecycleStatus: TaskLifecycleStatus;
+  launchedAt?: Date | null;
+  endedAt?: Date | null;
   latestSubmissionId?: string | null;
   latestCertificateId?: string | null;
   latestCertificateGeneratedAt?: Date | null;
@@ -128,6 +132,9 @@ export class TaskModel {
     p.environment_config as "environmentConfig",
     p.allow_guest_submissions as "allowGuestSubmissions",
     p.is_active as "isActive",
+    p.lifecycle_status as "lifecycleStatus",
+    p.launched_at as "launchedAt",
+    p.ended_at as "endedAt",
     COALESCE(pe.enrolled_user_count, 0)::int as "enrolledUserCount",
     COALESCE(ps.document_count, 0)::int as "documentCount",
     COALESCE(ps.event_count, 0)::int as "eventCount",
@@ -180,9 +187,9 @@ export class TaskModel {
         user_id, name, description, task_token, user_id_key,
         external_service_type, external_service_url,
         allowed_llm_models, ai_usage_limit, start_date, end_date, environment_config,
-        allow_guest_submissions, is_active
+        allow_guest_submissions, is_active, lifecycle_status
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, TRUE)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, TRUE, 'draft')
       RETURNING id, user_id as "userId", name, description, task_token as "taskToken",
                 user_id_key as "userIdKey", external_service_type as "externalServiceType",
                 external_service_url as "externalServiceUrl",
@@ -191,6 +198,9 @@ export class TaskModel {
                 environment_config as "environmentConfig",
                 allow_guest_submissions as "allowGuestSubmissions",
                 is_active as "isActive",
+                lifecycle_status as "lifecycleStatus",
+                launched_at as "launchedAt",
+                ended_at as "endedAt",
                 0 as "enrolledUserCount",
                 0 as "documentCount",
                 0 as "eventCount",
@@ -652,6 +662,9 @@ export class TaskModel {
         t.end_date as "endDate",
         t.environment_config as "environmentConfig",
         t.is_active as "isActive",
+        t.lifecycle_status as "lifecycleStatus",
+        t.launched_at as "launchedAt",
+        t.ended_at as "endedAt",
         latest_submission.id as "latestSubmissionId",
         latest_certificate.id as "latestCertificateId",
         latest_certificate.generated_at as "latestCertificateGeneratedAt",
@@ -953,6 +966,159 @@ export class TaskModel {
 
     const updatedTask = await queryOne<{ id: string }>(sql, values);
     return updatedTask ? this.findById(updatedTask.id) : null;
+  }
+
+  static async updateLifecycle(
+    id: string,
+    lifecycleStatus: TaskLifecycleStatus
+  ): Promise<Task | null> {
+    const sql = `
+      UPDATE tasks
+      SET
+        lifecycle_status = $2,
+        launched_at = CASE
+          WHEN $2 = 'active' AND launched_at IS NULL THEN NOW()
+          ELSE launched_at
+        END,
+        ended_at = CASE
+          WHEN $2 = 'ended' THEN COALESCE(ended_at, NOW())
+          ELSE ended_at
+        END,
+        updated_at = NOW()
+      WHERE id = $1
+      RETURNING id
+    `;
+
+    const updatedTask = await queryOne<{ id: string }>(sql, [id, lifecycleStatus]);
+    return updatedTask ? this.findById(updatedTask.id) : null;
+  }
+
+  static async duplicate(id: string, userId: string): Promise<Task | null> {
+    const newTaskToken = generateTaskToken();
+    const newTaskId = await transaction<string>(async (client) => {
+      const taskResult = await client.query(`
+        INSERT INTO tasks (
+          user_id,
+          name,
+          description,
+          task_token,
+          user_id_key,
+          external_service_type,
+          external_service_url,
+          allowed_llm_models,
+          ai_usage_limit,
+          start_date,
+          end_date,
+          environment_config,
+          allow_guest_submissions,
+          is_active,
+          lifecycle_status
+        )
+        SELECT
+          user_id,
+          name || ' Copy',
+          description,
+          $3,
+          user_id_key,
+          external_service_type,
+          external_service_url,
+          allowed_llm_models,
+          ai_usage_limit,
+          start_date,
+          end_date,
+          environment_config,
+          allow_guest_submissions,
+          TRUE,
+          'draft'
+        FROM tasks
+        WHERE id = $1 AND user_id = $2
+        RETURNING id
+      `, [id, userId, newTaskToken]);
+
+      const duplicatedTaskId = taskResult.rows[0]?.id;
+      if (!duplicatedTaskId) {
+        throw new Error('Task not found');
+      }
+
+      const sourceFiles = await client.query(`
+        SELECT id
+        FROM files
+        WHERE task_id = $1 AND purpose = 'task_instruction_pdf'
+        ORDER BY created_at ASC
+      `, [id]);
+
+      for (const sourceFile of sourceFiles.rows) {
+        const newFileId = crypto.randomUUID();
+        await client.query(`
+          INSERT INTO files (
+            id,
+            owner_user_id,
+            document_id,
+            task_id,
+            purpose,
+            title,
+            original_filename,
+            mime_type,
+            storage_provider,
+            storage_key,
+            storage_bucket,
+            storage_region,
+            storage_etag,
+            file_size,
+            checksum,
+            page_count,
+            upload_status,
+            legacy_source_id
+          )
+          SELECT
+            $3,
+            owner_user_id,
+            NULL,
+            $2,
+            purpose,
+            title,
+            original_filename,
+            mime_type,
+            storage_provider,
+            storage_key,
+            storage_bucket,
+            storage_region,
+            storage_etag,
+            file_size,
+            checksum,
+            page_count,
+            upload_status,
+            NULL
+          FROM files
+          WHERE id = $1
+        `, [sourceFile.id, duplicatedTaskId, newFileId]);
+
+        await client.query(`
+          INSERT INTO file_pages (file_id, page_number, text)
+          SELECT $2, page_number, text
+          FROM file_pages
+          WHERE file_id = $1
+        `, [sourceFile.id, newFileId]);
+
+        await client.query(`
+          INSERT INTO file_sections (file_id, section_title, start_page, end_page, text)
+          SELECT $2, section_title, start_page, end_page, text
+          FROM file_sections
+          WHERE file_id = $1
+        `, [sourceFile.id, newFileId]);
+
+        await client.query(`
+          INSERT INTO file_text_chunks (file_id, page_number, section_title, chunk_index, text)
+          SELECT $2, page_number, section_title, chunk_index, text
+          FROM file_text_chunks
+          WHERE file_id = $1
+        `, [sourceFile.id, newFileId]);
+      }
+
+      return duplicatedTaskId;
+    });
+
+    return this.findById(newTaskId);
   }
 
   /**
