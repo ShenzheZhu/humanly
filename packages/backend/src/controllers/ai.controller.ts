@@ -346,8 +346,8 @@ export async function trackSelectionAction(req: Request, res: Response): Promise
     throw new AppError(400, 'Valid decision is required (accepted, rejected)');
   }
 
-  const isOwner = await DocumentModel.isOwner(documentId, userId);
-  if (!isOwner) {
+  const canAccessDocument = await DocumentModel.canAccess(documentId, userId);
+  if (!canAccessDocument) {
     throw new AppError(404, 'Document not found');
   }
 

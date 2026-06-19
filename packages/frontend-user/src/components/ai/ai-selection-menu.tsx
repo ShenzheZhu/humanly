@@ -5,7 +5,11 @@ import type { SelectionReplacementOptions, SelectionReplacementResult } from '@h
 import { Sparkles, Check, Wand2, BookOpen, Loader2, MessageSquare, AlertCircle, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import api, { getPublicDocumentAuthConfig, type HumanlyAxiosRequestConfig } from '@/lib/api-client';
+import api, {
+  getPublicDocumentAuthConfig,
+  waitForDocumentScopedAccessTokenReady,
+  type HumanlyAxiosRequestConfig,
+} from '@/lib/api-client';
 import { useAIStore } from '@/stores/ai-store';
 import { QuickActionDiff } from './quick-action-diff';
 
@@ -163,6 +167,8 @@ export function AISelectionMenu({
     state: ReviewState,
     decision: 'accepted' | 'rejected'
   ) => {
+    await waitForDocumentScopedAccessTokenReady(documentId);
+
     await api.post('/ai/selection-action', {
       documentId,
       logId: state.logId,

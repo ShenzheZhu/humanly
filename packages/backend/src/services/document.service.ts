@@ -316,9 +316,10 @@ export class DocumentService {
     events: DocumentEventInsertData[]
   ): Promise<void> {
     try {
-      // Verify document ownership
-      const isOwner = await DocumentModel.isOwner(documentId, userId);
-      if (!isOwner) {
+      // Task submissions and guest shared-link documents are accessible through
+      // enrollment/attempt records, not always direct document ownership.
+      const canAccess = await DocumentModel.canAccess(documentId, userId);
+      if (!canAccess) {
         throw new AppError(404, 'Document not found or unauthorized');
       }
 
@@ -425,9 +426,8 @@ export class DocumentService {
     filters: DocumentEventQueryFilters = {}
   ): Promise<{ events: DocumentEvent[]; total: number }> {
     try {
-      // Verify document ownership
-      const isOwner = await DocumentModel.isOwner(documentId, userId);
-      if (!isOwner) {
+      const canAccess = await DocumentModel.canAccess(documentId, userId);
+      if (!canAccess) {
         throw new AppError(404, 'Document not found or unauthorized');
       }
 
@@ -458,8 +458,8 @@ export class DocumentService {
     filters: DocumentEventQueryFilters = {}
   ): Promise<DocumentEventTimelineResponse> {
     try {
-      const isOwner = await DocumentModel.isOwner(documentId, userId);
-      if (!isOwner) {
+      const canAccess = await DocumentModel.canAccess(documentId, userId);
+      if (!canAccess) {
         throw new AppError(404, 'Document not found or unauthorized');
       }
 

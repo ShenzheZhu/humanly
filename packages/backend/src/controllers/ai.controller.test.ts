@@ -19,7 +19,7 @@ const otherDocumentId = 'document-other';
 const logId = 'ai-log-owner';
 
 const originals = {
-  isOwner: DocumentModel.isOwner,
+  canAccess: DocumentModel.canAccess,
   findLogById: AIModel.findLogById,
   findRecentSelectionLog: AIModel.findRecentSelectionLog,
   createLog: AIModel.createLog,
@@ -29,7 +29,7 @@ const originals = {
 };
 
 function restoreOriginals() {
-  DocumentModel.isOwner = originals.isOwner;
+  DocumentModel.canAccess = originals.canAccess;
   AIModel.findLogById = originals.findLogById;
   AIModel.findRecentSelectionLog = originals.findRecentSelectionLog;
   AIModel.createLog = originals.createLog;
@@ -39,7 +39,7 @@ function restoreOriginals() {
 }
 
 function installMocks(options: {
-  ownsDocument?: boolean;
+  canAccessDocument?: boolean;
   existingLog?: { id: string; userId: string; documentId: string } | null;
 } = {}): MockState {
   const state: MockState = {
@@ -49,7 +49,7 @@ function installMocks(options: {
     modifications: [],
   };
 
-  DocumentModel.isOwner = async () => options.ownsDocument ?? true;
+  DocumentModel.canAccess = async () => options.canAccessDocument ?? true;
   AIModel.findLogById = async (id: string) => {
     state.findLogCalls.push(id);
     const existingLog = options.existingLog === undefined
@@ -129,7 +129,7 @@ async function expectAppError(
 async function run() {
   try {
     {
-      const state = installMocks({ ownsDocument: false });
+      const state = installMocks({ canAccessDocument: false });
       await expectAppError('cross-user document', 404, async () => {
         await trackSelectionAction(makeRequest({}), makeResponse());
       });
@@ -162,11 +162,22 @@ async function run() {
       const res = makeResponse();
       await trackSelectionAction(makeRequest({ decision: 'accepted' }), res);
 
-      assert.equal(res.payload.success, true, 'accepted owner request succeeds');
-      assert.equal(state.actionCreates.length, 1, 'accepted owner request creates action');
-      assert.equal(state.updateResponses[0].id, logId, 'accepted owner request updates supplied log');
-      assert.equal(state.updateResponses[0].response.status, 'success', 'accepted owner request marks log success');
-      assert.equal(state.modifications.length, 1, 'accepted owner request mirrors modification');
+      assert.equal(res.payload.success, true, 'accepted accessible request succeeds');
+      assert.equal(state.actionCreates.length, 1, 'accepted accessible request creates action');
+      assert.equal(state.updateResponses[0].id, logId, 'accepted accessible request updates supplied log');
+      assert.equal(state.updateResponses[0].response.status, 'success', 'accepted accessible request marks log success');
+      assert.equal(state.modifications.length, 1, 'accepted accessible request mirrors modification');
+    }
+
+    {
+      const state = installMocks({ canAccessDocument: true });
+      const res = makeResponse();
+      await trackSelectionAction(makeRequest({ logId: undefined, decision: 'accepted' }), res);
+
+      assert.equal(res.payload.success, true, 'task-enrolled accessible request succeeds');
+      assert.equal(state.actionCreates.length, 1, 'task-enrolled accessible request creates action');
+      assert.equal(state.findLogCalls.length, 0, 'task-enrolled accessible request can create a fresh log');
+      assert.equal(state.updateResponses[0].id, 'created-log', 'task-enrolled accessible request updates created log');
     }
 
     {
@@ -174,10 +185,10 @@ async function run() {
       const res = makeResponse();
       await trackSelectionAction(makeRequest({ decision: 'rejected' }), res);
 
-      assert.equal(res.payload.success, true, 'rejected owner request succeeds');
-      assert.equal(state.actionCreates.length, 1, 'rejected owner request creates action');
-      assert.equal(state.updateResponses[0].response.status, 'cancelled', 'rejected owner request cancels log');
-      assert.equal(state.modifications.length, 0, 'rejected owner request does not mirror modification');
+      assert.equal(res.payload.success, true, 'rejected accessible request succeeds');
+      assert.equal(state.actionCreates.length, 1, 'rejected accessible request creates action');
+      assert.equal(state.updateResponses[0].response.status, 'cancelled', 'rejected accessible request cancels log');
+      assert.equal(state.modifications.length, 0, 'rejected accessible request does not mirror modification');
     }
   } finally {
     restoreOriginals();

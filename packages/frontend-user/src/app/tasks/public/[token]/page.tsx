@@ -7,7 +7,7 @@ import { AlertCircle, FileText, Loader2, LogIn, RefreshCw, UserRound } from 'luc
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import api, { ApiError, TokenManager } from '@/lib/api-client';
+import api, { activateDocumentScopedAccessToken, ApiError, TokenManager } from '@/lib/api-client';
 import { useAuthStore, type User } from '@/stores/auth-store';
 import { getUserDisplayLabel, isGuestUserEmail } from '@/components/navigation/user-display';
 
@@ -163,6 +163,7 @@ export default function PublicTaskDocumentStartPage() {
         } else {
           TokenManager.setAccessToken(response.data.accessToken);
         }
+        activateDocumentScopedAccessToken(documentId);
       }
       router.replace(`/documents/${documentId}`);
     } catch (err) {

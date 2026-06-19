@@ -1,4 +1,9 @@
-import { apiClient, getDocumentScopedAccessToken, TokenManager } from '@/lib/api-client';
+import {
+  apiClient,
+  getDocumentScopedAccessToken,
+  TokenManager,
+  waitForDocumentScopedAccessTokenReady,
+} from '@/lib/api-client';
 import type { AppFile } from '@humanly/shared';
 
 const API_BASE =
@@ -10,6 +15,10 @@ export const fileApi = {
     fileId: string,
     options: { viewOnly?: boolean; documentId?: string } = {}
   ): Promise<string> {
+    if (options.documentId) {
+      await waitForDocumentScopedAccessTokenReady(options.documentId);
+    }
+
     const token = options.documentId
       ? getDocumentScopedAccessToken(options.documentId)
       : TokenManager.getAccessToken();

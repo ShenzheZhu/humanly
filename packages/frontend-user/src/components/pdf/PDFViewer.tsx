@@ -16,7 +16,11 @@ import {
   Download,
 } from 'lucide-react'
 import { fileApi } from '@/lib/file-api'
-import { api, getPublicDocumentAuthConfig } from '@/lib/api-client'
+import {
+  api,
+  getPublicDocumentAuthConfig,
+  waitForDocumentScopedAccessTokenReady,
+} from '@/lib/api-client'
 import { usePDFTextStore } from '@/stores/pdf-text-store'
 
 interface PDFViewerProps {
@@ -525,6 +529,8 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
     if (!viewOnly || !documentId) return
 
     try {
+      await waitForDocumentScopedAccessTokenReady(documentId)
+
       await api.post(
         `/documents/${documentId}/events`,
         {
