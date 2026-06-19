@@ -708,6 +708,24 @@ function resolveEffectiveTokenBudget(
   };
 }
 
+function resolveAiRequestLimit(
+  environmentConfig?: WritingEnvironmentConfig | null,
+  fallbackLimit?: number | null,
+): number | null {
+  if (environmentConfig?.aiUsageLimit?.mode === 'max_requests') {
+    const parsed = Number(environmentConfig.aiUsageLimit.maxRequests);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return Math.floor(parsed);
+    }
+  }
+
+  if (typeof fallbackLimit === 'number' && Number.isFinite(fallbackLimit) && fallbackLimit > 0) {
+    return Math.floor(fallbackLimit);
+  }
+
+  return null;
+}
+
 /**
  * OpenAI-compatible provider implementation.
  *
@@ -2021,6 +2039,38 @@ function buildQuickActionSystemPrompt(context?: AIChatRequest['context']): strin
 }
 
 export class AIService {
+  private static async enforceAiRequestLimitForDocument(
+    userId: string,
+    documentId: string,
+  ): Promise<void> {
+    const task = await TaskModel.findBySubmissionDocument(documentId, userId);
+    let limit: number | null = null;
+    let scope: 'document' | 'task' = 'document';
+
+    if (task) {
+      scope = 'task';
+      limit = resolveAiRequestLimit(task.environmentConfig, task.aiUsageLimit ?? null);
+    } else {
+      const document = await DocumentModel.findByIdAndUserId(documentId, userId);
+      if (!document) {
+        throw new AppError(404, 'Document not found');
+      }
+      limit = resolveAiRequestLimit(document.environmentConfig);
+    }
+
+    if (limit === null) {
+      return;
+    }
+
+    const usage = await AIModel.getLogs({ documentId, userId, limit: 1, offset: 0 });
+    if (usage.total >= limit) {
+      throw new AppError(
+        429,
+        `AI request limit reached for this ${scope} (${limit} requests).`
+      );
+    }
+  }
+
   /**
    * Resolve the AI credentials for a document. Personal documents use the
    * writer's own key. Task-enrolled documents use the task owner's key and the
@@ -2711,6 +2761,8 @@ export class AIService {
       throw new AppError(404, 'Document not found');
     }
 
+    await this.enforceAiRequestLimitForDocument(userId, request.documentId);
+
     // Resolve provider + model first so the session can capture the
     // capability snapshot at creation, and so capability gating runs
     // before we touch the DB at all (#93).
@@ -3003,6 +3055,8 @@ export class AIService {
       if (!isOwner) {
         throw new AppError(404, 'Document not found');
       }
+
+      await this.enforceAiRequestLimitForDocument(userId, request.documentId);
 
       // Resolve provider + model first so the session snapshot can be
       // captured at creation and capability gating (#93) runs before any

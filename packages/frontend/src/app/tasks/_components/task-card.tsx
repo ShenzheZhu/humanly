@@ -1,7 +1,23 @@
 'use client';
 
 import type { KeyboardEvent } from 'react';
-import { Archive, Calendar, Eye, Loader2, MoreHorizontal, RotateCcw, Settings, Trash2, Users } from 'lucide-react';
+import {
+  Archive,
+  Calendar,
+  Copy,
+  Eye,
+  KeyRound,
+  Link as LinkIcon,
+  Loader2,
+  MoreHorizontal,
+  Pause,
+  Play,
+  RotateCcw,
+  Settings,
+  Square,
+  Trash2,
+  Users,
+} from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,12 +46,18 @@ interface TaskCardProps {
   variant?: 'card' | 'list';
   isDeleting: boolean;
   isChangingActiveState: boolean;
+  isChangingLifecycleState: boolean;
+  isDuplicating: boolean;
   isOptionsOpen: boolean;
   onOptionsOpenChange: (open: boolean) => void;
   onView: (task: TaskDashboardItem) => void;
   onEditSetting: (task: TaskDashboardItem) => void;
   onDelete: (task: TaskDashboardItem) => void;
   onActiveStateChange: (task: TaskDashboardItem, nextIsActive: boolean) => void;
+  onLifecycleAction: (task: TaskDashboardItem, action: 'launch' | 'pause' | 'resume') => void;
+  onCopyShareLink: (task: TaskDashboardItem) => void;
+  onCopyInviteCode: (task: TaskDashboardItem) => void;
+  onDuplicate: (task: TaskDashboardItem) => void;
 }
 
 const getCompletionCount = (task: TaskDashboardItem) => task.submissionCount ?? 0;
@@ -58,16 +80,22 @@ export function TaskCard({
   variant = 'card',
   isDeleting,
   isChangingActiveState,
+  isChangingLifecycleState,
+  isDuplicating,
   isOptionsOpen,
   onOptionsOpenChange,
   onView,
   onEditSetting,
   onDelete,
   onActiveStateChange,
+  onLifecycleAction,
+  onCopyShareLink,
+  onCopyInviteCode,
+  onDuplicate,
 }: TaskCardProps) {
   const nextIsActive = activeTab === 'archived';
   const activeStateAction = getTaskActiveStateAction(nextIsActive);
-  const taskWindowStatus = activeTab === 'open' ? getTaskWindowStatus(task, nowMs) : null;
+  const taskWindowStatus = getTaskWindowStatus(task, nowMs);
 
   const handleRowKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -77,16 +105,57 @@ export function TaskCard({
   };
 
   const renderStatusBadge = () => (
-    taskWindowStatus ? (
-      <Badge variant="outline" className={`${statusToneClass[taskWindowStatus.tone]} shrink-0 whitespace-nowrap`}>
-        {taskWindowStatus.label}
-      </Badge>
-    ) : (
-      <Badge variant="outline" className="shrink-0 whitespace-nowrap border-border/80 bg-muted/45 text-muted-foreground">
-        Archived
-      </Badge>
-    )
+    <Badge
+      variant="outline"
+      className={`${statusToneClass[taskWindowStatus.tone]} shrink-0 whitespace-nowrap`}
+    >
+      {taskWindowStatus.label}
+    </Badge>
   );
+
+  const lifecycleAction = (() => {
+    if (!task.isActive) {
+      return {
+        action: null,
+        label: 'Archived',
+        pendingLabel: 'Archived',
+        icon: Archive,
+      };
+    }
+
+    if (task.lifecycleStatus === 'draft') {
+      return {
+        action: 'launch' as const,
+        label: 'Launch',
+        pendingLabel: 'Launching...',
+        icon: Play,
+      };
+    }
+    if (task.lifecycleStatus === 'active') {
+      return {
+        action: 'pause' as const,
+        label: 'Pause',
+        pendingLabel: 'Pausing...',
+        icon: Pause,
+      };
+    }
+    if (task.lifecycleStatus === 'paused') {
+      return {
+        action: 'resume' as const,
+        label: 'Resume',
+        pendingLabel: 'Resuming...',
+        icon: Play,
+      };
+    }
+    return {
+      action: null,
+      label: 'Ended',
+      pendingLabel: 'Ended',
+      icon: Square,
+    };
+  })();
+
+  const LifecycleIcon = lifecycleAction.icon;
 
   const renderOptionsMenu = (layout: 'card' | 'list') => (
     <DropdownMenu
@@ -117,13 +186,28 @@ export function TaskCard({
         className="w-48"
         onClick={(event) => event.stopPropagation()}
       >
-        <DropdownMenuItem onClick={() => onView(task)}>
-          <Eye className="mr-2 h-4 w-4" />
-          View Details
+        <DropdownMenuItem onClick={() => onCopyShareLink(task)}>
+          <LinkIcon className="mr-2 h-4 w-4" />
+          Copy Sharing Link
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onCopyInviteCode(task)}>
+          <KeyRound className="mr-2 h-4 w-4" />
+          Copy Invite Code
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onEditSetting(task)}>
           <Settings className="mr-2 h-4 w-4" />
           View Setting
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={isDuplicating}
+          onClick={() => onDuplicate(task)}
+        >
+          {isDuplicating ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Copy className="mr-2 h-4 w-4" />
+          )}
+          Duplicate
         </DropdownMenuItem>
         <DropdownMenuItem
           disabled={isChangingActiveState}
@@ -160,11 +244,30 @@ export function TaskCard({
       <Button
         variant="default"
         size="sm"
-        className="w-full"
+        className="min-w-0 flex-1"
         onClick={() => onView(task)}
       >
         <Eye className="mr-2 h-4 w-4" />
         View
+      </Button>
+      <Button
+        type="button"
+        variant={task.lifecycleStatus === 'active' ? 'outline' : 'secondary'}
+        size="sm"
+        className="min-w-[112px]"
+        disabled={!lifecycleAction.action || isChangingLifecycleState || activeTab === 'archived'}
+        onClick={() => {
+          if (lifecycleAction.action) {
+            onLifecycleAction(task, lifecycleAction.action);
+          }
+        }}
+      >
+        {isChangingLifecycleState ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <LifecycleIcon className="mr-2 h-4 w-4" />
+        )}
+        {isChangingLifecycleState ? lifecycleAction.pendingLabel : lifecycleAction.label}
       </Button>
       {renderOptionsMenu('card')}
     </>
@@ -177,7 +280,7 @@ export function TaskCard({
           role="button"
           tabIndex={0}
           aria-label={`View ${task.name}`}
-          className="grid min-h-[5.5rem] cursor-pointer grid-cols-1 gap-3 px-2 py-3 transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:grid-cols-[minmax(0,1.4fr)_8.5rem_10rem_11rem_8rem] md:items-center"
+          className="grid min-h-[5.5rem] cursor-pointer grid-cols-1 gap-3 px-2 py-3 transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:grid-cols-[minmax(0,1.4fr)_8.5rem_10rem_11rem_15rem] md:items-center"
           onClick={() => onView(task)}
           onKeyDown={handleRowKeyDown}
         >
@@ -209,6 +312,26 @@ export function TaskCard({
             Created {formatDateTime(task.createdAt)}
           </div>
           <div className="flex items-center justify-end gap-2 md:justify-start">
+            <Button
+              type="button"
+              variant={task.lifecycleStatus === 'active' ? 'outline' : 'secondary'}
+              size="sm"
+              className="min-w-[96px]"
+              disabled={!lifecycleAction.action || isChangingLifecycleState || activeTab === 'archived'}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (lifecycleAction.action) {
+                  onLifecycleAction(task, lifecycleAction.action);
+                }
+              }}
+            >
+              {isChangingLifecycleState ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <LifecycleIcon className="mr-2 h-4 w-4" />
+              )}
+              {isChangingLifecycleState ? lifecycleAction.pendingLabel : lifecycleAction.label}
+            </Button>
             {renderOptionsMenu('list')}
           </div>
         </div>

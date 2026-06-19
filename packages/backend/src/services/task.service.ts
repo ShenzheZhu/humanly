@@ -15,7 +15,7 @@ import { FileModel } from '../models/file.model';
 import { UserModel } from '../models/user.model';
 import { RefreshTokenModel } from '../models/refresh-token.model';
 import { CertificateService } from './certificate.service';
-import type { AppFile, Document, Task, TaskWithSnippets, User } from '@humanly/shared';
+import type { AppFile, Document, Task, TaskLifecycleStatus, TaskWithSnippets, User } from '@humanly/shared';
 import {
   BRAND,
   TASK_INSTRUCTION_PDF_MAX_FILES,
@@ -29,7 +29,7 @@ import {
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
-import { cacheDelPattern } from '../config/redis';
+import { cacheDel, cacheDelPattern } from '../config/redis';
 import { FileStorageService } from './file-storage.service';
 import { FileService } from './file.service';
 import { buildDocumentEventTimeline } from './document-event-timeline.service';
@@ -37,7 +37,7 @@ import { generateToken, hashPassword, hashToken } from '../utils/crypto';
 import { generateAccessToken, generateRefreshToken, TokenPayload } from '../utils/jwt';
 
 const TASK_END_DATE_ERROR_MESSAGE = 'Task end date must be after start date';
-const TASK_SETTINGS_LOCK_MESSAGE = 'Task settings are read-only after task creation';
+const TASK_SETTINGS_LOCK_MESSAGE = 'Task settings are read-only after task launch';
 const TASK_INSTRUCTION_PDF_LIMIT_MESSAGE = `Tasks can include at most ${TASK_INSTRUCTION_PDF_MAX_FILES} instruction PDFs`;
 
 const getDateMs = (value: Date | string | number): number => new Date(value).getTime();
@@ -103,10 +103,6 @@ const assertSubmissionCharacterBounds = (task: Task, actualCharacters: number): 
 const normalizePublicSessionId = (value?: string): string => {
   const normalized = (value || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
   return normalized.slice(0, 64) || generateToken(16);
-};
-
-const sanitizeDocumentTitlePart = (value?: string): string => {
-  return (value || '').trim().replace(/\s+/g, ' ').slice(0, 80);
 };
 
 const createLexicalContentFromPlainText = (plainText: string) => {
@@ -192,7 +188,13 @@ export class TaskService {
     await cacheDelPattern(`analytics:${taskId}:*`);
   }
 
+  private static async invalidateTaskTokenCache(task: Pick<Task, 'taskToken'>): Promise<void> {
+    await cacheDel(`task:token:${task.taskToken}`);
+  }
+
   private static assertTaskAcceptsPublicWriters(task: Task): void {
+    this.assertTaskAcceptsWriters(task);
+
     const now = new Date();
     const startDate = new Date(task.startDate);
     const endDate = new Date(task.endDate);
@@ -202,6 +204,20 @@ export class TaskService {
     }
     if (now > endDate) {
       throw new AppError(400, 'The submission deadline has passed');
+    }
+  }
+
+  private static assertTaskAcceptsWriters(task: Task): void {
+    if ((task.lifecycleStatus || 'active') === 'active') return;
+
+    if (task.lifecycleStatus === 'draft') {
+      throw new AppError(409, 'This task has not been launched yet');
+    }
+    if (task.lifecycleStatus === 'paused') {
+      throw new AppError(409, 'This task is paused');
+    }
+    if (task.lifecycleStatus === 'ended') {
+      throw new AppError(409, 'This task has ended');
     }
   }
 
@@ -356,6 +372,8 @@ export class TaskService {
       throw new AppError(404, 'Task link not found or inactive');
     }
 
+    this.assertTaskAcceptsWriters(task);
+
     return task;
   }
 
@@ -422,6 +440,8 @@ export class TaskService {
       throw new AppError(404, 'Task invite code not found');
     }
 
+    this.assertTaskAcceptsWriters(task);
+
     await TaskModel.enrollUser(task.id, userId);
     await this.invalidateAnalytics(task.id);
 
@@ -471,6 +491,8 @@ export class TaskService {
     if (!task) {
       throw new AppError(404, 'Task not found');
     }
+
+    this.assertTaskAcceptsWriters(task);
 
     const isOwner = await DocumentModel.isOwner(documentId, userId);
     if (!isOwner) {
@@ -527,6 +549,8 @@ export class TaskService {
     if (!task) {
       throw new AppError(404, 'Task not found');
     }
+
+    this.assertTaskAcceptsWriters(task);
 
     const hasEnrollment = await TaskModel.hasEnrollment(task.id, userId);
     if (!hasEnrollment) {
@@ -596,6 +620,8 @@ export class TaskService {
     if (!task) {
       throw new AppError(404, 'Task not found');
     }
+
+    this.assertTaskAcceptsWriters(task);
 
     const isOwner = await DocumentModel.isOwner(documentId, userId);
     if (!isOwner) {
@@ -672,6 +698,8 @@ export class TaskService {
     if (!task) {
       throw new AppError(404, 'Task not found');
     }
+
+    this.assertTaskAcceptsWriters(task);
 
     const now = new Date();
     const startDate = new Date(task.startDate);
@@ -857,14 +885,11 @@ export class TaskService {
       : null;
 
     if (!document) {
-      const titleSuffix = isGuestMode
-        ? `Guest ${publicSessionId.slice(0, 8)}`
-        : sanitizeDocumentTitlePart(participantUser.email) || 'Signed-in writer';
       const content = createLexicalContentFromPlainText('');
 
       document = await DocumentModel.create({
         userId: participantUser.id,
-        title: `${task.name} Submission - ${titleSuffix}`,
+        title: task.name,
         description: isGuestMode
           ? 'Public task share-link document.'
           : 'Public task share-link document opened by a signed-in user.',
@@ -989,10 +1014,14 @@ export class TaskService {
     const providedFields = Object.entries(data)
       .filter(([, value]) => value !== undefined)
       .map(([key]) => key);
-    const isLifecycleOnlyUpdate = providedFields.length === 1 && providedFields[0] === 'isActive';
+    const isArchiveOnlyUpdate = providedFields.length === 1 && providedFields[0] === 'isActive';
 
-    if (!isLifecycleOnlyUpdate) {
+    if (!isArchiveOnlyUpdate && task.lifecycleStatus !== 'draft') {
       throw new AppError(409, TASK_SETTINGS_LOCK_MESSAGE);
+    }
+
+    if (data.startDate || data.endDate) {
+      assertTaskEndDateAfterStartDate(data.startDate || task.startDate, data.endDate || task.endDate);
     }
 
     logger.info('Updating task', { taskId, userId });
@@ -1003,9 +1032,80 @@ export class TaskService {
       throw new AppError(500, 'Failed to update task');
     }
 
+    await this.invalidateTaskTokenCache(updatedTask);
+
     logger.info('Task updated successfully', { taskId, userId });
 
     return updatedTask;
+  }
+
+  static async updateTaskLifecycle(
+    taskId: string,
+    userId: string,
+    nextStatus: TaskLifecycleStatus
+  ): Promise<Task> {
+    const task = await TaskModel.findById(taskId);
+
+    if (!task) {
+      throw new AppError(404, 'Task not found');
+    }
+
+    if (task.userId !== userId) {
+      throw new AppError(403, 'Access denied to this task');
+    }
+
+    const currentStatus = task.lifecycleStatus || 'active';
+    const allowedTransitions: Record<TaskLifecycleStatus, TaskLifecycleStatus[]> = {
+      draft: ['active', 'ended'],
+      active: ['paused', 'ended'],
+      paused: ['active', 'ended'],
+      ended: [],
+    };
+
+    if (currentStatus === nextStatus) {
+      return task;
+    }
+
+    if (!allowedTransitions[currentStatus].includes(nextStatus)) {
+      throw new AppError(409, `Cannot change task from ${currentStatus} to ${nextStatus}`);
+    }
+
+    if (nextStatus === 'active' && currentStatus === 'draft') {
+      assertTaskEndDateAfterStartDate(task.startDate, task.endDate);
+    }
+
+    const updatedTask = await TaskModel.updateLifecycle(taskId, nextStatus);
+
+    if (!updatedTask) {
+      throw new AppError(500, 'Failed to update task status');
+    }
+
+    await this.invalidateAnalytics(taskId);
+    await this.invalidateTaskTokenCache(updatedTask);
+    logger.info('Task lifecycle updated', { taskId, userId, currentStatus, nextStatus });
+
+    return updatedTask;
+  }
+
+  static async duplicateTask(taskId: string, userId: string): Promise<Task> {
+    const task = await TaskModel.findById(taskId);
+
+    if (!task) {
+      throw new AppError(404, 'Task not found');
+    }
+
+    if (task.userId !== userId) {
+      throw new AppError(403, 'Access denied to this task');
+    }
+
+    const duplicatedTask = await TaskModel.duplicate(taskId, userId);
+
+    if (!duplicatedTask) {
+      throw new AppError(500, 'Failed to duplicate task');
+    }
+
+    logger.info('Task duplicated', { taskId, duplicatedTaskId: duplicatedTask.id, userId });
+    return duplicatedTask;
   }
 
   /**

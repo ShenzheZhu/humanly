@@ -56,6 +56,64 @@ const AI_ACTION_LABELS: Record<string, string> = {
   formal: 'Make formal',
 };
 
+const PREVIEW_SPEEDS = [0.5, 1, 2, 4, 8];
+const PREVIEW_FRAME_DELAY_MS = 180;
+const FALLBACK_RECORDED_DELAY_MS = 250;
+const PREVIEW_SPEED_LABELS: Record<number, string> = {
+  0.5: 'Slow preview',
+  1: 'Preview',
+  2: 'Fast preview',
+  4: 'Faster preview',
+  8: 'Max preview',
+};
+
+function extractTextFromEditorState(editorState: any): string {
+  try {
+    if (editorState?.root?.children) {
+      return editorState.root.children
+        .map((child: any) => {
+          if (child.children) {
+            return child.children
+              .map((textNode: any) => textNode.text || '')
+              .join('');
+          }
+          return '';
+        })
+        .join('\n');
+    }
+    return '';
+  } catch {
+    return '';
+  }
+}
+
+function getRecordedDelayMs(editHistory: EditEvent[], index: number): number {
+  const currentTime = new Date(editHistory[index]?.timestamp || '').getTime();
+  const nextTime = new Date(editHistory[index + 1]?.timestamp || '').getTime();
+
+  if (!Number.isFinite(currentTime) || !Number.isFinite(nextTime)) {
+    return FALLBACK_RECORDED_DELAY_MS;
+  }
+
+  return Math.max(nextTime - currentTime, 0);
+}
+
+function getFirstVisibleIndex(editHistory: EditEvent[], startIndex = 0): number {
+  const safeStartIndex = Math.min(Math.max(startIndex, 0), Math.max(editHistory.length - 1, 0));
+
+  for (let index = safeStartIndex; index < editHistory.length; index += 1) {
+    if (extractTextFromEditorState(editHistory[index]?.editorState).trim().length > 0) {
+      return index;
+    }
+  }
+
+  return safeStartIndex;
+}
+
+function getPreviewSpeedLabel(speed: number): string {
+  return PREVIEW_SPEED_LABELS[speed] ?? 'Preview';
+}
+
 function getAIActionLabel(actionType?: string) {
   if (!actionType) return 'AI quick action';
   return AI_ACTION_LABELS[actionType] ?? actionType.replace(/_/g, ' ');
@@ -82,8 +140,8 @@ export function DocumentReplay({ token, accessCode, className = '' }: DocumentRe
   const [error, setError] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [useRealIntervals, setUseRealIntervals] = useState(false); // Default to uniform timing
-  const [uniformSpeed, setUniformSpeed] = useState(2); // Default 2x for uniform timing
+  const [useRealIntervals, setUseRealIntervals] = useState(false); // Default to fast preview timing
+  const [uniformSpeed, setUniformSpeed] = useState(1); // Default preview speed
   const [flashingActionType, setFlashingActionType] = useState<string | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const scrubActiveRef = useRef(false);
@@ -122,43 +180,25 @@ export function DocumentReplay({ token, accessCode, className = '' }: DocumentRe
     fetchHistory();
   }, [token, accessCode]);
 
-  // Auto-play logic with real intervals
+  // Auto-play logic with recorded intervals. Do not cap long pauses here:
+  // "Real timing" should preserve the original writing cadence.
   useEffect(() => {
     if (!isPlaying || editHistory.length === 0 || !useRealIntervals) {
       return;
     }
 
-    // Capture the starting index when effect begins
-    const startIdx = currentIndex;
-    let localIdx = startIdx;
-    let timeoutId: NodeJS.Timeout | null = null;
+    if (currentIndex >= editHistory.length - 1) {
+      setIsPlaying(false);
+      return;
+    }
 
-    const scheduleNext = () => {
-      if (localIdx >= editHistory.length - 1) {
-        setIsPlaying(false);
-        return;
-      }
+    const delay = getRecordedDelayMs(editHistory, currentIndex);
+    const timeoutId = setTimeout(() => {
+      setCurrentIndex((prev) => Math.min(prev + 1, editHistory.length - 1));
+    }, delay);
 
-      const nextIdx = localIdx + 1;
-      const currentTime = new Date(editHistory[localIdx].timestamp).getTime();
-      const nextTime = new Date(editHistory[nextIdx].timestamp).getTime();
-      const realDelay = nextTime - currentTime;
-      const adjustedDelay = Math.min(Math.max(realDelay, 10), 5000);
-
-      timeoutId = setTimeout(() => {
-        localIdx = nextIdx;
-        setCurrentIndex(nextIdx);
-        scheduleNext();
-      }, adjustedDelay);
-    };
-
-    scheduleNext();
-
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlaying, editHistory, useRealIntervals]);
+    return () => clearTimeout(timeoutId);
+  }, [currentIndex, editHistory, isPlaying, useRealIntervals]);
 
   // Auto-play logic with uniform intervals
   useEffect(() => {
@@ -166,8 +206,7 @@ export function DocumentReplay({ token, accessCode, className = '' }: DocumentRe
       return;
     }
 
-    const baseDelay = 100;
-    const delay = baseDelay / uniformSpeed;
+    const delay = PREVIEW_FRAME_DELAY_MS / uniformSpeed;
 
     const intervalId = setInterval(() => {
       setCurrentIndex((prev) => {
@@ -184,13 +223,20 @@ export function DocumentReplay({ token, accessCode, className = '' }: DocumentRe
 
   const handlePlayPause = useCallback(() => {
     if (currentIndex >= editHistory.length - 1) {
-      // If at the end, restart from beginning
-      setCurrentIndex(0);
+      // If at the end, restart from the first visible writing state.
+      setCurrentIndex(getFirstVisibleIndex(editHistory, 0));
       setIsPlaying(true);
     } else {
+      if (!isPlaying) {
+        const firstVisibleIndex = getFirstVisibleIndex(editHistory, currentIndex);
+
+        if (firstVisibleIndex > currentIndex) {
+          setCurrentIndex(firstVisibleIndex);
+        }
+      }
       setIsPlaying((prev) => !prev);
     }
-  }, [currentIndex, editHistory.length]);
+  }, [currentIndex, editHistory, isPlaying]);
 
   const handleRestart = useCallback(() => {
     setCurrentIndex(0);
@@ -271,10 +317,9 @@ export function DocumentReplay({ token, accessCode, className = '' }: DocumentRe
       return;
     }
 
-    const speeds = [0.5, 1, 2, 4, 8];
-    const currentSpeedIndex = speeds.indexOf(uniformSpeed);
-    const nextSpeedIndex = (currentSpeedIndex + 1) % speeds.length;
-    setUniformSpeed(speeds[nextSpeedIndex]);
+    const currentSpeedIndex = PREVIEW_SPEEDS.indexOf(uniformSpeed);
+    const nextSpeedIndex = (currentSpeedIndex + 1) % PREVIEW_SPEEDS.length;
+    setUniformSpeed(PREVIEW_SPEEDS[nextSpeedIndex]);
   }, [uniformSpeed, useRealIntervals]);
 
   useEffect(() => {
@@ -352,28 +397,13 @@ export function DocumentReplay({ token, accessCode, className = '' }: DocumentRe
     ? AI_ACTION_FLASH_STYLES[flashingActionType]
     : undefined;
 
-  // Helper to extract text from editor state
-  const extractText = (editorState: any): string => {
-    try {
-      if (editorState?.root?.children) {
-        return editorState.root.children
-          .map((child: any) => {
-            if (child.children) {
-              return child.children
-                .map((textNode: any) => textNode.text || '')
-                .join('');
-            }
-            return '';
-          })
-          .join('\n');
-      }
-      return '';
-    } catch {
-      return '';
-    }
-  };
-
-  const currentText = extractText(currentState.editorState);
+  const currentText = extractTextFromEditorState(currentState.editorState);
+  const nextRecordedDelayMs = currentIndex < editHistory.length - 1
+    ? getRecordedDelayMs(editHistory, currentIndex)
+    : 0;
+  const nextRecordedDelayLabel = nextRecordedDelayMs >= 1000
+    ? `${(nextRecordedDelayMs / 1000).toFixed(nextRecordedDelayMs >= 10000 ? 0 : 1)}s`
+    : `${nextRecordedDelayMs}ms`;
 
   return (
     <div className={`space-y-3 sm:space-y-4 ${className}`}>
@@ -520,12 +550,12 @@ export function DocumentReplay({ token, accessCode, className = '' }: DocumentRe
               handleSpeedChange();
             }}
             disabled={useRealIntervals}
-            aria-label={useRealIntervals ? 'Real timing playback speed 1x' : `Uniform timing playback speed ${uniformSpeed}x`}
-            title={useRealIntervals ? 'Real timing uses recorded intervals at 1x' : 'Change uniform playback speed'}
+            aria-label={useRealIntervals ? 'Recorded timing playback' : `${getPreviewSpeedLabel(uniformSpeed)} playback`}
+            title={useRealIntervals ? 'Real timing uses recorded event intervals' : 'Change fast preview playback speed'}
             className="h-10 px-3 text-sm flex-shrink-0"
             style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
           >
-            {useRealIntervals ? '1x' : `${uniformSpeed}x`}
+            {useRealIntervals ? 'Real' : getPreviewSpeedLabel(uniformSpeed)}
           </Button>
 
           <div className="flex-1 flex items-center gap-2 sm:gap-3 min-w-0">
@@ -597,11 +627,11 @@ export function DocumentReplay({ token, accessCode, className = '' }: DocumentRe
           <div className="text-[9px] sm:text-[10px] text-muted-foreground/80 leading-tight">
             {useRealIntervals ? (
               <span>
-                ⏱️ Real timing: Replays with authentic typing speed and pauses from original creation
+                Real timing: Replays recorded event intervals. Next interval: {nextRecordedDelayLabel}.
               </span>
             ) : (
               <span>
-                ⚡ Uniform timing: Shows each keystroke at consistent intervals for faster viewing
+                Fast preview: Shows each event at a fixed interval. Use Real timing for recorded speed.
               </span>
             )}
           </div>

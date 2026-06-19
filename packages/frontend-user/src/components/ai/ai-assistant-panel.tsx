@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { X, Send, Sparkles, Loader2, StopCircle, Trash2, History, ChevronDown, ChevronRight, Plus, CheckCircle, ImageIcon, AlertCircle } from 'lucide-react';
+import { X, Send, Sparkles, Loader2, StopCircle, History, ChevronDown, ChevronRight, Plus, CheckCircle, ImageIcon, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -49,6 +49,7 @@ interface AIAssistantPanelProps {
   lockedModel?: string;
   lockedBaseUrl?: string;
   pdfContextFile?: Pick<AppFile, 'pageCount' | 'textIndexStatus'> | null;
+  aiRequestLimit?: number | null;
   insertAtCursor?: ((text: string, source: { messageId: string; logId?: string }) => void | Promise<void>) | null;
 }
 
@@ -172,6 +173,7 @@ export function AIAssistantPanel({
   lockedModel,
   lockedBaseUrl,
   pdfContextFile,
+  aiRequestLimit,
   insertAtCursor,
 }: AIAssistantPanelProps) {
   const [input, setInput] = useState('');
@@ -232,7 +234,6 @@ export function AIAssistantPanel({
     error,
     sendMessage,
     cancelStream,
-    clearMessages,
     startNewChat,
     loadSession,
     viewLogsAsMessages,
@@ -240,7 +241,14 @@ export function AIAssistantPanel({
     clearError,
   } = useAI(documentId);
 
-  const { logs, isLoading: logsLoading, loadMore, hasMore, refresh: refreshLogs } = useAILogs(documentId);
+  const {
+    logs,
+    total: aiRequestCount,
+    isLoading: logsLoading,
+    loadMore,
+    hasMore,
+    refresh: refreshLogs,
+  } = useAILogs(documentId);
 
   const chatHistoryLogs = useMemo(
     () => logs.filter(isVisibleConversationHistoryLog),
@@ -254,6 +262,25 @@ export function AIAssistantPanel({
     pdfContextFile?.textIndexStatus,
     pdfContextFile?.pageCount
   );
+  const effectiveAiRequestLimit =
+    typeof aiRequestLimit === 'number' && Number.isFinite(aiRequestLimit) && aiRequestLimit > 0
+      ? Math.floor(aiRequestLimit)
+      : null;
+  const aiRequestsRemaining =
+    effectiveAiRequestLimit === null
+      ? null
+      : Math.max(0, effectiveAiRequestLimit - aiRequestCount);
+  const aiRequestLimitReached =
+    effectiveAiRequestLimit !== null && aiRequestsRemaining === 0;
+
+  const wasStreamingRef = useRef(false);
+
+  useEffect(() => {
+    if (wasStreamingRef.current && !isStreaming) {
+      refreshLogs();
+    }
+    wasStreamingRef.current = isStreaming;
+  }, [isStreaming, refreshLogs]);
 
   // Calculate unique session count from logs
   const sessionCount = useMemo(() => {
@@ -362,6 +389,7 @@ export function AIAssistantPanel({
     const hasText = Boolean(input.trim());
     const hasAttachments = pendingAttachments.length > 0;
     if ((!hasText && !hasAttachments) || isStreaming) return;
+    if (aiRequestLimitReached) return;
 
     // Hard refuse if a text-only model is selected with images staged.
     if (hasAttachments && !currentSupportsImage) {
@@ -466,12 +494,6 @@ export function AIAssistantPanel({
   };
 
   // Handle clearing chat - also refreshes logs to update history
-  const handleClearChat = async () => {
-    await clearMessages();
-    // Refresh logs to update the chat history list
-    refreshLogs();
-  };
-
   const handleOpenHistory = () => {
     refreshLogs();
     setHistoryPopoverOpen(true);
@@ -784,6 +806,21 @@ export function AIAssistantPanel({
             AI model: {formatModelOptionLabel(currentBaseUrl, currentModel)}
           </div>
         )}
+        {effectiveAiRequestLimit !== null && (
+          <div
+            className={cn(
+              'rounded-lg border px-2 py-1.5 text-[11px]',
+              aiRequestLimitReached
+                ? 'border-destructive/25 bg-destructive/10 text-destructive'
+                : 'border-[#d8d2c6] bg-[#f4f1ea] text-muted-foreground'
+            )}
+            title={`${aiRequestCount.toLocaleString()} of ${effectiveAiRequestLimit.toLocaleString()} AI requests used in this document.`}
+          >
+            {logsLoading
+              ? 'AI requests: checking usage...'
+              : `AI requests: ${aiRequestsRemaining?.toLocaleString()} remaining of ${effectiveAiRequestLimit.toLocaleString()}`}
+          </div>
+        )}
         {/* Pending image attachment chips (#93). Each chip is removable
             before sending; image bytes are already uploaded by the time
             they appear here. */}
@@ -836,7 +873,7 @@ export function AIAssistantPanel({
               onPaste={handlePasteImage}
               placeholder={quotedText ? "Ask a question about the selected text..." : "Type your message..."}
               className="min-h-[80px] max-h-[160px] resize-none text-sm w-full"
-              disabled={isStreaming}
+              disabled={isStreaming || aiRequestLimitReached}
             />
           </div>
           <div className="flex flex-col gap-1.5 shrink-0">
@@ -881,25 +918,19 @@ export function AIAssistantPanel({
                 type="submit"
                 size="sm"
                 className="h-9 w-9 p-0"
-                disabled={(!input.trim() && pendingAttachments.length === 0) || isLoading || attachmentUploading}
+                disabled={
+                  (!input.trim() && pendingAttachments.length === 0) ||
+                  isLoading ||
+                  attachmentUploading ||
+                  aiRequestLimitReached
+                }
+                title={aiRequestLimitReached ? 'AI request limit reached' : 'Send message'}
               >
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Send className="h-4 w-4" />
                 )}
-              </Button>
-            )}
-            {messages.length > 0 && (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="h-9 w-9 p-0"
-                onClick={handleClearChat}
-                title="Delete chat"
-              >
-                <Trash2 className="h-4 w-4" />
               </Button>
             )}
           </div>

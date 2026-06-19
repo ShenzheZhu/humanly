@@ -89,6 +89,7 @@ interface TaskEnrollment {
   name: string;
   inviteCode: string;
   documentId: string | null;
+  lifecycleStatus?: 'draft' | 'active' | 'paused' | 'ended';
   writingStartedAt?: string | Date | null;
   joinedAt: string;
   description?: string;
@@ -115,7 +116,7 @@ interface WritingTimerCardState {
 }
 
 interface TaskWindowStatus {
-  label: 'Scheduled' | 'Open now' | 'Ended';
+  label: 'Draft' | 'Open now' | 'Paused' | 'Scheduled' | 'Ended';
   tone: 'muted' | 'success' | 'warning';
 }
 
@@ -164,6 +165,27 @@ const getTaskStatusBadge = (
   nowMs: number,
   timerState: WritingTimerCardState | null
 ) => {
+  if (task.lifecycleStatus === 'draft') {
+    return {
+      label: 'Draft',
+      className: taskStatusToneClass.muted,
+    };
+  }
+
+  if (task.lifecycleStatus === 'paused') {
+    return {
+      label: 'Paused',
+      className: taskStatusToneClass.warning,
+    };
+  }
+
+  if (task.lifecycleStatus === 'ended') {
+    return {
+      label: 'Ended',
+      className: taskStatusToneClass.warning,
+    };
+  }
+
   if (timerState?.expired) {
     return {
       label: 'Read-only',
@@ -429,6 +451,7 @@ export default function DocumentsPage() {
         startDate: enrollmentFromApi?.startDate,
         endDate: enrollmentFromApi?.endDate,
         environmentConfig: enrollmentFromApi?.environmentConfig || null,
+        lifecycleStatus: enrollmentFromApi?.lifecycleStatus || 'active',
         inviteCode: normalizedCode,
         documentId: existingDocumentId || document?.id || null,
         joinedAt: enrollmentFromApi?.joinedAt || new Date().toISOString(),

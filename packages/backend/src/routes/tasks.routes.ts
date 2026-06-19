@@ -21,6 +21,11 @@ import {
   listTaskSubmissions,
   getTaskSubmissionEvents,
   updateTask,
+  launchTask,
+  pauseTask,
+  resumeTask,
+  endTask,
+  duplicateTask,
   deleteTask,
   regenerateToken,
   getSnippets,
@@ -141,6 +146,36 @@ router.get('/:id/submissions', asyncHandler(listTaskSubmissions));
  * Get document events up to the selected submission timestamp.
  */
 router.get('/:id/submissions/:submissionId/events', asyncHandler(getTaskSubmissionEvents));
+
+/**
+ * POST /api/v1/tasks/:id/launch
+ * Launch a draft task.
+ */
+router.post('/:id/launch', asyncHandler(launchTask));
+
+/**
+ * POST /api/v1/tasks/:id/pause
+ * Pause an active task.
+ */
+router.post('/:id/pause', asyncHandler(pauseTask));
+
+/**
+ * POST /api/v1/tasks/:id/resume
+ * Resume a paused task.
+ */
+router.post('/:id/resume', asyncHandler(resumeTask));
+
+/**
+ * POST /api/v1/tasks/:id/end
+ * End a task permanently.
+ */
+router.post('/:id/end', asyncHandler(endTask));
+
+/**
+ * POST /api/v1/tasks/:id/duplicate
+ * Duplicate task settings into a new draft task.
+ */
+router.post('/:id/duplicate', asyncHandler(duplicateTask));
 
 /**
  * GET /api/v1/tasks/:id
