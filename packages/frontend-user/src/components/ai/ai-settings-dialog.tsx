@@ -35,6 +35,7 @@ import {
   AI_MAX_TOKENS_MAX,
   AI_MAX_TOKENS_MIN,
   AI_SHORTCUT_MAX_TOKENS_DEFAULT,
+  WRITING_AI_EXISTING_KEY_SENTINEL,
   UserAISettings,
 } from '@humanly/shared';
 import {
@@ -139,7 +140,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
 
     try {
       const data: any = await api.post('/ai/settings/test', {
-        apiKey: keyToTest || '__use_existing__',
+        apiKey: keyToTest || WRITING_AI_EXISTING_KEY_SENTINEL,
         baseUrl: baseUrlToTest,
       });
       setTestResult({
@@ -186,7 +187,7 @@ export function AISettingsDialog({ onSettingsChanged }: AISettingsDialogProps) {
     setSaving(true);
     try {
       await api.put('/ai/settings', {
-        apiKey: apiKey || '__use_existing__',
+        apiKey: apiKey || WRITING_AI_EXISTING_KEY_SENTINEL,
         baseUrl: baseUrlToSave,
         model,
         shortcutMaxTokens,

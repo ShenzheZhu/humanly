@@ -78,6 +78,7 @@ import {
   TASK_INSTRUCTION_PDF_MAX_FILES,
   TASK_NAME_MAX_LENGTH,
   TASK_START_DATE_PAST_ERROR_MESSAGE,
+  WRITING_AI_EXISTING_KEY_SENTINEL,
   WRITING_AI_ACCESS_OPTIONS,
   WRITING_AI_POLICY_OPTIONS,
   WRITING_AI_MODELS,
@@ -96,8 +97,10 @@ import {
   parseEnvironmentConfigContent,
   validateWritingEnvironmentImportTemplate,
   buildWorkspaceSetupPreviewHash,
+  buildWritingAiConnectionTestRequest,
   type Task,
   type UserAISettings,
+  type WritingAiConnectionTestResult,
   type WorkspaceSetupPreviewPayload,
   type WritingAiAccess,
   type WritingAiPolicyMode,
@@ -106,6 +109,9 @@ import {
   type WritingAttemptPolicyMode,
   type WritingEnvironmentConfig,
   type WritingEnvironmentPreset,
+  getWritingAiConnectionTestValidationError,
+  normalizeWritingAiConnectionTestResult,
+  resolveWritingAiConnectionTestModels,
 } from '@humanly/shared';
 
 // Zod schema for form validation
@@ -141,7 +147,6 @@ const DEFAULT_AI_BASE_URL = 'https://api.together.xyz/v1';
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 const OPENAI_BASE_URL = 'https://api.openai.com/v1';
 const CLAUDE_BASE_URL = 'https://api.anthropic.com/v1';
-const USE_EXISTING_AI_KEY = '__use_existing__';
 const IMPORT_ENVIRONMENT_VALUE = 'import_environment';
 const DEFAULT_TASK_WINDOW_DAYS = 14;
 const UNLIMITED_TASK_WINDOW_YEARS = 100;
@@ -222,11 +227,6 @@ const resolveAiProviderConfig = (
     || (existingProvider?.baseUrl ? existingProvider : undefined)
     || getAiProviderConfigForBaseUrl(normalizedBaseUrl || DEFAULT_AI_BASE_URL)
   );
-};
-
-type AiConnectionResult = {
-  success: boolean;
-  message: string;
 };
 
 type EnvironmentSelection = 'default_writing' | 'custom' | typeof IMPORT_ENVIRONMENT_VALUE;
@@ -464,7 +464,7 @@ export default function NewTaskPage() {
   const [hasExistingAiKey, setHasExistingAiKey] = useState(false);
   const [maskedAiKey, setMaskedAiKey] = useState('');
   const [isTestingAiConnection, setIsTestingAiConnection] = useState(false);
-  const [aiConnectionResult, setAiConnectionResult] = useState<AiConnectionResult | null>(null);
+  const [aiConnectionResult, setAiConnectionResult] = useState<WritingAiConnectionTestResult | null>(null);
   const [testedAiModels, setTestedAiModels] = useState<string[]>([]);
   const [environmentDialogOpen, setEnvironmentDialogOpen] = useState(false);
   const [timeLimitEnabled, setTimeLimitEnabled] = useState(true);
@@ -477,6 +477,15 @@ export default function NewTaskPage() {
     getAdminEnvironmentConfig('default_writing')
   );
   const initialDefaultTaskWindow = useMemo(() => getDefaultTaskWindowValues(), []);
+
+  const clearAiConnectionState = () => {
+    setAiConnectionResult(null);
+    setTestedAiModels([]);
+  };
+
+  const clearAiConnectionResult = () => {
+    setAiConnectionResult(null);
+  };
 
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
@@ -647,8 +656,7 @@ export default function NewTaskPage() {
     setEnvironmentConfig(config);
     setAiAccessState(config.aiAccess);
     syncAiModelFromEnvironment(config);
-    setAiConnectionResult(null);
-    setTestedAiModels([]);
+    clearAiConnectionState();
     setWritingTimeLimitMinutesInput(getTimeLimitMinutesValue(config.time.timeLimitSeconds));
     form.setValue('aiUsageLimit', config.aiUsageLimit.maxRequests || 100);
     if (preset === 'default_writing') {
@@ -682,8 +690,7 @@ export default function NewTaskPage() {
       setEnvironmentConfig(config);
       setAiAccessState(config.aiAccess);
       syncAiModelFromEnvironment(config);
-      setAiConnectionResult(null);
-      setTestedAiModels([]);
+      clearAiConnectionState();
       setWritingTimeLimitMinutesInput(getTimeLimitMinutesValue(config.time.timeLimitSeconds));
       form.setValue('aiUsageLimit', config.aiUsageLimit.maxRequests || 100);
       setEnvironmentDialogOpen(false);
@@ -843,6 +850,7 @@ export default function NewTaskPage() {
   };
 
   const setAiAccess = (nextAccess: WritingAiAccess) => {
+    clearAiConnectionState();
     const defaultModel = modelBelongsToOptions(aiModel, aiModelOptions)
       ? aiModel
       : aiModelOptions[0] || 'gpt-5.4-mini';
@@ -872,12 +880,23 @@ export default function NewTaskPage() {
   };
 
   const testAiConnection = async (): Promise<boolean> => {
-    if (!aiApiKey.trim() && !hasExistingAiKey) {
+    const failConnectionTest = (message: string): false => {
       setAiConnectionResult({
         success: false,
-        message: 'Enter an AI API key before testing the connection.',
+        message,
       });
       return false;
+    };
+
+    const validationError = getWritingAiConnectionTestValidationError({
+      apiKey: aiApiKey,
+      hasExistingKey: hasExistingAiKey,
+      baseUrl: aiBaseUrl,
+      defaultBaseUrl: DEFAULT_AI_BASE_URL,
+      model: selectedAiModel,
+    });
+    if (validationError) {
+      return failConnectionTest(validationError.message);
     }
 
     setIsTestingAiConnection(true);
@@ -885,26 +904,31 @@ export default function NewTaskPage() {
     setTestedAiModels([]);
 
     try {
-      const result = await api.post<{ success: boolean; message?: string; models?: string[] }>('/api/v1/ai/settings/test', {
-        apiKey: aiApiKey.trim() || USE_EXISTING_AI_KEY,
-        baseUrl: aiBaseUrl.trim() || DEFAULT_AI_BASE_URL,
+      const request = buildWritingAiConnectionTestRequest({
+        apiKey: aiApiKey,
+        hasExistingKey: hasExistingAiKey,
+        baseUrl: aiBaseUrl,
+        defaultBaseUrl: DEFAULT_AI_BASE_URL,
         model: selectedAiModel,
       });
+      const result = await api.post<{ success: boolean; message?: string; models?: string[] }>(
+        '/api/v1/ai/settings/test',
+        request
+      );
+      const connectionResult = normalizeWritingAiConnectionTestResult(result);
 
-      setAiConnectionResult({
-        success: !!result.success,
-        message: result.message || (result.success ? 'Connection successful.' : 'Connection failed.'),
-      });
+      setAiConnectionResult(connectionResult);
 
-      if (result.success) {
+      if (connectionResult.success) {
         toast({
           title: 'AI key verified',
           description: 'Connection test passed. This task can use AI.',
         });
 
-        const fallbackModels = getWhitelist(aiBaseUrl.trim() || DEFAULT_AI_BASE_URL) || [];
-        const modelsFromApi = Array.isArray(result.models) ? result.models.filter(Boolean) : [];
-        const nextModels = fallbackModels.length ? fallbackModels : modelsFromApi;
+        const nextModels = resolveWritingAiConnectionTestModels({
+          whitelistedModels: getWhitelist(request.baseUrl),
+          providerModels: result.models,
+        });
 
         setTestedAiModels(nextModels);
 
@@ -914,7 +938,7 @@ export default function NewTaskPage() {
         }
       }
 
-      return !!result.success;
+      return connectionResult.success;
     } catch (err: any) {
       setAiConnectionResult({
         success: false,
@@ -962,7 +986,7 @@ export default function NewTaskPage() {
         }
 
         await api.put('/api/v1/ai/settings', {
-          apiKey: aiApiKey.trim() || USE_EXISTING_AI_KEY,
+          apiKey: aiApiKey.trim() || WRITING_AI_EXISTING_KEY_SENTINEL,
           baseUrl: aiBaseUrl.trim() || DEFAULT_AI_BASE_URL,
           model: selectedAiModel,
           shortcutMaxTokens: environmentConfig.aiTokenBudget?.shortcutMaxTokens || AI_SHORTCUT_MAX_TOKENS_DEFAULT,
@@ -1233,8 +1257,7 @@ export default function NewTaskPage() {
                 disabled={isSubmitting}
                 onChange={(event) => {
                   setAiApiKey(event.target.value);
-                  setAiConnectionResult(null);
-                  setTestedAiModels([]);
+                  clearAiConnectionState();
                 }}
                 placeholder={hasExistingAiKey ? `Current: ${maskedAiKey || 'saved key'}` : 'Enter API key'}
               />
@@ -1281,6 +1304,7 @@ export default function NewTaskPage() {
                   value={aiModel}
                   onValueChange={(value) => {
                     setAiModel(value);
+                    clearAiConnectionResult();
                     setEnvironmentAiModel(value);
                   }}
                 >
@@ -1306,8 +1330,7 @@ export default function NewTaskPage() {
                     const nextModel = getWhitelist(value)?.[0] || '';
                     setAiModel(nextModel);
                     setEnvironmentAiModel(nextModel);
-                    setAiConnectionResult(null);
-                    setTestedAiModels([]);
+                    clearAiConnectionState();
                   }}
                   disabled={isSubmitting}
                 >
