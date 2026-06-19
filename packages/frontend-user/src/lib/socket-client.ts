@@ -38,12 +38,13 @@ const attachRegisteredListeners = (nextSocket: Socket): void => {
 };
 
 /**
- * Initialize socket connection
+ * Initialize socket connection. A document-scoped token can be supplied for
+ * guest shared-link workspaces before the layout-level auth bridge settles.
  */
-export const initializeSocket = (): Socket => {
-  const token = TokenManager.getAccessToken();
+export const initializeSocket = (tokenOverride?: string | null): Socket => {
+  const token = tokenOverride ?? TokenManager.getAccessToken();
 
-  if (socket && socket.connected) {
+  if (socket) {
     if (socketAuthToken === token) {
       return socket;
     }

@@ -13,7 +13,7 @@ import {
   AgentTurnStartPayload,
   AgentTurnEndPayload,
 } from '@humanly/shared';
-import api from '@/lib/api-client';
+import api, { HumanlyAxiosRequestConfig, TokenManager } from '@/lib/api-client';
 import { getSocket, initializeSocket, emitEvent, onEvent, offEvent } from '@/lib/socket-client';
 
 /**
@@ -259,6 +259,27 @@ function createClientRequestId(prefix: string): string {
     : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+function getDocumentAccessToken(documentId: string): string | null {
+  return TokenManager.getPublicDocumentAccessToken(documentId) || TokenManager.getAccessToken();
+}
+
+function getDocumentAuthConfig(documentId: string): HumanlyAxiosRequestConfig | undefined {
+  const publicDocumentAccessToken = TokenManager.getPublicDocumentAccessToken(documentId);
+  if (!publicDocumentAccessToken) return undefined;
+
+  return {
+    headers: {
+      Authorization: `Bearer ${publicDocumentAccessToken}`,
+    },
+    skipAuthRedirect: true,
+    skipAuthRefresh: true,
+  };
+}
+
+function initializeDocumentSocket(documentId: string) {
+  return initializeSocket(getDocumentAccessToken(documentId));
+}
+
 function shouldIgnoreStreamEvent(
   state: Pick<
     AIState,
@@ -318,7 +339,7 @@ export const useAIStore = create<AIState>()(
             message,
             context,
             attachments: requestAttachments,
-          });
+          }, getDocumentAuthConfig(documentId));
 
           const { sessionId, message: responseMessage, suggestions } = response.data;
 
@@ -364,8 +385,10 @@ export const useAIStore = create<AIState>()(
         const clientRequestId = createClientRequestId('chat');
         const requestAttachments = stripClientOnlyAttachmentPreview(attachments);
 
-        // Check if socket is connected before attempting to send
-        const socket = getSocket();
+        // Check if socket is connected before attempting to send. Guest
+        // shared-link documents must use the document-scoped access token even
+        // before the page-level auth bridge finishes its first-load effects.
+        const socket = initializeDocumentSocket(documentId);
         if (!socket || !socket.connected) {
           set({
             error: 'Not connected to server. Please refresh the page and try again.',
@@ -476,7 +499,7 @@ export const useAIStore = create<AIState>()(
           onEvent('ai:response-complete', onComplete);
           onEvent('ai:error', onError);
 
-          const socket = getSocket();
+          const socket = initializeDocumentSocket(documentId);
           if (!socket || !socket.connected) {
             cleanup();
             reject(new Error('Not connected to server. Please refresh and try again.'));
@@ -579,7 +602,7 @@ export const useAIStore = create<AIState>()(
 
         try {
           // Initialize socket if not connected
-          initializeSocket();
+          initializeDocumentSocket(documentId);
 
           // Ensure socket listeners are registered now that socket exists
           // (setupSocketListeners may have been called before socket was created)
@@ -592,7 +615,7 @@ export const useAIStore = create<AIState>()(
           const response = await api.get<{
             success: boolean;
             data: AIChatSession[];
-          }>(`/ai/sessions/${documentId}`);
+          }>(`/ai/sessions/${documentId}`, getDocumentAuthConfig(documentId));
 
           const sessions = response.data;
           const activeSession = sessions.find((s) => s.status === 'active');
@@ -602,7 +625,7 @@ export const useAIStore = create<AIState>()(
             const sessionResponse = await api.get<{
               success: boolean;
               data: AIChatSession;
-            }>(`/ai/sessions/detail/${activeSession.id}`);
+            }>(`/ai/sessions/detail/${activeSession.id}`, getDocumentAuthConfig(documentId));
 
             const loadedMessages = sessionResponse.data.messages || [];
             set({
@@ -801,7 +824,10 @@ export const useAIStore = create<AIState>()(
             success: boolean;
             data: AIInteractionLog[];
             pagination: { total: number };
-          }>(`/ai/logs?documentId=${documentId}&offset=${offset}&limit=${limit}`);
+          }>(
+            `/ai/logs?documentId=${documentId}&offset=${offset}&limit=${limit}`,
+            getDocumentAuthConfig(documentId)
+          );
 
           set({
             logs: response.data,
@@ -824,7 +850,10 @@ export const useAIStore = create<AIState>()(
             success: boolean;
             data: AIInteractionLog[];
             pagination: { total: number };
-          }>(`/ai/logs?documentId=${documentId}&offset=${logs.length}&limit=20`);
+          }>(
+            `/ai/logs?documentId=${documentId}&offset=${logs.length}&limit=20`,
+            getDocumentAuthConfig(documentId)
+          );
 
           set((state) => ({
             logs: [...state.logs, ...response.data],
