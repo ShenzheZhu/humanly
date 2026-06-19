@@ -135,6 +135,14 @@ export const normalizeWritingAiPolicy = (
     : { mode: 'off' };
 };
 
+export const getWritingAiPolicyRejectionRuleInputValue = (
+  value?: Partial<WritingAiPolicyConfig> | null
+): string => (
+  normalizeWritingAiPolicyMode(value?.mode) === 'guard' && typeof value?.rejectionRule === 'string'
+    ? value.rejectionRule
+    : ''
+);
+
 export const getEffectiveWritingAiPolicy = (
   config?: Pick<WritingEnvironmentConfig, 'aiAccess' | 'aiPolicy'> | null
 ): WritingAiPolicyConfig => {

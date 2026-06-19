@@ -25,6 +25,7 @@ import {
   WRITING_ENVIRONMENT_PRESETS,
   formatWritingAiAccess,
   getEnvironmentConfigFileFormat,
+  getWritingAiPolicyRejectionRuleInputValue,
   isWritingAiChatEnabled,
   isWritingAiPolishEnabled,
   normalizeWritingAiPolicy,
@@ -1003,7 +1004,7 @@ export default function NewDocumentPage() {
                     <Textarea
                       id="ai-policy-rejection-rule"
                       aria-label="AI rejection rule"
-                      value={normalizeWritingAiPolicy(environmentConfig.aiPolicy).rejectionRule || ''}
+                      value={getWritingAiPolicyRejectionRuleInputValue(environmentConfig.aiPolicy)}
                       onChange={(event) => setAiPolicyRejectionRule(event.target.value)}
                       placeholder="Example: Refuse to produce evaluative claims; only help with grammar, wording, or understanding references."
                       className="min-h-24"
