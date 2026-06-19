@@ -729,16 +729,18 @@ export class TaskService {
       throw new AppError(404, 'Task enrollment not found');
     }
 
-    if (options.skipIfAlreadySubmitted) {
-      const activeSubmission = await SubmissionModel.findActiveForTaskAttempt(attempt.id);
-      if (activeSubmission) {
+    const activeAttemptSubmission = await SubmissionModel.findActiveForTaskAttempt(attempt.id);
+    if (activeAttemptSubmission) {
+      if (options.skipIfAlreadySubmitted) {
         return {
-          submission: activeSubmission,
+          submission: activeAttemptSubmission,
           certificate: null,
           skipped: true as const,
           reason: 'already_submitted',
         };
       }
+
+      throw new AppError(409, 'This task attempt has already been submitted');
     }
 
     const latestSubmission = await SubmissionModel.findLatestForUserTask(task.id, userId);
