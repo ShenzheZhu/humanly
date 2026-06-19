@@ -44,6 +44,20 @@ export default function DocumentsLayout({
     }
 
     if (isPublicGuestDocumentRoute) {
+      if (!isPublicDocumentTokenReady) {
+        setIsCheckingAuth(true);
+        return;
+      }
+
+      if (!hasChecked) {
+        setIsCheckingAuth(true);
+        checkAuth({ allowCookieRefresh: false }).finally(() => {
+          setHasChecked(true);
+          setIsCheckingAuth(false);
+        });
+        return;
+      }
+
       setIsCheckingAuth(false);
       return;
     }
@@ -62,7 +76,15 @@ export default function DocumentsLayout({
         setIsCheckingAuth(false);
       });
     }
-  }, [hasChecked, checkAuth, isPublicGuestDocumentRoute, isWorkspacePreviewRoute, pathname, router]);
+  }, [
+    hasChecked,
+    checkAuth,
+    isPublicDocumentTokenReady,
+    isPublicGuestDocumentRoute,
+    isWorkspacePreviewRoute,
+    pathname,
+    router,
+  ]);
 
   useEffect(() => {
     // Only redirect after we've checked auth and user is not authenticated
