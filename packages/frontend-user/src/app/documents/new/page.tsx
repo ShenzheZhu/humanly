@@ -10,6 +10,7 @@ import {
   Loader2,
   Upload,
   X,
+  XCircle,
 } from 'lucide-react';
 import {
   AI_CHAT_MAX_TOKENS_DEFAULT,
@@ -90,6 +91,10 @@ type EnvironmentSummaryItem = {
   label: string;
   value: string;
   detail?: string;
+};
+type AiConnectionResult = {
+  success: boolean;
+  message: string;
 };
 
 function SectionHeading({
@@ -296,10 +301,21 @@ export default function NewDocumentPage() {
   const [hasExistingAiKey, setHasExistingAiKey] = useState(false);
   const [maskedAiKey, setMaskedAiKey] = useState('');
   const [testedAiModels, setTestedAiModels] = useState<string[]>([]);
+  const [isTestingAiConnection, setIsTestingAiConnection] = useState(false);
+  const [aiConnectionResult, setAiConnectionResult] = useState<AiConnectionResult | null>(null);
   const [timeLimitMinutesInput, setTimeLimitMinutesInput] = useState('60');
   const [environmentDialogOpen, setEnvironmentDialogOpen] = useState(false);
   const [isValidatingEnvironment, setIsValidatingEnvironment] = useState(false);
   const allowEnvironmentDialogCloseRef = useRef(false);
+
+  const clearAiConnectionState = () => {
+    setAiConnectionResult(null);
+    setTestedAiModels([]);
+  };
+
+  const clearAiConnectionResult = () => {
+    setAiConnectionResult(null);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -321,6 +337,8 @@ export default function NewDocumentPage() {
         setMaskedAiKey(settings.maskedApiKey || '');
         setAiBaseUrl(settings.baseUrl || DEFAULT_AI_BASE_URL);
         setAiModel(settings.model || '');
+        setAiConnectionResult(null);
+        setTestedAiModels([]);
         setEnvironmentConfig((current) => ({
           ...current,
           aiTokenBudget: {
@@ -435,6 +453,7 @@ export default function NewDocumentPage() {
       if (config.aiProvider?.baseUrl) {
         setAiBaseUrl(config.aiProvider.baseUrl);
       }
+      clearAiConnectionState();
       syncAiModelFromEnvironment(config);
       setEnvironmentSelection('custom');
       setEnvironmentConfig(config);
@@ -463,7 +482,7 @@ export default function NewDocumentPage() {
 
   const updateAiBaseUrl = (nextBaseUrl: string, resetModel = false) => {
     setAiBaseUrl(nextBaseUrl);
-    setTestedAiModels([]);
+    clearAiConnectionState();
     markCustom((current) => ({
       ...current,
       aiProvider: getAiProviderConfigForBaseUrl(nextBaseUrl),
@@ -521,6 +540,7 @@ export default function NewDocumentPage() {
   };
 
   const setAiAccess = (aiAccess: WritingAiAccess) => {
+    clearAiConnectionState();
     const defaultModel = aiModel || aiModelOptions[0] || 'GPT-4.1';
 
     if (aiAccess !== 'off' && !aiModel) {
@@ -566,38 +586,49 @@ export default function NewDocumentPage() {
     }
   };
 
-  const validateAiEnvironmentBeforeDone = async (): Promise<boolean> => {
-    if (environmentConfig.aiAccess === 'off') return true;
+  const testAiConnection = async ({
+    showFailureToast = false,
+  }: {
+    showFailureToast?: boolean;
+  } = {}): Promise<boolean> => {
+    const failConnectionTest = (title: string, message: string) => {
+      setAiConnectionResult({ success: false, message });
+      if (showFailureToast) {
+        toast({
+          title,
+          description: message,
+          variant: 'destructive',
+        });
+      }
+      return false;
+    };
 
     if (!aiApiKey.trim() && !hasExistingAiKey) {
-      toast({
-        title: 'AI key required',
-        description: 'Enter an AI API key before using an AI-enabled environment.',
-        variant: 'destructive',
-      });
-      return false;
+      return failConnectionTest(
+        'AI key required',
+        'Enter an AI API key before testing the connection.'
+      );
     }
 
     if (!selectedAiModel) {
-      toast({
-        title: 'AI model required',
-        description: 'Select or enter the AI model for this writing environment.',
-        variant: 'destructive',
-      });
-      return false;
+      return failConnectionTest(
+        'AI model required',
+        'Select or enter the AI model for this writing environment.'
+      );
     }
 
     const baseUrlToTest = aiBaseUrl.trim();
     if (!baseUrlToTest) {
-      toast({
-        title: 'AI provider required',
-        description: 'Select a provider or enter a custom base URL before using an AI-enabled environment.',
-        variant: 'destructive',
-      });
-      return false;
+      return failConnectionTest(
+        'AI provider required',
+        'Select a provider or enter a custom base URL before testing the connection.'
+      );
     }
 
-    setIsValidatingEnvironment(true);
+    setIsTestingAiConnection(true);
+    setAiConnectionResult(null);
+    setTestedAiModels([]);
+
     try {
       const response = await apiClient.post('/ai/settings/test', {
         apiKey: aiApiKey.trim() || USE_EXISTING_AI_KEY,
@@ -605,25 +636,70 @@ export default function NewDocumentPage() {
         model: selectedAiModel,
       });
       const result = response.data;
-      if (!result?.success) {
-        toast({
-          title: 'AI API configuration failed',
-          description: result?.message || 'Humanly could not validate this API key, provider, and model.',
-          variant: 'destructive',
-        });
+      const success = !!result?.success;
+      const message = result?.message || (success ? 'Connection successful.' : 'Connection failed.');
+
+      setAiConnectionResult({ success, message });
+
+      if (!success) {
+        if (showFailureToast) {
+          toast({
+            title: 'AI API configuration failed',
+            description: message,
+            variant: 'destructive',
+          });
+        }
         return false;
       }
-      if (Array.isArray(result.models) && result.models.length > 0) {
-        setTestedAiModels(result.models);
+
+      toast({
+        title: 'AI key verified',
+        description: 'Connection test passed. This document can use AI.',
+      });
+
+      const fallbackModels = getWhitelist(baseUrlToTest) || [];
+      const modelsFromApi = Array.isArray(result.models) ? result.models.filter(Boolean) : [];
+      const nextModels = fallbackModels.length ? fallbackModels : modelsFromApi;
+
+      setTestedAiModels(nextModels);
+
+      if (nextModels.length > 0 && (!aiModel || !nextModels.includes(aiModel))) {
+        setAiModel(nextModels[0]);
+        setEnvironmentAiModel(nextModels[0]);
       }
+
       return true;
     } catch (err: any) {
-      toast({
-        title: 'AI API configuration failed',
-        description: err?.message || 'Humanly could not validate this API key, provider, and model.',
-        variant: 'destructive',
+      const message = err?.message || 'Connection test failed.';
+      setAiConnectionResult({
+        success: false,
+        message,
       });
+      if (showFailureToast) {
+        toast({
+          title: 'AI API configuration failed',
+          description: message,
+          variant: 'destructive',
+        });
+      }
       return false;
+    } finally {
+      setIsTestingAiConnection(false);
+    }
+  };
+
+  const handleTestAiConnection = async () => {
+    await testAiConnection();
+  };
+
+  const validateAiEnvironmentBeforeDone = async (): Promise<boolean> => {
+    if (environmentConfig.aiAccess === 'off') return true;
+
+    if (aiConnectionResult?.success === true) return true;
+
+    setIsValidatingEnvironment(true);
+    try {
+      return await testAiConnection({ showFailureToast: true });
     } finally {
       setIsValidatingEnvironment(false);
     }
@@ -644,7 +720,7 @@ export default function NewDocumentPage() {
       return;
     }
 
-    if (isValidatingEnvironment) {
+    if (isValidatingEnvironment || isTestingAiConnection) {
       return;
     }
 
@@ -874,7 +950,10 @@ export default function NewDocumentPage() {
                 id="ai-api-key"
                 type="password"
                 value={aiApiKey}
-                onChange={(event) => setAiApiKey(event.target.value)}
+                onChange={(event) => {
+                  setAiApiKey(event.target.value);
+                  clearAiConnectionState();
+                }}
                 placeholder={hasExistingAiKey ? `Current: ${maskedAiKey || 'saved key'}` : 'Enter API key'}
                 disabled={isCreating}
               />
@@ -885,6 +964,35 @@ export default function NewDocumentPage() {
               )}
             </div>
 
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleTestAiConnection}
+              disabled={isCreating || isValidatingEnvironment || isTestingAiConnection || (!aiApiKey.trim() && !hasExistingAiKey)}
+            >
+              {isTestingAiConnection ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Testing...
+                </>
+              ) : (
+                'Test Connection'
+              )}
+            </Button>
+
+            {aiConnectionResult && (
+              <div className="flex items-start gap-2 text-xs">
+                {aiConnectionResult.success ? (
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                ) : (
+                  <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                )}
+                <p className={aiConnectionResult.success ? 'text-emerald-700' : 'text-destructive'}>
+                  {aiConnectionResult.message}
+                </p>
+              </div>
+            )}
+
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="humanly-field">
                 <Label>Model</Label>
@@ -892,6 +1000,7 @@ export default function NewDocumentPage() {
                   value={aiModel}
                   onValueChange={(value) => {
                     setAiModel(value);
+                    clearAiConnectionResult();
                     setEnvironmentAiModel(value);
                   }}
                 >
@@ -1441,7 +1550,7 @@ export default function NewDocumentPage() {
             <Button
               type="button"
               onClick={handleCustomEnvironmentDone}
-              disabled={isCreating || isValidatingEnvironment}
+              disabled={isCreating || isValidatingEnvironment || isTestingAiConnection}
             >
               {isValidatingEnvironment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isValidatingEnvironment ? 'Checking API...' : 'Done'}
