@@ -190,7 +190,8 @@ export function getPublicDocumentAuthConfig(
   baseConfig: HumanlyAxiosRequestConfig = {}
 ): HumanlyAxiosRequestConfig | undefined {
   const publicDocumentAccessToken = TokenManager.getPublicDocumentAccessToken(documentId);
-  if (!publicDocumentAccessToken) {
+  const documentScopedAccessToken = publicDocumentAccessToken || TokenManager.getAccessToken();
+  if (!documentScopedAccessToken) {
     return Object.keys(baseConfig).length > 0 ? baseConfig : undefined;
   }
 
@@ -199,15 +200,23 @@ export function getPublicDocumentAuthConfig(
       ? (baseConfig.headers as Record<string, unknown>)
       : {};
 
-  return {
+  const config: HumanlyAxiosRequestConfig = {
     ...baseConfig,
     headers: {
       ...headers,
-      Authorization: `Bearer ${publicDocumentAccessToken}`,
+      Authorization: `Bearer ${documentScopedAccessToken}`,
     },
-    skipAuthRedirect: baseConfig.skipAuthRedirect ?? true,
-    skipAuthRefresh: baseConfig.skipAuthRefresh ?? true,
   };
+
+  if (publicDocumentAccessToken) {
+    return {
+      ...config,
+      skipAuthRedirect: baseConfig.skipAuthRedirect ?? true,
+      skipAuthRefresh: baseConfig.skipAuthRefresh ?? true,
+    };
+  }
+
+  return config;
 }
 
 /**

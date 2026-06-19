@@ -336,14 +336,15 @@ export class TaskModel {
       FROM tasks p
       ${this.enrollmentCountJoin}
       ${this.taskStatsJoin}
-      JOIN task_attempts ta
-        ON ta.task_id = p.id
-       AND ta.document_id = $1
-       AND ta.user_id = $2
       JOIN task_enrollments te
-        ON te.task_id = ta.task_id
-       AND te.user_id = ta.user_id
+        ON te.task_id = p.id
+       AND te.user_id = $2
+      LEFT JOIN task_attempts ta
+        ON ta.task_id = te.task_id
+       AND ta.user_id = te.user_id
+       AND ta.document_id = $1
       WHERE p.is_active = TRUE
+        AND (te.submission_document_id = $1 OR ta.document_id = $1)
       LIMIT 1
     `;
     return queryOne<Task>(sql, [documentId, userId]);

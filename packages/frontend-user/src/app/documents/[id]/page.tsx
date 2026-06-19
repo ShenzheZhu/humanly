@@ -348,6 +348,7 @@ export default function DocumentEditorPage() {
   const isGuestUser = isGuestUserEmail(user?.email);
   const hasPublicDocumentAccessToken = Boolean(TokenManager.getPublicDocumentAccessToken(documentId));
   const isGuestDocumentContext = isGuestUser || hasPublicDocumentAccessToken;
+  const isEnvironmentManagedDocument = isTaskDocument || isGuestDocumentContext;
   const isPublicTaskGuestDocument = isTaskDocument && isGuestDocumentContext;
   const taskEnvironmentConfig = taskEnrollment?.environmentConfig || null;
 
@@ -1269,7 +1270,7 @@ export default function DocumentEditorPage() {
     taskInstructionFile;
   const displayFile = selectedInstructionFile || linkedFile;
   const isResourceViewOnly = normalizeResourceAccessPolicy(currentEnvironmentConfig.resourceAccess) === 'view-only';
-  const lockedAiModel = currentEnvironmentConfig.allowedModels?.[0] || (taskEnrollment ? 'Task model' : undefined);
+  const lockedAiModel = currentEnvironmentConfig.allowedModels?.[0] || (isEnvironmentManagedDocument ? 'Task model' : undefined);
   const lockedAiBaseUrl = currentEnvironmentConfig.aiProvider?.baseUrl;
   const aiRequestLimit =
     currentEnvironmentConfig.aiUsageLimit.mode === 'max_requests' &&
@@ -1611,7 +1612,7 @@ export default function DocumentEditorPage() {
                           onClose();
                           handleAskAI(text);
                         }}
-                        taskManaged={!!taskEnrollment}
+                        taskManaged={isEnvironmentManagedDocument}
                         getDocumentPlainText={() => document?.plainText || ''}
                         documentTitle={document?.title || ''}
                         registerActionTrigger={(trigger) => {
@@ -1641,7 +1642,7 @@ export default function DocumentEditorPage() {
                     <AIAssistantPanel
                       documentId={documentId}
                       onClose={closeAIPanel}
-                      taskManaged={!!taskEnrollment}
+                      taskManaged={isEnvironmentManagedDocument}
                       lockedModel={lockedAiModel}
                       lockedBaseUrl={lockedAiBaseUrl}
                       pdfContextFile={displayFile}
