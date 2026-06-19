@@ -16,7 +16,7 @@ import {
   Download,
 } from 'lucide-react'
 import { fileApi } from '@/lib/file-api'
-import { api } from '@/lib/api-client'
+import { api, getPublicDocumentAuthConfig } from '@/lib/api-client'
 import { usePDFTextStore } from '@/stores/pdf-text-store'
 
 interface PDFViewerProps {
@@ -525,19 +525,23 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
     if (!viewOnly || !documentId) return
 
     try {
-      await api.post(`/documents/${documentId}/events`, {
-        events: [{
-          eventType,
-          timestamp: new Date().toISOString(),
-          targetElement: 'pdf-viewer',
-          metadata: {
-            source: 'pdf_viewer',
-            fileId,
-            viewOnly: true,
-            action: eventType === 'copy' ? 'copy_attempt' : 'contextmenu_attempt',
-          },
-        }],
-      })
+      await api.post(
+        `/documents/${documentId}/events`,
+        {
+          events: [{
+            eventType,
+            timestamp: new Date().toISOString(),
+            targetElement: 'pdf-viewer',
+            metadata: {
+              source: 'pdf_viewer',
+              fileId,
+              viewOnly: true,
+              action: eventType === 'copy' ? 'copy_attempt' : 'contextmenu_attempt',
+            },
+          }],
+        },
+        getPublicDocumentAuthConfig(documentId)
+      )
     } catch (err) {
       console.warn('Failed to log view-only PDF viewer attempt:', err)
     }

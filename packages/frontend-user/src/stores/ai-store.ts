@@ -17,7 +17,14 @@ import api, {
   getDocumentScopedAccessToken,
   getPublicDocumentAuthConfig,
 } from '@/lib/api-client';
-import { getSocket, initializeSocket, emitEvent, onEvent, offEvent } from '@/lib/socket-client';
+import {
+  getSocket,
+  initializeSocket,
+  waitForSocketConnection,
+  emitEvent,
+  onEvent,
+  offEvent,
+} from '@/lib/socket-client';
 
 /**
  * Sentinel sessionId used by the backend handler for selection-menu quick
@@ -371,47 +378,56 @@ export const useAIStore = create<AIState>()(
         const clientRequestId = createClientRequestId('chat');
         const requestAttachments = stripClientOnlyAttachmentPreview(attachments);
 
-        // Check if socket is connected before attempting to send. Guest
-        // shared-link documents must use the document-scoped access token even
-        // before the page-level auth bridge finishes its first-load effects.
         const socket = initializeDocumentSocket(documentId);
-        if (!socket || !socket.connected) {
-          set({
-            error: 'Not connected to server. Please refresh the page and try again.',
-          });
+        get().setupSocketListeners();
+
+        const emitMessage = () => {
+          // Add user message immediately. Attachments ride on metadata so
+          // the bubble can show an image thumbnail without re-fetching (#93).
+          const userMessage: AIChatMessage = {
+            id: `user-${Date.now()}`,
+            role: 'user',
+            content: message,
+            timestamp: new Date(),
+            metadata: attachments && attachments.length > 0 ? { attachments } : undefined,
+          };
+
+          set((state) => ({
+            messages: [...state.messages, userMessage],
+            isLoading: false,
+            isStreaming: true,
+            streamingContent: '',
+            streamingMessageId: null,
+            activeStreamSessionId: currentSession?.id ?? null,
+            activeStreamClientRequestId: clientRequestId,
+            error: null,
+          }));
+
+          emitEvent('ai:message', {
+            documentId,
+            sessionId: currentSession?.id,
+            forceNewSession,
+            message,
+            context,
+            attachments: requestAttachments,
+            clientRequestId,
+          } as AIChatRequest);
+        };
+
+        if (socket.connected) {
+          emitMessage();
           return;
         }
 
-        // Add user message immediately. Attachments ride on metadata so
-        // the bubble can show an image thumbnail without re-fetching (#93).
-        const userMessage: AIChatMessage = {
-          id: `user-${Date.now()}`,
-          role: 'user',
-          content: message,
-          timestamp: new Date(),
-          metadata: attachments && attachments.length > 0 ? { attachments } : undefined,
-        };
-
-        set((state) => ({
-          messages: [...state.messages, userMessage],
-          isStreaming: true,
-          streamingContent: '',
-          streamingMessageId: null,
-          activeStreamSessionId: currentSession?.id ?? null,
-          activeStreamClientRequestId: clientRequestId,
-          error: null,
-        }));
-
-        // Emit message via socket
-        emitEvent('ai:message', {
-          documentId,
-          sessionId: currentSession?.id,
-          forceNewSession,
-          message,
-          context,
-          attachments: requestAttachments,
-          clientRequestId,
-        } as AIChatRequest);
+        set({ isLoading: true, error: null });
+        waitForSocketConnection(socket)
+          .then(emitMessage)
+          .catch((error: any) => {
+            set({
+              isLoading: false,
+              error: error?.message || 'Failed to connect to the AI assistant',
+            });
+          });
       },
 
       cancelStream: () => {
@@ -485,20 +501,26 @@ export const useAIStore = create<AIState>()(
           onEvent('ai:response-complete', onComplete);
           onEvent('ai:error', onError);
 
-          const socket = initializeDocumentSocket(documentId);
-          if (!socket || !socket.connected) {
-            cleanup();
-            reject(new Error('Not connected to server. Please refresh and try again.'));
-            return;
-          }
-
-          emitEvent('ai:message', {
+          const emitSilentMessage = () => emitEvent('ai:message', {
             documentId,
             message,
             silent: true,
             clientRequestId,
             context,
           } as AIChatRequest);
+
+          const socket = initializeDocumentSocket(documentId);
+          if (socket.connected) {
+            emitSilentMessage();
+            return;
+          }
+
+          waitForSocketConnection(socket)
+            .then(emitSilentMessage)
+            .catch((error) => {
+              cleanup();
+              reject(error instanceof Error ? error : new Error('Failed to connect to the AI assistant'));
+            });
         }),
 
       cancelSilentStream: () => {
@@ -593,15 +615,20 @@ export const useAIStore = create<AIState>()(
         set({ isLoading: true, error: null });
 
         try {
-          // Initialize socket if not connected
-          initializeDocumentSocket(documentId);
+          // Guest shared-link documents must join the AI room with the
+          // document-scoped token before any first-load chat or log action.
+          const socket = initializeDocumentSocket(documentId);
 
           // Ensure socket listeners are registered now that socket exists
           // (setupSocketListeners may have been called before socket was created)
           get().setupSocketListeners();
 
-          // Join AI session via socket
-          emitEvent('ai:join-session', { documentId });
+          try {
+            await waitForSocketConnection(socket);
+            emitEvent('ai:join-session', { documentId });
+          } catch (socketError) {
+            console.warn('Failed to join AI socket session:', socketError);
+          }
 
           // Also try to load existing sessions
           const response = await api.get<{

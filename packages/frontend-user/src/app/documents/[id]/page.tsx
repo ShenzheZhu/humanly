@@ -639,7 +639,10 @@ export default function DocumentEditorPage() {
     const fetchTaskEnrollment = async () => {
       try {
         setIsTaskEnrollmentLoading(true);
-        const response = await apiClient.get('/tasks/my-enrollments');
+        const response = await apiClient.get(
+          '/tasks/my-enrollments',
+          getPublicDocumentAuthConfig(documentId)
+        );
         if (cancelled) return;
 
         const enrollments = response.data.data?.enrollments || [];
@@ -676,10 +679,15 @@ export default function DocumentEditorPage() {
       }
 
       try {
-        await apiClient.put(`/tasks/enrollments/${enrollment.id}/submission-document`, {
-          documentId,
-        });
-        const response = await apiClient.get(`/tasks/enrollments/${enrollment.id}/instruction-files`);
+        await apiClient.put(
+          `/tasks/enrollments/${enrollment.id}/submission-document`,
+          { documentId },
+          getPublicDocumentAuthConfig(documentId)
+        );
+        const response = await apiClient.get(
+          `/tasks/enrollments/${enrollment.id}/instruction-files`,
+          getPublicDocumentAuthConfig(documentId)
+        );
         if (cancelled) return;
         const files = response.data.data?.files || [];
         const file = response.data.data?.file || files[0] || null;
@@ -1181,10 +1189,14 @@ export default function DocumentEditorPage() {
           latestEditorSnapshotRef.current.plainText
         );
       }
-      const response = await apiClient.post(`/tasks/enrollments/${taskEnrollment.id}/submissions`, {
-        documentId,
-        ...(options.automatic ? { automatic: true } : {}),
-      });
+      const response = await apiClient.post(
+        `/tasks/enrollments/${taskEnrollment.id}/submissions`,
+        {
+          documentId,
+          ...(options.automatic ? { automatic: true } : {}),
+        },
+        getPublicDocumentAuthConfig(documentId)
+      );
       const certificate = response.data.data?.certificate;
       const publicDocumentAccessToken = TokenManager.getPublicDocumentAccessToken(documentId);
       if (certificate?.id && publicDocumentAccessToken) {
