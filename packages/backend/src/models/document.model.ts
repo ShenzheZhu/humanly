@@ -9,6 +9,24 @@ import {
 } from '@humanly/shared';
 
 export class DocumentModel {
+  private static activeTaskSubmissionGuard(documentAlias: string, userParam: string): string {
+    return `
+      NOT EXISTS (
+        SELECT 1
+        FROM task_enrollments te
+        JOIN tasks t
+          ON t.id = te.task_id
+        LEFT JOIN task_attempts ta
+          ON ta.task_id = te.task_id
+         AND ta.user_id = te.user_id
+         AND ta.document_id = ${documentAlias}.id
+        WHERE te.user_id = ${userParam}
+          AND (te.submission_document_id = ${documentAlias}.id OR ta.id IS NOT NULL)
+          AND t.deleted_at IS NOT NULL
+      )
+    `;
+  }
+
   /**
    * Create a new document
    */
@@ -105,7 +123,9 @@ export class DocumentModel {
         updated_at as "updatedAt",
         last_edited_at as "lastEditedAt"
       FROM documents
-      WHERE id = $1 AND user_id = $2
+      WHERE id = $1
+        AND user_id = $2
+        AND ${this.activeTaskSubmissionGuard('documents', '$2')}
     `;
 
     return queryOne<Document>(sql, [id, userId]);
@@ -152,6 +172,7 @@ export class DocumentModel {
               AND ta.user_id = $2
           )
         )
+        AND ${this.activeTaskSubmissionGuard('d', '$2')}
     `;
 
     return queryOne<Document>(sql, [id, userId]);
@@ -327,7 +348,9 @@ export class DocumentModel {
     const sql = `
       UPDATE documents
       SET ${updates.join(', ')}
-      WHERE id = $${paramIndex++} AND user_id = $${paramIndex++}
+      WHERE id = $${paramIndex++}
+        AND user_id = $${paramIndex++}
+        AND ${this.activeTaskSubmissionGuard('documents', `$${paramIndex - 1}`)}
       RETURNING
         id,
         user_id as "userId",
@@ -356,7 +379,9 @@ export class DocumentModel {
     const sql = `
       UPDATE documents
       SET writing_started_at = COALESCE(writing_started_at, NOW())
-      WHERE id = $1 AND user_id = $2
+      WHERE id = $1
+        AND user_id = $2
+        AND ${this.activeTaskSubmissionGuard('documents', '$2')}
       RETURNING
         id,
         user_id as "userId",
@@ -384,7 +409,9 @@ export class DocumentModel {
   static async delete(id: string, userId: string): Promise<boolean> {
     const sql = `
       DELETE FROM documents
-      WHERE id = $1 AND user_id = $2
+      WHERE id = $1
+        AND user_id = $2
+        AND ${this.activeTaskSubmissionGuard('documents', '$2')}
       RETURNING id
     `;
 
@@ -424,7 +451,9 @@ export class DocumentModel {
     const sql = `
       SELECT id
       FROM documents
-      WHERE id = $1 AND user_id = $2
+      WHERE id = $1
+        AND user_id = $2
+        AND ${this.activeTaskSubmissionGuard('documents', '$2')}
     `;
 
     const result = await queryOne<{ id: string }>(sql, [documentId, userId]);
@@ -454,9 +483,33 @@ export class DocumentModel {
               AND ta.user_id = $2
           )
         )
+        AND ${this.activeTaskSubmissionGuard('d', '$2')}
     `;
 
     const result = await queryOne<{ id: string }>(sql, [documentId, userId]);
+    return !!result;
+  }
+
+  static async isRevokedTaskSubmissionDocument(documentId: string, userId: string): Promise<boolean> {
+    const sql = `
+      SELECT 1
+      FROM documents d
+      JOIN task_enrollments te
+        ON te.user_id = $2
+      JOIN tasks t
+        ON t.id = te.task_id
+      LEFT JOIN task_attempts ta
+        ON ta.task_id = te.task_id
+       AND ta.user_id = te.user_id
+       AND ta.document_id = d.id
+      WHERE d.id = $1
+        AND (te.submission_document_id = d.id OR ta.id IS NOT NULL)
+        AND (d.user_id = $2 OR te.user_id = $2)
+        AND t.deleted_at IS NOT NULL
+      LIMIT 1
+    `;
+
+    const result = await queryOne(sql, [documentId, userId]);
     return !!result;
   }
 

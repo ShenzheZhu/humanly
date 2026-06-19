@@ -31,6 +31,23 @@ type DeleteDocumentResult = {
 };
 
 export class DocumentService {
+  private static async buildMissingDocumentError(
+    documentId: string,
+    userId: string,
+    fallbackMessage = 'Document not found'
+  ): Promise<AppError> {
+    const isRevokedTaskSubmission = await DocumentModel.isRevokedTaskSubmissionDocument(
+      documentId,
+      userId
+    );
+
+    if (isRevokedTaskSubmission) {
+      return new AppError(404, 'Task link not found or inactive');
+    }
+
+    return new AppError(404, fallbackMessage);
+  }
+
   /**
    * Create a new document
    */
@@ -83,7 +100,7 @@ export class DocumentService {
       const document = await DocumentModel.findByIdAndUserId(documentId, userId);
 
       if (!document) {
-        throw new AppError(404, 'Document not found');
+        throw await this.buildMissingDocumentError(documentId, userId);
       }
 
       return document;
@@ -115,7 +132,11 @@ export class DocumentService {
       const document = await DocumentModel.update(documentId, userId, updates);
 
       if (!document) {
-        throw new AppError(404, 'Document not found or unauthorized');
+        throw await this.buildMissingDocumentError(
+          documentId,
+          userId,
+          'Document not found or unauthorized'
+        );
       }
 
       logger.info('Document updated successfully', { documentId, userId });
@@ -139,7 +160,11 @@ export class DocumentService {
       const document = await DocumentModel.startWritingSession(documentId, userId);
 
       if (!document) {
-        throw new AppError(404, 'Document not found or unauthorized');
+        throw await this.buildMissingDocumentError(
+          documentId,
+          userId,
+          'Document not found or unauthorized'
+        );
       }
 
       return document;
@@ -494,6 +519,15 @@ export class DocumentService {
     userId: string
   ): Promise<DocumentStatistics> {
     try {
+      const canAccess = await DocumentModel.canAccess(documentId, userId);
+      if (!canAccess) {
+        throw await this.buildMissingDocumentError(
+          documentId,
+          userId,
+          'Document not found or unauthorized'
+        );
+      }
+
       const stats = await DocumentModel.getStatistics(documentId, userId);
 
       if (!stats) {

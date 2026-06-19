@@ -22,6 +22,7 @@ export interface Task {
   lifecycleStatus: TaskLifecycleStatus;
   launchedAt?: Date | null;
   endedAt?: Date | null;
+  deletedAt?: Date | null;
   enrolledUserCount?: number;
   documentCount?: number;
   eventCount?: number;
