@@ -288,6 +288,30 @@ export interface CertificateSeal {
   signedFields: string[];
 }
 
+export type AuthorshipCompositionAiType =
+  | 'chatInsert'
+  | 'grammar'
+  | 'improve'
+  | 'simplify'
+  | 'formal'
+  | 'other';
+
+export interface AuthorshipCompositionAiBreakdown {
+  chatInsert: number;
+  grammar: number;
+  improve: number;
+  simplify: number;
+  formal: number;
+  other: number;
+}
+
+export interface AuthorshipComposition {
+  typedCharacters: number;
+  pastedCharacters: number;
+  aiAssistedCharacters: number;
+  aiAssistedByType: AuthorshipCompositionAiBreakdown;
+}
+
 export interface Certificate {
   id: string;
   submissionId?: string | null;
@@ -308,6 +332,8 @@ export interface Certificate {
   totalCharacters: number;
   typedCharacters: number;
   pastedCharacters: number;
+  finalTextComposition?: AuthorshipComposition | null;
+  processInputVolume?: AuthorshipComposition | null;
   editingTimeSeconds: number;
   anomalyFlags?: WritingAnomalyFlag[];
   policyHash?: string | null;
@@ -349,6 +375,8 @@ export interface CertificateInsertData {
   totalCharacters: number;
   typedCharacters: number;
   pastedCharacters: number;
+  finalTextComposition?: AuthorshipComposition | null;
+  processInputVolume?: AuthorshipComposition | null;
   editingTimeSeconds: number;
   anomalyFlags?: WritingAnomalyFlag[];
   policyHash?: string | null;
@@ -399,6 +427,8 @@ export interface CertificateMetrics {
   totalCharacters: number;
   typedCharacters: number;
   pastedCharacters: number;
+  finalTextComposition?: AuthorshipComposition | null;
+  processInputVolume?: AuthorshipComposition | null;
   editingTimeSeconds: number;
   typedPercentage: number;
   pastedPercentage: number;
@@ -448,6 +478,8 @@ export interface JSONCertificate {
     totalCharacters: number;
     typedCharacters: number;
     pastedCharacters: number;
+    finalTextComposition?: AuthorshipComposition | null;
+    processInputVolume?: AuthorshipComposition | null;
     typedPercentage: number;
     pastedPercentage: number;
     totalEvents: number;

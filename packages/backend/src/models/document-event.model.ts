@@ -1,5 +1,7 @@
 import { query, queryOne } from '../config/database';
 import {
+  AuthorshipComposition,
+  AuthorshipCompositionAiType,
   DocumentEvent,
   DocumentEventInsertData,
   DocumentEventQueryFilters,
@@ -79,6 +81,309 @@ type VisibilityTraceEvent = {
   timestamp: Date | string;
   awayMs: number;
 };
+
+type TextSource = 'typed' | 'pasted' | 'ai_assisted';
+
+type SourceSpan = {
+  text: string;
+  source: TextSource;
+  aiType?: AuthorshipCompositionAiType;
+};
+
+type TextCompositionEvent = {
+  eventType: string;
+  textBefore: string | null;
+  textAfter: string | null;
+  selectionStart: number | null;
+  selectionEnd: number | null;
+  metadata: Record<string, any> | null;
+};
+
+type SourceInfo = {
+  source: TextSource;
+  aiType?: AuthorshipCompositionAiType;
+};
+
+export interface AuthorshipCompositionMetrics {
+  finalTextComposition: AuthorshipComposition;
+  processInputVolume: AuthorshipComposition;
+}
+
+const TEXT_DIFF_MAX_CELLS = 1_000_000;
+
+function emptyComposition(): AuthorshipComposition {
+  return {
+    typedCharacters: 0,
+    pastedCharacters: 0,
+    aiAssistedCharacters: 0,
+    aiAssistedByType: {
+      chatInsert: 0,
+      grammar: 0,
+      improve: 0,
+      simplify: 0,
+      formal: 0,
+      other: 0,
+    },
+  };
+}
+
+function addCompositionCharacters(
+  composition: AuthorshipComposition,
+  source: TextSource,
+  count: number,
+  aiType: AuthorshipCompositionAiType = 'other'
+): void {
+  if (count <= 0) return;
+  if (source === 'typed') {
+    composition.typedCharacters += count;
+    return;
+  }
+  if (source === 'pasted') {
+    composition.pastedCharacters += count;
+    return;
+  }
+  composition.aiAssistedCharacters += count;
+  composition.aiAssistedByType[aiType] += count;
+}
+
+function compositionFromSpans(spans: SourceSpan[]): AuthorshipComposition {
+  const composition = emptyComposition();
+  for (const span of spans) {
+    addCompositionCharacters(composition, span.source, span.text.length, span.aiType);
+  }
+  return composition;
+}
+
+function normalizeAiType(value: unknown): AuthorshipCompositionAiType {
+  if (value === 'grammar' || value === 'improve' || value === 'simplify' || value === 'formal') {
+    return value;
+  }
+  return 'other';
+}
+
+function getSourceInfo(event: TextCompositionEvent): SourceInfo {
+  if (event.eventType === 'paste') {
+    return { source: 'pasted' };
+  }
+
+  if (event.eventType === 'ai_insert_from_chat') {
+    return { source: 'ai_assisted', aiType: 'chatInsert' };
+  }
+
+  if (event.eventType === 'ai_selection_action' || event.eventType === 'ai_modification_applied') {
+    return {
+      source: 'ai_assisted',
+      aiType: normalizeAiType(event.metadata?.actionType),
+    };
+  }
+
+  return { source: 'typed' };
+}
+
+function mergeAdjacentSpans(spans: SourceSpan[]): SourceSpan[] {
+  const merged: SourceSpan[] = [];
+  for (const span of spans) {
+    if (!span.text) continue;
+    const previous = merged[merged.length - 1];
+    if (previous && previous.source === span.source && previous.aiType === span.aiType) {
+      previous.text += span.text;
+    } else {
+      merged.push({ ...span });
+    }
+  }
+  return merged;
+}
+
+function textFromSpans(spans: SourceSpan[]): string {
+  return spans.map((span) => span.text).join('');
+}
+
+function sliceSpans(spans: SourceSpan[], start: number, end: number): SourceSpan[] {
+  if (end <= start) return [];
+  const result: SourceSpan[] = [];
+  let offset = 0;
+
+  for (const span of spans) {
+    const spanStart = offset;
+    const spanEnd = offset + span.text.length;
+    offset = spanEnd;
+
+    if (spanEnd <= start) continue;
+    if (spanStart >= end) break;
+
+    const localStart = Math.max(0, start - spanStart);
+    const localEnd = Math.min(span.text.length, end - spanStart);
+    result.push({
+      text: span.text.slice(localStart, localEnd),
+      source: span.source,
+      aiType: span.aiType,
+    });
+  }
+
+  return result;
+}
+
+function replaceSpanRange(
+  spans: SourceSpan[],
+  start: number,
+  end: number,
+  replacement: SourceSpan[]
+): SourceSpan[] {
+  return mergeAdjacentSpans([
+    ...sliceSpans(spans, 0, start),
+    ...replacement,
+    ...sliceSpans(spans, end, textFromSpans(spans).length),
+  ]);
+}
+
+function commonPrefixLength(left: string, right: string): number {
+  const max = Math.min(left.length, right.length);
+  let index = 0;
+  while (index < max && left[index] === right[index]) {
+    index += 1;
+  }
+  return index;
+}
+
+function commonSuffixLength(left: string, right: string, prefixLength: number): number {
+  const max = Math.min(left.length, right.length) - prefixLength;
+  let count = 0;
+  while (
+    count < max &&
+    left[left.length - 1 - count] === right[right.length - 1 - count]
+  ) {
+    count += 1;
+  }
+  return count;
+}
+
+function spansToCharacterSpans(spans: SourceSpan[]): SourceSpan[] {
+  const chars: SourceSpan[] = [];
+  for (const span of spans) {
+    for (let index = 0; index < span.text.length; index += 1) {
+      chars.push({
+        text: span.text[index],
+        source: span.source,
+        aiType: span.aiType,
+      });
+    }
+  }
+  return chars;
+}
+
+function buildInsertedSpan(text: string, sourceInfo: SourceInfo): SourceSpan {
+  return {
+    text,
+    source: sourceInfo.source,
+    aiType: sourceInfo.source === 'ai_assisted' ? sourceInfo.aiType || 'other' : undefined,
+  };
+}
+
+function diffMiddleSpans(
+  oldSpans: SourceSpan[],
+  oldText: string,
+  newText: string,
+  sourceInfo: SourceInfo,
+  processInputVolume: AuthorshipComposition
+): SourceSpan[] {
+  if (!newText) return [];
+  if (!oldText) {
+    addCompositionCharacters(processInputVolume, sourceInfo.source, newText.length, sourceInfo.aiType);
+    return [buildInsertedSpan(newText, sourceInfo)];
+  }
+
+  if (oldText.length * newText.length > TEXT_DIFF_MAX_CELLS) {
+    addCompositionCharacters(processInputVolume, sourceInfo.source, newText.length, sourceInfo.aiType);
+    return [buildInsertedSpan(newText, sourceInfo)];
+  }
+
+  const oldChars = spansToCharacterSpans(oldSpans);
+  const rowCount = oldText.length + 1;
+  const colCount = newText.length + 1;
+  const dp = Array.from({ length: rowCount }, () => new Uint32Array(colCount));
+
+  for (let i = oldText.length - 1; i >= 0; i -= 1) {
+    for (let j = newText.length - 1; j >= 0; j -= 1) {
+      if (oldText[i] === newText[j]) {
+        dp[i][j] = dp[i + 1][j + 1] + 1;
+      } else {
+        dp[i][j] = Math.max(dp[i + 1][j], dp[i][j + 1]);
+      }
+    }
+  }
+
+  const result: SourceSpan[] = [];
+  let i = 0;
+  let j = 0;
+
+  while (i < oldText.length || j < newText.length) {
+    if (i < oldText.length && j < newText.length && oldText[i] === newText[j]) {
+      result.push(oldChars[i]);
+      i += 1;
+      j += 1;
+      continue;
+    }
+
+    if (j < newText.length && (i >= oldText.length || dp[i][j + 1] >= dp[i + 1][j])) {
+      const inserted = buildInsertedSpan(newText[j], sourceInfo);
+      result.push(inserted);
+      addCompositionCharacters(processInputVolume, inserted.source, 1, inserted.aiType);
+      j += 1;
+      continue;
+    }
+
+    i += 1;
+  }
+
+  return mergeAdjacentSpans(result);
+}
+
+function applyTextTransition(
+  spans: SourceSpan[],
+  beforeText: string,
+  afterText: string,
+  sourceInfo: SourceInfo,
+  processInputVolume: AuthorshipComposition
+): SourceSpan[] {
+  const prefix = commonPrefixLength(beforeText, afterText);
+  const suffix = commonSuffixLength(beforeText, afterText, prefix);
+  const beforeMiddleStart = prefix;
+  const beforeMiddleEnd = beforeText.length - suffix;
+  const afterMiddleStart = prefix;
+  const afterMiddleEnd = afterText.length - suffix;
+  const oldMiddleSpans = sliceSpans(spans, beforeMiddleStart, beforeMiddleEnd);
+  const oldMiddleText = beforeText.slice(beforeMiddleStart, beforeMiddleEnd);
+  const newMiddleText = afterText.slice(afterMiddleStart, afterMiddleEnd);
+  const replacement = diffMiddleSpans(oldMiddleSpans, oldMiddleText, newMiddleText, sourceInfo, processInputVolume);
+
+  return replaceSpanRange(spans, beforeMiddleStart, beforeMiddleEnd, replacement);
+}
+
+function findEventRange(event: TextCompositionEvent, currentText: string): { start: number; end: number } | null {
+  const start = event.selectionStart;
+  const end = event.selectionEnd;
+  const beforeText = event.textBefore || '';
+
+  if (
+    typeof start === 'number' &&
+    typeof end === 'number' &&
+    start >= 0 &&
+    end >= start &&
+    end <= currentText.length &&
+    (!beforeText || currentText.slice(start, end) === beforeText)
+  ) {
+    return { start, end };
+  }
+
+  if (beforeText) {
+    const matchIndex = currentText.indexOf(beforeText);
+    if (matchIndex >= 0 && currentText.indexOf(beforeText, matchIndex + 1) === -1) {
+      return { start: matchIndex, end: matchIndex + beforeText.length };
+    }
+  }
+
+  return null;
+}
 
 function timestampMs(timestamp: Date | string) {
   return new Date(timestamp).getTime();
@@ -859,15 +1164,12 @@ export class DocumentEventModel {
   }
 
   /**
-   * Calculate typing metrics for certificate generation
+   * Calculate final-text and process-volume composition for certificate generation.
    */
-  static async calculateTypingMetrics(
+  static async calculateCompositionMetrics(
     documentId: string,
     filters: Pick<DocumentEventQueryFilters, 'startDate' | 'endDate'> = {}
-  ): Promise<{
-    typedCharacters: number;
-    pastedCharacters: number;
-  }> {
+  ): Promise<AuthorshipCompositionMetrics> {
     const params: any[] = [documentId];
     const dateClauses: string[] = [];
     if (filters.startDate) {
@@ -879,45 +1181,84 @@ export class DocumentEventModel {
       params.push(filters.endDate);
     }
 
-    // Get all events with text_after field
     const sql = `
       SELECT
         event_type as "eventType",
         text_before as "textBefore",
-        text_after as "textAfter"
+        text_after as "textAfter",
+        selection_start as "selectionStart",
+        selection_end as "selectionEnd",
+        metadata
       FROM document_events
       WHERE document_id = $1
         AND text_after IS NOT NULL
         ${dateClauses.length ? `AND ${dateClauses.join(' AND ')}` : ''}
-      ORDER BY timestamp ASC
+      ORDER BY timestamp ASC, created_at ASC, id ASC
     `;
 
-    const events = await query<{
-      eventType: string;
-      textBefore: string | null;
-      textAfter: string | null;
-    }>(sql, params);
-
-    let typedCharacters = 0;
-    let pastedCharacters = 0;
+    const events = await query<TextCompositionEvent>(sql, params);
+    let spans: SourceSpan[] = [];
+    const processInputVolume = emptyComposition();
 
     for (const event of events) {
-      if (!event.textAfter) continue;
+      if (event.textAfter === null || event.textAfter === undefined) continue;
 
-      const beforeLength = event.textBefore?.length || 0;
-      const afterLength = event.textAfter.length;
-      const difference = afterLength - beforeLength;
+      const currentText = textFromSpans(spans);
+      const beforeText = event.textBefore || '';
+      const afterText = event.textAfter;
+      const sourceInfo = getSourceInfo(event);
 
-      if (difference > 0) {
-        if (event.eventType === 'paste' || event.eventType === 'ai_insert_from_chat') {
-          pastedCharacters += difference;
-        } else if (event.eventType === 'keydown' || event.eventType === 'input') {
-          typedCharacters += difference;
+      if (
+        (event.eventType === 'ai_selection_action' || event.eventType === 'ai_modification_applied') &&
+        beforeText
+      ) {
+        const range = findEventRange(event, currentText);
+        if (range) {
+          const selectedSpans = sliceSpans(spans, range.start, range.end);
+          const replacement = applyTextTransition(
+            selectedSpans,
+            beforeText,
+            afterText,
+            sourceInfo,
+            processInputVolume
+          );
+          spans = replaceSpanRange(spans, range.start, range.end, replacement);
+          continue;
         }
+      }
+
+      if (currentText === beforeText || spans.length === 0) {
+        spans = applyTextTransition(spans, beforeText, afterText, sourceInfo, processInputVolume);
+        continue;
+      }
+
+      if (currentText !== afterText) {
+        spans = applyTextTransition(spans, currentText, afterText, sourceInfo, processInputVolume);
       }
     }
 
-    return { typedCharacters, pastedCharacters };
+    return {
+      finalTextComposition: compositionFromSpans(spans),
+      processInputVolume,
+    };
+  }
+
+  /**
+   * Calculate typing metrics for anomaly review. This keeps the legacy shape
+   * but now uses cumulative process volume so deleted pasted text is still counted.
+   */
+  static async calculateTypingMetrics(
+    documentId: string,
+    filters: Pick<DocumentEventQueryFilters, 'startDate' | 'endDate'> = {}
+  ): Promise<{
+    typedCharacters: number;
+    pastedCharacters: number;
+  }> {
+    const { processInputVolume } = await this.calculateCompositionMetrics(documentId, filters);
+    return {
+      typedCharacters: processInputVolume.typedCharacters,
+      pastedCharacters: processInputVolume.pastedCharacters,
+    };
   }
 
   /**

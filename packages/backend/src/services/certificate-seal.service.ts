@@ -3,6 +3,7 @@ import {
   CertificateSeal,
   CertificateSealStatus,
   CertificateType,
+  AuthorshipComposition,
   WritingAnomalyFlag,
 } from '@humanly/shared';
 
@@ -13,6 +14,8 @@ export const CERTIFICATE_SEAL_KEY_ID = 'humanly-server-v1';
 export const CERTIFICATE_SEAL_SIGNATURE_PREFIX = `${CERTIFICATE_SEAL_VERSION}.`;
 export const LEGACY_CERTIFICATE_SEAL_SIGNATURE_PREFIX = `${LEGACY_CERTIFICATE_SEAL_VERSION}.`;
 const CERTIFICATE_SEAL_POLICY_HASH_FIELD = 'policyHash';
+const CERTIFICATE_SEAL_FINAL_COMPOSITION_FIELD = 'metrics.finalTextComposition';
+const CERTIFICATE_SEAL_PROCESS_COMPOSITION_FIELD = 'metrics.processInputVolume';
 
 // The seal protects the server-issued certificate record and current display
 // controls. It intentionally does not protect plaintext access codes, access
@@ -61,6 +64,8 @@ export interface CertificateSealInput {
   totalCharacters: number;
   typedCharacters: number;
   pastedCharacters: number;
+  finalTextComposition?: AuthorshipComposition | null;
+  processInputVolume?: AuthorshipComposition | null;
   editingTimeSeconds: number;
   anomalyFlags?: WritingAnomalyFlag[];
   policyHash?: string | null;
@@ -145,6 +150,24 @@ export class CertificateSealService {
     input: CertificateSealInput,
     version: typeof CERTIFICATE_SEAL_VERSION | typeof LEGACY_CERTIFICATE_SEAL_VERSION
   ) {
+    const metrics: Record<string, unknown> = {
+      totalEvents: input.totalEvents,
+      typingEvents: input.typingEvents,
+      pasteEvents: input.pasteEvents,
+      totalCharacters: input.totalCharacters,
+      typedCharacters: input.typedCharacters,
+      pastedCharacters: input.pastedCharacters,
+      editingTimeSeconds: input.editingTimeSeconds,
+    };
+
+    if (input.finalTextComposition) {
+      metrics.finalTextComposition = input.finalTextComposition;
+    }
+
+    if (input.processInputVolume) {
+      metrics.processInputVolume = input.processInputVolume;
+    }
+
     const payload = {
       version,
       certificateId: input.id,
@@ -159,15 +182,7 @@ export class CertificateSealService {
         documentSnapshotSha256: sha256Hex(canonicalJSONString(input.documentSnapshot || {})),
         plainTextSnapshotSha256: sha256Hex(input.plainTextSnapshot || ''),
       },
-      metrics: {
-        totalEvents: input.totalEvents,
-        typingEvents: input.typingEvents,
-        pasteEvents: input.pasteEvents,
-        totalCharacters: input.totalCharacters,
-        typedCharacters: input.typedCharacters,
-        pastedCharacters: input.pastedCharacters,
-        editingTimeSeconds: input.editingTimeSeconds,
-      },
+      metrics,
       options: {
         signerName: input.signerName || null,
         includeFullText: input.includeFullText,
@@ -198,9 +213,18 @@ export class CertificateSealService {
       return [...LEGACY_CERTIFICATE_SEAL_SIGNED_FIELDS];
     }
 
-    return input.policyHash
-      ? [...CERTIFICATE_SEAL_SIGNED_FIELDS, CERTIFICATE_SEAL_POLICY_HASH_FIELD]
-      : [...CERTIFICATE_SEAL_SIGNED_FIELDS];
+    const signedFields: string[] = [...CERTIFICATE_SEAL_SIGNED_FIELDS];
+    if (input.finalTextComposition) {
+      signedFields.push(CERTIFICATE_SEAL_FINAL_COMPOSITION_FIELD);
+    }
+    if (input.processInputVolume) {
+      signedFields.push(CERTIFICATE_SEAL_PROCESS_COMPOSITION_FIELD);
+    }
+    if (input.policyHash) {
+      signedFields.push(CERTIFICATE_SEAL_POLICY_HASH_FIELD);
+    }
+
+    return signedFields;
   }
 
   static buildPayload(input: CertificateSealInput) {

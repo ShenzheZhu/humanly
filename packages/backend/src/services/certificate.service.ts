@@ -111,6 +111,8 @@ export class CertificateService {
         totalCharacters: document.characterCount,
         typedCharacters: metrics.typedCharacters,
         pastedCharacters: metrics.pastedCharacters,
+        finalTextComposition: metrics.finalTextComposition,
+        processInputVolume: metrics.processInputVolume,
         editingTimeSeconds: Math.round(metrics.editingTimeSeconds),
         anomalyFlags,
         policyHash,
@@ -138,6 +140,8 @@ export class CertificateService {
         totalCharacters: document.characterCount,
         typedCharacters: metrics.typedCharacters,
         pastedCharacters: metrics.pastedCharacters,
+        finalTextComposition: metrics.finalTextComposition,
+        processInputVolume: metrics.processInputVolume,
         editingTimeSeconds: Math.round(metrics.editingTimeSeconds),
         anomalyFlags,
         policyHash,
@@ -265,14 +269,28 @@ export class CertificateService {
    * Generate JSON certificate for download
    */
   static async generateJSON(certificate: Certificate): Promise<JSONCertificate> {
-    // Calculate percentages based on total authorship activity (typed + pasted)
-    const totalAuthored = certificate.typedCharacters + certificate.pastedCharacters;
+    const finalTextComposition = certificate.finalTextComposition || {
+      typedCharacters: certificate.typedCharacters,
+      pastedCharacters: certificate.pastedCharacters,
+      aiAssistedCharacters: 0,
+      aiAssistedByType: {
+        chatInsert: 0,
+        grammar: 0,
+        improve: 0,
+        simplify: 0,
+        formal: 0,
+        other: 0,
+      },
+    };
+    const totalAuthored = finalTextComposition.typedCharacters
+      + finalTextComposition.pastedCharacters
+      + finalTextComposition.aiAssistedCharacters;
     const typedPercentage = totalAuthored > 0
-      ? (certificate.typedCharacters / totalAuthored) * 100
+      ? (finalTextComposition.typedCharacters / totalAuthored) * 100
       : 0;
 
     const pastedPercentage = totalAuthored > 0
-      ? (certificate.pastedCharacters / totalAuthored) * 100
+      ? (finalTextComposition.pastedCharacters / totalAuthored) * 100
       : 0;
 
     // Get AI authorship statistics
@@ -298,6 +316,8 @@ export class CertificateService {
         totalCharacters: certificate.totalCharacters,
         typedCharacters: certificate.typedCharacters,
         pastedCharacters: certificate.pastedCharacters,
+        finalTextComposition: certificate.finalTextComposition || null,
+        processInputVolume: certificate.processInputVolume || null,
         typedPercentage: Math.round(typedPercentage * 10) / 10,
         pastedPercentage: Math.round(pastedPercentage * 10) / 10,
         totalEvents: certificate.totalEvents,
@@ -458,23 +478,30 @@ export class CertificateService {
       endDate: options.endDate,
     });
 
-    // Calculate typed vs pasted characters
-    const { typedCharacters, pastedCharacters } =
-      await DocumentEventModel.calculateTypingMetrics(documentId, {
+    const { finalTextComposition, processInputVolume } =
+      await DocumentEventModel.calculateCompositionMetrics(documentId, {
         endDate: options.endDate,
       });
 
-    const totalCharacters = typedCharacters + pastedCharacters;
-    const typedPercentage = totalCharacters > 0 ? (typedCharacters / totalCharacters) * 100 : 0;
-    const pastedPercentage = totalCharacters > 0 ? (pastedCharacters / totalCharacters) * 100 : 0;
+    const totalCharacters = finalTextComposition.typedCharacters
+      + finalTextComposition.pastedCharacters
+      + finalTextComposition.aiAssistedCharacters;
+    const typedPercentage = totalCharacters > 0
+      ? (finalTextComposition.typedCharacters / totalCharacters) * 100
+      : 0;
+    const pastedPercentage = totalCharacters > 0
+      ? (finalTextComposition.pastedCharacters / totalCharacters) * 100
+      : 0;
 
     return {
       totalEvents: eventMetrics.totalEvents,
       typingEvents: eventMetrics.typingEvents,
       pasteEvents: eventMetrics.pasteEvents,
       totalCharacters,
-      typedCharacters,
-      pastedCharacters,
+      typedCharacters: finalTextComposition.typedCharacters,
+      pastedCharacters: finalTextComposition.pastedCharacters,
+      finalTextComposition,
+      processInputVolume,
       editingTimeSeconds: eventMetrics.editingDurationSeconds,
       typedPercentage,
       pastedPercentage,
@@ -504,6 +531,8 @@ export class CertificateService {
       totalCharacters: certificate.totalCharacters,
       typedCharacters: certificate.typedCharacters,
       pastedCharacters: certificate.pastedCharacters,
+      finalTextComposition: certificate.finalTextComposition || null,
+      processInputVolume: certificate.processInputVolume || null,
       editingTimeSeconds: certificate.editingTimeSeconds,
       anomalyFlags: certificate.anomalyFlags || [],
       policyHash: certificate.policyHash || null,

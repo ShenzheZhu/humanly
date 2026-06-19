@@ -27,6 +27,7 @@ import {
   normalizeResourceAccessPolicy,
   getEnvironmentConfigExtension,
   serializeEnvironmentConfig,
+  type AuthorshipComposition,
   type AIAuthorshipStats,
   type CertificateSeal,
   type CertificateSealStatus,
@@ -55,6 +56,7 @@ const SECTION_TITLE_CLASS = 'text-lg font-semibold tracking-normal';
 const COMPOSITION_COLORS = {
   typed: '#7B8C9E',
   pasted: '#B2A189',
+  aiAssisted: '#9E93B5',
 } as const;
 
 export interface CertificateEvidenceRecord {
@@ -66,6 +68,8 @@ export interface CertificateEvidenceRecord {
   totalCharacters: number;
   typedCharacters: number;
   pastedCharacters: number;
+  finalTextComposition?: AuthorshipComposition | null;
+  processInputVolume?: AuthorshipComposition | null;
   totalEvents: number;
   typingEvents: number;
   pasteEvents: number;
@@ -138,6 +142,36 @@ function formatPercentage(value: number) {
   if (!Number.isFinite(value) || value <= 0) return '0%';
   if (value < 1) return '<1%';
   return `${Math.round(value)}%`;
+}
+
+function createLegacyComposition(certificate: Pick<CertificateEvidenceRecord, 'typedCharacters' | 'pastedCharacters'>): AuthorshipComposition {
+  return {
+    typedCharacters: certificate.typedCharacters,
+    pastedCharacters: certificate.pastedCharacters,
+    aiAssistedCharacters: 0,
+    aiAssistedByType: {
+      chatInsert: 0,
+      grammar: 0,
+      improve: 0,
+      simplify: 0,
+      formal: 0,
+      other: 0,
+    },
+  };
+}
+
+function getCompositionTotal(composition: AuthorshipComposition) {
+  return composition.typedCharacters + composition.pastedCharacters + composition.aiAssistedCharacters;
+}
+
+function getCompositionPercentages(composition: AuthorshipComposition) {
+  const total = getCompositionTotal(composition);
+  return {
+    total,
+    typed: total > 0 ? (composition.typedCharacters / total) * 100 : 0,
+    pasted: total > 0 ? (composition.pastedCharacters / total) * 100 : 0,
+    aiAssisted: total > 0 ? (composition.aiAssistedCharacters / total) * 100 : 0,
+  };
 }
 
 function formatPreset(value?: string | null) {
@@ -417,13 +451,12 @@ export function CertificateEvidenceView({
   const [environmentOpen, setEnvironmentOpen] = useState(false);
   const textImprovementTotal = aiStats?.selectionActions.total || 0;
   const aiChatTotal = aiStats?.aiQuestions.total || 0;
-  const compositionCharacterTotal = certificate.typedCharacters + certificate.pastedCharacters;
-  const typedCharacterPercentage = compositionCharacterTotal > 0
-    ? (certificate.typedCharacters / compositionCharacterTotal) * 100
-    : 0;
-  const pastedCharacterPercentage = compositionCharacterTotal > 0
-    ? (certificate.pastedCharacters / compositionCharacterTotal) * 100
-    : 0;
+  const finalTextComposition = certificate.finalTextComposition || createLegacyComposition(certificate);
+  const processInputVolume = certificate.processInputVolume || null;
+  const finalTextPercentages = getCompositionPercentages(finalTextComposition);
+  const processInputPercentages = processInputVolume
+    ? getCompositionPercentages(processInputVolume)
+    : null;
   const sealHashPreview = seal?.payloadHash
     ? `${seal.payloadHash.slice(0, 12)}...${seal.payloadHash.slice(-12)}`
     : null;
@@ -537,29 +570,37 @@ export function CertificateEvidenceView({
 
             <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm font-medium">Typed / pasted character composition</p>
+                <p className="text-sm font-medium">Final text composition</p>
                 <p className="text-xs text-muted-foreground">
-                  {compositionCharacterTotal.toLocaleString()} tracked characters
+                  {finalTextPercentages.total.toLocaleString()} final-text characters
                 </p>
               </div>
               <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-secondary">
-                {typedCharacterPercentage > 0 && (
-                  <div style={{ width: `${typedCharacterPercentage}%`, backgroundColor: COMPOSITION_COLORS.typed }} />
+                {finalTextPercentages.typed > 0 && (
+                  <div style={{ width: `${finalTextPercentages.typed}%`, backgroundColor: COMPOSITION_COLORS.typed }} />
                 )}
-                {pastedCharacterPercentage > 0 && (
-                  <div style={{ width: `${pastedCharacterPercentage}%`, backgroundColor: COMPOSITION_COLORS.pasted }} />
+                {finalTextPercentages.pasted > 0 && (
+                  <div style={{ width: `${finalTextPercentages.pasted}%`, backgroundColor: COMPOSITION_COLORS.pasted }} />
+                )}
+                {finalTextPercentages.aiAssisted > 0 && (
+                  <div style={{ width: `${finalTextPercentages.aiAssisted}%`, backgroundColor: COMPOSITION_COLORS.aiAssisted }} />
                 )}
               </div>
-              <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+              <div className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
                 <div className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COMPOSITION_COLORS.typed }} />
                   <span className="text-muted-foreground">Typed</span>
-                  <span className="font-medium">{formatPercentage(typedCharacterPercentage)}</span>
+                  <span className="font-medium">{formatPercentage(finalTextPercentages.typed)}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COMPOSITION_COLORS.pasted }} />
                   <span className="text-muted-foreground">Pasted</span>
-                  <span className="font-medium">{formatPercentage(pastedCharacterPercentage)}</span>
+                  <span className="font-medium">{formatPercentage(finalTextPercentages.pasted)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COMPOSITION_COLORS.aiAssisted }} />
+                  <span className="text-muted-foreground">AI-assisted</span>
+                  <span className="font-medium">{formatPercentage(finalTextPercentages.aiAssisted)}</span>
                 </div>
               </div>
             </div>
@@ -572,7 +613,7 @@ export function CertificateEvidenceView({
                 </div>
                 <p className="mt-1 text-2xl font-semibold">{certificate.totalEvents.toLocaleString()}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {certificate.typingEvents.toLocaleString()} typed · {certificate.pasteEvents.toLocaleString()} pasted · {textImprovementTotal.toLocaleString()} AI improvements
+                  {certificate.typingEvents.toLocaleString()} typing events · {certificate.pasteEvents.toLocaleString()} paste events · {textImprovementTotal.toLocaleString()} AI improvements
                 </p>
               </div>
               <div className="rounded-lg border border-border/60 bg-muted/35 p-3">
@@ -609,18 +650,48 @@ export function CertificateEvidenceView({
               <CollapsibleContent className="space-y-4 pt-3">
                 <div className="grid gap-2 sm:grid-cols-3">
                   <div className="rounded-lg border border-border/60 bg-muted/25 p-3">
-                    <p className="text-xs text-muted-foreground">Typed Characters</p>
-                    <p className="mt-1 text-xl font-semibold">{certificate.typedCharacters.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">Typed in final text</p>
+                    <p className="mt-1 text-xl font-semibold">{finalTextComposition.typedCharacters.toLocaleString()}</p>
                   </div>
                   <div className="rounded-lg border border-border/60 bg-muted/25 p-3">
-                    <p className="text-xs text-muted-foreground">Pasted Characters</p>
-                    <p className="mt-1 text-xl font-semibold">{certificate.pastedCharacters.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">Pasted in final text</p>
+                    <p className="mt-1 text-xl font-semibold">{finalTextComposition.pastedCharacters.toLocaleString()}</p>
                   </div>
                   <div className="rounded-lg border border-border/60 bg-muted/25 p-3">
-                    <p className="text-xs text-muted-foreground">AI Chat</p>
-                    <p className="mt-1 text-xl font-semibold">{aiChatTotal.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">AI-assisted in final text</p>
+                    <p className="mt-1 text-xl font-semibold">{finalTextComposition.aiAssistedCharacters.toLocaleString()}</p>
                   </div>
                 </div>
+
+                {processInputVolume && (
+                  <div className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-medium">Process input volume</p>
+                        <p className="text-xs text-muted-foreground">
+                          Characters added during the session, including text later deleted or overwritten.
+                        </p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {processInputPercentages?.total.toLocaleString()} process characters
+                      </p>
+                    </div>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                      <div className="rounded-lg border border-border/50 bg-background/60 p-3">
+                        <p className="text-xs text-muted-foreground">Typed during process</p>
+                        <p className="mt-1 text-xl font-semibold">{processInputVolume.typedCharacters.toLocaleString()}</p>
+                      </div>
+                      <div className="rounded-lg border border-border/50 bg-background/60 p-3">
+                        <p className="text-xs text-muted-foreground">Pasted during process</p>
+                        <p className="mt-1 text-xl font-semibold">{processInputVolume.pastedCharacters.toLocaleString()}</p>
+                      </div>
+                      <div className="rounded-lg border border-border/50 bg-background/60 p-3">
+                        <p className="text-xs text-muted-foreground">AI-assisted during process</p>
+                        <p className="mt-1 text-xl font-semibold">{processInputVolume.aiAssistedCharacters.toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {isLoadingAiStats ? (
                   <div className="flex items-center justify-center rounded-lg border border-border/60 bg-muted/25 py-6">

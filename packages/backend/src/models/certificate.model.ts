@@ -22,6 +22,8 @@ const CERTIFICATE_SELECT_FIELDS = `
   total_characters as "totalCharacters",
   typed_characters as "typedCharacters",
   pasted_characters as "pastedCharacters",
+  final_text_composition as "finalTextComposition",
+  process_input_volume as "processInputVolume",
   editing_time_seconds as "editingTimeSeconds",
   anomaly_flags as "anomalyFlags",
   policy_hash as "policyHash",
@@ -52,6 +54,7 @@ export class CertificateModel {
         title, document_snapshot, plain_text_snapshot,
         total_events, typing_events, paste_events,
         total_characters, typed_characters, pasted_characters,
+        final_text_composition, process_input_volume,
         editing_time_seconds, anomaly_flags, policy_hash, environment_config, signature, verification_token,
         signer_name, include_full_text, include_edit_history,
         access_code, access_code_hash, is_protected, generated_at
@@ -61,9 +64,10 @@ export class CertificateModel {
         $7, $8, $9,
         $10, $11, $12,
         $13, $14, $15,
-        $16, $17, $18, $19, $20, $21,
-        $22, $23, $24,
-        $25, $26, $27, COALESCE($28::timestamptz, NOW())
+        $16, $17,
+        $18, $19, $20, $21, $22, $23,
+        $24, $25, $26,
+        $27, $28, $29, COALESCE($30::timestamptz, NOW())
       )
       RETURNING ${CERTIFICATE_SELECT_FIELDS}
     `;
@@ -84,6 +88,8 @@ export class CertificateModel {
       data.totalCharacters,
       data.typedCharacters,
       data.pastedCharacters,
+      data.finalTextComposition === undefined ? null : JSON.stringify(data.finalTextComposition),
+      data.processInputVolume === undefined ? null : JSON.stringify(data.processInputVolume),
       data.editingTimeSeconds,
       JSON.stringify(data.anomalyFlags || []),
       data.policyHash || null,

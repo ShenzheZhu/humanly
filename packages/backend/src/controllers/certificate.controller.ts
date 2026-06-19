@@ -104,6 +104,8 @@ async function buildPublicCertificateResponse(
       totalCharacters: certificate.totalCharacters,
       typedCharacters: certificate.typedCharacters,
       pastedCharacters: certificate.pastedCharacters,
+      finalTextComposition: certificate.finalTextComposition || null,
+      processInputVolume: certificate.processInputVolume || null,
       totalEvents: certificate.totalEvents,
       typingEvents: certificate.typingEvents,
       pasteEvents: certificate.pasteEvents,
