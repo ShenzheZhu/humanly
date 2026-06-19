@@ -159,7 +159,7 @@ export default function PublicTaskDocumentStartPage() {
         TokenManager.setPublicDocumentAccessToken(documentId, response.data.accessToken);
         TokenManager.setAccessToken(response.data.accessToken);
       }
-      router.replace(`/documents/${documentId}${mode === 'guest' ? '?switchSession=1' : ''}`);
+      router.replace(`/documents/${documentId}`);
     } catch (err) {
       hasStartedRef.current = false;
       const apiError = err as ApiError;
