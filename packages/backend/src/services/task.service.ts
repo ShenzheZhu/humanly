@@ -1144,6 +1144,19 @@ export class TaskService {
         .filter((file) => !file.legacySourceId)
         .map(async (file) => {
           try {
+            const remainingReferenceCount = await FileModel.countStorageReferences(file);
+            if (remainingReferenceCount > 0) {
+              logger.info('Skipping task file storage delete because object is still referenced', {
+                taskId,
+                userId,
+                fileId: file.id,
+                storageProvider: file.storageProvider,
+                storageBucket: file.storageBucket,
+                storageKey: file.storageKey,
+                remainingReferenceCount,
+              });
+              return;
+            }
             await FileStorageService.delete(file);
           } catch (error) {
             logger.error('Failed to delete task file storage object', {
