@@ -1088,7 +1088,7 @@ export class TaskModel {
             checksum,
             page_count,
             upload_status,
-            NULL
+            id
           FROM files
           WHERE id = $1
         `, [sourceFile.id, duplicatedTaskId, newFileId]);
