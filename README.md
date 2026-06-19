@@ -8,8 +8,8 @@
   <a href="#product">Product</a> ·
   <a href="#features">Features</a> ·
   <a href="#self-host-quick-start-tldr">Self-Host</a> ·
-  <a href="#architecture">Architecture</a> ·
-  <a href="#certificates">Certificates</a>
+  <a href="#certificates">Certificates</a> ·
+  <a href="#architecture">Architecture</a>
 </p>
 
 <p align="center">
@@ -99,6 +99,20 @@ docker compose -f docker-compose.quickstart.yml down -v
 For manual setup, environment variables, and persistent self-deployment notes,
 see [docs/SELF_DEPLOY.md](https://github.com/ShenzheZhu/humanly/blob/main/docs/SELF_DEPLOY.md).
 
+## Certificates
+
+A Humanly certificate can show:
+
+- the submitted document and final text statistics;
+- the writing environment and task rules active during writing;
+- authorship statistics for typed, pasted, and AI-assisted text;
+- event logs for writing, navigation, copy/paste, and AI activity;
+- replay and abnormal-behavior review signals where available;
+- certificate integrity details.
+
+Certificates are evidence for review. They describe what happened inside the
+Humanly workspace and do not make claims about off-platform behavior.
+
 ## Architecture
 
 Humanly is a pnpm workspace with one backend service, two Next.js apps, and
@@ -117,25 +131,10 @@ Local and production deployments use PostgreSQL for durable data, Redis for
 cache and realtime support, and file/object storage for uploaded PDFs and
 attachments.
 
-## Certificates
-
-A Humanly certificate can show:
-
-- the submitted document and final text statistics;
-- the writing environment and task rules active during writing;
-- authorship statistics for typed, pasted, and AI-assisted text;
-- event logs for writing, navigation, copy/paste, and AI activity;
-- replay and abnormal-behavior review signals where available;
-- certificate integrity details.
-
-Certificates are evidence for review. They describe what happened inside the
-Humanly workspace and do not make claims about off-platform behavior.
-
 ## Links
 
 - Release notes: [CHANGELOG.md](CHANGELOG.md)
 - Self-deployment guide: [docs/SELF_DEPLOY.md](docs/SELF_DEPLOY.md)
-- Maintainer documentation map: [docs/README.md](docs/README.md)
 - Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Code of conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 - License: [MIT](LICENSE)
