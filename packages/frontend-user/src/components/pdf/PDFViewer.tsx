@@ -255,7 +255,7 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
           throw new Error('No PDF file available')
         }
 
-        const url = previewUrl || await fileApi.getPdfBlob(fileId!, { viewOnly })
+        const url = previewUrl || await fileApi.getPdfBlob(fileId!, { viewOnly, documentId })
         if (cancelled) return
         blobUrl = previewUrl ? null : url
         setPdfBlobUrl(url)

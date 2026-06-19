@@ -172,7 +172,10 @@ const createApiClient = (): AxiosInstance => {
   client.interceptors.request.use(
     (config) => {
       const token = TokenManager.getAccessToken();
-      if (token) {
+      const existingAuthorization =
+        (config.headers as Record<string, unknown> | undefined)?.Authorization
+        || (config.headers as Record<string, unknown> | undefined)?.authorization;
+      if (token && !existingAuthorization) {
         config.headers.Authorization = `Bearer ${token}`;
       }
       // Let axios set the correct Content-Type (including multipart boundary) for FormData

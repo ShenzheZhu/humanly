@@ -909,7 +909,7 @@ export class DocumentEventModel {
       const difference = afterLength - beforeLength;
 
       if (difference > 0) {
-        if (event.eventType === 'paste') {
+        if (event.eventType === 'paste' || event.eventType === 'ai_insert_from_chat') {
           pastedCharacters += difference;
         } else if (event.eventType === 'keydown' || event.eventType === 'input') {
           typedCharacters += difference;
