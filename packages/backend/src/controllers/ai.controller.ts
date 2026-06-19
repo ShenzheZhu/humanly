@@ -5,6 +5,7 @@ import { AppError } from '../middleware/error-handler';
 import { AISelectionActionModel, AIActionType, AIDecision } from '../models/ai-selection-action.model';
 import { AIModel } from '../models/ai.model';
 import { AIChatAttachmentModel } from '../models/ai-chat-attachment.model';
+import { DocumentModel } from '../models/document.model';
 import { FileStorageService } from '../services/file-storage.service';
 import { logger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
@@ -322,7 +323,7 @@ export async function trackSelectionAction(req: Request, res: Response): Promise
 
   const { documentId, logId, actionType, originalText, suggestedText, decision, responseTimeMs, modelVersion } = req.body;
 
-  if (!documentId) {
+  if (!documentId || typeof documentId !== 'string') {
     throw new AppError(400, 'Document ID is required');
   }
 
@@ -345,6 +346,33 @@ export async function trackSelectionAction(req: Request, res: Response): Promise
     throw new AppError(400, 'Valid decision is required (accepted, rejected)');
   }
 
+  const isOwner = await DocumentModel.isOwner(documentId, userId);
+  if (!isOwner) {
+    throw new AppError(404, 'Document not found');
+  }
+
+  let validatedLogId: string | undefined;
+  if (logId) {
+    if (typeof logId !== 'string') {
+      throw new AppError(400, 'Log ID must be a string');
+    }
+
+    const existingLog = await AIModel.findLogById(logId);
+    if (!existingLog) {
+      throw new AppError(404, 'AI log not found');
+    }
+
+    if (existingLog.userId !== userId) {
+      throw new AppError(403, 'Unauthorized AI log');
+    }
+
+    if (existingLog.documentId !== documentId) {
+      throw new AppError(400, 'AI log does not belong to document');
+    }
+
+    validatedLogId = existingLog.id;
+  }
+
   const action = await AISelectionActionModel.create({
     documentId,
     userId,
@@ -357,7 +385,7 @@ export async function trackSelectionAction(req: Request, res: Response): Promise
   });
 
   try {
-    let targetLogId = logId as string | undefined;
+    let targetLogId = validatedLogId;
     const { queryType, label } = AI_ACTION_QUERY_MAP[validatedActionType];
 
     if (!targetLogId) {
