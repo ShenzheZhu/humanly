@@ -3399,6 +3399,8 @@ export class AIService {
       throw new AppError(403, 'Unauthorized');
     }
 
+    await this.assertDocumentAccess(userId, session.documentId);
+
     return session;
   }
 

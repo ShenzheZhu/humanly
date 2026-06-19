@@ -1204,11 +1204,8 @@ export class TaskService {
 
     logger.info('Deleting task', { taskId, userId });
 
-    const files = await FileModel.findByTask(taskId);
-
     await this.invalidateAnalytics(taskId);
     await TaskModel.delete(taskId);
-    await this.deleteTaskFileStorage(taskId, userId, files);
 
     logger.info('Task deleted successfully', { taskId, userId });
   }

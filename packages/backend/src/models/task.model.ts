@@ -135,6 +135,7 @@ export class TaskModel {
     p.lifecycle_status as "lifecycleStatus",
     p.launched_at as "launchedAt",
     p.ended_at as "endedAt",
+    p.deleted_at as "deletedAt",
     COALESCE(pe.enrolled_user_count, 0)::int as "enrolledUserCount",
     COALESCE(ps.document_count, 0)::int as "documentCount",
     COALESCE(ps.event_count, 0)::int as "eventCount",
@@ -201,6 +202,7 @@ export class TaskModel {
                 lifecycle_status as "lifecycleStatus",
                 launched_at as "launchedAt",
                 ended_at as "endedAt",
+                NULL::timestamptz as "deletedAt",
                 0 as "enrolledUserCount",
                 0 as "documentCount",
                 0 as "eventCount",
@@ -238,6 +240,7 @@ export class TaskModel {
       ${this.enrollmentCountJoin}
       ${this.taskStatsJoin}
       WHERE p.id = $1
+        AND p.deleted_at IS NULL
     `;
     return queryOne<Task>(sql, [id]);
   }
@@ -271,7 +274,9 @@ export class TaskModel {
       FROM tasks p
       ${this.enrollmentCountJoin}
       ${this.taskStatsJoin}
-      WHERE p.user_id = $1 ${tasksSearchCondition}
+      WHERE p.user_id = $1
+        AND p.deleted_at IS NULL
+        ${tasksSearchCondition}
       ORDER BY p.created_at DESC
       LIMIT $2 OFFSET $3
     `;
@@ -281,7 +286,9 @@ export class TaskModel {
     const countSql = `
       SELECT COUNT(*) as count
       FROM tasks
-      WHERE user_id = $1 ${countSearchCondition}
+      WHERE user_id = $1
+        AND deleted_at IS NULL
+        ${countSearchCondition}
     `;
     const countResult = await queryOne<{ count: string }>(countSql, countParams);
     const total = parseInt(countResult?.count || '0', 10);
@@ -304,7 +311,9 @@ export class TaskModel {
       FROM tasks p
       ${this.enrollmentCountJoin}
       ${this.taskStatsJoin}
-      WHERE p.task_token = $1 AND p.is_active = TRUE
+      WHERE p.task_token = $1
+        AND p.is_active = TRUE
+        AND p.deleted_at IS NULL
     `;
     return queryOne<Task>(sql, [taskToken]);
   }
@@ -321,6 +330,7 @@ export class TaskModel {
       ${this.taskStatsJoin}
       WHERE UPPER(SUBSTRING(p.task_token FROM 1 FOR 6)) = $1
         AND p.is_active = TRUE
+        AND p.deleted_at IS NULL
       ORDER BY p.created_at DESC
       LIMIT 1
     `;
@@ -344,6 +354,7 @@ export class TaskModel {
        AND ta.user_id = te.user_id
        AND ta.document_id = $1
       WHERE p.is_active = TRUE
+        AND p.deleted_at IS NULL
         AND (te.submission_document_id = $1 OR ta.document_id = $1)
       LIMIT 1
     `;
@@ -389,7 +400,15 @@ export class TaskModel {
    * Check if a user is enrolled in a task.
    */
   static async hasEnrollment(taskId: string, userId: string): Promise<boolean> {
-    const sql = 'SELECT 1 FROM task_enrollments WHERE task_id = $1 AND user_id = $2';
+    const sql = `
+      SELECT 1
+      FROM task_enrollments te
+      JOIN tasks t
+        ON t.id = te.task_id
+      WHERE te.task_id = $1
+        AND te.user_id = $2
+        AND t.deleted_at IS NULL
+    `;
     const result = await queryOne(sql, [taskId, userId]);
     return !!result;
   }
@@ -725,6 +744,7 @@ export class TaskModel {
       ) certificate_stats ON true
       WHERE te.user_id = $1
         AND te.dashboard_hidden_at IS NULL
+        AND t.deleted_at IS NULL
       ORDER BY te.joined_at DESC
     `;
 
@@ -1126,7 +1146,16 @@ export class TaskModel {
    * Delete task
    */
   static async delete(id: string): Promise<void> {
-    const sql = 'DELETE FROM tasks WHERE id = $1';
+    const sql = `
+      UPDATE tasks
+      SET
+        deleted_at = COALESCE(deleted_at, NOW()),
+        is_active = FALSE,
+        lifecycle_status = 'ended',
+        ended_at = COALESCE(ended_at, NOW()),
+        updated_at = NOW()
+      WHERE id = $1
+    `;
     await query(sql, [id]);
   }
 
@@ -1160,7 +1189,7 @@ export class TaskModel {
    * Verify that a user owns a task
    */
   static async verifyOwnership(taskId: string, userId: string): Promise<boolean> {
-    const sql = 'SELECT 1 FROM tasks WHERE id = $1 AND user_id = $2';
+    const sql = 'SELECT 1 FROM tasks WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL';
     const result = await queryOne(sql, [taskId, userId]);
     return !!result;
   }

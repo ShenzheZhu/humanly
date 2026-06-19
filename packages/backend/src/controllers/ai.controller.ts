@@ -471,6 +471,11 @@ export async function getSelectionStats(req: Request, res: Response): Promise<vo
     throw new AppError(400, 'Document ID is required');
   }
 
+  const canAccessDocument = await DocumentModel.canAccess(documentId, userId);
+  if (!canAccessDocument) {
+    throw new AppError(404, 'Document not found');
+  }
+
   const stats = await AISelectionActionModel.getStatsByDocumentId(documentId);
 
   res.json({
