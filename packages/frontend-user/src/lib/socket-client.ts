@@ -46,6 +46,9 @@ export const initializeSocket = (tokenOverride?: string | null): Socket => {
 
   if (socket) {
     if (socketAuthToken === token) {
+      if (!socket.connected && typeof socket.connect === 'function') {
+        socket.connect();
+      }
       return socket;
     }
 
@@ -81,6 +84,53 @@ export const initializeSocket = (tokenOverride?: string | null): Socket => {
   });
 
   return socket;
+};
+
+export const waitForSocketConnection = (
+  nextSocket: Socket,
+  timeoutMs = 10_000
+): Promise<Socket> => {
+  if (nextSocket.connected) {
+    return Promise.resolve(nextSocket);
+  }
+
+  if (typeof nextSocket.connect === 'function') {
+    nextSocket.connect();
+  }
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const cleanup = () => {
+      clearTimeout(timeoutId);
+      nextSocket.off('connect', handleConnect);
+      nextSocket.off('connect_error', handleError);
+    };
+
+    const settle = (handler: () => void) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      handler();
+    };
+
+    const handleConnect = () => {
+      settle(() => resolve(nextSocket));
+    };
+
+    const handleError = (error: any) => {
+      const message = error?.message || 'Socket connection failed';
+      settle(() => reject(error instanceof Error ? error : new Error(message)));
+    };
+
+    timeoutId = setTimeout(() => {
+      settle(() => reject(new Error('Socket connection timed out')));
+    }, timeoutMs);
+
+    nextSocket.on('connect', handleConnect);
+    nextSocket.on('connect_error', handleError);
+  });
 };
 
 /**
@@ -147,6 +197,7 @@ export const offEvent = (event: string, callback?: (data: any) => void): void =>
 
 const socketClient = {
   initializeSocket,
+  waitForSocketConnection,
   getSocket,
   disconnectSocket,
   emitEvent,

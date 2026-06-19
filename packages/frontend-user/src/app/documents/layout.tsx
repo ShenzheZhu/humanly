@@ -23,7 +23,7 @@ export default function DocumentsLayout({
   const isWorkspacePreviewRoute = pathname === '/documents/preview';
   const documentIdMatch = pathname.match(/^\/documents\/([^/]+)/);
   const publicDocumentId = documentIdMatch?.[1] || '';
-  usePublicDocumentToken(publicDocumentId);
+  const isPublicDocumentTokenReady = usePublicDocumentToken(publicDocumentId);
   const isPublicGuestDocumentRoute = Boolean(
     publicDocumentId && TokenManager.getPublicDocumentAccessToken(publicDocumentId)
   );
@@ -82,7 +82,7 @@ export default function DocumentsLayout({
     return <>{children}</>;
   }
 
-  if (isCheckingAuth || isLoading) {
+  if ((isPublicGuestDocumentRoute && !isPublicDocumentTokenReady) || isCheckingAuth || isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
