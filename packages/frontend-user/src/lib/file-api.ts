@@ -6,12 +6,21 @@ const API_BASE =
   (process.env.NODE_ENV === 'production' ? '/api/v1' : 'http://localhost:3001/api/v1');
 
 export const fileApi = {
-  async getPdfBlob(fileId: string, options: { viewOnly?: boolean } = {}): Promise<string> {
-    const token = TokenManager.getAccessToken();
+  async getPdfBlob(
+    fileId: string,
+    options: { viewOnly?: boolean; documentId?: string } = {}
+  ): Promise<string> {
+    const token = options.documentId
+      ? TokenManager.getPublicDocumentAccessToken(options.documentId) || TokenManager.getAccessToken()
+      : TokenManager.getAccessToken();
     let viewToken: string | undefined;
 
     if (options.viewOnly) {
-      const tokenResponse = await apiClient.get(`/files/${fileId}/view-token`);
+      const tokenResponse = await apiClient.get(`/files/${fileId}/view-token`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
       viewToken = tokenResponse.data.data?.token;
       if (!viewToken) {
         throw new Error('Failed to prepare view-only PDF access');

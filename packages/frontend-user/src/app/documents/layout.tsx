@@ -7,6 +7,7 @@ import { BasicInfoDialog } from '@/components/account/basic-info-dialog';
 import { Navbar } from '@/components/navigation/navbar';
 import { isGuestUserEmail } from '@/components/navigation/user-display';
 import { TokenManager } from '@/lib/api-client';
+import { usePublicDocumentToken } from '@/hooks/use-public-document-token';
 
 export default function DocumentsLayout({
   children,
@@ -22,6 +23,7 @@ export default function DocumentsLayout({
   const isWorkspacePreviewRoute = pathname === '/documents/preview';
   const documentIdMatch = pathname.match(/^\/documents\/([^/]+)/);
   const publicDocumentId = documentIdMatch?.[1] || '';
+  usePublicDocumentToken(publicDocumentId);
   const isPublicGuestDocumentRoute = Boolean(
     publicDocumentId && TokenManager.getPublicDocumentAccessToken(publicDocumentId)
   );

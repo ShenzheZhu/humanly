@@ -26,16 +26,31 @@ const WS_URL = resolveSocketUrl();
  * Socket client instance
  */
 let socket: Socket | null = null;
+let socketAuthToken: string | null = null;
+const socketListeners = new Map<string, Set<(data: any) => void>>();
+
+const attachRegisteredListeners = (nextSocket: Socket): void => {
+  socketListeners.forEach((callbacks, event) => {
+    callbacks.forEach((callback) => {
+      nextSocket.on(event, callback);
+    });
+  });
+};
 
 /**
  * Initialize socket connection
  */
 export const initializeSocket = (): Socket => {
-  if (socket && socket.connected) {
-    return socket;
-  }
-
   const token = TokenManager.getAccessToken();
+
+  if (socket && socket.connected) {
+    if (socketAuthToken === token) {
+      return socket;
+    }
+
+    socket.disconnect();
+    socket = null;
+  }
 
   socket = io(WS_URL, {
     auth: {
@@ -48,6 +63,8 @@ export const initializeSocket = (): Socket => {
     reconnectionDelayMax: 5000,
     reconnectionAttempts: 5,
   });
+  socketAuthToken = token;
+  attachRegisteredListeners(socket);
 
   // Connection event listeners
   socket.on('connect', () => {
@@ -79,6 +96,7 @@ export const disconnectSocket = (): void => {
   if (socket) {
     socket.disconnect();
     socket = null;
+    socketAuthToken = null;
   }
 };
 
@@ -97,6 +115,11 @@ export const emitEvent = (event: string, data?: any): void => {
  * Listen to event from server
  */
 export const onEvent = (event: string, callback: (data: any) => void): void => {
+  if (!socketListeners.has(event)) {
+    socketListeners.set(event, new Set());
+  }
+  socketListeners.get(event)!.add(callback);
+
   if (socket) {
     socket.on(event, callback);
   }
@@ -106,12 +129,22 @@ export const onEvent = (event: string, callback: (data: any) => void): void => {
  * Remove event listener
  */
 export const offEvent = (event: string, callback?: (data: any) => void): void => {
+  if (!callback) {
+    socketListeners.delete(event);
+  } else {
+    const callbacks = socketListeners.get(event);
+    callbacks?.delete(callback);
+    if (callbacks?.size === 0) {
+      socketListeners.delete(event);
+    }
+  }
+
   if (socket) {
     socket.off(event, callback);
   }
 };
 
-export default {
+const socketClient = {
   initializeSocket,
   getSocket,
   disconnectSocket,
@@ -119,3 +152,5 @@ export default {
   onEvent,
   offEvent,
 };
+
+export default socketClient;
