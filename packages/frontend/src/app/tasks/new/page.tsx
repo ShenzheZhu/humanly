@@ -84,6 +84,7 @@ import {
   WRITING_ENVIRONMENT_PRESETS,
   formatWritingAiAccess,
   getMaxWritingAttempts,
+  getWritingAiPolicyRejectionRuleInputValue,
   isWritingAiChatEnabled,
   isWritingAiPolishEnabled,
   isTaskStartDateTooFarInPast,
@@ -1395,7 +1396,7 @@ export default function NewTaskPage() {
                     <Textarea
                       id="ai-policy-rejection-rule"
                       aria-label="AI rejection rule"
-                      value={normalizeWritingAiPolicy(environmentConfig.aiPolicy).rejectionRule || ''}
+                      value={getWritingAiPolicyRejectionRuleInputValue(environmentConfig.aiPolicy)}
                       onChange={(event) => setAiPolicyRejectionRule(event.target.value)}
                       placeholder="Example: Refuse to produce evaluative claims; only help with grammar, wording, or understanding references."
                       className="min-h-24"
