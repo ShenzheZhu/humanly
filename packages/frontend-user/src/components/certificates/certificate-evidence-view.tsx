@@ -578,6 +578,10 @@ export function CertificateEvidenceView({
                   {finalTextPercentages.total.toLocaleString()} final-text characters
                 </p>
               </div>
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                Typed is final text kept from keyboard input. Pasted is final text kept from clipboard insertion.
+                AI-assisted is final text kept from Humanly AI edits or inserted AI output.
+              </p>
               <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-secondary">
                 {finalTextPercentages.typed > 0 && (
                   <div style={{ width: `${finalTextPercentages.typed}%`, backgroundColor: COMPOSITION_COLORS.typed }} />
