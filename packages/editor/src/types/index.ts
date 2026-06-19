@@ -95,6 +95,10 @@ export interface SelectionReplacementOptions {
   suppressTextChangeTracking?: boolean;
 }
 
+export interface EditorInsertOptions {
+  suppressTextChangeTracking?: boolean;
+}
+
 export interface EditorInsertResult {
   selectionStart: number;
   selectionEnd: number;
@@ -107,7 +111,7 @@ export interface EditorInsertResult {
 }
 
 export interface EditorAIBridgeAPI {
-  insertAtCursor: (text: string) => EditorInsertResult;
+  insertAtCursor: (text: string, options?: EditorInsertOptions) => EditorInsertResult;
 }
 
 /**
