@@ -36,6 +36,12 @@ interface SearchMatch {
   text: string
 }
 
+export const PDFJS_DOCUMENT_RESOURCE_OPTIONS = {
+  cMapUrl: '/pdfjs/cmaps/',
+  cMapPacked: true,
+  standardFontDataUrl: '/pdfjs/standard_fonts/',
+} as const
+
 function isRenderCancelledError(err: unknown) {
   return Boolean(
     err &&
@@ -264,7 +270,10 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
         blobUrl = previewUrl ? null : url
         setPdfBlobUrl(url)
 
-        const pdf = await window.pdfjsLib.getDocument(url).promise
+        const pdf = await window.pdfjsLib.getDocument({
+          url,
+          ...PDFJS_DOCUMENT_RESOURCE_OPTIONS,
+        }).promise
         if (cancelled) return
         pdfDocRef.current = pdf
         setNumPages(pdf.numPages)
