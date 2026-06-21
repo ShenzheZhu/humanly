@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://app.writehumanly.net/"><img alt="User portal" src="https://img.shields.io/badge/writehumanly.net-app-7fa184?style=for-the-badge"></a>
+  <a href="https://app.writehumanly.net/"><img alt="Writer Portal" src="https://img.shields.io/badge/writehumanly.net-app-7fa184?style=for-the-badge"></a>
   <a href="https://github.com/ShenzheZhu/humanly/releases/tag/v0.4.0"><img alt="Release" src="https://img.shields.io/badge/release-v0.4.0-c49a6c?style=for-the-badge"></a>
   <img alt="Frontend stack" src="https://img.shields.io/badge/TypeScript%20%2F%20Next.js-frontend-7b9fb8?style=for-the-badge">
   <img alt="Backend stack" src="https://img.shields.io/badge/Express%20%2F%20PostgreSQL-backend-b79a8b?style=for-the-badge">
@@ -34,10 +34,10 @@ reviewers a certificate that shows how the writing process unfolded.
 
 Humanly has two first-party web apps:
 
-- **User portal:** [app.writehumanly.net](https://app.writehumanly.net/) for
+- **Writer Portal:** [app.writehumanly.net](https://app.writehumanly.net/) for
   personal writing, assigned tasks, PDF-backed writing, AI-assisted drafting,
   submissions, and certificates.
-- **Admin dashboard:** [admin.writehumanly.net](https://admin.writehumanly.net/)
+- **Publisher Portal:** [admin.writehumanly.net](https://admin.writehumanly.net/)
   for creating tasks, configuring writing environments, distributing share
   links, reviewing submissions, and inspecting certificates.
 
@@ -73,8 +73,8 @@ docker compose -f docker-compose.quickstart.yml up --build
 
 Then open:
 
-- Admin dashboard: `http://localhost:3000`
-- User portal: `http://localhost:3002`
+- Publisher Portal: `http://localhost:3000`
+- Writer Portal: `http://localhost:3002`
 - Backend API: `http://localhost:3001`
 
 Default local admin account:
@@ -120,8 +120,8 @@ shared packages for the writing editor, tracking, and cross-app types.
 
 ```text
 packages/backend        Express API, storage, events, certificates, AI
-packages/frontend       Admin dashboard
-packages/frontend-user  User portal and writing workspace
+packages/frontend       Publisher Portal
+packages/frontend-user  Writer Portal and writing workspace
 packages/editor         Writing editor
 packages/tracker        External-form tracking library
 packages/shared         Shared types and utilities

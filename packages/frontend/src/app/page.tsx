@@ -12,7 +12,7 @@ export default function HomePage() {
       <div className="z-10 max-w-5xl w-full items-center justify-between text-sm">
         <div className="text-center">
           <div className="humanly-eyebrow mb-5 inline-flex rounded-full border border-border/80 bg-muted/40 px-3 py-1">
-            Admin Portal
+            Publisher Portal
           </div>
           <h1 className="mx-auto max-w-4xl text-4xl font-bold tracking-normal sm:text-5xl lg:text-6xl">
             Manage writing tasks, submissions, and AI usage.

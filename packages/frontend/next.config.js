@@ -21,7 +21,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // In production the admin dashboard is served at /admin via nginx.
+  // In production the Publisher Portal is served at /admin via nginx.
   // Set NEXT_PUBLIC_BASE_PATH=/admin as a Docker build arg before building.
   basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
   transpilePackages: ['@humanly/shared'],

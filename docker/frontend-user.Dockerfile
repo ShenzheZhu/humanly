@@ -1,4 +1,4 @@
-# User portal (packages/frontend-user)
+# Writer Portal (packages/frontend-user)
 # Served at / via nginx
 
 # ── Build stage ───────────────────────────────────────────────────────────────

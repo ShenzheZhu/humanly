@@ -54,7 +54,7 @@ or change focused tests, document the exact command you ran in the pull request.
 - TypeScript is used across the workspace.
 - Follow existing package boundaries and local patterns before adding new
   abstractions.
-- Next.js and Tailwind CSS power the admin dashboard and user portal.
+- Next.js and Tailwind CSS power the Publisher Portal and Writer Portal.
 - Express, PostgreSQL, Redis, and SQL migrations power the backend.
 - Keep shared contracts in `packages/shared` when both frontend and backend need
   the same types or validation logic.

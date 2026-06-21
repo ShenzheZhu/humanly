@@ -418,14 +418,14 @@ export class TaskService {
   }
 
   /**
-   * List task enrollments for the current user portal account.
+   * List task enrollments for the current Writer Portal account.
    */
   static async listCurrentUserTaskEnrollments(userId: string) {
     return TaskModel.listCurrentUserEnrollments(userId);
   }
 
   /**
-   * Join task lookup for user portal invite-code enrollment.
+   * Join task lookup for Writer Portal invite-code enrollment.
    */
   static async joinTaskByInviteCode(
     inviteCode: string,
@@ -457,7 +457,7 @@ export class TaskService {
   }
 
   /**
-   * Hide a user portal enrollment from the dashboard while preserving the
+   * Hide a Writer Portal enrollment from the dashboard while preserving the
    * server-side task attempt and its linked evidence.
    */
   static async leaveTask(taskIdOrInviteCode: string, userId: string): Promise<void> {
@@ -605,7 +605,7 @@ export class TaskService {
   }
 
   /**
-   * Start a real analytics session for a user portal submission document.
+   * Start a real analytics session for a Writer Portal submission document.
    */
   static async startSubmissionSession(
     taskIdOrInviteCode: string,
@@ -652,7 +652,7 @@ export class TaskService {
   }
 
   /**
-   * End a real analytics session for a user portal submission document.
+   * End a real analytics session for a Writer Portal submission document.
    */
   static async endSubmissionSession(
     taskIdOrInviteCode: string,

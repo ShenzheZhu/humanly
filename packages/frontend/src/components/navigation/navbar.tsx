@@ -76,7 +76,7 @@ export function Navbar() {
                     <DropdownMenuItem asChild>
                       <a href={userDocumentsHref}>
                         <FileText className="mr-2 h-4 w-4" />
-                        Switch to User View
+                        Writer Portal
                       </a>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
@@ -128,7 +128,7 @@ export function Navbar() {
                         >
                           <a href={userDocumentsHref}>
                             <FileText className="mr-2 h-4 w-4" />
-                            Switch to User View
+                            Writer Portal
                           </a>
                         </Button>
                         <Button

@@ -941,7 +941,7 @@ export function SettingsPanel({ taskId, onTaskUpdated }: SettingsPanelProps) {
                         <Input placeholder="Research Reflection Assignment" {...field} disabled={controlsDisabled} />
                       </FormControl>
                       <FormDescription>
-                        A user-facing title shown on the admin dashboard and enrolled user documents.
+                        A writer-facing title shown in the Publisher Portal and enrolled writer documents.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

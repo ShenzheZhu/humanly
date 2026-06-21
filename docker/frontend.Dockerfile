@@ -1,4 +1,4 @@
-# Admin dashboard (packages/frontend)
+# Publisher Portal (packages/frontend)
 # Served at / on admin.writehumanly.net via nginx.
 
 # ── Build stage ───────────────────────────────────────────────────────────────
