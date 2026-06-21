@@ -89,7 +89,7 @@ router.post('/join', asyncHandler(joinTask));
 
 /**
  * GET /api/v1/tasks/my-enrollments
- * List the current user's task enrollments for the user portal.
+ * List the current writer's task enrollments for the Writer Portal.
  */
 router.get('/my-enrollments', asyncHandler(listMyTaskEnrollments));
 

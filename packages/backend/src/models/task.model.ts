@@ -669,7 +669,7 @@ export class TaskModel {
   }
 
   /**
-   * List task enrollments for the current user portal account.
+   * List task enrollments for the current Writer Portal account.
    */
   static async listCurrentUserEnrollments(userId: string): Promise<CurrentUserTaskEnrollment[]> {
     const sql = `

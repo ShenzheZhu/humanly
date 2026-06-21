@@ -232,7 +232,7 @@ export async function listTaskEnrollments(req: Request, res: Response): Promise<
 }
 
 /**
- * List task enrollments for the current user portal account.
+ * List task enrollments for the current Writer Portal account.
  */
 export async function listMyTaskEnrollments(req: Request, res: Response): Promise<void> {
   const userId = req.user!.userId;

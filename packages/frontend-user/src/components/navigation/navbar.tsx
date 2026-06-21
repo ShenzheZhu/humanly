@@ -99,7 +99,7 @@ export function Navbar({ forceGuest = false }: { forceGuest?: boolean }) {
                           <DropdownMenuItem asChild>
                             <a href={adminTasksHref}>
                               <LayoutDashboard className="mr-2 h-4 w-4" />
-                              Admin portal
+                              Publisher Portal
                             </a>
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
@@ -161,7 +161,7 @@ export function Navbar({ forceGuest = false }: { forceGuest?: boolean }) {
                             >
                               <a href={adminTasksHref}>
                                 <LayoutDashboard className="mr-2 h-4 w-4" />
-                                Admin portal
+                                Publisher Portal
                               </a>
                             </Button>
                           ) : null}

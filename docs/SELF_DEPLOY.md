@@ -24,10 +24,10 @@ AI_AGENT_MAX_TOOL_CALLS=60
 AI_PROVIDER_TIMEOUT_MS=180000
 ```
 
-For production, replace the local URLs with your deployed admin and user portal
-domains. Humanly does not use a backend-owned AI provider key; users configure
-their own provider credentials in the product, and those credentials are stored
-encrypted.
+For production, replace the local URLs with your deployed Publisher Portal and
+Writer Portal domains. Humanly does not use a backend-owned AI provider key;
+users configure their own provider credentials in the product, and those
+credentials are stored encrypted.
 
 ## Install
 
@@ -50,8 +50,8 @@ pnpm dev:frontend-user
 
 Default local URLs:
 
-- Admin dashboard: `http://localhost:3000`
-- User portal: `http://localhost:3002`
+- Publisher Portal: `http://localhost:3000`
+- Writer Portal: `http://localhost:3002`
 - Backend API: `http://localhost:3001`
 
 ## Build

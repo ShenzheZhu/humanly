@@ -43,7 +43,7 @@ coherent evidence workflow.
   activity, and anomaly review signals are easier to scan.
 - Reworked admin analytics and event-log colors to use a softer Morandi-style
   palette.
-- Aligned admin dashboard surfaces more closely with the user portal visual
+- Aligned Publisher Portal surfaces more closely with the Writer Portal visual
   system.
 
 ### Fixed
@@ -79,7 +79,7 @@ Release focus: make AI access and shared-link entry explicit and configurable.
   polish-only workspaces show polish shortcuts only, chat-only workspaces show
   Ask AI only, and full workspaces show both.
 - Separated guest writing mode from logged-in writing mode in shared-link flows.
-- Removed guest-inappropriate navigation actions such as logout, admin portal,
+- Removed guest-inappropriate navigation actions such as logout, Publisher Portal,
   and back-to-certificates from guest contexts.
 - Unified signup so users provide basic information on first dashboard entry
   rather than during initial account creation.
@@ -144,5 +144,5 @@ controls before the policy epic shipped.
 
 ### Fixed
 
-- Fixed several setup-form spacing, copy, and empty-state issues in the user
-  portal and admin dashboard.
+- Fixed several setup-form spacing, copy, and empty-state issues in the Writer
+  Portal and Publisher Portal.
