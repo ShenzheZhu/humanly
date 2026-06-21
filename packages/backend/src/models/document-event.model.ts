@@ -1232,14 +1232,8 @@ export class DocumentEventModel {
       ) {
         const range = findEventRange(event, currentText);
         if (range) {
-          const selectedSpans = sliceSpans(spans, range.start, range.end);
-          const replacement = applyTextTransition(
-            selectedSpans,
-            beforeText,
-            afterText,
-            sourceInfo,
-            processInputVolume
-          );
+          const replacement = afterText ? [buildInsertedSpan(afterText, sourceInfo)] : [];
+          addCompositionCharacters(processInputVolume, sourceInfo.source, afterText.length, sourceInfo.aiType);
           spans = replaceSpanRange(spans, range.start, range.end, replacement);
           continue;
         }
