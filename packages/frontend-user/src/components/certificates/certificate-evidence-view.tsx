@@ -629,7 +629,7 @@ export function CertificateEvidenceView({
               </div>
               <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                 Typed is final text kept from keyboard input. Pasted is final text kept from clipboard insertion.
-                AI-assisted is final text kept from Humanly AI edits or inserted AI output.
+                AI-generated is final text kept from Humanly AI edits or inserted AI output.
               </p>
               <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-secondary">
                 {finalTextPercentages.typed > 0 && (
@@ -659,7 +659,7 @@ export function CertificateEvidenceView({
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COMPOSITION_COLORS.aiAssisted }} />
-                  <span className="text-muted-foreground">AI-assisted</span>
+                  <span className="text-muted-foreground">AI-generated</span>
                   <span className="font-medium">
                     {formatCompositionLabel(finalTextPercentages.aiAssisted, finalTextComposition.aiAssistedCharacters)}
                   </span>
@@ -681,7 +681,7 @@ export function CertificateEvidenceView({
                       </span>
                       <span className="inline-flex items-center gap-1.5">
                         <span className="h-3 w-3 rounded-sm border border-border/50" style={{ backgroundColor: COMPOSITION_HIGHLIGHT_COLORS.aiAssisted }} />
-                        AI-assisted
+                        AI-generated
                       </span>
                     </div>
                   </div>
@@ -792,7 +792,7 @@ export function CertificateEvidenceView({
                         <p className="mt-1 text-xl font-semibold">{processInputVolume.pastedCharacters.toLocaleString()}</p>
                       </div>
                       <div className="rounded-lg border border-border/50 bg-background/60 p-3">
-                        <p className="text-xs text-muted-foreground">AI-assisted during process</p>
+                        <p className="text-xs text-muted-foreground">AI-generated during process</p>
                         <p className="mt-1 text-xl font-semibold">{processInputVolume.aiAssistedCharacters.toLocaleString()}</p>
                       </div>
                     </div>
