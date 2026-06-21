@@ -665,60 +665,76 @@ export function CertificateEvidenceView({
                   </span>
                 </div>
               </div>
-            </div>
 
-            {hasFinalTextVisualization && (
-              <div className="rounded-lg border border-border/70 bg-background p-3">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm font-medium">Final text visualization</p>
-                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="h-3 w-3 rounded-sm border border-border/50" style={{ backgroundColor: COMPOSITION_HIGHLIGHT_COLORS.typed }} />
-                      Typed
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="h-3 w-3 rounded-sm border border-border/50" style={{ backgroundColor: COMPOSITION_HIGHLIGHT_COLORS.pasted }} />
-                      Pasted
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="h-3 w-3 rounded-sm border border-border/50" style={{ backgroundColor: COMPOSITION_HIGHLIGHT_COLORS.aiAssisted }} />
-                      AI-assisted
-                    </span>
+              {hasFinalTextVisualization && (
+                <div className="mt-4 border-t border-border/60 pt-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm font-medium">Final text visualization</p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="h-3 w-3 rounded-sm border border-border/50" style={{ backgroundColor: COMPOSITION_HIGHLIGHT_COLORS.typed }} />
+                        Typed
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="h-3 w-3 rounded-sm border border-border/50" style={{ backgroundColor: COMPOSITION_HIGHLIGHT_COLORS.pasted }} />
+                        Pasted
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="h-3 w-3 rounded-sm border border-border/50" style={{ backgroundColor: COMPOSITION_HIGHLIGHT_COLORS.aiAssisted }} />
+                        AI-assisted
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <div
-                  ref={finalTextVisualizationRef}
-                  className="mt-3 whitespace-pre-wrap rounded-md border border-border/60 bg-muted/15 p-3 text-sm leading-7 text-foreground"
-                  style={{
-                    maxHeight: finalTextExpanded ? '18rem' : `${FINAL_TEXT_PREVIEW_ROWS * 1.75 + 1.5}rem`,
-                    overflow: finalTextExpanded ? 'auto' : 'hidden',
-                  }}
-                >
-                  {finalTextSourceSpans.map((span, index) => (
-                    <span
-                      key={`${span.source}-${index}`}
-                      className="rounded px-0.5"
+                  <div className="relative mt-3">
+                    <div
+                      ref={finalTextVisualizationRef}
+                      className="whitespace-pre-wrap rounded-md border border-border/50 bg-background/45 p-3 text-sm leading-7 text-foreground"
                       style={{
-                        backgroundColor: getSourceSpanColor(span.source),
-                        WebkitBoxDecorationBreak: 'clone',
-                        boxDecorationBreak: 'clone',
+                        maxHeight: finalTextExpanded ? '18rem' : `${FINAL_TEXT_PREVIEW_ROWS * 1.75 + 1.5}rem`,
+                        overflow: finalTextExpanded ? 'auto' : 'hidden',
+                        paddingBottom: finalTextCanExpand && !finalTextExpanded ? '3.25rem' : undefined,
                       }}
                     >
-                      {span.text}
-                    </span>
-                  ))}
+                      {finalTextSourceSpans.map((span, index) => (
+                        <span
+                          key={`${span.source}-${index}`}
+                          className="rounded px-0.5"
+                          style={{
+                            backgroundColor: getSourceSpanColor(span.source),
+                            WebkitBoxDecorationBreak: 'clone',
+                            boxDecorationBreak: 'clone',
+                          }}
+                        >
+                          {span.text}
+                        </span>
+                      ))}
+                    </div>
+                    {finalTextCanExpand && !finalTextExpanded && (
+                      <div className="pointer-events-none absolute inset-x-px bottom-px flex h-24 items-end justify-center rounded-b-md bg-gradient-to-b from-background/0 via-background/80 to-background pb-3 backdrop-blur-[1.5px]">
+                        <button
+                          type="button"
+                          className="pointer-events-auto inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-muted-foreground/85 transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          onClick={() => setFinalTextExpanded(true)}
+                        >
+                          See details
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {finalTextCanExpand && finalTextExpanded && (
+                    <button
+                      type="button"
+                      className="mx-auto mt-2 inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-muted-foreground/80 transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      onClick={() => setFinalTextExpanded(false)}
+                    >
+                      See less
+                      <ChevronDown className="h-3.5 w-3.5 rotate-180" />
+                    </button>
+                  )}
                 </div>
-                {finalTextCanExpand && (
-                  <button
-                    type="button"
-                    className="mt-2 inline-flex items-center rounded-full px-1 text-xs font-medium text-muted-foreground transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    onClick={() => setFinalTextExpanded((value) => !value)}
-                  >
-                    {finalTextExpanded ? 'See less' : 'See details'}
-                  </button>
-                )}
-              </div>
-            )}
+              )}
+            </div>
 
             <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
               {!detailsOpen && (
