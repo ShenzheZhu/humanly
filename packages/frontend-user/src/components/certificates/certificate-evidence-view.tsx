@@ -907,7 +907,7 @@ export function CertificateEvidenceView({
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <CardTitle className={SECTION_TITLE_CLASS}>Abnormal Behavior Review</CardTitle>
+                <CardTitle className={SECTION_TITLE_CLASS}>Anomaly Behavior Review</CardTitle>
                 <CardDescription>
                   Review write-time signals that may need attention. These are evidence for review, not automatic verdicts.
                 </CardDescription>
@@ -920,8 +920,8 @@ export function CertificateEvidenceView({
                   className="shrink-0 gap-1"
                   aria-label={
                     behaviorReviewOpen
-                      ? 'Hide abnormal behavior review section'
-                      : 'Show abnormal behavior review section'
+                      ? 'Hide anomaly behavior review section'
+                      : 'Show anomaly behavior review section'
                   }
                 >
                   {behaviorReviewOpen ? 'Hide' : 'Show'}
