@@ -662,7 +662,6 @@ function FAQSection() {
           {faqs.map(([question, answer], index) => (
             <details
               key={question}
-              open={index === 0}
               className="group border-t border-[rgba(20,22,26,0.10)] py-[22px]"
             >
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left">
