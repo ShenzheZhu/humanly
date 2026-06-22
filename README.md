@@ -63,7 +63,7 @@ Create and start a full local Humanly stack without cloning the repository or
 installing Node.js first:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ShenzheZhu/humanly/main/scripts/install.sh | sh
+curl -fsSL https://writehumanly.net/install.sh | sh
 ```
 
 The installer checks Docker and Docker Compose, installs them on supported
@@ -100,7 +100,13 @@ cd humanly
 To install without starting Docker immediately:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ShenzheZhu/humanly/main/scripts/install.sh | sh -s -- --no-start
+curl -fsSL https://writehumanly.net/install.sh | sh -s -- --no-start
+```
+
+If the website installer endpoint is unavailable, use the repository fallback:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ShenzheZhu/humanly/main/scripts/install.sh | sh
 ```
 
 The npm installer remains available for Node-based workflows:
