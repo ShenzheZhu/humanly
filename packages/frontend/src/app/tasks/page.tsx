@@ -329,8 +329,8 @@ export default function TasksPage() {
   const renderDashboardHeader = (description: string) => (
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="space-y-2">
-        <p className="humanly-eyebrow">Admin workspace</p>
-        <h1 className="text-2xl font-semibold tracking-normal sm:text-3xl">Admin Tasks</h1>
+        <p className="humanly-eyebrow">Publisher workspace</p>
+        <h1 className="text-2xl font-semibold tracking-normal sm:text-3xl">Publisher Tasks</h1>
         <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
           {description}
         </p>
@@ -513,7 +513,7 @@ export default function TasksPage() {
             <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-muted/60 flex items-center justify-center">
               <Folder className="h-6 w-6 text-muted-foreground" />
             </div>
-            <CardTitle>No admin tasks yet</CardTitle>
+            <CardTitle>No publisher tasks yet</CardTitle>
             <CardDescription>
               Create your first writing task, configure AI access, and invite users with a code.
             </CardDescription>

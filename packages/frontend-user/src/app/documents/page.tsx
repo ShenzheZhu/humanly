@@ -709,7 +709,7 @@ export default function DocumentsPage() {
                 <DialogHeader>
                   <DialogTitle>Join Task</DialogTitle>
                   <DialogDescription>
-                    Enter the 6-character invite code from your instructor or admin.
+                    Enter the 6-character invite code from your instructor or publisher.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-2 py-4">
