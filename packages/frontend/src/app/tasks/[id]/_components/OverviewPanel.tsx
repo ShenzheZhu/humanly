@@ -157,7 +157,7 @@ export function OverviewPanel({
       <Card>
         <CardHeader>
           <CardTitle>Task Overview</CardTitle>
-          <CardDescription>Admin metadata, invite code, and writing-task settings</CardDescription>
+          <CardDescription>Publisher metadata, invite code, and writing-task settings</CardDescription>
           <p className="text-xs text-muted-foreground">
             Times shown in your local timezone: {localTimeZoneLabel}
           </p>

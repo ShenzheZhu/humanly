@@ -18,14 +18,14 @@ export default function HomePage() {
             Manage writing tasks, submissions, and AI usage.
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
-            Create invite-code tasks, upload instructions, configure model access, and monitor student writing activity from one admin workspace.
+            Create invite-code tasks, upload instructions, configure model access, and monitor student writing activity from one publisher workspace.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Link
               href="/login"
               className="inline-flex items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-transform hover:-translate-y-0.5"
             >
-              Admin Login
+              Publisher Login
             </Link>
             <Link
               href="/tasks/new"

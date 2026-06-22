@@ -252,7 +252,7 @@ export const validateWritingEnvironmentImportTemplate = (
     expectedTaskType === 'admin_assigned'
     && parsed.aiUsageLimit.mode !== 'max_requests'
   ) {
-    throw new Error('Admin task environment JSON must use aiUsageLimit.mode "max_requests".');
+    throw new Error('Publisher task environment JSON must use aiUsageLimit.mode "max_requests".');
   }
 
   const customModels = parsed.customModels || [];

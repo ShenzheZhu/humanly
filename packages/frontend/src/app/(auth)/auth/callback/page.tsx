@@ -54,7 +54,7 @@ export default function OAuthCallbackPage() {
       <CardHeader className="text-center">
         <CardTitle>Signing you in</CardTitle>
         <CardDescription>
-          Humanly Admin is finishing the secure provider handoff.
+          Humanly Publisher is finishing the secure provider handoff.
         </CardDescription>
       </CardHeader>
       <CardContent>

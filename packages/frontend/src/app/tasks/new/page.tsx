@@ -1625,7 +1625,7 @@ export default function NewTaskPage() {
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Admin local time: {localTimeZoneLabel}
+                  Publisher local time: {localTimeZoneLabel}
                 </p>
                 <Button
                   type="button"
@@ -1780,7 +1780,7 @@ export default function NewTaskPage() {
         </Button>
         <h1 className="text-3xl font-bold tracking-normal">New Task</h1>
         <p className="mt-2 text-muted-foreground">
-          Create an admin-managed writing task and configure its writing environment.
+          Create a publisher-managed writing task and configure its writing environment.
         </p>
       </div>
 

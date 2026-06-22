@@ -133,7 +133,7 @@ export default function EnvironmentConfigFields({
             onChange={(event) => onChange(setNested(config, { taskType: event.target.value as WritingEnvironmentConfig['taskType'] }))}
           >
             <option value="personal">Personal Task</option>
-            <option value="admin_assigned">Admin Assigned Task</option>
+            <option value="admin_assigned">Publisher Assigned Task</option>
           </select>
         </div>
 

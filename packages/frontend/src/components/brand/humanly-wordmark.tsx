@@ -41,7 +41,7 @@ export function HumanlyWordmark({
       style={{
         fontFamily: 'var(--font-humanly-brand), "Courier Prime", "Courier New", monospace',
       }}
-      aria-label={admin ? 'Humanly Admin' : 'Humanly'}
+      aria-label={admin ? 'Humanly Publisher' : 'Humanly'}
     >
       <img
         src="/brand/pencil-angled.png"
@@ -62,7 +62,7 @@ export function HumanlyWordmark({
         ) : null}
         {admin ? (
           <span className="ml-2 font-sans text-[0.48em] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            admin
+            publisher
           </span>
         ) : null}
       </span>
