@@ -21,10 +21,7 @@ COPY tsconfig.json    ./
 # Build in dependency order: shared → tracker → backend
 RUN pnpm --filter @humanly/shared build
 RUN pnpm --filter @humanly/tracker build
-# Backend has pre-existing TS type errors (same situation as Next.js ignoreBuildErrors: true).
-# noEmitOnError defaults to false so tsc still emits JS; we only fail if no output is produced.
-WORKDIR /app/packages/backend
-RUN pnpm exec tsc --skipLibCheck; test -f dist/index.js || (echo "ERROR: Backend build produced no output" && exit 1)
+RUN pnpm --filter @humanly/backend build
 
 # ── Production stage ──────────────────────────────────────────────────────────
 FROM node:20-alpine

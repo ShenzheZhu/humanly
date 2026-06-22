@@ -10,6 +10,7 @@
     "start": "node dist/index.js",
     "migrate": "node dist/db/migrate.js",
     "cleanup:orphan-storage": "tsx src/jobs/cleanup-orphan-storage.ts",
+    "test:runnable": "tsx src/controllers/ai.controller.test.ts",
     "lint": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
