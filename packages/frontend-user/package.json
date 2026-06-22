@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start -p 3002",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test:runnable": "node src/components/pdf/PDFViewer.resource-options.test.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",

@@ -659,7 +659,7 @@ function FAQSection() {
           </h2>
         </div>
         <div>
-          {faqs.map(([question, answer], index) => (
+          {faqs.map(([question, answer]) => (
             <details
               key={question}
               className="group border-t border-[rgba(20,22,26,0.10)] py-[22px]"

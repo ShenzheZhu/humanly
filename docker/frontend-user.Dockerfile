@@ -15,11 +15,12 @@ ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
 
 COPY package.json ./
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY docker/pnpm-install.sh ./docker/pnpm-install.sh
 COPY packages/frontend-user/package.json ./packages/frontend-user/
 COPY packages/shared/package.json        ./packages/shared/
 COPY packages/editor/package.json        ./packages/editor/
 
-RUN corepack enable && pnpm install --frozen-lockfile
+RUN sh ./docker/pnpm-install.sh --frozen-lockfile
 
 COPY packages/shared       ./packages/shared
 COPY packages/editor       ./packages/editor
@@ -39,11 +40,12 @@ WORKDIR /app
 
 COPY package.json ./
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY docker/pnpm-install.sh ./docker/pnpm-install.sh
 COPY packages/frontend-user/package.json ./packages/frontend-user/
 COPY packages/shared/package.json        ./packages/shared/
 COPY packages/editor/package.json        ./packages/editor/
 
-RUN corepack enable && pnpm install --frozen-lockfile --prod
+RUN sh ./docker/pnpm-install.sh --frozen-lockfile --prod
 
 COPY --from=builder /app/packages/frontend-user/.next  ./packages/frontend-user/.next
 COPY --from=builder /app/packages/frontend-user/public ./packages/frontend-user/public
