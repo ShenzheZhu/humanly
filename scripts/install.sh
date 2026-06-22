@@ -23,6 +23,7 @@ ADMIN_PASSWORD="${HUMANLY_ADMIN_PASSWORD:-$DEFAULT_ADMIN_PASSWORD}"
 PUBLISHER_URL="${HUMANLY_PUBLISHER_URL:-http://localhost:3000}"
 WRITER_URL="${HUMANLY_WRITER_URL:-http://localhost:3002}"
 API_URL="${HUMANLY_API_URL:-http://localhost:3001}"
+COMPOSE_PROJECT_NAME="${HUMANLY_COMPOSE_PROJECT_NAME:-}"
 
 log() {
   printf '\n[%s] %s\n' "$SCRIPT_NAME" "$*"
@@ -198,6 +199,16 @@ random_hex() {
   fi
 }
 
+safe_compose_project_name() {
+  base="$(basename "$TARGET_DIR" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9_-]/_/g')"
+  case "$base" in
+    ""|[!a-z0-9]*)
+      base="humanly_$base"
+      ;;
+  esac
+  printf 'humanly_%s_%s\n' "$base" "$(random_hex 4)"
+}
+
 build_source_url() {
   if [ -n "$SOURCE_URL" ]; then
     printf '%s\n' "$SOURCE_URL"
@@ -304,6 +315,7 @@ ensure_secrets() {
   existing_api="$(env_value BACKEND_API_URL "$env_file")"
   existing_admin_email="$(env_value QUICKSTART_ADMIN_EMAIL "$env_file")"
   existing_admin_password="$(env_value QUICKSTART_ADMIN_PASSWORD "$env_file")"
+  existing_compose_project_name="$(env_value COMPOSE_PROJECT_NAME "$env_file")"
 
   [ -n "$POSTGRES_PASSWORD" ] || POSTGRES_PASSWORD="$(random_hex 18)"
   [ -n "$JWT_SECRET" ] || JWT_SECRET="$(random_hex 32)"
@@ -313,12 +325,14 @@ ensure_secrets() {
   [ -n "$existing_api" ] || existing_api="$API_URL"
   [ -n "$existing_admin_email" ] || existing_admin_email="$ADMIN_EMAIL"
   [ -n "$existing_admin_password" ] || existing_admin_password="$ADMIN_PASSWORD"
+  [ -n "$existing_compose_project_name" ] || existing_compose_project_name="$(safe_compose_project_name)"
 
   PUBLISHER_URL="$existing_publisher"
   WRITER_URL="$existing_writer"
   API_URL="$existing_api"
   ADMIN_EMAIL="$existing_admin_email"
   ADMIN_PASSWORD="$existing_admin_password"
+  COMPOSE_PROJECT_NAME="$existing_compose_project_name"
 }
 
 render_compose() {
@@ -366,6 +380,7 @@ WRITER_PORTAL_URL=$WRITER_URL
 BACKEND_API_URL=$API_URL
 QUICKSTART_ADMIN_EMAIL=$ADMIN_EMAIL
 QUICKSTART_ADMIN_PASSWORD=$ADMIN_PASSWORD
+COMPOSE_PROJECT_NAME=$COMPOSE_PROJECT_NAME
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
 JWT_SECRET=$JWT_SECRET
 AI_ENCRYPTION_KEY=$AI_ENCRYPTION_KEY
@@ -431,10 +446,14 @@ docker_daemon_ok() {
 }
 
 docker_compose() {
+  compose_project="$(env_value COMPOSE_PROJECT_NAME "$TARGET_DIR/.env.quickstart")"
+  [ -n "$compose_project" ] || compose_project="$COMPOSE_PROJECT_NAME"
+  [ -n "$compose_project" ] || compose_project="humanly"
+
   if docker info >/dev/null 2>&1; then
-    docker compose "$@"
+    docker compose -p "$compose_project" "$@"
   else
-    sudo docker compose "$@"
+    sudo docker compose -p "$compose_project" "$@"
   fi
 }
 
