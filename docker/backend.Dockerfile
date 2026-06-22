@@ -6,11 +6,12 @@ WORKDIR /app
 # Copy workspace manifests first (better layer caching)
 COPY package.json ./
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY docker/pnpm-install.sh ./docker/pnpm-install.sh
 COPY packages/backend/package.json  ./packages/backend/
 COPY packages/shared/package.json   ./packages/shared/
 COPY packages/tracker/package.json  ./packages/tracker/
 
-RUN corepack enable && pnpm install --frozen-lockfile
+RUN sh ./docker/pnpm-install.sh --frozen-lockfile
 
 # Copy source
 COPY packages/shared  ./packages/shared
@@ -30,10 +31,11 @@ WORKDIR /app
 
 COPY package.json ./
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY docker/pnpm-install.sh ./docker/pnpm-install.sh
 COPY packages/backend/package.json  ./packages/backend/
 COPY packages/shared/package.json   ./packages/shared/
 
-RUN corepack enable && pnpm install --frozen-lockfile --prod
+RUN sh ./docker/pnpm-install.sh --frozen-lockfile --prod
 
 # Compiled JS
 COPY --from=builder /app/packages/backend/dist  ./packages/backend/dist

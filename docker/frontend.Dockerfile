@@ -19,10 +19,11 @@ ENV NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
 
 COPY package.json ./
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY docker/pnpm-install.sh ./docker/pnpm-install.sh
 COPY packages/frontend/package.json ./packages/frontend/
 COPY packages/shared/package.json   ./packages/shared/
 
-RUN corepack enable && pnpm install --frozen-lockfile
+RUN sh ./docker/pnpm-install.sh --frozen-lockfile
 
 COPY packages/shared  ./packages/shared
 COPY packages/frontend ./packages/frontend
@@ -40,10 +41,11 @@ WORKDIR /app
 
 COPY package.json ./
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY docker/pnpm-install.sh ./docker/pnpm-install.sh
 COPY packages/frontend/package.json ./packages/frontend/
 COPY packages/shared/package.json   ./packages/shared/
 
-RUN corepack enable && pnpm install --frozen-lockfile --prod
+RUN sh ./docker/pnpm-install.sh --frozen-lockfile --prod
 
 COPY --from=builder /app/packages/frontend/.next  ./packages/frontend/.next
 COPY --from=builder /app/packages/frontend/public ./packages/frontend/public

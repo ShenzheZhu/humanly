@@ -25,6 +25,25 @@ jobs:
           persist-credentials: false
 
       - name: Review dependency changes
+        id: dependency-review
         uses: actions/dependency-review-action@v5
+        continue-on-error: true
         with:
           fail-on-severity: critical
+
+      - name: Enforce dependency review result
+        if: ${{ always() }}
+        env:
+          REVIEW_OUTCOME: ${{ steps.dependency-review.outcome }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$REVIEW_OUTCOME" != "failure" ]; then
+            exit 0
+          fi
+
+          if gh api "repos/${GITHUB_REPOSITORY}/dependency-graph/sbom" >/dev/null 2>&1; then
+            echo "Dependency Review failed while Dependency Graph is available." >&2
+            exit 1
+          fi
+
+          echo "::warning::Dependency Review is skipped because Dependency Graph is not enabled for this repository."
