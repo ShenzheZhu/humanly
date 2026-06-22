@@ -54,8 +54,8 @@ usage() {
 Humanly self-host installer
 
 Usage:
-  curl -fsSL https://raw.githubusercontent.com/ShenzheZhu/humanly/main/scripts/install.sh | sh
-  curl -fsSL https://raw.githubusercontent.com/ShenzheZhu/humanly/main/scripts/install.sh | sh -s -- [command] [options]
+  curl -fsSL https://writehumanly.net/install.sh | sh
+  curl -fsSL https://writehumanly.net/install.sh | sh -s -- [command] [options]
   ./humanly [command] [options]
 
 Commands:

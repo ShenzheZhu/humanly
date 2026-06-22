@@ -8,7 +8,7 @@ For a local self-hosted demo, use the shell installer instead of cloning the
 repository manually:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ShenzheZhu/humanly/main/scripts/install.sh | sh
+curl -fsSL https://writehumanly.net/install.sh | sh
 ```
 
 This creates a `humanly/` directory, checks or installs Docker and Docker
@@ -23,7 +23,13 @@ backend logs. Uploads use local Docker storage by default.
 To install files without starting services:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ShenzheZhu/humanly/main/scripts/install.sh | sh -s -- --no-start
+curl -fsSL https://writehumanly.net/install.sh | sh -s -- --no-start
+```
+
+If the website installer endpoint is unavailable, use the repository fallback:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ShenzheZhu/humanly/main/scripts/install.sh | sh
 ```
 
 Default local URLs:
