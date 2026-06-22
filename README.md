@@ -109,12 +109,6 @@ If the website installer endpoint is unavailable, use the repository fallback:
 curl -fsSL https://raw.githubusercontent.com/ShenzheZhu/humanly/main/scripts/install.sh | sh
 ```
 
-The npm installer remains available for Node-based workflows:
-
-```bash
-npx create-humanly@latest
-```
-
 If you already cloned this repository and want to run the checked-out code
 directly:
 
