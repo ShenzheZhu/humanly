@@ -1,4 +1,4 @@
--- Add account role separation for Publisher Portal and Writer Portal.
+-- Add account role separation for admin and user portals.
 ALTER TABLE users
 ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'user';
 
