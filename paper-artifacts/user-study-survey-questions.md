@@ -1,21 +1,7 @@
 # Humanly Role-Based User Evaluation: Survey Question List
 
 This document maintains the full question list for the Humanly role-based user
-evaluation described in the paper. The surveys are administered in
-Deliberation.io, and participants are recruited through Prolific AI Taskers in
-the Structured Writing category.
-
-## Study Administration
-
-- Recruitment: three independent Prolific worker groups, one for each role.
-- Qualification: Prolific AI Taskers, Structured Writing category.
-- Survey platform: Deliberation.io.
-- Response scale: five-point agreement scale, with options Strongly disagree,
-  Disagree, Neither agree nor disagree, Agree, and Strongly agree.
-- Humanly deployment: Owner and Writer participants leave Deliberation.io to
-  complete a live Humanly task flow, then return to the survey. Verifier
-  participants inspect fixed certificate screenshots and context material inside
-  the survey.
+evaluation described in the paper. 
 
 ## Owner Survey
 
@@ -23,7 +9,7 @@ Survey link:
 https://app.deliberation.io/participate/97081bc5-8117-4f16-9036-d8b0603a7470
 
 Setup: participants use the deployed Humanly Publisher Portal to create and
-publish a writing task, then return to Deliberation.io.
+publish a writing task, then return to Deliberation.io to answer the following questions.
 
 ### Usability
 
@@ -52,7 +38,7 @@ https://app.deliberation.io/participate/6d82d487-99d9-49cb-af6a-802a086f45dc
 
 Setup: participants open an assigned Humanly writing task, write in the deployed
 Humanly workspace, generate or submit the requested certificate, then return to
-Deliberation.io.
+Deliberation.io to answer the following questions.
 
 ### Usability
 
@@ -82,7 +68,7 @@ Survey link:
 https://app.deliberation.io/participate/a8da2cb6-3a99-4101-9c21-447675546b16
 
 Setup: participants receive background context in Deliberation.io and inspect
-fixed Humanly certificate screenshots. No live Humanly task is required.
+fixed Humanly certificate screenshots to answer the following questions.
 
 ### Activity Log
 
