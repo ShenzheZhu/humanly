@@ -3,6 +3,9 @@
 This document maintains the full question list for the Humanly role-based user
 evaluation described in the paper. 
 
+All agreement items use a five-point response scale: Strongly disagree,
+Disagree, Neither agree nor disagree, Agree, and Strongly agree.
+
 ## Owner Survey
 
 Survey link:
