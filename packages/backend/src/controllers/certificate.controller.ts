@@ -424,6 +424,16 @@ export async function verifyCertificate(req: Request, res: Response): Promise<vo
 }
 
 /**
+ * Get the public verification key for new certificate signatures.
+ */
+export async function getCertificatePublicKey(req: Request, res: Response): Promise<void> {
+  res.json({
+    success: true,
+    data: CertificateService.getCertificatePublicVerificationKey(),
+  });
+}
+
+/**
  * Verify certificate with access code (public endpoint, no auth required)
  */
 export async function verifyCertificateWithAccessCode(req: Request, res: Response): Promise<void> {

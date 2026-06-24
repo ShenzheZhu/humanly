@@ -17,9 +17,17 @@ import {
   getCertificateLogs,
   getPublicCertificateLogs,
   getAIAuthorshipStats,
+  getCertificatePublicKey,
 } from '../controllers/certificate.controller';
 
 const router: Router = Router();
+
+/**
+ * GET /api/v1/certificates/public-key
+ * Public verification key for new certificate signatures.
+ * PUBLIC ENDPOINT - No authentication required
+ */
+router.get('/public-key', asyncHandler(getCertificatePublicKey));
 
 /**
  * GET /api/v1/certificates/verify/:token
