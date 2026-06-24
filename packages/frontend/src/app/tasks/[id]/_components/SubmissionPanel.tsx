@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Award, BarChart3, ChevronRight, FileText, Loader2, RefreshCcw, ShieldAlert, Users } from 'lucide-react';
+import { Award, BarChart3, ChevronRight, Download, FileText, Loader2, RefreshCcw, ShieldAlert, Users } from 'lucide-react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +17,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn, formatDateTime } from '@/lib/utils';
+import { ApiError, apiClient } from '@/lib/api-client';
 import { buildCertificateVerifyUrl } from '@/lib/certificate-url';
+import { downloadBlob } from '@/lib/download';
 import { getReviewSignals } from '@/lib/review-signals';
 
 import type { AdminSubmission, TaskEnrollment } from './types';
@@ -57,6 +59,29 @@ const getFlagBadgeClass = (severity: keyof typeof severityRank) => {
   return 'border-[#c8d1dc] bg-[#eef1f4] text-[#576777]';
 };
 
+type TaskExportKind = 'submissions' | 'log-events';
+type TaskExportFormat = 'csv' | 'json';
+type DownloadTarget = `${TaskExportKind}:${TaskExportFormat}`;
+
+const getTaskExportFilename = (
+  taskId: string,
+  kind: TaskExportKind,
+  format: TaskExportFormat,
+  contentDisposition?: string
+) => {
+  const match = contentDisposition?.match(/filename="?([^";]+)"?/i);
+  if (match?.[1]) return match[1];
+
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  return `humanly-task-${taskId}-${kind}-${timestamp}.${format}`;
+};
+
+const getTaskExportErrorMessage = (error: unknown) => {
+  if (error instanceof ApiError) return error.message;
+  if (error instanceof Error) return error.message;
+  return 'Could not download this task export.';
+};
+
 export function SubmissionPanel({
   taskId,
   enrollments,
@@ -68,6 +93,8 @@ export function SubmissionPanel({
 }: SubmissionPanelProps) {
   const router = useRouter();
   const [selectedUserId, setSelectedUserId] = useState<'all' | string>('all');
+  const [downloadTarget, setDownloadTarget] = useState<DownloadTarget | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const submissionsByUser = useMemo(() => (
     submissions.reduce<Record<string, AdminSubmission[]>>((groups, submission) => {
@@ -98,6 +125,31 @@ export function SubmissionPanel({
 
   const openSubmission = (submissionId: string) => {
     router.push(`/tasks/${taskId}/submissions/${submissionId}?from=submission`);
+  };
+
+  const downloadTaskExport = async (kind: TaskExportKind, format: TaskExportFormat) => {
+    const target: DownloadTarget = `${kind}:${format}`;
+    setDownloadTarget(target);
+    setDownloadError(null);
+
+    try {
+      const response = await apiClient.get<Blob>(`/api/v1/tasks/${taskId}/exports/${kind}`, {
+        params: { format },
+        responseType: 'blob',
+      });
+      const filename = getTaskExportFilename(
+        taskId,
+        kind,
+        format,
+        response.headers['content-disposition']
+      );
+
+      downloadBlob(response.data, filename);
+    } catch (error) {
+      setDownloadError(getTaskExportErrorMessage(error));
+    } finally {
+      setDownloadTarget(null);
+    }
   };
 
   const renderCertificateCell = (submission: AdminSubmission) => {
@@ -148,6 +200,28 @@ export function SubmissionPanel({
           </Badge>
         )}
       </div>
+    );
+  };
+
+  const renderDownloadButton = (kind: TaskExportKind, format: TaskExportFormat, label: string) => {
+    const target: DownloadTarget = `${kind}:${format}`;
+    const isDownloading = downloadTarget === target;
+
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => downloadTaskExport(kind, format)}
+        disabled={Boolean(downloadTarget)}
+      >
+        {isDownloading ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <Download className="mr-2 h-4 w-4" />
+        )}
+        {label}
+      </Button>
     );
   };
 
@@ -227,19 +301,32 @@ export function SubmissionPanel({
                   : selectedEnrollment?.email || 'User submissions'}
               </CardTitle>
             </div>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={onRefresh}
-              disabled={isLoading}
-              aria-label="Refresh submissions"
-              title="Refresh submissions"
-            >
-              <RefreshCcw className="h-4 w-4" />
-            </Button>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {renderDownloadButton('log-events', 'csv', 'Log events CSV')}
+              {renderDownloadButton('log-events', 'json', 'Log events JSON')}
+              {renderDownloadButton('submissions', 'csv', 'Submissions CSV')}
+              {renderDownloadButton('submissions', 'json', 'Submissions JSON')}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={onRefresh}
+                disabled={isLoading}
+                aria-label="Refresh submissions"
+                title="Refresh submissions"
+              >
+                <RefreshCcw className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
+          {downloadError ? (
+            <Alert variant="destructive" className="mb-4">
+              <AlertTitle>Download failed</AlertTitle>
+              <AlertDescription>{downloadError}</AlertDescription>
+            </Alert>
+          ) : null}
+
           {isLoading ? (
             <div className="flex h-[300px] items-center justify-center">
               <div className="space-y-3 text-center">

@@ -29,6 +29,7 @@ import {
 import { AppError } from '../middleware/error-handler';
 import { logger } from '../utils/logger';
 import { env } from '../config/env';
+import { query } from '../config/database';
 import { cacheDel, cacheDelPattern } from '../config/redis';
 import { FileStorageService } from './file-storage.service';
 import { FileService } from './file.service';
@@ -39,6 +40,56 @@ import { generateAccessToken, generateRefreshToken, TokenPayload } from '../util
 const TASK_END_DATE_ERROR_MESSAGE = 'Task end date must be after start date';
 const TASK_SETTINGS_LOCK_MESSAGE = 'Task settings are read-only after task launch';
 const TASK_INSTRUCTION_PDF_LIMIT_MESSAGE = `Tasks can include at most ${TASK_INSTRUCTION_PDF_MAX_FILES} instruction PDFs`;
+
+export interface TaskSubmissionExportRow {
+  submissionId: string;
+  taskId: string;
+  userId: string;
+  userEmail: string | null;
+  documentId: string;
+  documentTitle: string | null;
+  taskAttemptId: string | null;
+  attemptNumber: number | null;
+  certificateId: string | null;
+  certificateVerificationToken: string | null;
+  submittedAt: Date;
+  status: string;
+  plainTextCharacterCount: number;
+  plainTextSnapshot: string | null;
+  payloadSnapshot: unknown;
+  anomalyFlags: unknown;
+  createdAt: Date;
+}
+
+export interface TaskLogEventExportRow {
+  submissionId: string;
+  taskId: string;
+  submissionUserId: string;
+  userEmail: string | null;
+  documentId: string;
+  documentTitle: string | null;
+  taskAttemptId: string | null;
+  attemptNumber: number | null;
+  certificateId: string | null;
+  certificateVerificationToken: string | null;
+  submittedAt: Date;
+  eventId: string;
+  eventUserId: string;
+  eventSessionId: string | null;
+  eventType: string;
+  eventTimestamp: Date;
+  keyCode: string | null;
+  keyChar: string | null;
+  textBefore: string | null;
+  textAfter: string | null;
+  cursorPosition: number | null;
+  selectionStart: number | null;
+  selectionEnd: number | null;
+  editorStateBefore: unknown;
+  editorStateAfter: unknown;
+  metadata: unknown;
+  eventCreatedAt: Date;
+}
 
 const getDateMs = (value: Date | string | number): number => new Date(value).getTime();
 
@@ -951,6 +1002,105 @@ export class TaskService {
     }
 
     return SubmissionModel.listForTask(task.id);
+  }
+
+  static async exportTaskSubmissions(taskId: string, adminUserId: string): Promise<TaskSubmissionExportRow[]> {
+    const task = await TaskModel.findById(taskId);
+
+    if (!task) {
+      throw new AppError(404, 'Task not found');
+    }
+
+    if (task.userId !== adminUserId) {
+      throw new AppError(403, 'Access denied to this task');
+    }
+
+    return query<TaskSubmissionExportRow>(
+      `
+        SELECT
+          s.id AS "submissionId",
+          s.task_id AS "taskId",
+          s.user_id AS "userId",
+          u.email AS "userEmail",
+          s.document_id AS "documentId",
+          d.title AS "documentTitle",
+          s.task_attempt_id AS "taskAttemptId",
+          ta.attempt_number AS "attemptNumber",
+          s.certificate_id AS "certificateId",
+          c.verification_token AS "certificateVerificationToken",
+          s.submitted_at AS "submittedAt",
+          s.status AS "status",
+          char_length(COALESCE(s.plain_text_snapshot, '')) AS "plainTextCharacterCount",
+          s.plain_text_snapshot AS "plainTextSnapshot",
+          s.payload_snapshot AS "payloadSnapshot",
+          COALESCE(s.anomaly_flags, c.anomaly_flags, '[]'::jsonb) AS "anomalyFlags",
+          s.created_at AS "createdAt"
+        FROM submissions s
+        LEFT JOIN users u ON u.id = s.user_id
+        LEFT JOIN documents d ON d.id = s.document_id
+        LEFT JOIN task_attempts ta ON ta.id = s.task_attempt_id
+        LEFT JOIN certificates c ON c.id = s.certificate_id
+        WHERE s.task_id = $1
+        ORDER BY s.submitted_at DESC, s.created_at DESC, s.id DESC
+      `,
+      [task.id]
+    );
+  }
+
+  static async exportTaskLogEvents(taskId: string, adminUserId: string): Promise<TaskLogEventExportRow[]> {
+    const task = await TaskModel.findById(taskId);
+
+    if (!task) {
+      throw new AppError(404, 'Task not found');
+    }
+
+    if (task.userId !== adminUserId) {
+      throw new AppError(403, 'Access denied to this task');
+    }
+
+    return query<TaskLogEventExportRow>(
+      `
+        SELECT
+          s.id AS "submissionId",
+          s.task_id AS "taskId",
+          s.user_id AS "submissionUserId",
+          u.email AS "userEmail",
+          s.document_id AS "documentId",
+          d.title AS "documentTitle",
+          s.task_attempt_id AS "taskAttemptId",
+          ta.attempt_number AS "attemptNumber",
+          s.certificate_id AS "certificateId",
+          c.verification_token AS "certificateVerificationToken",
+          s.submitted_at AS "submittedAt",
+          de.id::text AS "eventId",
+          de.user_id AS "eventUserId",
+          de.session_id AS "eventSessionId",
+          de.event_type AS "eventType",
+          de.timestamp AS "eventTimestamp",
+          de.key_code AS "keyCode",
+          de.key_char AS "keyChar",
+          de.text_before AS "textBefore",
+          de.text_after AS "textAfter",
+          de.cursor_position AS "cursorPosition",
+          de.selection_start AS "selectionStart",
+          de.selection_end AS "selectionEnd",
+          de.editor_state_before AS "editorStateBefore",
+          de.editor_state_after AS "editorStateAfter",
+          de.metadata AS "metadata",
+          de.created_at AS "eventCreatedAt"
+        FROM submissions s
+        LEFT JOIN users u ON u.id = s.user_id
+        LEFT JOIN documents d ON d.id = s.document_id
+        LEFT JOIN task_attempts ta ON ta.id = s.task_attempt_id
+        LEFT JOIN certificates c ON c.id = s.certificate_id
+        JOIN document_events de
+          ON de.document_id = s.document_id
+          AND de.timestamp <= s.submitted_at
+        WHERE s.task_id = $1
+        ORDER BY s.submitted_at DESC, s.id ASC, de.timestamp ASC, de.created_at ASC, de.id ASC
+      `,
+      [task.id]
+    );
   }
 
   static async getTaskSubmissionEvents(taskId: string, submissionId: string, adminUserId: string) {

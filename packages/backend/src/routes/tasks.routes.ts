@@ -20,6 +20,8 @@ import {
   submitTaskDocument,
   listTaskSubmissions,
   getTaskSubmissionEvents,
+  exportTaskSubmissions,
+  exportTaskLogEvents,
   updateTask,
   launchTask,
   pauseTask,
@@ -146,6 +148,18 @@ router.get('/:id/submissions', asyncHandler(listTaskSubmissions));
  * Get document events up to the selected submission timestamp.
  */
 router.get('/:id/submissions/:submissionId/events', asyncHandler(getTaskSubmissionEvents));
+
+/**
+ * GET /api/v1/tasks/:id/exports/submissions
+ * Download submitted text snapshots and submission metadata for a publisher-owned task.
+ */
+router.get('/:id/exports/submissions', asyncHandler(exportTaskSubmissions));
+
+/**
+ * GET /api/v1/tasks/:id/exports/log-events
+ * Download full submitted document-event logs for a publisher-owned task.
+ */
+router.get('/:id/exports/log-events', asyncHandler(exportTaskLogEvents));
 
 /**
  * POST /api/v1/tasks/:id/launch
