@@ -127,6 +127,10 @@ function rowsToCsv(rows: unknown[], columns: readonly string[]): string {
   return [header, ...body].join('\n');
 }
 
+function getSafeExportFilenamePart(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 128) || 'export';
+}
+
 function sendTaskExport(
   res: Response,
   options: {
@@ -138,28 +142,28 @@ function sendTaskExport(
   }
 ): void {
   const generatedAt = new Date();
-  const filename = `humanly-task-${options.taskId}-${options.exportType}-${formatExportTimestamp(generatedAt)}.${options.format}`;
+  const safeTaskId = getSafeExportFilenamePart(options.taskId);
+  const filename = `humanly-task-${safeTaskId}-${options.exportType}-${formatExportTimestamp(generatedAt)}.${options.format}`;
 
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.attachment(filename);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
 
   if (options.format === 'json') {
-    res
-      .type('application/json')
-      .send(JSON.stringify({
-        success: true,
-        data: {
-          taskId: options.taskId,
-          exportType: options.exportType,
-          generatedAt: generatedAt.toISOString(),
-          rowCount: options.rows.length,
-          rows: options.rows,
-        },
-      }, null, 2));
+    res.json({
+      success: true,
+      data: {
+        taskId: options.taskId,
+        exportType: options.exportType,
+        generatedAt: generatedAt.toISOString(),
+        rowCount: options.rows.length,
+        rows: options.rows,
+      },
+    });
     return;
   }
 
   res
-    .type('text/csv')
+    .type('text/csv; charset=utf-8')
     .send(rowsToCsv(options.rows, options.columns));
 }
 
