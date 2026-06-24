@@ -122,7 +122,7 @@ function getSealStatusPresentation(status?: CertificateSealStatus) {
       containerClass: 'border-[#d7c8a8] bg-[#fbf6e8]',
       iconClass: 'bg-[#f1e4c5] text-[#8a6b2f]',
       badgeClass: 'border-[#d7c8a8] bg-[#f8eed3] text-[#8a6b2f]',
-      message: 'This certificate has a valid legacy integrity seal.',
+      message: 'The integrity seal matches this certificate record.',
     };
   }
 
@@ -603,8 +603,8 @@ export function CertificateEvidenceView({
                   <p className="text-muted-foreground">{integrityMessage}</p>
                 )}
                 <p className="text-muted-foreground">
-                  New certificates use a public-key verifiable signature. Legacy certificates remain readable with their original
-                  integrity seal. The seal verifies the certificate record shown here; it does not make claims about off-platform behavior.
+                  The seal verifies the certificate record shown here, including the signed fields listed above. It does not make
+                  claims about off-platform behavior.
                 </p>
               </CollapsibleContent>
             </Collapsible>

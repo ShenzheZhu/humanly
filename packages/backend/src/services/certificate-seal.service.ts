@@ -445,8 +445,8 @@ export class CertificateSealService {
         valid: false,
         sealStatus: this.isSealSignature(storedSignature) ? 'legacy_valid' : 'missing',
         message: this.isSealSignature(storedSignature)
-          ? 'Certificate uses a legacy integrity seal that is not public-key verifiable'
-          : 'Certificate uses a legacy integrity seal format',
+          ? 'Certificate seal is valid but not public-key verifiable'
+          : 'Certificate uses an unsupported integrity seal format',
       };
     }
 
@@ -495,7 +495,7 @@ export class CertificateSealService {
       return {
         valid: false,
         sealStatus: 'missing',
-        message: 'Certificate uses a legacy integrity seal format',
+        message: 'Certificate uses an unsupported integrity seal format',
       };
     }
 
@@ -520,7 +520,7 @@ export class CertificateSealService {
       },
       sealStatus: valid ? 'legacy_valid' : 'invalid',
       message: valid
-        ? 'Certificate legacy integrity seal is valid'
+        ? 'Certificate integrity seal is valid'
         : 'Certificate seal does not match the protected certificate fields',
     };
   }
