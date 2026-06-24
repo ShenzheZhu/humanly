@@ -520,8 +520,16 @@ export class CertificateService {
   /**
    * Generate a versioned tamper-evident seal for the certificate payload.
    */
+  private static getSealKeyOptions() {
+    return {
+      privateKeyPem: env.certificateSealPrivateKey,
+      publicKeyPem: env.certificateSealPublicKey,
+      keyId: env.certificateSealKeyId,
+    };
+  }
+
   private static generateSignature(data: CertificateSealInput): string {
-    return CertificateSealService.createSeal(data, env.jwtSecret).signature;
+    return CertificateSealService.createSeal(data, env.jwtSecret, this.getSealKeyOptions()).signature;
   }
 
   private static buildSealInput(certificate: Certificate): CertificateSealInput {
@@ -560,7 +568,8 @@ export class CertificateService {
       return CertificateSealService.verifySeal(
         this.buildSealInput(certificate),
         env.jwtSecret,
-        certificate.signature
+        certificate.signature,
+        this.getSealKeyOptions()
       );
     }
 
@@ -582,6 +591,10 @@ export class CertificateService {
 
   static getCertificateIntegrity(certificate: Certificate): CertificateSealVerification {
     return this.verifyCertificateIntegrity(certificate);
+  }
+
+  static getCertificatePublicVerificationKey() {
+    return CertificateSealService.getPublicVerificationKey(env.jwtSecret, this.getSealKeyOptions());
   }
 
   private static async resealCertificate(certificate: Certificate): Promise<Certificate> {

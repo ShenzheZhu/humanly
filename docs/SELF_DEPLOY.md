@@ -90,6 +90,12 @@ Writer Portal domains. Humanly does not use a backend-owned AI provider key;
 users configure their own provider credentials in the product, and those
 credentials are stored encrypted.
 
+Certificate integrity seals use Ed25519 signatures. For local installs, Humanly
+can derive a stable signing key from `JWT_SECRET`. For production, set
+`CERTIFICATE_ED25519_PRIVATE_KEY`, `CERTIFICATE_ED25519_PUBLIC_KEY`, and
+`CERTIFICATE_ED25519_KEY_ID` so new certificates remain publicly verifiable
+across deployments.
+
 ## Install
 
 ```bash

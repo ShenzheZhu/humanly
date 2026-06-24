@@ -70,6 +70,11 @@ interface EnvConfig {
   // Encryption
   aiEncryptionKey: string;
 
+  // Certificate signing
+  certificateSealPrivateKey?: string;
+  certificateSealPublicKey?: string;
+  certificateSealKeyId?: string;
+
   // Logging
   logLevel: string;
 }
@@ -266,6 +271,11 @@ export const env: EnvConfig = {
 
   // Encryption
   aiEncryptionKey: getEnv('AI_ENCRYPTION_KEY', '0000000000000000000000000000000000000000000000000000000000000000'),
+
+  // Certificate signing
+  certificateSealPrivateKey: process.env.CERTIFICATE_ED25519_PRIVATE_KEY,
+  certificateSealPublicKey: process.env.CERTIFICATE_ED25519_PUBLIC_KEY,
+  certificateSealKeyId: process.env.CERTIFICATE_ED25519_KEY_ID,
 
   // Logging
   logLevel: getEnv('LOG_LEVEL', 'info'),

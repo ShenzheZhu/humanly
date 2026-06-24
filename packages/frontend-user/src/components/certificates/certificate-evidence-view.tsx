@@ -99,8 +99,8 @@ interface CertificateEvidenceViewProps {
 }
 
 function getSealStatusLabel(status?: CertificateSealStatus) {
-  if (status === 'valid') return 'Seal verified';
-  if (status === 'legacy_valid') return 'Legacy signature';
+  if (status === 'valid') return 'Signature verified';
+  if (status === 'legacy_valid') return 'Legacy seal';
   if (status === 'invalid') return 'Seal mismatch';
   return 'Seal unavailable';
 }
@@ -112,7 +112,7 @@ function getSealStatusPresentation(status?: CertificateSealStatus) {
       containerClass: 'border-[#c8d4c8] bg-[#f3f7f1]',
       iconClass: 'bg-[#dfe8dc] text-[#58715f]',
       badgeClass: 'border-[#c8d4c8] bg-[#eef3ed] text-[#58715f]',
-      message: 'Server-issued seal matches this certificate record.',
+      message: 'Publicly verifiable signature matches this certificate record.',
     };
   }
 
@@ -122,7 +122,7 @@ function getSealStatusPresentation(status?: CertificateSealStatus) {
       containerClass: 'border-[#d7c8a8] bg-[#fbf6e8]',
       iconClass: 'bg-[#f1e4c5] text-[#8a6b2f]',
       badgeClass: 'border-[#d7c8a8] bg-[#f8eed3] text-[#8a6b2f]',
-      message: 'This certificate has a valid legacy signature.',
+      message: 'This certificate has a valid legacy server seal.',
     };
   }
 
@@ -491,6 +491,7 @@ export function CertificateEvidenceView({
     ['Payload hash', sealHashPreview || 'Unavailable'],
     ['Algorithm', seal?.algorithm || 'Unavailable'],
     ['Key ID', seal?.keyId || 'Unavailable'],
+    ['Public key fingerprint', seal?.publicKeyFingerprint ? `${seal.publicKeyFingerprint.slice(0, 12)}...${seal.publicKeyFingerprint.slice(-12)}` : 'Unavailable'],
     ['Signed fields', seal?.signedFields?.length ? seal.signedFields.length.toLocaleString() : 'Unavailable'],
   ];
   const sealPresentation = getSealStatusPresentation(sealStatus);
@@ -595,15 +596,15 @@ export function CertificateEvidenceView({
                 </div>
                 <p className="font-medium">Certificate integrity</p>
                 <p>
-                  This certificate was checked against the Humanly server-issued integrity seal for the protected certificate
-                  record, including the writing metrics, document identity, generated timestamp, and current display options.
+                  This certificate was checked against the Humanly integrity seal for the protected certificate record, including
+                  the writing metrics, document identity, generated timestamp, and current display options.
                 </p>
                 {integrityMessage && (
                   <p className="text-muted-foreground">{integrityMessage}</p>
                 )}
                 <p className="text-muted-foreground">
-                  The authorship statistics come from write-time tracking of typing, paste, replayed edit history, and in-platform
-                  AI assistance. The seal verifies the certificate record shown here; it does not make claims about off-platform behavior.
+                  New certificates use a public-key verifiable signature. Legacy certificates remain readable with their original
+                  server seal. The seal verifies the certificate record shown here; it does not make claims about off-platform behavior.
                 </p>
               </CollapsibleContent>
             </Collapsible>

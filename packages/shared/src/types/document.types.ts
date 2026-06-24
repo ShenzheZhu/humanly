@@ -284,6 +284,7 @@ export interface CertificateSeal {
   version: string;
   algorithm: string;
   keyId: string;
+  publicKeyFingerprint?: string;
   payloadHash: string;
   signature: string;
   signedFields: string[];
