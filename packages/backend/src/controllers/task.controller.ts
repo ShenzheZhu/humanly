@@ -39,6 +39,130 @@ function serializePublicTaskPreview(task: Task) {
   };
 }
 
+type TaskExportFormat = 'csv' | 'json';
+
+const TASK_SUBMISSION_EXPORT_COLUMNS = [
+  'submissionId',
+  'taskId',
+  'userId',
+  'userEmail',
+  'documentId',
+  'documentTitle',
+  'taskAttemptId',
+  'attemptNumber',
+  'certificateId',
+  'certificateVerificationToken',
+  'submittedAt',
+  'status',
+  'plainTextCharacterCount',
+  'plainTextSnapshot',
+  'payloadSnapshot',
+  'anomalyFlags',
+  'createdAt',
+] as const;
+
+const TASK_LOG_EVENT_EXPORT_COLUMNS = [
+  'submissionId',
+  'taskId',
+  'submissionUserId',
+  'userEmail',
+  'documentId',
+  'documentTitle',
+  'taskAttemptId',
+  'attemptNumber',
+  'certificateId',
+  'certificateVerificationToken',
+  'submittedAt',
+  'eventId',
+  'eventUserId',
+  'eventSessionId',
+  'eventType',
+  'eventTimestamp',
+  'keyCode',
+  'keyChar',
+  'textBefore',
+  'textAfter',
+  'cursorPosition',
+  'selectionStart',
+  'selectionEnd',
+  'editorStateBefore',
+  'editorStateAfter',
+  'metadata',
+  'eventCreatedAt',
+] as const;
+
+function parseTaskExportFormat(value: unknown): TaskExportFormat {
+  if (value === undefined || value === null || value === '') return 'csv';
+  if (value === 'csv' || value === 'json') return value;
+  throw new AppError(400, 'Export format must be csv or json');
+}
+
+function formatExportTimestamp(date: Date): string {
+  return date.toISOString().replace(/[:.]/g, '-');
+}
+
+function getCsvCell(value: unknown): string {
+  if (value === null || value === undefined) return '';
+
+  const text = value instanceof Date
+    ? value.toISOString()
+    : typeof value === 'object'
+      ? JSON.stringify(value)
+      : String(value);
+
+  if (/[",\n\r]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+
+  return text;
+}
+
+function rowsToCsv(rows: unknown[], columns: readonly string[]): string {
+  const header = columns.join(',');
+  const body = rows.map((row) => {
+    const record = row as Record<string, unknown>;
+    return columns.map((column) => getCsvCell(record[column])).join(',');
+  });
+
+  return [header, ...body].join('\n');
+}
+
+function sendTaskExport(
+  res: Response,
+  options: {
+    taskId: string;
+    exportType: 'submissions' | 'log-events';
+    format: TaskExportFormat;
+    rows: unknown[];
+    columns: readonly string[];
+  }
+): void {
+  const generatedAt = new Date();
+  const filename = `humanly-task-${options.taskId}-${options.exportType}-${formatExportTimestamp(generatedAt)}.${options.format}`;
+
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+  if (options.format === 'json') {
+    res
+      .type('application/json')
+      .send(JSON.stringify({
+        success: true,
+        data: {
+          taskId: options.taskId,
+          exportType: options.exportType,
+          generatedAt: generatedAt.toISOString(),
+          rowCount: options.rows.length,
+          rows: options.rows,
+        },
+      }, null, 2));
+    return;
+  }
+
+  res
+    .type('text/csv')
+    .send(rowsToCsv(options.rows, options.columns));
+}
+
 /**
  * Create a new task
  */
@@ -497,6 +621,52 @@ export async function getTaskSubmissionEvents(req: Request, res: Response): Prom
   res.json({
     success: true,
     data: result,
+  });
+}
+
+/**
+ * Export task submissions for publisher-owned assigned tasks.
+ */
+export async function exportTaskSubmissions(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.userId;
+  const taskId = req.params.id;
+
+  if (!taskId) {
+    throw new AppError(400, 'Task ID is required');
+  }
+
+  const format = parseTaskExportFormat(req.query.format);
+  const rows = await TaskService.exportTaskSubmissions(taskId, userId);
+
+  sendTaskExport(res, {
+    taskId,
+    exportType: 'submissions',
+    format,
+    rows,
+    columns: TASK_SUBMISSION_EXPORT_COLUMNS,
+  });
+}
+
+/**
+ * Export full submitted document-event logs for publisher-owned assigned tasks.
+ */
+export async function exportTaskLogEvents(req: Request, res: Response): Promise<void> {
+  const userId = req.user!.userId;
+  const taskId = req.params.id;
+
+  if (!taskId) {
+    throw new AppError(400, 'Task ID is required');
+  }
+
+  const format = parseTaskExportFormat(req.query.format);
+  const rows = await TaskService.exportTaskLogEvents(taskId, userId);
+
+  sendTaskExport(res, {
+    taskId,
+    exportType: 'log-events',
+    format,
+    rows,
+    columns: TASK_LOG_EVENT_EXPORT_COLUMNS,
   });
 }
 
