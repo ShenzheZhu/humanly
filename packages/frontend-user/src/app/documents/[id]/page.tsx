@@ -112,6 +112,9 @@ const API_URL =
   (process.env.NODE_ENV === 'production' ? '/api/v1' : 'http://localhost:3001/api/v1');
 const SUBMISSION_SESSION_START_DELAY_MS = 250;
 const EDITOR_AUTO_SAVE_INTERVAL_MS = 750;
+const EDITOR_EVENT_BATCH_SIZE = 10;
+const EDITOR_EVENT_FLUSH_INTERVAL_MS = 10000;
+const EDITOR_EMERGENCY_EVENT_CHUNK_SIZE = 1;
 const TASK_ENROLLMENT_REFRESH_INTERVAL_MS = 15000;
 const TASK_RULES_DISMISSED_VALUE = 'dismissed';
 type SaveStatus = 'saved' | 'saving' | 'error';
@@ -902,16 +905,93 @@ export default function DocumentEditorPage() {
     }
   };
 
+  const getCurrentActivitySessionId = useCallback(() => (
+    submissionSessionRef.current?.sessionId ||
+    lastSubmissionSessionRef.current?.sessionId ||
+    submissionSessionId ||
+    null
+  ), [submissionSessionId]);
+
+  const mapTrackedEventsForWrite = useCallback((
+    events: TrackedEvent[],
+    currentSessionId?: string | null
+  ): PendingActivityEvent[] => (
+    events.map((event) => ({
+      sessionId: currentSessionId || undefined,
+      eventType: event.eventType,
+      timestamp: event.timestamp,
+      keyCode: event.keyCode,
+      keyChar: event.keyChar,
+      textBefore: event.textBefore,
+      textAfter: event.textAfter,
+      cursorPosition: event.cursorPosition,
+      selectionStart: event.selectionStart,
+      selectionEnd: event.selectionEnd,
+      editorStateBefore: event.editorStateBefore,
+      editorStateAfter: event.editorStateAfter,
+      metadata: event.metadata,
+    }))
+  ), []);
+
+  const buildEventBatchPayload = useCallback((batch: PendingActivityEventBatch) => {
+    const token = getDocumentScopedAccessToken(documentId);
+    return {
+      token,
+      body: JSON.stringify({
+        events: batch.events,
+        ...(batch.sessionId ? { sessionId: batch.sessionId } : {}),
+        ...(token ? { taskToken: token } : {}),
+      }),
+    };
+  }, [documentId]);
+
+  const sendEmergencyEventBatch = useCallback((batch: PendingActivityEventBatch): boolean => {
+    if (batch.events.length === 0) {
+      return true;
+    }
+
+    const url = `${API_URL}/documents/${documentId}/events`;
+
+    if (typeof fetch !== 'function') {
+      return false;
+    }
+
+    try {
+      for (let index = 0; index < batch.events.length; index += EDITOR_EMERGENCY_EVENT_CHUNK_SIZE) {
+        const eventChunk = batch.events.slice(index, index + EDITOR_EMERGENCY_EVENT_CHUNK_SIZE);
+        const { token, body } = buildEventBatchPayload({
+          events: eventChunk,
+          sessionId: batch.sessionId,
+        });
+
+        void fetch(url, {
+          method: 'POST',
+          keepalive: true,
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body,
+        }).catch((error) => {
+          console.error('Emergency event flush failed:', error);
+        });
+      }
+      return true;
+    } catch (error) {
+      console.error('Emergency event flush could not be queued:', error);
+      return false;
+    }
+  }, [buildEventBatchPayload, documentId]);
+
   const postEventBatch = useCallback(
     async (batch: PendingActivityEventBatch) => {
-      await waitForDocumentScopedAccessTokenReady(documentId);
-
       const shouldUseKeepalive =
         containsWorkspaceLifecycleEvent(batch.events) ||
         (typeof window !== 'undefined' && window.document.visibilityState === 'hidden');
 
       if (shouldUseKeepalive && typeof fetch === 'function') {
-        const token = getDocumentScopedAccessToken(documentId);
+        const { token, body } = buildEventBatchPayload(batch);
         const response = await fetch(`${API_URL}/documents/${documentId}/events`, {
           method: 'POST',
           keepalive: true,
@@ -920,10 +1000,7 @@ export default function DocumentEditorPage() {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({
-            events: batch.events,
-            ...(batch.sessionId ? { sessionId: batch.sessionId } : {}),
-          }),
+          body,
         });
 
         if (!response.ok) {
@@ -932,9 +1009,10 @@ export default function DocumentEditorPage() {
         return;
       }
 
+      await waitForDocumentScopedAccessTokenReady(documentId);
       await trackEvents(batch.events as any, batch.sessionId, { throwOnError: true });
     },
-    [documentId, trackEvents]
+    [buildEventBatchPayload, documentId, trackEvents]
   );
 
   const retryFailedEventBatches = useCallback(async () => {
@@ -985,27 +1063,16 @@ export default function DocumentEditorPage() {
   );
 
   const handleEventsBuffer = async (events: TrackedEvent[]) => {
-    const currentSessionId =
-      submissionSessionRef.current?.sessionId ||
-      lastSubmissionSessionRef.current?.sessionId ||
-      submissionSessionId;
-    const mappedEvents = events.map((event) => ({
-      sessionId: currentSessionId || undefined,
-      eventType: event.eventType,
-      timestamp: event.timestamp,
-      keyCode: event.keyCode,
-      keyChar: event.keyChar,
-      textBefore: event.textBefore,
-      textAfter: event.textAfter,
-      cursorPosition: event.cursorPosition,
-      selectionStart: event.selectionStart,
-      selectionEnd: event.selectionEnd,
-      editorStateBefore: event.editorStateBefore,
-      editorStateAfter: event.editorStateAfter,
-      metadata: event.metadata,
-    }));
+    const currentSessionId = getCurrentActivitySessionId();
+    const mappedEvents = mapTrackedEventsForWrite(events, currentSessionId);
     await enqueueEventWrite(mappedEvents, currentSessionId, { retainOnFailure: false });
   };
+
+  const handleEmergencyEventsBuffer = useCallback((events: TrackedEvent[]) => {
+    const currentSessionId = getCurrentActivitySessionId();
+    const mappedEvents = mapTrackedEventsForWrite(events, currentSessionId);
+    return sendEmergencyEventBatch({ events: mappedEvents, sessionId: currentSessionId });
+  }, [getCurrentActivitySessionId, mapTrackedEventsForWrite, sendEmergencyEventBatch]);
 
   const handleEventFlushReady = useCallback((flushPendingEvents: (() => Promise<void>) | null) => {
     flushEditorEventsRef.current = flushPendingEvents;
@@ -1632,8 +1699,11 @@ export default function DocumentEditorPage() {
                     autoSaveInterval={EDITOR_AUTO_SAVE_INTERVAL_MS}
                     onContentChange={handleContentChange}
                     onEventsBuffer={handleEventsBuffer}
+                    onEmergencyEventsBuffer={handleEmergencyEventsBuffer}
                     onEventFlushReady={handleEventFlushReady}
                     onWorkspaceExitReady={handleWorkspaceExitReady}
+                    trackingBatchSize={EDITOR_EVENT_BATCH_SIZE}
+                    trackingFlushInterval={EDITOR_EVENT_FLUSH_INTERVAL_MS}
                     onAutoSave={handleAutoSave}
                     className="h-full"
                     renderSelectionPopup={aiEnabled && !isEditorReadOnly ? ({ selection, onClose, replaceSelection, cancelAIAction, undoLastAction }) => (

@@ -471,6 +471,9 @@ export class EditorTracker {
       this.lastEventType = 'delete';
     } else if (event.ctrlKey || event.metaKey) {
       // Ignore meta/ctrl key combinations (they're handled by other commands)
+      this.lastEventType = null;
+      this.lastKeyCode = null;
+      this.lastKeyChar = null;
       return;
     } else {
       this.lastEventType = 'keydown';
@@ -775,7 +778,11 @@ export class EditorTracker {
 
     this.workspaceVisibilityState = 'hidden';
     this.trackPageVisibility('page_hidden', this.getCurrentVisibilityState(), source, metadata);
-    void this.flush().catch(() => undefined);
+    if (this.shouldUseEmergencyFlush(source)) {
+      this.flushForPageExit();
+    } else {
+      void this.flush().catch(() => undefined);
+    }
     return true;
   }
 
@@ -1116,17 +1123,51 @@ export class EditorTracker {
       } finally {
         this.flushPromise = null;
 
-        // Reset flush timer
-        if (this.flushTimer) {
-          clearTimeout(this.flushTimer);
-          this.flushTimer = null;
-        }
+        this.resetFlushTimer();
 
         this.scheduleFlush();
       }
     })();
 
     return this.flushPromise;
+  }
+
+  private resetFlushTimer(): void {
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+  }
+
+  private shouldUseEmergencyFlush(source: string): boolean {
+    return (
+      source === 'pagehide' ||
+      source === 'visibilitychange' ||
+      (typeof document !== 'undefined' && document.visibilityState === 'hidden')
+    );
+  }
+
+  private flushForPageExit(): void {
+    if (this.eventBuffer.length === 0) {
+      return;
+    }
+
+    const events = [...this.eventBuffer];
+    this.eventBuffer = [];
+
+    try {
+      const accepted = this.config.onEmergencyEventsBuffer?.(events) ?? false;
+      if (accepted) {
+        this.resetFlushTimer();
+        this.scheduleFlush();
+        return;
+      }
+    } catch {
+      // Restore below and let the normal retry path attempt delivery.
+    }
+
+    this.eventBuffer = [...events, ...this.eventBuffer];
+    void this.flush().catch(() => undefined);
   }
 
   /**

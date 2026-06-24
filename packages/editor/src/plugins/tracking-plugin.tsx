@@ -11,6 +11,7 @@ export function TrackingPlugin(props: EditorTrackerConfig): null {
   const callbacksRef = useRef({
     onEvent: props.onEvent,
     onEventsBuffer: props.onEventsBuffer,
+    onEmergencyEventsBuffer: props.onEmergencyEventsBuffer,
     onEventFlushReady: props.onEventFlushReady,
     onWorkspaceExitReady: props.onWorkspaceExitReady,
   });
@@ -19,10 +20,17 @@ export function TrackingPlugin(props: EditorTrackerConfig): null {
     callbacksRef.current = {
       onEvent: props.onEvent,
       onEventsBuffer: props.onEventsBuffer,
+      onEmergencyEventsBuffer: props.onEmergencyEventsBuffer,
       onEventFlushReady: props.onEventFlushReady,
       onWorkspaceExitReady: props.onWorkspaceExitReady,
     };
-  }, [props.onEvent, props.onEventsBuffer, props.onEventFlushReady, props.onWorkspaceExitReady]);
+  }, [
+    props.onEvent,
+    props.onEventsBuffer,
+    props.onEmergencyEventsBuffer,
+    props.onEventFlushReady,
+    props.onWorkspaceExitReady,
+  ]);
 
   useEffect(() => {
     if (!props.enabled) {
@@ -33,6 +41,7 @@ export function TrackingPlugin(props: EditorTrackerConfig): null {
       ...props,
       onEvent: (event) => callbacksRef.current.onEvent?.(event),
       onEventsBuffer: (events) => callbacksRef.current.onEventsBuffer?.(events),
+      onEmergencyEventsBuffer: (events) => callbacksRef.current.onEmergencyEventsBuffer?.(events) ?? false,
     });
     tracker.start();
     callbacksRef.current.onEventFlushReady?.(() => tracker.flushPendingEvents());
