@@ -520,8 +520,11 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
     onContentChange,
     onEventTracked,
     onEventsBuffer,
+    onEmergencyEventsBuffer,
     onEventFlushReady,
     onWorkspaceExitReady,
+    trackingBatchSize,
+    trackingFlushInterval,
     onAutoSave,
     className = '',
     initialSelectionText,
@@ -746,8 +749,11 @@ export function LexicalEditor(props: LexicalEditorProps): JSX.Element {
             userId={userId}
             onEvent={onEventTracked}
             onEventsBuffer={onEventsBuffer}
+            onEmergencyEventsBuffer={onEmergencyEventsBuffer}
             onEventFlushReady={onEventFlushReady}
             onWorkspaceExitReady={onWorkspaceExitReady}
+            batchSize={trackingBatchSize}
+            flushInterval={trackingFlushInterval}
             enabled={trackingEnabled}
             copyPastePolicy={copyPastePolicy}
           />

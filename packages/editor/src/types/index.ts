@@ -8,6 +8,7 @@ export interface EditorTrackerConfig {
   userId?: string;
   onEvent?: (event: TrackedEvent) => void;
   onEventsBuffer?: (events: TrackedEvent[]) => void | Promise<void>;
+  onEmergencyEventsBuffer?: (events: TrackedEvent[]) => boolean;
   onEventFlushReady?: (flushPendingEvents: (() => Promise<void>) | null) => void;
   onWorkspaceExitReady?: (markWorkspaceExit: WorkspaceExitMarker | null) => void;
   batchSize?: number;
@@ -138,8 +139,11 @@ export interface LexicalEditorProps {
   onContentChange?: (content: Record<string, any>, plainText: string) => void;
   onEventTracked?: (event: TrackedEvent) => void;
   onEventsBuffer?: (events: TrackedEvent[]) => void | Promise<void>;
+  onEmergencyEventsBuffer?: (events: TrackedEvent[]) => boolean;
   onEventFlushReady?: (flushPendingEvents: (() => Promise<void>) | null) => void;
   onWorkspaceExitReady?: (markWorkspaceExit: WorkspaceExitMarker | null) => void;
+  trackingBatchSize?: number;
+  trackingFlushInterval?: number;
   onAutoSave?: (content: Record<string, any>, plainText: string) => void;
   className?: string;
   /** Select this text once after the editor mounts. Used by read-only previews. */
