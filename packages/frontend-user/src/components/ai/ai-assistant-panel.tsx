@@ -28,7 +28,17 @@ import { uploadChatImage, validateChatImage } from '@/lib/ai-chat-attachments';
 import type { ChatImageAttachment } from '@humanly/shared';
 import { useAI, useAILogs } from '@/hooks/use-ai';
 import { useAIStore } from '@/stores/ai-store';
-import { AIChatMessage, AISuggestion, AIInteractionLog, type AppFile, type FileTextIndexStatus } from '@humanly/shared';
+import {
+  AIChatMessage,
+  AISuggestion,
+  AIInteractionLog,
+  buildAIChatCopyEventMetadata,
+  HUMANLY_AI_CHAT_COPY_MIME,
+  serializeAIChatCopyProvenance,
+  type AIChatCopyEventMetadata,
+  type AppFile,
+  type FileTextIndexStatus,
+} from '@humanly/shared';
 import {
   Dialog,
   DialogContent,
@@ -51,6 +61,7 @@ interface AIAssistantPanelProps {
   pdfContextFile?: Pick<AppFile, 'pageCount' | 'textIndexStatus'> | null;
   aiRequestLimit?: number | null;
   insertAtCursor?: ((text: string, source: { messageId: string; logId?: string }) => void | Promise<void>) | null;
+  onAIChatCopy?: (metadata: AIChatCopyEventMetadata) => void | Promise<void>;
 }
 
 interface AIAssistantPanelPreviewProps {
@@ -175,6 +186,7 @@ export function AIAssistantPanel({
   pdfContextFile,
   aiRequestLimit,
   insertAtCursor,
+  onAIChatCopy,
 }: AIAssistantPanelProps) {
   const [input, setInput] = useState('');
   // Pending image attachments staged in the input bar. Uploaded as soon as
@@ -661,6 +673,7 @@ export function AIAssistantPanel({
               toolCalls={toolCallTimelines?.[message.id]}
               thinking={thinkingByMessageId?.[message.id]}
               insertAtCursor={insertAtCursor}
+              onAIChatCopy={onAIChatCopy}
             />
           ))}
 
@@ -677,6 +690,7 @@ export function AIAssistantPanel({
               toolCalls={streamingToolCalls}
               thinking={streamingThinking}
               insertAtCursor={insertAtCursor}
+              onAIChatCopy={onAIChatCopy}
             />
           )}
 
@@ -1067,11 +1081,72 @@ interface MessageBubbleProps {
   toolCalls?: ToolCallEntry[];
   thinking?: string;
   insertAtCursor?: ((text: string, source: { messageId: string; logId?: string }) => void | Promise<void>) | null;
+  onAIChatCopy?: (metadata: AIChatCopyEventMetadata) => void | Promise<void>;
 }
 
-function MessageBubble({ message, isStreaming, toolCalls, thinking, insertAtCursor }: MessageBubbleProps) {
+function nodeIsInside(container: HTMLElement, node: Node | null): boolean {
+  return Boolean(node && (container === node || container.contains(node)));
+}
+
+function getSelectedTextInside(container: HTMLElement | null): string {
+  if (!container || typeof window === 'undefined') return '';
+
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return '';
+
+  if (
+    !nodeIsInside(container, selection.anchorNode) ||
+    !nodeIsInside(container, selection.focusNode)
+  ) {
+    return '';
+  }
+
+  return selection.toString();
+}
+
+function MessageBubble({
+  message,
+  isStreaming,
+  toolCalls,
+  thinking,
+  insertAtCursor,
+  onAIChatCopy,
+}: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const canInsert = !isUser && !isStreaming && message.content.trim().length > 0;
+  const contentRef = useRef<HTMLDivElement>(null);
+  const renderMode = isUser ? 'plain' : 'markdown';
+
+  const handleCopyCapture = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
+    const copiedText = getSelectedTextInside(contentRef.current);
+    if (!copiedText) return;
+
+    if (isStreaming && !isUser) {
+      event.preventDefault();
+      return;
+    }
+
+    const metadata = buildAIChatCopyEventMetadata({
+      copiedText,
+      messageId: message.id,
+      logId: message.metadata?.logId,
+      sourceRole: isUser ? 'user' : 'assistant',
+      renderMode,
+    });
+
+    try {
+      event.clipboardData.setData('text/plain', copiedText);
+      event.clipboardData.setData(
+        HUMANLY_AI_CHAT_COPY_MIME,
+        serializeAIChatCopyProvenance(metadata)
+      );
+      event.preventDefault();
+    } catch {
+      // Let the browser's default copy proceed if the custom payload cannot be set.
+    }
+
+    void onAIChatCopy?.(metadata);
+  }, [isStreaming, isUser, message.id, message.metadata?.logId, onAIChatCopy, renderMode]);
 
   return (
     <div className={cn('flex min-w-0 w-full', isUser ? 'justify-end' : 'justify-start')}>
@@ -1086,7 +1161,11 @@ function MessageBubble({ message, isStreaming, toolCalls, thinking, insertAtCurs
         {isUser ? (
           <div className="flex min-w-0 flex-col gap-2">
             {message.content.trim().length > 0 && (
-              <div className="whitespace-pre-wrap break-words overflow-wrap-anywhere leading-relaxed min-w-0">
+              <div
+                ref={contentRef}
+                className="whitespace-pre-wrap break-words overflow-wrap-anywhere leading-relaxed min-w-0"
+                onCopyCapture={handleCopyCapture}
+              >
                 {message.content}
               </div>
             )}
@@ -1098,13 +1177,18 @@ function MessageBubble({ message, isStreaming, toolCalls, thinking, insertAtCurs
           <div className="min-w-0">
             <ReasoningBlock thinking={thinking} />
             <ToolCallTimeline entries={toolCalls} />
-            <MarkdownContent
-              trailingContent={isStreaming ? (
-                <span className="inline-block w-1.5 h-4 ml-0.5 bg-current animate-pulse rounded-sm" />
-              ) : null}
+            <div
+              ref={contentRef}
+              onCopyCapture={handleCopyCapture}
             >
-              {message.content}
-            </MarkdownContent>
+              <MarkdownContent
+                trailingContent={isStreaming ? (
+                  <span className="inline-block w-1.5 h-4 ml-0.5 bg-current animate-pulse rounded-sm" />
+                ) : null}
+              >
+                {message.content}
+              </MarkdownContent>
+            </div>
             {canInsert && (
               <InsertAtCursorButton
                 disabled={!insertAtCursor}

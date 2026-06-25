@@ -98,7 +98,7 @@ type TextCompositionEvent = {
   metadata: Record<string, any> | null;
 };
 
-type SourceInfo = {
+export type SourceInfo = {
   source: AuthorshipTextSourceSpan['source'];
   aiType?: AuthorshipCompositionAiType;
 };
@@ -118,6 +118,7 @@ function emptyComposition(): AuthorshipComposition {
     aiAssistedCharacters: 0,
     aiAssistedByType: {
       chatInsert: 0,
+      chatPaste: 0,
       grammar: 0,
       improve: 0,
       simplify: 0,
@@ -188,6 +189,10 @@ function getSourceInfo(event: TextCompositionEvent): SourceInfo {
     return { source: 'ai_assisted', aiType: 'chatInsert' };
   }
 
+  if (event.eventType === 'ai_response_paste') {
+    return { source: 'ai_assisted', aiType: 'chatPaste' };
+  }
+
   if (event.eventType === 'ai_selection_action' || event.eventType === 'ai_modification_applied') {
     return {
       source: 'ai_assisted',
@@ -196,6 +201,20 @@ function getSourceInfo(event: TextCompositionEvent): SourceInfo {
   }
 
   return { source: 'typed' };
+}
+
+export function getTextCompositionSourceInfo(
+  eventType: string,
+  metadata: Record<string, any> | null = null
+): SourceInfo {
+  return getSourceInfo({
+    eventType,
+    textBefore: null,
+    textAfter: null,
+    selectionStart: null,
+    selectionEnd: null,
+    metadata,
+  });
 }
 
 function mergeAdjacentSpans(spans: SourceSpan[]): SourceSpan[] {
@@ -1039,6 +1058,7 @@ export class DocumentEventModel {
           'paste',
           'ai_modification_applied',
           'ai_insert_from_chat',
+          'ai_response_paste',
           'ai_selection_action',
           'replace',
           'replace-all'

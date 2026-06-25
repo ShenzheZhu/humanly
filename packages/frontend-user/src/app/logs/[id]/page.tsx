@@ -27,6 +27,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import {
   getAIActionLabel,
   getAIInteractionLogLabel,
+  getAIChatCopyProvenance,
   getCopiedTextFromEventMetadata,
   isChatAIInteractionLog,
 } from '@humanly/shared';
@@ -53,6 +54,7 @@ const WRITING_TIMELINE_KINDS = new Set<DocumentEventTimelineItem['kind']>([
   'typing_burst',
   'line_break',
   'ai_insert',
+  'ai_paste',
   'replace',
   'paste',
   'delete',
@@ -80,6 +82,7 @@ const TIMELINE_COLORS: Partial<Record<DocumentEventTimelineItem['kind'], CSSProp
   typing_burst: { backgroundColor: '#EEF1F4', borderColor: '#C8D1DC', color: '#576777' },
   line_break: { backgroundColor: '#EFF2EF', borderColor: '#CBD5CE', color: '#5B6B63' },
   ai_insert: { backgroundColor: '#F0EDF2', borderColor: '#D0C8D7', color: '#655D70' },
+  ai_paste: { backgroundColor: '#F0EDF2', borderColor: '#D0C8D7', color: '#655D70' },
   replace: { backgroundColor: '#EEF1F4', borderColor: '#C8D1DC', color: '#576777' },
   paste: { backgroundColor: '#F2EFE8', borderColor: '#D8CCBA', color: '#6A6256' },
   delete: { backgroundColor: '#F2EDEE', borderColor: '#D6C5C7', color: '#6F5D61' },
@@ -161,6 +164,7 @@ const TIMELINE_ICONS: Partial<Record<DocumentEventTimelineItem['kind'], JSX.Elem
   typing_burst: <Type className="h-3 w-3" />,
   line_break: <CornerDownLeft className="h-3 w-3" />,
   ai_insert: <Sparkles className="h-3 w-3" />,
+  ai_paste: <Sparkles className="h-3 w-3" />,
   replace: <RefreshCw className="h-3 w-3" />,
   paste: <Copy className="h-3 w-3" />,
   delete: <Trash2 className="h-3 w-3" />,
@@ -700,7 +704,7 @@ function getPolicyRefusalQuestion(
 }
 
 function getCopiedText(event: DocumentEventTimelineRawEvent) {
-  return event.eventType === 'copy'
+  return event.eventType === 'copy' || event.eventType === 'ai_chat_copy'
     ? getCopiedTextFromEventMetadata(event.metadata)
     : '';
 }
@@ -719,6 +723,10 @@ function renderCopiedTextDetail(copiedText: string) {
 }
 
 function canExpandRawEvent(event: DocumentEventTimelineRawEvent, aiLogsById?: Map<string, AIInteractionLog>) {
+  if (event.eventType === 'ai_chat_copy') {
+    return Boolean(getCopiedText(event));
+  }
+
   if (event.eventType === 'copy') {
     return canExpandCopiedText(getCopiedText(event));
   }
@@ -828,7 +836,7 @@ function annotateRawEventForAnomaly(
 }
 
 function getRawEventFullText(event: DocumentEventTimelineRawEvent, aiLogsById?: Map<string, AIInteractionLog>) {
-  if (event.eventType === 'copy') return getCopiedText(event);
+  if (event.eventType === 'copy' || event.eventType === 'ai_chat_copy') return getCopiedText(event);
   if (isPolicyRefusalEvent(event)) return getPolicyRefusalQuestion(event, aiLogsById);
   if (event.eventType === 'cut' || isSelectionRawEvent(event)) {
     return getSelectedRawEventText(event);
@@ -838,14 +846,26 @@ function getRawEventFullText(event: DocumentEventTimelineRawEvent, aiLogsById?: 
 
 function getRawEventFullTextHeader(event: DocumentEventTimelineRawEvent) {
   if (event.eventType === 'copy') return 'Copied text';
+  if (event.eventType === 'ai_chat_copy') return 'AI chat copy';
   if (isPolicyRefusalEvent(event)) return 'Refused chat request';
   if (event.eventType === 'cut') return 'Cut text';
   if (isSelectionRawEvent(event)) return 'Selected text';
   return 'Event detail';
 }
 
+function getRawEventTextRenderMode(event: DocumentEventTimelineRawEvent): TextRenderMode {
+  if (event.eventType === 'ai_chat_copy') {
+    return getAIChatCopyProvenance(event.metadata)?.renderMode || 'plain';
+  }
+
+  return 'plain';
+}
+
 function getTimelineTextRenderMode(item: DocumentEventTimelineItem): TextRenderMode {
   if (item.kind === 'ai_insert') return 'markdown';
+  if (item.kind === 'ai_paste') {
+    return getAIChatCopyProvenance(item.metadata)?.renderMode || 'markdown';
+  }
   return 'plain';
 }
 
@@ -860,6 +880,10 @@ function getReplacementAfterText(item: DocumentEventTimelineItem) {
 
 function getReplacementBeforeText(item: DocumentEventTimelineItem) {
   return getMetadataText(item, 'replacedSourceText') || getReplacedText(item);
+}
+
+function isAIResponsePasteReplacement(item: DocumentEventTimelineItem) {
+  return item.kind === 'ai_paste' && Boolean(getReplacementBeforeText(item));
 }
 
 function isMultilineText(text?: string) {
@@ -902,8 +926,16 @@ function renderTimelineDetail(item: DocumentEventTimelineItem) {
     return renderReplacePreview(item);
   }
 
+  if (isAIResponsePasteReplacement(item)) {
+    return renderReplacePreview(item);
+  }
+
   if (item.kind === 'ai_insert') {
     return renderTextPreview(item.text, 'AI inserted text');
+  }
+
+  if (item.kind === 'ai_paste') {
+    return renderTextPreview(item.text, 'AI response paste');
   }
 
   if (item.kind === 'paste') {
@@ -928,6 +960,7 @@ function getTimelineActivityLabel(item: DocumentEventTimelineItem) {
     return getTimelineLineBreakCount(item) > 1 ? 'Blank line' : 'Line break';
   }
   if (item.kind === 'ai_insert') return 'AI inserted';
+  if (item.kind === 'ai_paste') return 'AI response paste';
   if (item.kind === 'replace') return 'Replaced';
   if (item.kind === 'paste') return 'Pasted';
   if (item.kind === 'delete') {
@@ -949,7 +982,7 @@ function getTimelineCount(item: DocumentEventTimelineItem) {
     return `${lineBreakCount} line break${lineBreakCount === 1 ? '' : 's'}`;
   }
 
-  if (item.kind === 'replace') {
+  if (item.kind === 'replace' || isAIResponsePasteReplacement(item)) {
     const replacedCharCount = getReplacedText(item).length;
     const insertedCharCount = item.text?.length || 0;
     return `${replacedCharCount} → ${insertedCharCount} chars`;
@@ -969,7 +1002,7 @@ function getTimelineCount(item: DocumentEventTimelineItem) {
 }
 
 function canExpandTimelineText(item: DocumentEventTimelineItem) {
-  if (item.kind === 'replace') {
+  if (item.kind === 'replace' || isAIResponsePasteReplacement(item)) {
     const previousText = getReplacementBeforeText(item);
     const newText = getReplacementAfterText(item);
 
@@ -981,15 +1014,16 @@ function canExpandTimelineText(item: DocumentEventTimelineItem) {
     );
   }
 
-  if (item.kind !== 'paste' && item.kind !== 'delete' && item.kind !== 'ai_insert') return false;
+  if (item.kind !== 'paste' && item.kind !== 'delete' && item.kind !== 'ai_insert' && item.kind !== 'ai_paste') return false;
   if (item.kind === 'delete' && item.metadata?.deleteScope === 'all_text' && item.text) return true;
   const sourceText = getTimelineSourceText(item);
+  if (item.kind === 'ai_paste') return Boolean(sourceText);
   if ((item.kind === 'paste' || item.kind === 'ai_insert') && isMultilineText(sourceText)) return true;
   return normalizeVisibleText(sourceText).length > LONG_TEXT_PREVIEW_THRESHOLD;
 }
 
 function getTimelineTextPreview(item: DocumentEventTimelineItem) {
-  if (item.kind === 'replace') {
+  if (item.kind === 'replace' || isAIResponsePasteReplacement(item)) {
     if (isMultilineText(getReplacedText(item)) || isMultilineText(item.text)) {
       return getMultilineReplaceSummary(item);
     }
@@ -1003,12 +1037,17 @@ function getTimelineTextPreview(item: DocumentEventTimelineItem) {
   if (item.kind === 'ai_insert' && isMultilineText(item.text)) {
     return getMultilineContentSummary(item.text, 'inserted');
   }
+  if (item.kind === 'ai_paste' && isMultilineText(item.text)) {
+    return getMultilineContentSummary(item.text, 'pasted');
+  }
   return renderTextPreview(item.text, '', LONG_TEXT_PREVIEW_THRESHOLD);
 }
 
 function getFullTextHeader(item: DocumentEventTimelineItem) {
   if (item.kind === 'replace') return 'Replacement';
+  if (isAIResponsePasteReplacement(item)) return 'AI response paste replacement';
   if (item.kind === 'ai_insert') return 'AI inserted text';
+  if (item.kind === 'ai_paste') return 'AI response paste';
   if (item.kind === 'paste') return 'Pasted text';
   if (item.kind === 'delete' && item.metadata?.deleteScope === 'all_text') return 'Deleted all text';
   if (item.kind === 'delete') return 'Deleted text';
@@ -1041,7 +1080,7 @@ function getMultilineContentSummary(
 }
 
 function getFullTextMeta(item: DocumentEventTimelineItem) {
-  if (item.kind === 'replace') {
+  if (item.kind === 'replace' || isAIResponsePasteReplacement(item)) {
     return `${getReplacedText(item).length} chars replaced · ${item.text?.length || 0} chars inserted`;
   }
 
@@ -1106,6 +1145,15 @@ function renderRawDetail(
 
   if (event.eventType === 'copy') {
     return renderCopiedTextDetail(getCopiedText(event));
+  }
+
+  if (event.eventType === 'ai_chat_copy') {
+    const copiedText = getCopiedText(event);
+    if (!copiedText) return 'Copied from AI chat';
+    if (isMultilineText(copiedText)) {
+      return getMultilineContentSummary(copiedText, 'copied');
+    }
+    return <>{renderTextPreview(copiedText, '', LONG_TEXT_PREVIEW_THRESHOLD)} copied from AI chat</>;
   }
 
   if (event.eventType === 'cut') {
@@ -1203,6 +1251,8 @@ function getRawEventDisplayType(event: DocumentEventTimelineRawEvent) {
     return actionType ? getAIActionLabel(actionType) : 'AI quick action';
   }
   if (event.eventType === 'ai_insert_from_chat') return 'AI inserted';
+  if (event.eventType === 'ai_chat_copy') return 'AI chat copy';
+  if (event.eventType === 'ai_response_paste') return 'AI response paste';
   if (event.eventType === 'copy') return 'Copied';
   if (event.eventType === 'cut') return 'Cut';
   if (isSelectionRawEvent(event)) return 'Selected';
@@ -1254,7 +1304,7 @@ function getRawEventCount(event: DocumentEventTimelineRawEvent) {
   }
   if (isPolicyRefusalEvent(event)) return '1 refusal';
   if (isBlockedCopyPasteAttempt(event)) return '1 attempt';
-  if (event.eventType === 'copy') {
+  if (event.eventType === 'copy' || event.eventType === 'ai_chat_copy') {
     const copiedText = getCopiedText(event);
     return copiedText ? `${copiedText.length.toLocaleString()} char${copiedText.length === 1 ? '' : 's'}` : '—';
   }
@@ -1413,7 +1463,7 @@ function RawEventTableRow({
               <p className="mb-2 text-xs font-medium text-muted-foreground">
                 {getRawEventFullTextHeader(event)}
               </p>
-              <RenderableFullText text={fullText} renderMode="plain" />
+              <RenderableFullText text={fullText} renderMode={getRawEventTextRenderMode(event)} />
             </div>
           </td>
         </tr>
@@ -1955,21 +2005,21 @@ export default function DocumentLogsPage() {
                                     </span>
                                   )}
                                 </div>
-                                {item.kind === 'replace' ? (
+                                {item.kind === 'replace' || isAIResponsePasteReplacement(item) ? (
                                   <div className="grid gap-3 md:grid-cols-2">
                                     <div>
                                       <p className="mb-1 text-xs font-medium text-muted-foreground">
-                                        Before
+                                        {isAIResponsePasteReplacement(item) ? 'Replaced text' : 'Before'}
                                       </p>
                                       <RenderableFullText
                                         text={getReplacementBeforeText(item)}
-                                        renderMode={getTimelineTextRenderMode(item)}
+                                        renderMode="plain"
                                         className="rounded border bg-muted/20 p-3"
                                       />
                                     </div>
                                     <div>
                                       <p className="mb-1 text-xs font-medium text-muted-foreground">
-                                        After
+                                        {isAIResponsePasteReplacement(item) ? 'AI response pasted' : 'After'}
                                       </p>
                                       <RenderableFullText
                                         text={getReplacementAfterText(item)}

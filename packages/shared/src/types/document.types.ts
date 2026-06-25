@@ -159,6 +159,7 @@ export type DocumentEventTimelineItemKind =
   | 'typing_burst'
   | 'line_break'
   | 'ai_insert'
+  | 'ai_paste'
   | 'replace'
   | 'paste'
   | 'delete'
@@ -292,6 +293,7 @@ export interface CertificateSeal {
 
 export type AuthorshipCompositionAiType =
   | 'chatInsert'
+  | 'chatPaste'
   | 'grammar'
   | 'improve'
   | 'simplify'
@@ -300,6 +302,7 @@ export type AuthorshipCompositionAiType =
 
 export interface AuthorshipCompositionAiBreakdown {
   chatInsert: number;
+  chatPaste: number;
   grammar: number;
   improve: number;
   simplify: number;

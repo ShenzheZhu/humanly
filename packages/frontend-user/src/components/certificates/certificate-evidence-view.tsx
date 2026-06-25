@@ -164,6 +164,7 @@ function createLegacyComposition(certificate: Pick<CertificateEvidenceRecord, 't
     aiAssistedCharacters: 0,
     aiAssistedByType: {
       chatInsert: 0,
+      chatPaste: 0,
       grammar: 0,
       improve: 0,
       simplify: 0,

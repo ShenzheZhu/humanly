@@ -510,6 +510,8 @@ function eventLabel(event: DocumentEvent): string {
     'alignment-change': 'Alignment changed',
     ai_selection_action: 'AI quick action',
     ai_insert_from_chat: 'AI inserted text',
+    ai_chat_copy: 'AI chat copy',
+    ai_response_paste: 'AI response paste',
     ai_panel_open: 'AI panel opened',
     ai_panel_close: 'AI panel closed',
     ai_query_sent: 'AI question sent',
@@ -713,6 +715,41 @@ function makeAIInsertItem(event: DocumentEvent, delta: TextDelta): DocumentEvent
   };
 }
 
+function makeAIResponsePasteItem(event: DocumentEvent, delta: TextDelta): DocumentEventTimelineItem {
+  const pastedText =
+    delta.insertedText ||
+    (typeof event.metadata?.copiedText === 'string' ? event.metadata.copiedText : '');
+  const replacedText = delta.deletedText;
+
+  return {
+    id: `ai-paste-${event.id}`,
+    kind: 'ai_paste',
+    label: 'AI response paste',
+    timestamp: event.timestamp,
+    startTimestamp: event.timestamp,
+    endTimestamp: event.timestamp,
+    sessionId: event.sessionId,
+    text: pastedText,
+    charCount: pastedText.length || undefined,
+    wordCount: pastedText ? countWords(pastedText) : undefined,
+    cursorStart: event.selectionStart,
+    cursorEnd: event.cursorPosition,
+    rawEventCount: 1,
+    rawEvents: [makeRawEvent(event, delta)],
+    metadata: {
+      ...event.metadata,
+      ...(replacedText
+        ? {
+            operation: 'replace',
+            replacedSelection: true,
+            replacedText,
+            replacedTextLength: replacedText.length,
+          }
+        : { operation: 'paste' }),
+    },
+  };
+}
+
 function summarize(items: DocumentEventTimelineItem[], rawEventTotal: number) {
   return items.reduce(
     (summary, item) => {
@@ -771,8 +808,17 @@ export function buildDocumentEventTimeline(
       items.push(
         event.eventType === 'ai_insert_from_chat'
           ? makeAIInsertItem(event, delta)
+          : event.eventType === 'ai_response_paste'
+            ? makeAIResponsePasteItem(event, delta)
           : makeReplaceItem(event, delta)
       );
+      continue;
+    }
+
+    if (event.eventType === 'ai_response_paste') {
+      flushGroup();
+      recentSelectionEvents = [];
+      items.push(makeAIResponsePasteItem(event, delta));
       continue;
     }
 

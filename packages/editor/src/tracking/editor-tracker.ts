@@ -1,5 +1,10 @@
-import { LexicalEditor, EditorState, $getRoot, $getSelection, $isRangeSelection, COMMAND_PRIORITY_LOW, COMMAND_PRIORITY_HIGH, KEY_DOWN_COMMAND, PASTE_COMMAND, COPY_COMMAND, CUT_COMMAND, SELECTION_CHANGE_COMMAND, FOCUS_COMMAND, BLUR_COMMAND, INDENT_CONTENT_COMMAND, OUTDENT_CONTENT_COMMAND, FORMAT_TEXT_COMMAND, TextFormatType } from 'lexical';
-import { buildCopiedTextEventMetadata, EventType } from '@humanly/shared';
+import { LexicalEditor, EditorState, $getRoot, $getSelection, $isRangeSelection, COMMAND_PRIORITY_LOW, COMMAND_PRIORITY_HIGH, COMMAND_PRIORITY_CRITICAL, KEY_DOWN_COMMAND, PASTE_COMMAND, COPY_COMMAND, CUT_COMMAND, SELECTION_CHANGE_COMMAND, FOCUS_COMMAND, BLUR_COMMAND, INDENT_CONTENT_COMMAND, OUTDENT_CONTENT_COMMAND, FORMAT_TEXT_COMMAND, TextFormatType } from 'lexical';
+import {
+  buildCopiedTextEventMetadata,
+  EventType,
+  HUMANLY_AI_CHAT_COPY_MIME,
+  parseAIChatCopyProvenance,
+} from '@humanly/shared';
 import { EditorTrackerConfig, EventMetadata, TrackedEvent } from '../types';
 import {
   HEADING_CHANGE_COMMAND,
@@ -112,19 +117,49 @@ export class EditorTracker {
     const removePasteListener = this.editor.registerCommand(
       PASTE_COMMAND,
       (event: ClipboardEvent | null) => {
+        const aiChatProvenance = parseAIChatCopyProvenance(
+          event?.clipboardData?.getData(HUMANLY_AI_CHAT_COPY_MIME)
+        );
+        const aiChatPasteMetadata = aiChatProvenance
+          ? {
+              source: aiChatProvenance.source,
+              copyId: aiChatProvenance.copyId,
+              messageId: aiChatProvenance.messageId,
+              logId: aiChatProvenance.logId,
+              sourceRole: aiChatProvenance.sourceRole,
+              renderMode: aiChatProvenance.renderMode,
+              copiedTextHash: aiChatProvenance.copiedTextHash,
+              copiedTextLength: aiChatProvenance.copiedTextLength,
+              copiedLineCount: aiChatProvenance.copiedLineCount,
+              copiedAt: aiChatProvenance.copiedAt,
+            }
+          : undefined;
+
         if (this.shouldBlockClipboard()) {
-          this.trackBlockedCopyPasteAttempt('paste', event?.clipboardData?.getData('text/plain')?.length || 0);
+          this.trackBlockedCopyPasteAttempt(
+            'paste',
+            event?.clipboardData?.getData('text/plain')?.length || 0,
+            aiChatPasteMetadata
+          );
           event?.preventDefault();
           return true;
         }
 
         if (this.shouldTrackClipboard()) {
-          this.lastEventType = 'paste';
+          if (aiChatPasteMetadata) {
+            this.lastEventType = 'ai_response_paste';
+            this.setPendingTextChangeMetadata({
+              ...aiChatPasteMetadata,
+              pastedTextLength: event?.clipboardData?.getData('text/plain')?.length || 0,
+            });
+          } else {
+            this.lastEventType = 'paste';
+          }
         }
 
         return false; // Don't prevent default
       },
-      COMMAND_PRIORITY_HIGH
+      COMMAND_PRIORITY_CRITICAL
     );
 
     // Track copy events
@@ -143,7 +178,7 @@ export class EditorTracker {
 
         return false;
       },
-      COMMAND_PRIORITY_HIGH
+      COMMAND_PRIORITY_CRITICAL
     );
 
     // Track cut events
@@ -162,7 +197,7 @@ export class EditorTracker {
 
         return false;
       },
-      COMMAND_PRIORITY_HIGH
+      COMMAND_PRIORITY_CRITICAL
     );
 
     // Track selection changes
@@ -567,7 +602,11 @@ export class EditorTracker {
   /**
    * Track copy/cut/paste attempts blocked by the active writing policy.
    */
-  private trackBlockedCopyPasteAttempt(action: 'copy' | 'cut' | 'paste', attemptedTextLength = 0): void {
+  private trackBlockedCopyPasteAttempt(
+    action: 'copy' | 'cut' | 'paste',
+    attemptedTextLength = 0,
+    additionalMetadata?: EventMetadata
+  ): void {
     this.editor.getEditorState().read(() => {
       const currentText = this.extractPlainText(this.editor.getEditorState());
       const { cursorPosition, selectionStart, selectionEnd } = this.getSelectionInfo(this.editor.getEditorState());
@@ -587,6 +626,7 @@ export class EditorTracker {
           policy: 'blocked',
           selectedCharacterCount: selectedText.length,
           attemptedTextLength: action === 'paste' ? attemptedTextLength : undefined,
+          ...additionalMetadata,
         },
       };
 
