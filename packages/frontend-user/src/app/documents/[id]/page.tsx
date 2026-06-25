@@ -67,6 +67,7 @@ import {
   normalizeCopyPastePolicy,
   normalizeResourceAccessPolicy,
   serializeEnvironmentConfig,
+  type AIChatCopyEventMetadata,
   type AppFile,
   type EnvironmentConfigFileFormat,
   type WritingAiProviderConfig,
@@ -1183,6 +1184,21 @@ export default function DocumentEditorPage() {
     [editorInsertAtCursor, enqueueEventWrite, submissionSessionId, toast]
   );
 
+  const handleAIChatCopy = useCallback(
+    async (metadata: AIChatCopyEventMetadata) => {
+      const currentSessionId = getCurrentActivitySessionId();
+      const event = {
+        sessionId: currentSessionId || undefined,
+        eventType: 'ai_chat_copy',
+        timestamp: new Date(),
+        metadata,
+      };
+
+      void enqueueEventWrite([event as any], currentSessionId, { retainOnFailure: true }).catch(() => undefined);
+    },
+    [enqueueEventWrite, getCurrentActivitySessionId]
+  );
+
   const handleCharacterLimitReached = useCallback((limit: number) => {
     const now = Date.now();
     if (now - lastCharacterLimitToastRef.current < 1200) return;
@@ -1755,6 +1771,7 @@ export default function DocumentEditorPage() {
                       pdfContextFile={displayFile}
                       aiRequestLimit={aiRequestLimit}
                       insertAtCursor={!isEditorReadOnly && editorInsertAtCursor ? handleInsertAssistantMessage : null}
+                      onAIChatCopy={handleAIChatCopy}
                     />
                   </div>
                 </ResizablePanel>

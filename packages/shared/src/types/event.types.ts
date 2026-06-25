@@ -64,6 +64,8 @@ export type EventType =
   | 'ai_selection_action'
   // AI chat insert events
   | 'ai_insert_from_chat'
+  | 'ai_chat_copy'
+  | 'ai_response_paste'
   // AI policy enforcement events
   | 'ai_policy_refusal';
 
