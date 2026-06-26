@@ -33,7 +33,7 @@ import {
   List,
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { TaskCard } from './_components/task-card';
+import { TaskCard, TASK_LIST_GRID_CLASS } from './_components/task-card';
 import {
   filterTasksForDashboard,
   getTaskActiveStateAction,
@@ -614,12 +614,12 @@ export default function TasksPage() {
         </div>
       ) : (
         <div>
-          <div className="hidden grid-cols-[minmax(0,1.4fr)_8.5rem_10rem_11rem_15rem] border-b border-border/70 px-2 pb-2 text-xs font-medium uppercase tracking-normal text-muted-foreground md:grid">
+          <div className={`hidden gap-3 border-b border-border/70 px-2 pb-2 text-xs font-medium uppercase tracking-normal text-muted-foreground md:grid ${TASK_LIST_GRID_CLASS}`}>
             <span>Task name</span>
             <span>Status</span>
             <span>Completions</span>
             <span>Created</span>
-            <span />
+            <span className="sr-only">Actions</span>
           </div>
           <div>
             {paginatedTasks.map((task) => (
