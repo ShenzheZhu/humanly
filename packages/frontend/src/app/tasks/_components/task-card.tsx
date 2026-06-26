@@ -39,6 +39,8 @@ import {
   type TaskWindowStatus,
 } from './task-dashboard-lifecycle';
 
+export const TASK_LIST_GRID_CLASS = 'md:grid-cols-[minmax(0,1.4fr)_8.5rem_10rem_11rem_15rem]';
+
 interface TaskCardProps {
   task: TaskDashboardItem;
   activeTab: TaskDashboardTab;
@@ -280,7 +282,7 @@ export function TaskCard({
           role="button"
           tabIndex={0}
           aria-label={`View ${task.name}`}
-          className="grid min-h-[5.5rem] cursor-pointer grid-cols-1 gap-3 px-2 py-3 transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:grid-cols-[minmax(0,1.4fr)_8.5rem_10rem_11rem_15rem] md:items-center"
+          className={`grid min-h-[5.5rem] cursor-pointer grid-cols-1 gap-3 px-2 py-3 transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${TASK_LIST_GRID_CLASS} md:items-center`}
           onClick={() => onView(task)}
           onKeyDown={handleRowKeyDown}
         >
@@ -311,7 +313,7 @@ export function TaskCard({
           <div className="hidden text-sm text-muted-foreground md:block">
             Created {formatDateTime(task.createdAt)}
           </div>
-          <div className="flex items-center justify-end gap-2 md:justify-start">
+          <div className="flex items-center justify-end gap-2">
             <Button
               type="button"
               variant={task.lifecycleStatus === 'active' ? 'outline' : 'secondary'}
