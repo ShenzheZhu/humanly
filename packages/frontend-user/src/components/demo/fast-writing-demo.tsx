@@ -822,7 +822,7 @@ function DemoTaskSetup({
 function SaveStatusIndicator({ status }: { status: SaveStatus }) {
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium ${
+      className={`inline-flex w-[5.75rem] shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium ${
         status === 'saving' ? 'text-muted-foreground' : 'text-emerald-700'
       }`}
       aria-live="polite"
