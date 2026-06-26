@@ -1,6 +1,8 @@
 import { query, queryOne } from '../config/database';
 import { Submission, SubmissionInsertData } from '@humanly/shared';
 
+type SubmissionSummary = Omit<Submission, 'payloadSnapshot' | 'plainTextSnapshot'>;
+
 const SUBMISSION_SELECT_FIELDS = `
   id,
   task_id as "taskId",
@@ -44,6 +46,24 @@ const SUBMISSION_WITH_CERTIFICATE_SELECT_FIELDS = `
       AND de.event_type = 'ai_policy_refusal'
       AND de.timestamp <= s.submitted_at
   ), 0) as "aiPolicyRefusalCount",
+  s.created_at as "createdAt"
+`;
+
+const SUBMISSION_SUMMARY_SELECT_FIELDS = `
+  s.id,
+  s.task_id as "taskId",
+  s.user_id as "userId",
+  u.email as "userEmail",
+  s.document_id as "documentId",
+  d.title as "documentTitle",
+  s.task_attempt_id as "taskAttemptId",
+  ta.attempt_number as "attemptNumber",
+  s.certificate_id as "certificateId",
+  c.verification_token as "certificateVerificationToken",
+  s.submitted_at as "submittedAt",
+  s.supersedes_submission_id as "supersedesSubmissionId",
+  s.status,
+  COALESCE(s.anomaly_flags, c.anomaly_flags, '[]'::jsonb) as "anomalyFlags",
   s.created_at as "createdAt"
 `;
 
@@ -134,34 +154,70 @@ export class SubmissionModel {
     return queryOne<Submission>(sql, [taskAttemptId]);
   }
 
-  static async listForUserTask(taskId: string, userId: string): Promise<Submission[]> {
+  static async listForUserTask(taskId: string, userId: string): Promise<SubmissionSummary[]> {
     const sql = `
-      SELECT ${SUBMISSION_WITH_CERTIFICATE_SELECT_FIELDS}
-      FROM submissions s
-      LEFT JOIN certificates c ON c.id = s.certificate_id
-      LEFT JOIN users u ON u.id = s.user_id
-      LEFT JOIN documents d ON d.id = s.document_id
-      LEFT JOIN task_attempts ta ON ta.id = s.task_attempt_id
-      WHERE s.task_id = $1 AND s.user_id = $2
-      ORDER BY s.submitted_at DESC, s.created_at DESC
+      WITH scoped_submissions AS (
+        SELECT ${SUBMISSION_SUMMARY_SELECT_FIELDS}
+        FROM submissions s
+        LEFT JOIN certificates c ON c.id = s.certificate_id
+        LEFT JOIN users u ON u.id = s.user_id
+        LEFT JOIN documents d ON d.id = s.document_id
+        LEFT JOIN task_attempts ta ON ta.id = s.task_attempt_id
+        WHERE s.task_id = $1 AND s.user_id = $2
+      ),
+      refusal_counts AS (
+        SELECT
+          ss."id" AS "submissionId",
+          COUNT(de.id)::int AS "aiPolicyRefusalCount"
+        FROM scoped_submissions ss
+        JOIN document_events de
+          ON de.document_id = ss."documentId"
+          AND de.event_type = 'ai_policy_refusal'
+          AND de.timestamp <= ss."submittedAt"
+        GROUP BY ss."id"
+      )
+      SELECT
+        ss.*,
+        COALESCE(rc."aiPolicyRefusalCount", 0) AS "aiPolicyRefusalCount"
+      FROM scoped_submissions ss
+      LEFT JOIN refusal_counts rc ON rc."submissionId" = ss."id"
+      ORDER BY ss."submittedAt" DESC, ss."createdAt" DESC
     `;
 
-    return query<Submission>(sql, [taskId, userId]);
+    return query<SubmissionSummary>(sql, [taskId, userId]);
   }
 
-  static async listForTask(taskId: string): Promise<Submission[]> {
+  static async listForTask(taskId: string): Promise<SubmissionSummary[]> {
     const sql = `
-      SELECT ${SUBMISSION_WITH_CERTIFICATE_SELECT_FIELDS}
-      FROM submissions s
-      LEFT JOIN certificates c ON c.id = s.certificate_id
-      LEFT JOIN users u ON u.id = s.user_id
-      LEFT JOIN documents d ON d.id = s.document_id
-      LEFT JOIN task_attempts ta ON ta.id = s.task_attempt_id
-      WHERE s.task_id = $1
-      ORDER BY s.submitted_at DESC, s.created_at DESC
+      WITH scoped_submissions AS (
+        SELECT ${SUBMISSION_SUMMARY_SELECT_FIELDS}
+        FROM submissions s
+        LEFT JOIN certificates c ON c.id = s.certificate_id
+        LEFT JOIN users u ON u.id = s.user_id
+        LEFT JOIN documents d ON d.id = s.document_id
+        LEFT JOIN task_attempts ta ON ta.id = s.task_attempt_id
+        WHERE s.task_id = $1
+      ),
+      refusal_counts AS (
+        SELECT
+          ss."id" AS "submissionId",
+          COUNT(de.id)::int AS "aiPolicyRefusalCount"
+        FROM scoped_submissions ss
+        JOIN document_events de
+          ON de.document_id = ss."documentId"
+          AND de.event_type = 'ai_policy_refusal'
+          AND de.timestamp <= ss."submittedAt"
+        GROUP BY ss."id"
+      )
+      SELECT
+        ss.*,
+        COALESCE(rc."aiPolicyRefusalCount", 0) AS "aiPolicyRefusalCount"
+      FROM scoped_submissions ss
+      LEFT JOIN refusal_counts rc ON rc."submissionId" = ss."id"
+      ORDER BY ss."submittedAt" DESC, ss."createdAt" DESC
     `;
 
-    return query<Submission>(sql, [taskId]);
+    return query<SubmissionSummary>(sql, [taskId]);
   }
 
   static async markHistoricalForUserTask(taskId: string, userId: string): Promise<void> {
