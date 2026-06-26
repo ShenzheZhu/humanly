@@ -1120,8 +1120,9 @@ function MessageBubble({
   const handleCopyCapture = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
     const copiedText = getSelectedTextInside(contentRef.current);
     if (!copiedText) return;
+    if (isUser) return;
 
-    if (isStreaming && !isUser) {
+    if (isStreaming) {
       event.preventDefault();
       return;
     }
@@ -1130,7 +1131,7 @@ function MessageBubble({
       copiedText,
       messageId: message.id,
       logId: message.metadata?.logId,
-      sourceRole: isUser ? 'user' : 'assistant',
+      sourceRole: 'assistant',
       renderMode,
     });
 
