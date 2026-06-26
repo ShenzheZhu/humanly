@@ -12,8 +12,6 @@ import {
   FileText,
   HelpCircle,
   Loader2,
-  PanelLeft,
-  PanelLeftClose,
   RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -277,7 +275,7 @@ function SaveStatusIndicator({ status }: { status: SaveStatus }) {
 
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium ${config.className}`}
+      className={`inline-flex w-[5.75rem] shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium ${config.className}`}
       aria-live="polite"
     >
       {config.icon}
@@ -302,7 +300,6 @@ export default function DocumentEditorPage() {
     startWritingSession,
     trackEvents,
   } = useDocument(documentId);
-  const [showPdfPanel, setShowPdfPanel] = useState(true);
   const { generateCertificate } = useCertificates();
 
   const [title, setTitle] = useState('');
@@ -639,12 +636,6 @@ export default function DocumentEditorPage() {
   }, [aiChatEnabled, closeAIPanel, isAIPanelOpen]);
 
   useEffect(() => {
-    if (linkedFile) {
-      setShowPdfPanel(true);
-    }
-  }, [linkedFile]);
-
-  useEffect(() => {
     let cancelled = false;
     let refreshInterval: number | null = null;
 
@@ -735,7 +726,6 @@ export default function DocumentEditorPage() {
           }
           return file?.id || null;
         });
-        if (file) setShowPdfPanel(true);
       } catch {
         if (!cancelled) {
           setTaskInstructionFile(null);
@@ -1489,18 +1479,6 @@ export default function DocumentEditorPage() {
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-              {displayFile && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowPdfPanel(!showPdfPanel)}
-                  title={showPdfPanel ? 'Hide PDF' : 'Show PDF'}
-                >
-                  {showPdfPanel ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
-                  <span className="hidden sm:inline ml-1">PDF</span>
-                </Button>
-              )}
-
               {!hasCharacterBounds && (
                 <div
                   className="hidden sm:block text-sm text-muted-foreground"
@@ -1634,7 +1612,7 @@ export default function DocumentEditorPage() {
           {/* ✅ Resizable like Overleaf */}
           <ResizablePanelGroup direction="horizontal" className="h-full w-full overflow-hidden rounded-lg border border-border/80 bg-card">
             {/* PDF */}
-            {displayFile && showPdfPanel ? (
+            {displayFile ? (
               <ResizablePanel defaultSize={38} minSize={22}>
                 <div className="flex h-full flex-col overflow-hidden border-r border-border/70 bg-card">
                   {taskInstructionFiles.length > 1 ? (
@@ -1668,11 +1646,11 @@ export default function DocumentEditorPage() {
               </ResizablePanel>
             ) : null}
 
-            {displayFile && showPdfPanel ? <ResizableHandle withHandle /> : null}
+            {displayFile ? <ResizableHandle withHandle /> : null}
 
             {/* Editor */}
             <ResizablePanel
-              defaultSize={displayFile && showPdfPanel ? (isAIPanelVisible ? 37 : 62) : (isAIPanelVisible ? 70 : 100)}
+              defaultSize={displayFile ? (isAIPanelVisible ? 37 : 62) : (isAIPanelVisible ? 70 : 100)}
               minSize={30}
             >
               <div className="h-full overflow-auto bg-background">

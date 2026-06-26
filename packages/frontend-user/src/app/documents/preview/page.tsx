@@ -9,7 +9,6 @@ import {
   Download,
   FileText,
   HelpCircle,
-  PanelLeftClose,
 } from 'lucide-react';
 import { LexicalEditor } from '@humanly/editor';
 import {
@@ -359,13 +358,6 @@ export default function WorkspacePreviewPage() {
             </div>
 
             <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-              {hasPdf ? (
-                <Button variant="outline" size="sm" title="PDF" disabled>
-                  <PanelLeftClose className="h-4 w-4" />
-                  <span className="ml-1 hidden sm:inline">PDF</span>
-                </Button>
-              ) : null}
-
               {!characterBounds.hasBounds ? (
                 <div className="hidden text-sm text-muted-foreground sm:block" title={characterBounds.title}>
                   {characterBounds.label}
