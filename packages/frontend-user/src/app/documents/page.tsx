@@ -667,7 +667,7 @@ export default function DocumentsPage() {
                 </div>
               ) : (
                 <div>
-                  <div className="hidden grid-cols-[minmax(0,1fr)_8.5rem_10rem_2.75rem] border-b border-border/70 px-2 pb-2 text-xs font-medium uppercase tracking-normal text-muted-foreground md:grid">
+                  <div className="hidden grid-cols-[minmax(0,1fr)_8.5rem_10rem_2.75rem] gap-3 border-b border-border/70 px-2 pb-2 pr-12 text-xs font-medium uppercase tracking-normal text-muted-foreground md:grid">
                     <span>Name</span>
                     <span>Characters</span>
                     <span>Last edited</span>
