@@ -589,15 +589,32 @@ export default function NewTaskPage() {
 
   useEffect(() => {
     const firstPdf = instructionFiles[0];
-    if (!firstPdf || typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') {
+    if (!firstPdf || typeof FileReader === 'undefined') {
       setInstructionPdfPreviewUrl(undefined);
       return undefined;
     }
 
-    const objectUrl = URL.createObjectURL(firstPdf);
-    setInstructionPdfPreviewUrl(objectUrl);
+    let cancelled = false;
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (!cancelled && typeof reader.result === 'string') {
+        setInstructionPdfPreviewUrl(reader.result);
+      }
+    };
+
+    reader.onerror = () => {
+      if (!cancelled) {
+        setInstructionPdfPreviewUrl(undefined);
+      }
+    };
+
+    // The writer preview runs on app.writehumanly.net while this page runs on
+    // admin.writehumanly.net, so blob: URLs cannot be shared across origins.
+    reader.readAsDataURL(firstPdf);
+
     return () => {
-      URL.revokeObjectURL(objectUrl);
+      cancelled = true;
     };
   }, [instructionFiles]);
 

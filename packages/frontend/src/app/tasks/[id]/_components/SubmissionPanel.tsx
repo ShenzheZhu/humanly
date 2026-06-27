@@ -61,7 +61,8 @@ const getFlagBadgeClass = (severity: keyof typeof severityRank) => {
 
 type TaskExportKind = 'submissions' | 'log-events';
 type TaskExportFormat = 'csv' | 'json';
-type DownloadTarget = `${TaskExportKind}:${TaskExportFormat}`;
+type TaskExportScope = 'all' | 'selected-user';
+type DownloadTarget = `${TaskExportKind}:${TaskExportFormat}:${TaskExportScope}`;
 
 const getTaskExportFilename = (
   taskId: string,
@@ -127,14 +128,22 @@ export function SubmissionPanel({
     router.push(`/tasks/${taskId}/submissions/${submissionId}?from=submission`);
   };
 
-  const downloadTaskExport = async (kind: TaskExportKind, format: TaskExportFormat) => {
-    const target: DownloadTarget = `${kind}:${format}`;
+  const downloadTaskExport = async (
+    kind: TaskExportKind,
+    format: TaskExportFormat,
+    scope: TaskExportScope = 'all'
+  ) => {
+    const target: DownloadTarget = `${kind}:${format}:${scope}`;
     setDownloadTarget(target);
     setDownloadError(null);
 
+    const userId = scope === 'selected-user' && selectedUserId !== 'all'
+      ? selectedUserId
+      : undefined;
+
     try {
       const response = await apiClient.get<Blob>(`/api/v1/tasks/${taskId}/exports/${kind}`, {
-        params: { format },
+        params: { format, ...(userId ? { userId } : {}) },
         responseType: 'blob',
       });
       const filename = getTaskExportFilename(
@@ -203,8 +212,13 @@ export function SubmissionPanel({
     );
   };
 
-  const renderDownloadButton = (kind: TaskExportKind, format: TaskExportFormat, label: string) => {
-    const target: DownloadTarget = `${kind}:${format}`;
+  const renderDownloadButton = (
+    kind: TaskExportKind,
+    format: TaskExportFormat,
+    label: string,
+    scope: TaskExportScope = 'all'
+  ) => {
+    const target: DownloadTarget = `${kind}:${format}:${scope}`;
     const isDownloading = downloadTarget === target;
 
     return (
@@ -212,7 +226,7 @@ export function SubmissionPanel({
         type="button"
         variant="outline"
         size="sm"
-        onClick={() => downloadTaskExport(kind, format)}
+        onClick={() => downloadTaskExport(kind, format, scope)}
         disabled={Boolean(downloadTarget)}
       >
         {isDownloading ? (
@@ -302,8 +316,18 @@ export function SubmissionPanel({
               </CardTitle>
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
-              {renderDownloadButton('log-events', 'csv', 'Log events CSV')}
-              {renderDownloadButton('submissions', 'csv', 'Submissions CSV')}
+              {selectedUserId === 'all' ? (
+                <>
+                  {renderDownloadButton('log-events', 'csv', 'Log events CSV')}
+                  {renderDownloadButton('submissions', 'csv', 'Submissions CSV')}
+                </>
+              ) : (
+                <>
+                  {renderDownloadButton('log-events', 'csv', 'User log events CSV', 'selected-user')}
+                  {renderDownloadButton('submissions', 'csv', 'User submissions CSV', 'selected-user')}
+                  {renderDownloadButton('log-events', 'csv', 'All log events CSV')}
+                </>
+              )}
               <Button
                 variant="outline"
                 size="icon"
