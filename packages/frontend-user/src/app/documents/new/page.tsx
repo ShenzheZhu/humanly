@@ -37,8 +37,9 @@ import {
   normalizeResourceAccessPolicy,
   parseEnvironmentConfigContent,
   validateWritingEnvironmentImportTemplate,
-  buildWorkspaceSetupPreviewHash,
+  buildWorkspaceSetupPreviewStorageHash,
   buildWritingAiConnectionTestRequest,
+  WORKSPACE_SETUP_PREVIEW_STORAGE_PREFIX,
   type UserAISettings,
   type WritingAiConnectionTestResult,
   type WritingAiAccess,
@@ -947,7 +948,15 @@ export default function NewDocumentPage() {
     selectedAiModel,
     title,
   });
-  const workspacePreviewHref = `/documents/preview${buildWorkspaceSetupPreviewHash(getWorkspacePreviewPayload())}`;
+  const openWorkspacePreview = () => {
+    const storageKey = `${WORKSPACE_SETUP_PREVIEW_STORAGE_PREFIX}${crypto.randomUUID()}`;
+    sessionStorage.setItem(storageKey, JSON.stringify(getWorkspacePreviewPayload()));
+    window.open(
+      `/documents/preview${buildWorkspaceSetupPreviewStorageHash(storageKey)}`,
+      '_blank',
+      'noopener,noreferrer'
+    );
+  };
 
   const customEnvironmentControls = (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -1359,17 +1368,15 @@ export default function NewDocumentPage() {
                 Set up the task details, AI access, and writing controls before you start.
               </CardDescription>
             </div>
-            <Button asChild variant="outline" className="shrink-0 gap-2">
-              <a
-                href={workspacePreviewHref}
-                target="_blank"
-                rel="noreferrer"
-                aria-disabled={isCreating}
-                className={isCreating ? 'pointer-events-none opacity-50' : undefined}
-              >
-                <Eye className="h-4 w-4" />
-                Preview
-              </a>
+            <Button
+              type="button"
+              variant="outline"
+              className="shrink-0 gap-2"
+              onClick={openWorkspacePreview}
+              disabled={isCreating}
+            >
+              <Eye className="h-4 w-4" />
+              Preview
             </Button>
           </div>
         </CardHeader>

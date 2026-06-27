@@ -16,12 +16,14 @@ import {
   decodeWorkspaceSetupPreviewPayload,
   formatCompactDuration,
   getWorkspaceSetupPreviewHashValue,
+  getWorkspaceSetupPreviewStorageHashValue,
   isWritingAiChatEnabled,
   isWritingAiEnabled,
   isWritingAiPolishEnabled,
   normalizeCopyPastePolicy,
   normalizeResourceAccessPolicy,
   normalizeWritingAiAccess,
+  WORKSPACE_SETUP_PREVIEW_MESSAGE_TYPE,
   type WorkspaceSetupPreviewPayload,
   type WritingEnvironmentConfig,
 } from '@humanly/shared';
@@ -141,6 +143,18 @@ function formatCountdownDuration(totalSeconds: number): string {
 function getPreviewPayload(): WorkspaceSetupPreviewPayload | null {
   if (typeof window === 'undefined') return null;
 
+  const storageKey = getPreviewStorageKey();
+  if (storageKey) {
+    const storedPayload = window.sessionStorage.getItem(storageKey);
+    if (storedPayload) {
+      try {
+        return JSON.parse(storedPayload) as WorkspaceSetupPreviewPayload;
+      } catch {
+        return null;
+      }
+    }
+  }
+
   const encodedPayload = getWorkspaceSetupPreviewHashValue(window.location.hash);
   if (!encodedPayload) return null;
 
@@ -149,6 +163,11 @@ function getPreviewPayload(): WorkspaceSetupPreviewPayload | null {
   } catch {
     return null;
   }
+}
+
+function getPreviewStorageKey(): string | null {
+  if (typeof window === 'undefined') return null;
+  return getWorkspaceSetupPreviewStorageHashValue(window.location.hash);
 }
 
 function getTaskWindowLabel(payload: WorkspaceSetupPreviewPayload): string | null {
@@ -272,8 +291,48 @@ export default function WorkspacePreviewPage() {
 
   useEffect(() => {
     const parsedPayload = getPreviewPayload();
-    setPayload(parsedPayload);
-    setParseFailed(!parsedPayload);
+    if (parsedPayload) {
+      setPayload(parsedPayload);
+      setParseFailed(false);
+      return undefined;
+    }
+
+    const storageKey = getPreviewStorageKey();
+    if (!storageKey) {
+      setParseFailed(true);
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setParseFailed(true);
+    }, 3000);
+
+    const handleMessage = (event: MessageEvent) => {
+      const data = event.data as {
+        payload?: WorkspaceSetupPreviewPayload;
+        storageKey?: string;
+        type?: string;
+      };
+
+      if (
+        data?.type !== WORKSPACE_SETUP_PREVIEW_MESSAGE_TYPE ||
+        data.storageKey !== storageKey ||
+        !data.payload
+      ) {
+        return;
+      }
+
+      window.sessionStorage.setItem(storageKey, JSON.stringify(data.payload));
+      window.clearTimeout(timeoutId);
+      setPayload(data.payload);
+      setParseFailed(false);
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.removeEventListener('message', handleMessage);
+    };
   }, []);
 
   const config = useMemo(

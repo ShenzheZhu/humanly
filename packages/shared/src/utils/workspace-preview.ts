@@ -1,6 +1,9 @@
 import type { WritingEnvironmentConfig } from '../types';
 
 export const WORKSPACE_SETUP_PREVIEW_HASH_KEY = 'workspacePreview';
+export const WORKSPACE_SETUP_PREVIEW_MESSAGE_TYPE = 'humanly:workspace-preview-payload';
+export const WORKSPACE_SETUP_PREVIEW_STORAGE_HASH_KEY = 'workspacePreviewStorageKey';
+export const WORKSPACE_SETUP_PREVIEW_STORAGE_PREFIX = 'humanly:workspace-preview:';
 
 export interface WorkspaceSetupPreviewTaskWindow {
   enabled: boolean;
@@ -61,8 +64,18 @@ export function buildWorkspaceSetupPreviewHash(payload: WorkspaceSetupPreviewPay
   return `#${WORKSPACE_SETUP_PREVIEW_HASH_KEY}=${encoded}`;
 }
 
+export function buildWorkspaceSetupPreviewStorageHash(storageKey: string): string {
+  return `#${WORKSPACE_SETUP_PREVIEW_STORAGE_HASH_KEY}=${encodeURIComponent(storageKey)}`;
+}
+
 export function getWorkspaceSetupPreviewHashValue(hash: string): string | null {
   const normalizedHash = hash.startsWith('#') ? hash.slice(1) : hash;
   const params = new URLSearchParams(normalizedHash);
   return params.get(WORKSPACE_SETUP_PREVIEW_HASH_KEY);
+}
+
+export function getWorkspaceSetupPreviewStorageHashValue(hash: string): string | null {
+  const normalizedHash = hash.startsWith('#') ? hash.slice(1) : hash;
+  const params = new URLSearchParams(normalizedHash);
+  return params.get(WORKSPACE_SETUP_PREVIEW_STORAGE_HASH_KEY);
 }
