@@ -97,6 +97,17 @@ function parseTaskExportFormat(value: unknown): TaskExportFormat {
   throw new AppError(400, 'Export format must be csv or json');
 }
 
+function parseTaskExportUserId(value: unknown): string | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+
+  const parsed = z.string().uuid().safeParse(value);
+  if (!parsed.success) {
+    throw new AppError(400, 'userId must be a valid user ID');
+  }
+
+  return parsed.data;
+}
+
 function formatExportTimestamp(date: Date): string {
   return date.toISOString().replace(/[:.]/g, '-');
 }
@@ -640,7 +651,8 @@ export async function exportTaskSubmissions(req: Request, res: Response): Promis
   }
 
   const format = parseTaskExportFormat(req.query.format);
-  const rows = await TaskService.exportTaskSubmissions(taskId, userId);
+  const exportUserId = parseTaskExportUserId(req.query.userId);
+  const rows = await TaskService.exportTaskSubmissions(taskId, userId, exportUserId);
 
   sendTaskExport(res, {
     taskId,
@@ -663,7 +675,8 @@ export async function exportTaskLogEvents(req: Request, res: Response): Promise<
   }
 
   const format = parseTaskExportFormat(req.query.format);
-  const rows = await TaskService.exportTaskLogEvents(taskId, userId);
+  const exportUserId = parseTaskExportUserId(req.query.userId);
+  const rows = await TaskService.exportTaskLogEvents(taskId, userId, exportUserId);
 
   sendTaskExport(res, {
     taskId,

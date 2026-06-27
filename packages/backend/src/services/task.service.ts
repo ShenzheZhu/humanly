@@ -1004,7 +1004,11 @@ export class TaskService {
     return SubmissionModel.listForTask(task.id);
   }
 
-  static async exportTaskSubmissions(taskId: string, adminUserId: string): Promise<TaskSubmissionExportRow[]> {
+  static async exportTaskSubmissions(
+    taskId: string,
+    adminUserId: string,
+    enrolledUserId?: string
+  ): Promise<TaskSubmissionExportRow[]> {
     const task = await TaskModel.findOwnershipById(taskId);
 
     if (!task) {
@@ -1014,6 +1018,16 @@ export class TaskService {
     if (task.userId !== adminUserId) {
       throw new AppError(403, 'Access denied to this task');
     }
+
+    if (enrolledUserId) {
+      const enrollment = await TaskModel.findEnrollmentForUserTask(task.id, enrolledUserId);
+      if (!enrollment) {
+        throw new AppError(404, 'Task enrollment not found');
+      }
+    }
+
+    const userFilterClause = enrolledUserId ? 'AND s.user_id = $2' : '';
+    const queryParams = enrolledUserId ? [task.id, enrolledUserId] : [task.id];
 
     return query<TaskSubmissionExportRow>(
       `
@@ -1041,13 +1055,18 @@ export class TaskService {
         LEFT JOIN task_attempts ta ON ta.id = s.task_attempt_id
         LEFT JOIN certificates c ON c.id = s.certificate_id
         WHERE s.task_id = $1
+          ${userFilterClause}
         ORDER BY s.submitted_at DESC, s.created_at DESC, s.id DESC
       `,
-      [task.id]
+      queryParams
     );
   }
 
-  static async exportTaskLogEvents(taskId: string, adminUserId: string): Promise<TaskLogEventExportRow[]> {
+  static async exportTaskLogEvents(
+    taskId: string,
+    adminUserId: string,
+    enrolledUserId?: string
+  ): Promise<TaskLogEventExportRow[]> {
     const task = await TaskModel.findOwnershipById(taskId);
 
     if (!task) {
@@ -1057,6 +1076,16 @@ export class TaskService {
     if (task.userId !== adminUserId) {
       throw new AppError(403, 'Access denied to this task');
     }
+
+    if (enrolledUserId) {
+      const enrollment = await TaskModel.findEnrollmentForUserTask(task.id, enrolledUserId);
+      if (!enrollment) {
+        throw new AppError(404, 'Task enrollment not found');
+      }
+    }
+
+    const userFilterClause = enrolledUserId ? 'AND s.user_id = $2' : '';
+    const queryParams = enrolledUserId ? [task.id, enrolledUserId] : [task.id];
 
     return query<TaskLogEventExportRow>(
       `
@@ -1097,9 +1126,10 @@ export class TaskService {
           ON de.document_id = s.document_id
           AND de.timestamp <= s.submitted_at
         WHERE s.task_id = $1
+          ${userFilterClause}
         ORDER BY s.submitted_at DESC, s.id ASC, de.timestamp ASC, de.created_at ASC, de.id ASC
       `,
-      [task.id]
+      queryParams
     );
   }
 
