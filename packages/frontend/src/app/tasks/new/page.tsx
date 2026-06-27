@@ -99,8 +99,10 @@ import {
   normalizeResourceAccessPolicy,
   parseEnvironmentConfigContent,
   validateWritingEnvironmentImportTemplate,
-  buildWorkspaceSetupPreviewHash,
+  buildWorkspaceSetupPreviewStorageHash,
   buildWritingAiConnectionTestRequest,
+  WORKSPACE_SETUP_PREVIEW_MESSAGE_TYPE,
+  WORKSPACE_SETUP_PREVIEW_STORAGE_PREFIX,
   type Task,
   type UserAISettings,
   type WritingAiConnectionTestResult,
@@ -1245,7 +1247,28 @@ export default function NewTaskPage() {
     },
     title: watchedTaskName,
   });
-  const workspacePreviewHref = `${getFrontendUserUrl()}/documents/preview${buildWorkspaceSetupPreviewHash(getWorkspacePreviewPayload())}`;
+  const openWorkspacePreview = () => {
+    const payload = getWorkspacePreviewPayload();
+    const storageKey = `${WORKSPACE_SETUP_PREVIEW_STORAGE_PREFIX}${crypto.randomUUID()}`;
+    const frontendUserUrl = getFrontendUserUrl();
+    const previewWindow = window.open(
+      `${frontendUserUrl}/documents/preview${buildWorkspaceSetupPreviewStorageHash(storageKey)}`,
+      '_blank'
+    );
+
+    if (!previewWindow) return;
+
+    const message = {
+      type: WORKSPACE_SETUP_PREVIEW_MESSAGE_TYPE,
+      storageKey,
+      payload,
+    };
+    const targetOrigin = new URL(frontendUserUrl).origin;
+
+    previewWindow.postMessage(message, targetOrigin);
+    window.setTimeout(() => previewWindow.postMessage(message, targetOrigin), 250);
+    window.setTimeout(() => previewWindow.postMessage(message, targetOrigin), 1000);
+  };
   const customEnvironmentControls = (
     <div className="grid gap-4 xl:grid-cols-2">
       <div className="space-y-4 rounded-md border p-4 xl:col-span-2">
@@ -1836,17 +1859,15 @@ export default function NewTaskPage() {
                 Set up the task details, instruction files, timing, and environment before enrollment starts.
               </CardDescription>
             </div>
-            <Button asChild variant="outline" className="shrink-0 gap-2">
-              <a
-                href={workspacePreviewHref}
-                target="_blank"
-                rel="noreferrer"
-                aria-disabled={isSubmitting}
-                className={isSubmitting ? 'pointer-events-none opacity-50' : undefined}
-              >
-                <Eye className="h-4 w-4" />
-                Preview
-              </a>
+            <Button
+              type="button"
+              variant="outline"
+              className="shrink-0 gap-2"
+              onClick={openWorkspacePreview}
+              disabled={isSubmitting}
+            >
+              <Eye className="h-4 w-4" />
+              Preview
             </Button>
           </div>
         </CardHeader>
