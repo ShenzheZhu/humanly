@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const { extractCompatiblePDFTextContent } = require('./pdf-text-content');
 
 const viewerPath = path.join(__dirname, 'PDFViewer.tsx');
 const viewerSource = fs.readFileSync(viewerPath, 'utf8');
@@ -26,6 +27,71 @@ test('PDFViewer includes CJK CMap and standard font assets required by PDF.js', 
   assert.equal(fs.existsSync(path.join(publicDir, 'cmaps/Adobe-GB1-UCS2.bcmap')), true);
   assert.equal(fs.existsSync(path.join(publicDir, 'cmaps/UniGB-UTF16-H.bcmap')), true);
   assert.equal(fs.existsSync(path.join(publicDir, 'standard_fonts/LiberationSans-Regular.ttf')), true);
+});
+
+test('PDF text extraction falls back to a reader when PDF.js stream async iteration is unavailable', async () => {
+  let streamTextContentCalled = false;
+  let readerReleased = false;
+  const chunks = [
+    {
+      lang: 'en',
+      styles: {
+        f1: { fontFamily: 'Helvetica' },
+      },
+      items: [{ str: 'Hello' }],
+    },
+    {
+      styles: {},
+      items: [{ str: 'world' }],
+    },
+  ];
+  const page = {
+    async getTextContent() {
+      throw new TypeError("undefined is not a function (near '... value of readableStream...')");
+    },
+    streamTextContent() {
+      streamTextContentCalled = true;
+      return {
+        getReader() {
+          return {
+            async read() {
+              const value = chunks.shift();
+              return value ? { done: false, value } : { done: true };
+            },
+            releaseLock() {
+              readerReleased = true;
+            },
+          };
+        },
+      };
+    },
+  };
+
+  const textContent = await extractCompatiblePDFTextContent(page);
+
+  assert.equal(streamTextContentCalled, true);
+  assert.equal(readerReleased, true);
+  assert.equal(textContent.lang, 'en');
+  assert.deepEqual(textContent.items.map((item) => item.str), ['Hello', 'world']);
+  assert.equal(textContent.styles.f1.fontFamily, 'Helvetica');
+});
+
+test('PDF text extraction uses direct getTextContent when available', async () => {
+  const expected = {
+    items: [{ str: 'direct text' }],
+    styles: {},
+    lang: null,
+  };
+  const page = {
+    async getTextContent() {
+      return expected;
+    },
+    streamTextContent() {
+      throw new Error('stream fallback should not run');
+    },
+  };
+
+  assert.equal(await extractCompatiblePDFTextContent(page), expected);
 });
 
 test('personal document workspace preview sends its payload to the opened preview window', () => {

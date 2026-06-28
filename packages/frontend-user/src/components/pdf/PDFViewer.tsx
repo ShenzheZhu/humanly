@@ -22,6 +22,7 @@ import {
   waitForDocumentScopedAccessTokenReady,
 } from '@/lib/api-client'
 import { usePDFTextStore } from '@/stores/pdf-text-store'
+import { extractCompatiblePDFTextContent } from './pdf-text-content'
 
 type PDFJSModule = typeof import('pdfjs-dist')
 
@@ -134,7 +135,7 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
       const pages: string[] = []
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i)
-        const textContent = await page.getTextContent()
+        const textContent = await extractCompatiblePDFTextContent(page)
         pages.push(textContent.items.map((item: any) => item.str).join(' '))
       }
       const fullText = pages.join('\n\n')
@@ -371,7 +372,7 @@ export default function PDFViewer({ fileId, documentId, previewUrl, viewOnly = f
     if (textContentCache.current.has(pageNum)) return textContentCache.current.get(pageNum)
     try {
       const page = await pdfDocRef.current.getPage(pageNum)
-      const textContent = await page.getTextContent()
+      const textContent = await extractCompatiblePDFTextContent(page)
       textContentCache.current.set(pageNum, textContent)
       return textContent
     } catch {
