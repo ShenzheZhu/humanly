@@ -158,6 +158,23 @@ export class TaskModel {
     p.created_at as "createdAt", p.updated_at as "updatedAt"
   `;
 
+  private static readonly publicAccessTaskSelect = `
+    p.id, p.user_id as "userId", p.name, p.description, p.task_token as "taskToken",
+    p.user_id_key as "userIdKey", p.external_service_type as "externalServiceType",
+    p.external_service_url as "externalServiceUrl",
+    p.allowed_llm_models as "allowedLlmModels", p.ai_usage_limit as "aiUsageLimit",
+    p.start_date as "startDate", p.end_date as "endDate",
+    p.environment_config as "environmentConfig",
+    p.allow_guest_submissions as "allowGuestSubmissions",
+    p.is_active as "isActive",
+    p.lifecycle_status as "lifecycleStatus",
+    p.launched_at as "launchedAt",
+    p.paused_at as "pausedAt",
+    p.ended_at as "endedAt",
+    p.deleted_at as "deletedAt",
+    p.created_at as "createdAt", p.updated_at as "updatedAt"
+  `;
+
   private static readonly enrollmentCountJoin = `
     LEFT JOIN (
       SELECT task_id, COUNT(*)::int as enrolled_user_count
@@ -336,6 +353,16 @@ export class TaskModel {
       FROM tasks p
       ${this.enrollmentCountJoin}
       ${this.taskStatsJoin}
+      WHERE p.task_token = $1
+        AND ${this.activeWriterPredicate('p')}
+    `;
+    return queryOne<Task>(sql, [taskToken]);
+  }
+
+  static async findPublicAccessByToken(taskToken: string): Promise<Task | null> {
+    const sql = `
+      SELECT ${this.publicAccessTaskSelect}
+      FROM tasks p
       WHERE p.task_token = $1
         AND ${this.activeWriterPredicate('p')}
     `;
