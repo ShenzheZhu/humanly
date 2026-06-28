@@ -7,7 +7,7 @@ import { AlertCircle, FileText, Loader2, LogIn, RefreshCw, UserRound } from 'luc
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import api, { activateDocumentScopedAccessToken, ApiError, TokenManager } from '@/lib/api-client';
+import api, { activateDocumentScopedAccessToken, TokenManager } from '@/lib/api-client';
 import { useAuthStore, type User } from '@/stores/auth-store';
 import { getUserDisplayLabel, isGuestUserEmail } from '@/components/navigation/user-display';
 
@@ -70,6 +70,17 @@ const getSafeSharePath = (token: string) => {
   return `/tasks/public/${encodeURIComponent(token)}`;
 };
 
+const PUBLIC_TASK_TIMEOUT_MESSAGE = 'This task is taking longer than expected to open. Please try again.';
+
+const getPublicTaskErrorMessage = (error: unknown) => {
+  const message = error instanceof Error ? error.message : '';
+  if (/timeout|exceeded|network error/i.test(message)) {
+    return PUBLIC_TASK_TIMEOUT_MESSAGE;
+  }
+
+  return message || 'This task link is unavailable.';
+};
+
 export default function PublicTaskDocumentStartPage() {
   const params = useParams();
   const router = useRouter();
@@ -101,8 +112,7 @@ export default function PublicTaskDocumentStartPage() {
       );
       setTask(response.data.task);
     } catch (err) {
-      const apiError = err as ApiError;
-      setError(apiError.message || 'This task link is unavailable.');
+      setError(getPublicTaskErrorMessage(err));
       setTask(null);
     } finally {
       setIsLoadingTask(false);
@@ -168,8 +178,7 @@ export default function PublicTaskDocumentStartPage() {
       router.replace(`/documents/${documentId}`);
     } catch (err) {
       hasStartedRef.current = false;
-      const apiError = err as ApiError;
-      setError(apiError.message || 'This task link is unavailable.');
+      setError(getPublicTaskErrorMessage(err));
       setIsStarting(false);
     }
   }, [
