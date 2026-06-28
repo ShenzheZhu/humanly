@@ -473,7 +473,19 @@ export class TaskService {
    * List task enrollments for the current Writer Portal account.
    */
   static async listCurrentUserTaskEnrollments(userId: string) {
-    return TaskModel.listCurrentUserEnrollments(userId);
+    const enrollments = await TaskModel.listCurrentUserEnrollments(userId);
+    const instructionFilesByTaskId = await FileService.listTaskInstructionFilesForTasks(
+      enrollments.map((enrollment) => enrollment.taskId)
+    );
+
+    return enrollments.map((enrollment) => {
+      const instructionFiles = instructionFilesByTaskId.get(enrollment.taskId) || [];
+      return {
+        ...enrollment,
+        instructionFile: instructionFiles[0] || null,
+        instructionFiles,
+      };
+    });
   }
 
   /**
@@ -961,9 +973,11 @@ export class TaskService {
       await TaskModel.linkSubmissionDocument(task.id, participantUser.id, document.id);
     }
 
-    const tokens = isGuestMode
-      ? await this.issuePublicGuestTokens(participantUser)
-      : null;
+    const [tokens, instructionFilesByTaskId] = await Promise.all([
+      isGuestMode ? this.issuePublicGuestTokens(participantUser) : Promise.resolve(null),
+      FileService.listTaskInstructionFilesForTasks([task.id]),
+    ]);
+    const instructionFiles = instructionFilesByTaskId.get(task.id) || [];
     await this.invalidateAnalytics(task.id);
 
     return {
@@ -978,6 +992,8 @@ export class TaskService {
         startDate: task.startDate,
         endDate: task.endDate,
         environmentConfig: task.environmentConfig,
+        instructionFile: instructionFiles[0] || null,
+        instructionFiles,
       },
       document: {
         id: document.id,
