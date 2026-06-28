@@ -421,7 +421,7 @@ export class TaskService {
    */
   static async getPublicTask(taskToken: string): Promise<Task> {
     const token = taskToken.trim();
-    const task = await TaskModel.findByToken(token);
+    const task = await TaskModel.findPublicAccessByToken(token);
 
     if (!task) {
       throw new AppError(404, 'Task link not found or inactive');
@@ -918,89 +918,153 @@ export class TaskService {
     data: PublicTaskStartData = {},
     authenticatedUser?: PublicTaskAuthenticatedUser
   ) {
-    const task = await this.getPublicTask(taskToken);
-    this.assertTaskAcceptsPublicWriters(task);
+    const startMs = Date.now();
+    let task: Task | null = null;
+    let requestedMode: PublicTaskStartData['mode'] | undefined = data.mode;
+    const timings = {
+      lookupTaskMs: 0,
+      participantMs: 0,
+      enrollmentMs: 0,
+      documentMs: 0,
+      tokenMs: 0,
+    };
 
-    const publicSessionId = normalizePublicSessionId(data.sessionId);
-    const requestedMode = data.mode || (authenticatedUser ? 'signed-in' : 'guest');
-    const signedInUser = requestedMode === 'signed-in' && authenticatedUser
-      ? await UserModel.findById(authenticatedUser.userId)
-      : null;
+    try {
+      const lookupStartedAt = Date.now();
+      task = await this.getPublicTask(taskToken);
+      timings.lookupTaskMs = Date.now() - lookupStartedAt;
+      this.assertTaskAcceptsPublicWriters(task);
 
-    if (requestedMode === 'signed-in' && !authenticatedUser) {
-      throw new AppError(401, 'Sign in is required to start this task link');
-    }
+      const publicSessionId = normalizePublicSessionId(data.sessionId);
+      requestedMode = data.mode || (authenticatedUser ? 'signed-in' : 'guest');
 
-    if (requestedMode === 'signed-in' && authenticatedUser && !signedInUser) {
-      throw new AppError(401, 'Authentication required');
-    }
+      const participantStartedAt = Date.now();
+      const signedInUser = requestedMode === 'signed-in' && authenticatedUser
+        ? await UserModel.findById(authenticatedUser.userId)
+        : null;
 
-    const isGuestMode = requestedMode === 'guest';
-    if (isGuestMode && task.allowGuestSubmissions === false) {
-      throw new AppError(403, 'Guest submissions are not enabled for this task link');
-    }
+      if (requestedMode === 'signed-in' && !authenticatedUser) {
+        throw new AppError(401, 'Sign in is required to start this task link');
+      }
 
-    const participantUser = signedInUser || (await this.getOrCreatePublicGuestUser(task, publicSessionId));
+      if (requestedMode === 'signed-in' && authenticatedUser && !signedInUser) {
+        throw new AppError(401, 'Authentication required');
+      }
 
-    await TaskModel.enrollUser(task.id, participantUser.id);
+      const isGuestMode = requestedMode === 'guest';
+      if (isGuestMode && task.allowGuestSubmissions === false) {
+        throw new AppError(403, 'Guest submissions are not enabled for this task link');
+      }
 
-    const enrollment = await TaskModel.findEnrollmentForUserTask(task.id, participantUser.id);
-    if (!enrollment) {
-      throw new AppError(500, 'Failed to create task enrollment');
-    }
+      const participantUser = signedInUser || (await this.getOrCreatePublicGuestUser(task, publicSessionId));
+      timings.participantMs = Date.now() - participantStartedAt;
 
-    let document = enrollment.documentId
-      ? await DocumentModel.findByIdAndUserId(enrollment.documentId, participantUser.id)
-      : null;
+      const enrollmentStartedAt = Date.now();
+      await TaskModel.enrollUser(task.id, participantUser.id);
 
-    if (!document) {
-      const content = createLexicalContentFromPlainText('');
+      const enrollment = await TaskModel.findEnrollmentForUserTask(task.id, participantUser.id);
+      if (!enrollment) {
+        throw new AppError(500, 'Failed to create task enrollment');
+      }
+      timings.enrollmentMs = Date.now() - enrollmentStartedAt;
 
-      document = await DocumentModel.create({
-        userId: participantUser.id,
-        title: task.name,
-        description: isGuestMode
-          ? 'Public task share-link document.'
-          : 'Public task share-link document opened by a signed-in user.',
-        content,
-        plainText: '',
-        status: 'draft',
-        wordCount: 0,
-        characterCount: 0,
-        environmentConfig: task.environmentConfig || null,
+      const documentStartedAt = Date.now();
+      let document = enrollment.documentId
+        ? await DocumentModel.findByIdAndUserId(enrollment.documentId, participantUser.id)
+        : null;
+
+      if (!document) {
+        const content = createLexicalContentFromPlainText('');
+
+        document = await DocumentModel.create({
+          userId: participantUser.id,
+          title: task.name,
+          description: isGuestMode
+            ? 'Public task share-link document.'
+            : 'Public task share-link document opened by a signed-in user.',
+          content,
+          plainText: '',
+          status: 'draft',
+          wordCount: 0,
+          characterCount: 0,
+          environmentConfig: task.environmentConfig || null,
+        });
+
+        const linkedAttempt = await TaskModel.linkSubmissionDocument(task.id, participantUser.id, document.id);
+        if (!linkedAttempt) {
+          const resolvedEnrollment = await TaskModel.findEnrollmentForUserTask(task.id, participantUser.id);
+          const canonicalDocumentId = resolvedEnrollment?.documentId;
+          const canonicalDocument = canonicalDocumentId
+            ? await DocumentModel.findByIdAndUserId(canonicalDocumentId, participantUser.id)
+            : null;
+
+          if (!canonicalDocument) {
+            throw new AppError(500, 'Failed to resolve task document');
+          }
+
+          const orphanDocumentId = document.id;
+          const publicTaskId = task.id;
+          document = canonicalDocument;
+
+          await DocumentModel.delete(orphanDocumentId, participantUser.id).catch((deleteError) => {
+            logger.warn('Failed to clean up orphan public task document', {
+              taskId: publicTaskId,
+              userId: participantUser.id,
+              documentId: orphanDocumentId,
+              error: deleteError instanceof Error ? deleteError.message : 'Unknown error',
+            });
+          });
+        }
+      }
+      timings.documentMs = Date.now() - documentStartedAt;
+
+      const tokenStartedAt = Date.now();
+      const [tokens, instructionFilesByTaskId] = await Promise.all([
+        isGuestMode ? this.issuePublicGuestTokens(participantUser) : Promise.resolve(null),
+        FileService.listTaskInstructionFilesForTasks([task.id]),
+      ]);
+      const instructionFiles = instructionFilesByTaskId.get(task.id) || [];
+      await this.invalidateAnalytics(task.id);
+      timings.tokenMs = Date.now() - tokenStartedAt;
+
+      logger.info('Public task document started', {
+        taskId: task.id,
+        mode: isGuestMode ? 'guest' : 'signed-in',
+        ...timings,
+        totalMs: Date.now() - startMs,
       });
 
-      await TaskModel.linkSubmissionDocument(task.id, participantUser.id, document.id);
+      return {
+        user: participantUser,
+        mode: isGuestMode ? 'guest' as const : 'signed-in' as const,
+        accessToken: tokens?.accessToken,
+        refreshToken: tokens?.refreshToken,
+        task: {
+          id: task.id,
+          name: task.name,
+          description: task.description,
+          startDate: task.startDate,
+          endDate: task.endDate,
+          environmentConfig: task.environmentConfig,
+          instructionFile: instructionFiles[0] || null,
+          instructionFiles,
+        },
+        document: {
+          id: document.id,
+          title: document.title,
+        },
+        publicSessionId,
+      };
+    } catch (error) {
+      logger.warn('Public task document start failed', {
+        taskId: task?.id,
+        mode: requestedMode,
+        ...timings,
+        totalMs: Date.now() - startMs,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw error;
     }
-
-    const [tokens, instructionFilesByTaskId] = await Promise.all([
-      isGuestMode ? this.issuePublicGuestTokens(participantUser) : Promise.resolve(null),
-      FileService.listTaskInstructionFilesForTasks([task.id]),
-    ]);
-    const instructionFiles = instructionFilesByTaskId.get(task.id) || [];
-    await this.invalidateAnalytics(task.id);
-
-    return {
-      user: participantUser,
-      mode: isGuestMode ? 'guest' as const : 'signed-in' as const,
-      accessToken: tokens?.accessToken,
-      refreshToken: tokens?.refreshToken,
-      task: {
-        id: task.id,
-        name: task.name,
-        description: task.description,
-        startDate: task.startDate,
-        endDate: task.endDate,
-        environmentConfig: task.environmentConfig,
-        instructionFile: instructionFiles[0] || null,
-        instructionFiles,
-      },
-      document: {
-        id: document.id,
-        title: document.title,
-      },
-      publicSessionId,
-    };
   }
 
   static async listTaskSubmissions(
